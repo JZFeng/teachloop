@@ -1,0 +1,51 @@
+server:
+  port: ${PORT:8010}
+  forward-headers-strategy: framework
+
+spring:
+  application:
+    name: teachloop
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/teachloop}
+    username: ${DB_USER:teachloop}
+    password: ${DB_PASSWORD:teachloop}
+    hikari:
+      maximum-pool-size: ${DB_POOL:10}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  session:
+    jdbc:
+      initialize-schema: never
+  servlet:
+    multipart:
+      max-file-size: 32MB
+      max-request-size: 32MB
+
+teachloop:
+  grading:
+    engine: stub
+    poll-interval-ms: 2000
+    batch-size: 5
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+
+logging:
+  level:
+    com.teachloop: info

@@ -12,7 +12,7 @@
 
   <artifactId>teachloop-grading</artifactId>
   <name>teachloop-grading</name>
-  <description>阅卷：客观判分、AI 主观、错题解析、复核、发布</description>
+  <description>阅卷：批改引擎、工作项领取、复核、错题解析</description>
 
   <dependencies>
     <dependency>
@@ -20,20 +20,16 @@
       <artifactId>teachloop-shared</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.teachloop</groupId>
-      <artifactId>teachloop-identity</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.teachloop</groupId>
-      <artifactId>teachloop-classroom</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.teachloop</groupId>
-      <artifactId>teachloop-paper</artifactId>
-    </dependency>
-    <dependency>
-      <groupId>com.teachloop</groupId>
-      <artifactId>teachloop-sitting</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
   </dependencies>
 </project>

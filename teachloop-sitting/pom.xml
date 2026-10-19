@@ -12,7 +12,7 @@
 
   <artifactId>teachloop-sitting</artifactId>
   <name>teachloop-sitting</name>
-  <description>答卷：布置、参与班级、计时、作答、草稿、提交</description>
+  <description>答卷：布置、参与班级、提交、客观分</description>
 
   <dependencies>
     <dependency>
@@ -20,16 +20,16 @@
       <artifactId>teachloop-shared</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.teachloop</groupId>
-      <artifactId>teachloop-identity</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.teachloop</groupId>
-      <artifactId>teachloop-classroom</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
     <dependency>
-      <groupId>com.teachloop</groupId>
-      <artifactId>teachloop-paper</artifactId>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-validation</artifactId>
     </dependency>
   </dependencies>
 </project>

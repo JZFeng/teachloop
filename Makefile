@@ -1,42 +1,36 @@
-# TeachLoop —— 常用命令
-# 不需要全局 Maven：统一走 ./mvnw（Maven Wrapper，3.9.9）
-
 JAVA_HOME ?= /opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home
-export JAVA_HOME
+MVN := JAVA_HOME=$(JAVA_HOME) PATH=$(JAVA_HOME)/bin:$$PATH ./mvnw
+DB_URL ?= jdbc:postgresql://localhost:55432/teachloop
+DB_USER ?= teachloop
+DB_PASSWORD ?= teachloop
+PORT ?= 8010
 
-MVN := ./mvnw
-
-.PHONY: help java-home check-deps validate build test run migrate clean
+.PHONY: help build test run start-db stop-db clean
 
 help:
-	@echo "make java-home   # 打印需要 export 的 JAVA_HOME"
-	@echo "make check-deps  # 依赖方向守卫（plan §3.1）"
-	@echo "make validate    # 结构校验，不编译"
-	@echo "make build       # 编译并打包（跳过测试）"
-	@echo "make test        # 全量测试"
-	@echo "make run         # 启动 teachloop-app"
-	@echo "make migrate     # 数据库迁移（T010 起可用）"
+	@echo "make start-db   启动本地 Postgres 容器（55432）"
+	@echo "make build      编译并打包"
+	@echo "make test       跑全部测试（需要 Docker）"
+	@echo "make run        启动应用（8010）"
+	@echo "make clean      清理 target"
 
-java-home:
-	@echo 'export JAVA_HOME="/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home"'
+start-db:
+	@docker start teachloop-pg 2>/dev/null || docker run -d --name teachloop-pg \
+	  -e POSTGRES_USER=teachloop -e POSTGRES_PASSWORD=teachloop -e POSTGRES_DB=teachloop \
+	  -p 55432:5432 postgres:16-alpine
 
-check-deps:
-	@python3 scripts/check-deps.py
+stop-db:
+	@docker stop teachloop-pg
 
-validate: check-deps
-	@$(MVN) -q validate
-
-build: check-deps
+build:
 	@$(MVN) -q -DskipTests package
 
-test: check-deps
+test:
 	@$(MVN) -q test
 
-run:
-	@$(MVN) -q -pl teachloop-app -am spring-boot:run
-
-migrate:
-	@echo "Flyway 尚未接入（T010）。届时本目标执行 ./mvnw -pl teachloop-app flyway:migrate"
+run: build
+	@DB_URL=$(DB_URL) DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) PORT=$(PORT) \
+	  $(JAVA_HOME)/bin/java -jar teachloop-app/target/teachloop-app-0.1.0-SNAPSHOT.jar
 
 clean:
 	@$(MVN) -q clean

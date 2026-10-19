@@ -13,4 +13,11 @@
   <artifactId>teachloop-shared</artifactId>
   <name>teachloop-shared</name>
   <description>无业务的基础：错误码、i18n、Clock、审计原语、JSON、分页约定</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+  </dependencies>
 </project>

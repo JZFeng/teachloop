@@ -12,12 +12,20 @@
 
   <artifactId>teachloop-observability</artifactId>
   <name>teachloop-observability</name>
-  <description>可观测：请求日志、前端事件、daily_stats、审计查询</description>
+  <description>可观测：审计日志、请求日志、日聚合</description>
 
   <dependencies>
     <dependency>
       <groupId>com.teachloop</groupId>
       <artifactId>teachloop-shared</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
   </dependencies>
 </project>
