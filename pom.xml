@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.1.1</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.teachloop</groupId>
+  <artifactId>teachloop-parent</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+
+  <name>TeachLoop</name>
+  <description>公网 AI 教学平台：出卷 / 作答 / 批改 / 复核 / 报告</description>
+
+  <modules>
+    <module>teachloop-shared</module>
+    <module>teachloop-identity</module>
+    <module>teachloop-classroom</module>
+    <module>teachloop-paper</module>
+    <module>teachloop-sitting</module>
+    <module>teachloop-grading</module>
+    <module>teachloop-report</module>
+    <module>teachloop-observability</module>
+    <module>teachloop-app</module>
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-shared</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-identity</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-classroom</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-paper</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-sitting</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-grading</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-report</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-observability</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-app</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>

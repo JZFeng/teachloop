@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.teachloop</groupId>
+    <artifactId>teachloop-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>teachloop-app</artifactId>
+  <name>teachloop-app</name>
+  <description>唯一启动模块：Spring Boot、Controller、装配</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-shared</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-identity</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-classroom</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-paper</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-sitting</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-grading</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-report</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-observability</artifactId>
+    </dependency>
+  </dependencies>
+</project>

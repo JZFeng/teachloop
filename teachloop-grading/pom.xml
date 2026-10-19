@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.teachloop</groupId>
+    <artifactId>teachloop-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>teachloop-grading</artifactId>
+  <name>teachloop-grading</name>
+  <description>阅卷：客观判分、AI 主观、错题解析、复核、发布</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-shared</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-identity</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-classroom</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-paper</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-sitting</artifactId>
+    </dependency>
+  </dependencies>
+</project>

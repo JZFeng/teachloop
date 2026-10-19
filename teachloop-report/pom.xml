@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.teachloop</groupId>
+    <artifactId>teachloop-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>teachloop-report</artifactId>
+  <name>teachloop-report</name>
+  <description>报告：统计、错题 Top N、导出</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-shared</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-paper</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-sitting</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-grading</artifactId>
+    </dependency>
+  </dependencies>
+</project>
