@@ -141,6 +141,7 @@ teachloop-app ──▶ paper / sitting / grading / report / observability
 | 答卷要读试卷内容 | `PaperCatalog`（paper 暴露，只读快照视图） | 布置时拿快照（AC-26.6），不回查活表 |
 | 阅卷要读作答 | `SittingLedger`（sitting 暴露，只读） | 阅卷不 join `sitting_*` 表 |
 | 阅卷要写分数 | `GradingOutcome`（grading 暴露，sitting 调用写入） | 写回经端口，不由阅卷直接改表 |
+| 阅卷要领取/推进工作项 | `GradingWorkQueue`（sitting 暴露，唯一命令式端口） | `submissions.grading_state` 归 sitting，阅卷不得直接 `update`；方法必须幂等（换成 MQ 后至少一次投递不重复扣分） |
 | 报告要跨模块统计 | 允许跨模块**只读**聚合 | 唯一豁免，且只能读不能写 |
 | 任何模块要发通知 | `NotificationPort`（identity 暴露） | 学生名单与联系方式只在 identity / classroom |
 
@@ -152,11 +153,11 @@ teachloop-app ──▶ paper / sitting / grading / report / observability
 
 | 模块 | 拥有的表 | 迁移目录（模块内） |
 | :--- | :--- | :--- |
-| identity | `users`、`sessions`、`teacher_invites`、`rate_limits` | `teachloop-identity/src/main/resources/db/migration/` |
+| identity | `users`、`spring_session`、`spring_session_attributes`、`teacher_invites`、`rate_limits`、`notifications` | `teachloop-identity/src/main/resources/db/migration/` |
 | classroom | `classes`、`class_members` | `teachloop-classroom/…/db/migration/` |
 | paper | `papers`、`paper_sections`、`objective_items`、`section_criteria` | `teachloop-paper/…/db/migration/` |
 | sitting | `offerings`、`offering_classes`、`submissions`、`objective_answers`、`submission_metrics` | `teachloop-sitting/…/db/migration/` |
-| grading | `grading_runs`、`reviews`、`item_explanations`、`ai_calls`、`notifications` | `teachloop-grading/…/db/migration/` |
+| grading | `grading_runs`、`reviews`、`item_explanations`、`ai_calls` | `teachloop-grading/…/db/migration/` |
 | report | 无表（只读） | — |
 | observability | `audit_logs`、`daily_stats` | `teachloop-observability/…/db/migration/` |
 
@@ -214,8 +215,9 @@ V1 的形态是**一个 JAR、一个 Postgres、两个进程**（`app` 与 `grad
 | `grading_runs.submission_id` → `submissions.id` | grading | sitting |
 | `reviews.submission_id` → `submissions.id` | grading | sitting |
 | `item_explanations.item_id` → `objective_items.id` | grading | paper |
-| `notifications.recipient_id` → `users.id` | grading | identity |
 | `audit_logs.actor_id` → `users.id` | observability | identity |
+
+`notifications.recipient_id → users.id` 不在清单里：两张表同属 identity，拆服务时一起搬走。
 
 ---
 

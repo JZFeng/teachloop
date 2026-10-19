@@ -3,6 +3,7 @@
 - 上游：`spec.md`（已确认）、`plan.md`（含实测结果）
 - 完成定义（DoD）：代码 + 测试 + `make test` 全绿 + 本文件执行记录勾选。缺一不算完成。
 - 依赖规则：`依赖` 列写了前置任务的，必须全部完成才能开始。
+- 建表规则：**一条迁移只建一个模块的表**（宪法第十四条）。每个建表任务的验收都写了「迁移文件里只出现 xx 表」，写错了 T204 会失败。
 - 仓库：`teachloop`（groupId / 包根 `com.teachloop`），九个 `teachloop-*` 子模块摆在根下，外加 `web/`（前端）。v1 的 `batch-grading/` 已于 2026-10-19 删除，仓库里不会出现它。
 
 ---
@@ -20,6 +21,7 @@
 | T006 | Testcontainers 基线：一个连 `postgres:16-alpine` 的集成测试 | T001 | `make test` 绿；Testcontainers 锁 `1.21.4` |
 | T007 | 静态检查：`api/`、`service/` 禁止中文字符串字面量 | T002 | 故意插入中文常量时检查失败 |
 | T204 | **跨模块越界检查**：模块的迁移文件只写自己拥有的表（§3.3 清单）；业务模块不得直接查别人的表；**端口签名只收发 `record`，出现 `@Entity` 即失败**（为拆服务留路，§3.5）；跨模块外键只允许清单内那 10 条 | T203、T010 | 故意在 `grading` 迁移里写 `paper_` 表时检查失败；把 `GradingOutcome` 的参数从 `record` 换成 `@Entity` 时检查失败 |
+| T205 | **端口定义**（宪法第十四条 + plan §3.2）：`PaperCatalog`（paper 暴露，只读快照）、`SittingLedger`（sitting 暴露，只读作答）、`GradingOutcome`（grading 暴露）、`NotificationPort`，以及阅卷改工作项状态用的 `GradingWorkQueue`（sitting 暴露）；**端口只收发 `record`，命令类方法必须幂等** | T210、T018 | 端口签名里没有 `@Entity`；阅卷模块代码里不出现 `submissions` 的 Repository；把 `GradingOutcome` 入参换成 `@Entity` 时 T204 失败 |
 | T008 | `web/` 前端工程：Vite + React + TS + i18next 骨架 | T001 | `npm run build` 通过 |
 | T009 | **`Clock` bean**：全项目统一注入 `java.time.Clock`，禁止直接 `now()` | T003 | 可用 `Clock.fixed(...)` 把系统时间钉在任意时刻（宽限期/峰谷/清扫都要用它） |
 
@@ -28,15 +30,18 @@
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
 | T010 | Flyway 基线 + **按模块分目录的迁移约定**（`teachloop-<module>/src/main/resources/db/migration/`，统一在 `teachloop-app` 调度，文件名 `V<序号>__<模块>_<描述>.sql`） | T006 | 空库 `migrate` 成功；新增模块加目录即可被执行 |
-| T011 | `users`：role[admin\|teacher\|student]、email、password_hash、phone、display_name、locale、status、created_by | T010 | 唯一约束生效（email、phone） |
-| T012 | Spring Session JDBC 标准表 | T011 | 会话可写入/读取 |
-| T013 | `classes`、`class_members`、`teacher_invites`（含 `expires_at`） | T011 | `UNIQUE(class_id,user_id)` 生效 |
-| T014 | **内容与布置三张表**：`papers`（标题、`default_duration_minutes`、总分、版本、状态，**无 class_id**）/ `paper_sections` / `section_criteria` + `offerings`（`paper_id`、kind、start_at、due_at、duration_minutes、timing_mode、grace_hours(3)、max_attempts(3)、feedback_language、show_peer_overview、**publish_scores**、rubric_source_md、grading_prompt_template、rubric_version、grading_dispatched_at、status）/ `offering_classes`（多班 + 可空 `due_at_override`、`duration_override`） | T013 | 默认值断言通过；`(status, due_at)` 索引存在；`papers` 表结构里没有任何班级外键 |
-| T015 | `paper_sections`、`objective_items`（含 stem/options）细表与唯一约束 | T014 | `UNIQUE(paper_section_id,number)`、`UNIQUE(paper_section_id,position)` |
-| T016 | `submissions`：attempt_no、input_kind、active、content_html、content_text、duration_seconds、width、height、objective_total、subjective_total、**started_at、deadline_at、auto_submitted、late_by_seconds、rejected_at、reject_reason** | T015 | **部分唯一索引** `(offering_id,student_id) WHERE active` 生效 |
-| T017 | `objective_answers`、`submission_metrics` | T016 | `UNIQUE(submission_id,item_id)` |
-| T018 | `grading_runs` + `submissions` 的工作项列（`grading_state`、`grading_attempts`、`grading_started_at`、`grading_error`、`grading_run_id`） | T016 | 工作项查询索引存在；**不建独立队列表** |
-| T019 | `reviews`、`audit_logs`、`notifications`、`daily_stats`、`rate_limits`、`ai_calls` | T018 | 建表通过；`audit_logs` 无更新/删除接口 |
+| T011 | `users`：role[admin\|teacher\|student]、email、password_hash、phone、display_name、locale、status、created_by（只建 identity 模块的表） | T010 | 唯一约束生效（email、phone） |
+| T012 | Spring Session JDBC 标准表 `spring_session`、`spring_session_attributes`（只建 identity 模块的表） | T011 | 会话可写入/读取；`DELETE` 按 `principal_name` 删所有会话（退出登录立即全域失效）；迁移文件里只出现 `spring_session*` 表 |
+| T013 | `classes`、`class_members`（**只建 classroom 模块的表**） | T011 | `UNIQUE(class_id,user_id)` 生效；迁移文件里只出现 `classes` / `class_members` |
+| T014 | `papers`：标题、`default_duration_minutes`、总分、版本、状态、`author_id`，**无 class_id、无 kind**（只建 paper 模块的表） | T011 | `papers` 里没有任何班级或布置相关外键；创建与编辑全程不需要选班级；迁移文件里只出现 `paper*` 表 |
+| T015 | `paper_sections`、`objective_items`（含 `stem` / `options` / 标准答案 / `explanation_state` / `question_type`）、`section_criteria`（只建 paper 模块的表） | T014 | `UNIQUE(paper_section_id,number)`、`UNIQUE(paper_section_id,position)`；迁移文件里只出现 `paper*` 表 |
+| T210 | `offerings`（`paper_id`、kind、start_at、due_at、duration_minutes、timing_mode、grace_hours 3、max_attempts 3、feedback_language、show_peer_overview、publish_scores、`paper_snapshot` JSONB、`paper_version`、rubric_source_md、grading_prompt_template、rubric_version、grading_dispatched_at、status）+ `offering_classes`（多班 + `due_at_override` / `duration_override`）（只建 sitting 模块的表） | T014、T013 | 默认值断言通过；`(status, due_at)` 索引存在；迁移文件里只出现 `offering*` 表 |
+| T016 | `submissions`：attempt_no、input_kind、active、content_html、content_text、duration_seconds、width、height、objective_total、subjective_total、started_at、deadline_at、auto_submitted、late_by_seconds、rejected_at、reject_reason，**外加工作项列 `grading_state` / `grading_attempts` / `grading_started_at` / `grading_error` / `grading_run_id`**（属于 sitting 模块，阅卷只能经 `GradingWorkQueue` 端口改） | T210 | 部分唯一索引 `(offering_id,student_id) WHERE active` 生效；工作项查询索引存在；**不建独立队列表** |
+| T017 | `objective_answers`、`submission_metrics`（只建 sitting 模块的表） | T016 | `UNIQUE(submission_id,item_id)`；迁移文件里只出现 `objective_answers` / `submission_metrics` |
+| T018 | `grading_runs`：一次派发的运行记录 + 幂等键（只建 grading 模块的表） | T016 | 同一 offering 并发派发只产生一条 run；迁移文件里只出现 `grading_*` 表 |
+| T019 | `audit_logs`、`daily_stats`（只建 observability 模块的表；审计由 `AuditPort` 在业务事务内写入） | T011 | 建表通过；`audit_logs` 没有更新/删除接口；迁移文件里只出现 `audit_*` / `daily_*` 表 |
+| T207 | `reviews`、`item_explanations`、`ai_calls`（只建 grading 模块的表） | T018 | `item_explanations` 的唯一键 `(item_id,language,prompt_version)` 生效；迁移文件里只出现 `review*` / `item_*` / `ai_*` 表 |
+| T208 | `teacher_invites`、`rate_limits`、`notifications`（只建 identity 模块的表；`NotificationPort` 由 identity 暴露，接收方与联系方式不外出） | T011 | 邀请码过期字段、限流计数、站内通知表生效；迁移文件里只出现 `teacher_invites` / `rate_limits` / `notifications` |
 | T020 | 迁移集成测试：空库→迁移→断言表/约束/索引；重复执行幂等 | T019 | 新测试全绿 |
 | T021 | `make seed`：1 个班 + 30 个学生 + 1 份带标准答案的试卷，**可重复执行**（先清再建） | T020 | 连跑两次结果一致 |
 
@@ -67,6 +72,7 @@
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
 | T050 | **试卷** CRUD（不含班级、不含 kind）与部分（sections）编排 | T014 | 总分 = 各部分之和；不一致 400；创建与编辑全程不需要选班级 |
+| T206 | 试卷库列表页：我创建的全部试卷（标题、总分、默认时长、版本、状态、被布置次数），操作：编辑 / 复制为新卷 / 布置 / 归档；默认最近修改在上 | T050、T183 | 一份试卷被布置 3 次后列表显示「已布置 3 次」；复制出的新卷与原卷互不影响 |
 | T051 | 主观部分评分项 CRUD | T050 | 评分项合计 = 该部分分值 |
 | T052 | 客观题项批量录入 + 整行导入（`A B A C C`）+ 每题同分快捷录入 + 按题号区间批量设定题型 | T050 | 题号唯一；分值合计校验 |
 | T053 | `MatchStrategy` 注册表（exact / normalized / choice / set） | T052 | 四种策略单测覆盖大小写、空白、标点、多写法、无序 |
@@ -172,7 +178,7 @@
 | T144 | 每日汇总任务：聚合前一天数据写 `daily_stats`（页面浏览、动作、提交、批改、错误、慢请求、p95） | T140,T019 | 可重跑幂等；数字与当天文件一致 |
 | T143 | 日志输出预留 `LogSink` 接口（ES 后续接入） | T140 | 关闭 ES 时功能不受影响 |
 
-## 阶段 14 — 报表（spec 待细化，先做骨架）
+## 阶段 14 — 报表
 
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
@@ -198,7 +204,7 @@
 | T189 | 滚动联动：右侧滚动 → 左侧树高亮 + 自动展开父节点 + 保持高亮可见 | T188 | 滚到第 41 题时树高亮 41 且折叠的「完形填空」自动展开 |
 | T195 | 考试草稿与断点续答 + **提交前未答检查弹层**（按部分分组列出未答/已标记题号，点击跳转补答，未答不阻止提交） | T189 | 刷新后恢复；3 题未答时弹层列出这 3 个题号且分组正确；点题号跳到该题并关闭弹层；全部答完只做确认 |
 | T190 | 学生作业视图（说明 + rubric + 提交区 + 保存草稿） | T060 | 三种提交形态可用；显示剩余尝试次数 |
-| T191 | 班级汇总页（应交/实交、平均分、分布、正确率、未交名单） | T150 | 数字与逐份反馈一致；可导出 md/pdf/xlsx |
+| T191 | 班级汇总页（应交/实交、按时提交率、平均分、分布、正确率、未交名单）；**一场考试挂多班时按班分别统计，不混算** | T150 | 三个班同考一场，每班数字独立且与逐份反馈一致；可导出 md/pdf/xlsx |
 | T192 | 报表班级多选 + 跨班跨时间段 Top N 错题聚合 | T150 | 默认全选；给定 3 班 6 个月能出 Top 10 错题 |
 | T193 | 学生反馈列表支持表格 / 卡片两种视图并可切换 | T110 | 切换被记住；默认时间倒序 + 分页 |
 | T194 | 反馈详情信息顺序：总分 → 错题与解析 → 主观评语 → 全班概览 | T111、T115 | 顺序符合定义；错题解析先于班级信息 |
@@ -224,16 +230,17 @@
 | T170 | E2E 旅程 A（手工）：整份试卷形态 | T124 | 按 plan §18.4 清单逐项执行并记录结果 |
 | T171 | E2E 旅程 B（手工）：纯写作 + new attempt | T124 | 按 plan §18.4 清单逐项执行并记录结果 |
 | T172 | 安全自查：未登录 401、缺 CSRF 403、越权 404、上传白名单、富文本消毒、限流 | T035 | 逐项测试 |
-| T173 | **四模型段落计数 parity**：把 v1 那 10 份真实作业复制进 `src/test/resources/fixtures/`，断言四种口径逐份一致 | T072 | 10 份全部一致 |
+| T173 | **四模型段落计数 parity**：用 `docs/rubrics/samples/` 那 10 份作文生成**脱敏后可提交**的 fixtures（`src/test/resources/fixtures/`），断言四种口径逐份一致 | T072 | 10 份全部一致；fixtures 在仓库内，CI 不依赖本机文件 |
 | T174 | 并发压测：50 份提交 / 2 app + 2 worker | T091 | 记录到 `.docs/perf-report-v2.md` |
-| T175 | golden set 质量回归：10 份已人工评分的真实作业，记录平均偏差/最大偏差/偏差方向 | T081,T173 | 首次基线记录到 `.docs/golden-set-baseline.md` |
+| T175 | golden set 质量回归：以同一批 10 份 fixtures 的人工评分为基线，记录平均偏差 / 最大偏差 / 偏差方向 | T081,T173 | 首次基线记到 `docs/reports/golden-set-baseline.md` |
 
 ---
 
 ## 关键路径
 
 ```
-T001 → T006 → T010 → T011 → T014 → T016 → T018 → T019 → T020
+T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
+     → T208 → T018 → T207 → T019 → T205 → T020
      → T030 → T033 → T036 → T040 → T043
      → T050 → T053 → T060 → T063
      → T070 → T071 → T080 → T081 → T082
@@ -262,7 +269,7 @@ T001 → T006 → T010 → T011 → T014 → T016 → T018 → T019 → T020
 | 用户故事 | 覆盖任务 | 用户故事 | 覆盖任务 |
 | :--- | :--- | :--- | :--- |
 | US-1 | T030–T034 | US-2 | T040–T043 |
-| US-3 | T036 | US-4 | T050、T051、T054、T056、T185、T186 |
+| US-3 | T036 | US-4 | T050、T051、T054、T056、T185、T186、T206 |
 | US-5 | T052、T053、T055、T196 | US-6 | T060–T063、T066、T067 |
 | US-7 | T064 | US-8 | T065、T202 |
 | US-9 | T092、T093 | US-10 | T070、T071、T080–T085、T094 |
@@ -281,7 +288,7 @@ T001 → T006 → T010 → T011 → T014 → T016 → T018 → T019 → T020
 | :--- | :--- | :--- | :--- |
 | FR-001 | T030、T031、T032 | FR-002 | T033 |
 | FR-003 | T034 | FR-004 | T040、T043 |
-| FR-005 | T036 | FR-006 | T050、T198 |
+| FR-005 | T036 | FR-006 | T050、T198、T206 |
 | FR-007 | T052、T055 | FR-008 | T053 |
 | FR-009 | T060、T061 | FR-010 | T062 |
 | FR-011 | T063、T070 | FR-012 | T064 |
