@@ -1,0 +1,667 @@
+{
+ "listen": [
+  {
+   "n": 1,
+   "stem": "What film will the speakers watch next Saturday?",
+   "opts": [
+    "A comedy film.",
+    "A horror film.",
+    "A historical film."
+   ]
+  },
+  {
+   "n": 2,
+   "stem": "What does the woman offer to do for the man?",
+   "opts": [
+    "Book a double room.",
+    "Change his room.",
+    "Call another hotel."
+   ]
+  },
+  {
+   "n": 3,
+   "stem": "What did the woman enjoy doing most about the course?",
+   "opts": [
+    "Making a lot of friends.",
+    "Trying different ways of drawing.",
+    "Learning a lot from her teachers."
+   ]
+  },
+  {
+   "n": 4,
+   "stem": "What does the woman want to know more about?",
+   "opts": [
+    "A bird.",
+    "A ship.",
+    "An accident."
+   ]
+  },
+  {
+   "n": 5,
+   "stem": "What are the speakers mainly talking about?",
+   "opts": [
+    "What birthday present the woman will buy.",
+    "When the woman will attend the party.",
+    "What clothes the woman will wear."
+   ]
+  },
+  {
+   "n": 6,
+   "stem": "What musical instrument does the man's sister play?",
+   "opts": [
+    "The violin.",
+    "The guitar.",
+    "The piano."
+   ]
+  },
+  {
+   "n": 7,
+   "stem": "What does the man mean in the end?",
+   "opts": [
+    "The woman plays the guitar well.",
+    "The woman sings better than him.",
+    "The woman has little talent for music."
+   ]
+  },
+  {
+   "n": 8,
+   "stem": "How did the woman find out about the new sports center?",
+   "opts": [
+    "She heard about it on the radio.",
+    "A friend of hers works there.",
+    "She saw a poster."
+   ]
+  },
+  {
+   "n": 9,
+   "stem": "What does the man say about the sports center?",
+   "opts": [
+    "It's too noisy.",
+    "It's very expensive.",
+    "It's not big enough."
+   ]
+  },
+  {
+   "n": 10,
+   "stem": "When does the man prefer to go to the sports center?",
+   "opts": [
+    "In the early morning.",
+    "During working hours.",
+    "At the weekend."
+   ]
+  },
+  {
+   "n": 11,
+   "stem": "Who did the man mostly invite to the party?",
+   "opts": [
+    "His family.",
+    "His co-workers.",
+    "His schoolmates."
+   ]
+  },
+  {
+   "n": 12,
+   "stem": "At what time is the party going to begin?",
+   "opts": [
+    "Around 8:00 p.m.",
+    "Around 7:00 p.m.",
+    "Around 6:00 p.m."
+   ]
+  },
+  {
+   "n": 13,
+   "stem": "What does the man suggest the woman take?",
+   "opts": [
+    "Beer.",
+    "Juice.",
+    "Music."
+   ]
+  },
+  {
+   "n": 14,
+   "stem": "What is the relationship between the speakers?",
+   "opts": [
+    "Working partners.",
+    "Old schoolmates.",
+    "Employer and employee."
+   ]
+  },
+  {
+   "n": 15,
+   "stem": "How long did the woman spend on a holiday recently?",
+   "opts": [
+    "10 days.",
+    "14 days.",
+    "30 days."
+   ]
+  },
+  {
+   "n": 16,
+   "stem": "What advice does the woman offer?",
+   "opts": [
+    "Visit Wilson.",
+    "Have a get-together.",
+    "Travel to Australia."
+   ]
+  },
+  {
+   "n": 17,
+   "stem": "What will Wilson do this summer?",
+   "opts": [
+    "Take a holiday.",
+    "Look for a job.",
+    "Deal with his work."
+   ]
+  },
+  {
+   "n": 18,
+   "stem": "What is the speaker?",
+   "opts": [
+    "A tour guide.",
+    "A zookeeper.",
+    "A school teacher."
+   ]
+  },
+  {
+   "n": 19,
+   "stem": "Where will the listeners go first?",
+   "opts": [
+    "The zoo's information center.",
+    "The insect house.",
+    "The lion house."
+   ]
+  },
+  {
+   "n": 20,
+   "stem": "What will take place at 4:00?",
+   "opts": [
+    "A zoo shop will give out toys.",
+    "Visitors will make sandwiches.",
+    "Workers will feed the elephants."
+   ]
+  }
+ ],
+ "read": {
+  "passages": [
+   {
+    "label": "A",
+    "paras": [
+     "Welcome to join our Summer Youth Language Program to improve English language skills, make new friends worldwide, and have a good time here! Space is limited and first come, first served! So if you are interested, sign up as soon as possible.",
+     "You can also study with us for shorter periods:",
+     "4-week program: $1300",
+     "3-week program: $1000",
+     "Discounts:",
+     "There is a 10% discount (折扣) for each extra family member.",
+     "Program Schedule:",
+     "Monday to Thursday, in the morning from 9 a.m to 2 p.m, you can join the all — age English class, where you will meet international students. In the afternoon from 2 to 3 p.m, have fun after — school activities, like soccer in the park, a visit to Science Museum and a story writing competition.",
+     "Things to Bring:",
+     "Clothes: Shirts, a jacket, long pants, a swimsuit, and comfortable shoes.",
+     "Other things: A camera phone, and photos of friends or family.",
+     "Study materials: Notebooks, pens and pencils.",
+     "Don't bring foods and snacks to avoid any unwanted fees."
+    ]
+   },
+   {
+    "label": "B",
+    "paras": [
+     "Zach Smith, an 18-year-old senior at Dwight-Englewood School in New Jersey, had a problem. \"I was not happy with my school's learning system (系统), and so were my friends,\" Zach said. \"So I thought I could design an app (应用程序) that would bring together your homework and everything you need all in one place to make it easy for students to stay organized.\"",
+     "That idea of creating MyDE+ put Zach on a journey that would find him learning the finer points of UX design, working with coding platforms (编程平台) and, importantly, getting the confidence and trust of the teachers at the school.",
+     "\"I started with Figma, just prototyping (制作原型) what the app would look like. I met with my head teacher at school and showed him the design. He was like, 'Whoa, that looks very cool! How do we get this in our school?' And I don't think he realized it was just a design. So now I had to get to work building the app,\" Zach said.",
+     "At first, Zach was considering teaching himself how to code. That's when he discovered Adalo. Zach was able to create a working prototype. The next question was how to get it on the phones of 500 students in the school. Zach used a business platform called Make. And he changed it and sent everyone a message. \"I met with every grade at the school and showed them how to get the app. After a month I had 500 users on the app, which is almost my whole school,\" Zach explained.",
+     "Zach now has been talking with other heads of technology of schools in New York City and adding all kinds of new functions (功能) like community pages. \"In terms of what comes next, I really hope my app can be used in other schools. I just love it when I can see an idea in my head, and follow it through from start to finish.\""
+    ]
+   },
+   {
+    "label": "C",
+    "paras": [
+     "My studies once showed that students do better when they take notes by hand than when they use laptops (笔记本电脑). Before I knew it, those studies were used as good reasons for laptop bans (禁止) in classrooms in the U.S. I received a lot of emails blaming (责备) me for such ideas. The fact is that I don't actually support laptop bans, and never have. In fact, I don't even ban laptops in my own classes.",
+     "In the research, we asked students to watch TED Talks and had them take notes either on laptops or with a pen and paper. Students using laptops recorded the talks nearly with every word, while students who took handwritten notes could not; they just took notes in their own words. Writing by hand required students to understand and summarize the talk. And deeper processing (加工) of the information led to improved learning. As a result, students in this case get higher points on tests.",
+     "My findings came out. Teachers around the country soon started banning laptops in their classes. But they didn't know what actually made learning difficult was the mindless recording of a lecture. Laptops just let students take notes more quickly.",
+     "Like most technology, laptops are not universally helpful or harmful in class. Whether they are helpful or harmful depends on the goal. The value of a laptop in the classroom depends on the goal of a lesson plan, the nature of the text, the kind of students being taught, etc.",
+     "So can laptops be used in the classroom? If a lesson requires exact quotes, then laptops are excellent. But if the goal is conceptual (概念的) understanding, they will produce the exactly opposite results. Don't forget the situation when deciding whether or not to allow laptops in your class. All in all, the answer to the question is that it depends."
+    ]
+   },
+   {
+    "label": "D",
+    "paras": [
+     "The transition from junior to senior high school is a significant milestone for teenagers worldwide. In China, this period, often referred to as \"Gaoyi,\" marks not only an increase in academic rigor (学业难度) but also a critical stage of personal growth and identity formation. New subjects, more complex concepts, and higher expectations from teachers and parents can create much stress. However, it is this challenge that fosters (培养) resilience (韧性) and independence.",
+     "One of the most noticeable changes is the teaching style. Unlike junior high, where teachers often spoon-feed knowledge, senior high teachers tend to encourage more independent thinking and self-directed learning. Students are expected to preview lessons, actively participate in discussions, and complete extended reading tasks. This change requires them to develop better organizational skills and time management strategies.",
+     "Socially, Gaoyi students are also forming new relationships. They may be in classes with peers (students of the same age) from different junior high schools, necessitating the building of new friendships. Extra-curricular activities, such as clubs and sports teams, provide valuable opportunities for social integration and the exploration of interests beyond academics. These experiences lead to a well-developed personality, which is highly valued in the holistic education method supported by many modern high schools.",
+     "Psychologically, the stress to do well academically, especially with the National College Entrance Examination (Gaokao) in three years, can be intense. It is important for students to develop healthy coping mechanisms (应对方式), such as regular exercise, hobbies, and open communication with trusted adults. Schools are increasingly aware of this and are offering more services and mental health workshops to support student well-being (身心健康).",
+     "Finally, Gaoyi is more than just preparation for university; it is a foundational year for developing lifelong learning habits, emotional intelligence, and a clearer sense of self. Facing the challenges with a positive attitude can turn this stressful period into a benefit journey of growth."
+    ]
+   }
+  ],
+  "items": [
+   {
+    "n": 21,
+    "stem": "How much should you pay if you and your brother attend a five-week program?",
+    "opts": [
+     "$3200",
+     "$2470",
+     "$3000",
+     "$3040"
+    ],
+    "pass": 0
+   },
+   {
+    "n": 22,
+    "stem": "What will students do at ten in the morning on Tuesday during the program?",
+    "opts": [
+     "Play soccer.",
+     "Have English classes.",
+     "Visit the museum.",
+     "Enjoy fun activities."
+    ],
+    "pass": 0
+   },
+   {
+    "n": 23,
+    "stem": "What should a student bring?",
+    "opts": [
+     "Necessary clothes.",
+     "Snacks.",
+     "Foods.",
+     "A computer."
+    ],
+    "pass": 0
+   },
+   {
+    "n": 24,
+    "stem": "What made Zach create MyDE+?",
+    "opts": [
+     "His interest in coding platforms.",
+     "Advice from the school managers.",
+     "A UX design class from his computer teacher.",
+     "Being not content with the school's learning system."
+    ],
+    "pass": 1
+   },
+   {
+    "n": 25,
+    "stem": "What impressed Zach's head teacher?",
+    "opts": [
+     "The first design of MyDE+.",
+     "The new function of MyDE+.",
+     "The future development of MyDE+.",
+     "The popularity of MyDE+ on campus."
+    ],
+    "pass": 1
+   },
+   {
+    "n": 26,
+    "stem": "What can we expect of MyDE+?",
+    "opts": [
+     "It will be family-friendly.",
+     "It will take the place of Adalo and Make.",
+     "It will be introduced into different schools.",
+     "It will awaken students' interest in technology."
+    ],
+    "pass": 1
+   },
+   {
+    "n": 27,
+    "stem": "Which of the following can be the best title for the text?",
+    "opts": [
+     "Tech Project at Dwight-Englewood School.",
+     "18-Year-Old Student's School App Journey.",
+     "Day in the Life of an 18-Year-Old App Designer.",
+     "Build Community at Dwight-Englewood School."
+    ],
+    "pass": 1
+   },
+   {
+    "n": 28,
+    "stem": "Why did the author receive many blaming emails?",
+    "opts": [
+     "He banned laptops in classes.",
+     "His studies supported laptop bans.",
+     "His research results let people down.",
+     "Schools used his studies to ban laptops."
+    ],
+    "pass": 2
+   },
+   {
+    "n": 29,
+    "stem": "What was the key difference between laptop notes and handwritten notes in the research?",
+    "opts": [
+     "Laptop notes were much more helpful.",
+     "Handwritten notes bettered thinking ability.",
+     "Handwritten notes recorded every word in need.",
+     "Laptop notes were written in students' own words."
+    ],
+    "pass": 2
+   },
+   {
+    "n": 30,
+    "stem": "What did the author think made learning difficult in the case of laptop use?",
+    "opts": [
+     "The technology of laptops itself.",
+     "Students' unsuitable use of laptops.",
+     "The speed of taking notes with laptops.",
+     "The design of lesson plans for laptop users."
+    ],
+    "pass": 2
+   },
+   {
+    "n": 31,
+    "stem": "What is the main idea of the passage?",
+    "opts": [
+     "Handwritten notes are better for students' learning than laptop notes.",
+     "Laptop bans in classrooms are unreasonable and should be prohibited.",
+     "The use of laptops in classrooms should be decided based on situations.",
+     "Research on note-taking methods helps improve teaching achievements."
+    ],
+    "pass": 2
+   },
+   {
+    "n": 32,
+    "stem": "What is a major difference in teaching style between junior and senior high school mentioned in the text?",
+    "opts": [
+     "Senior high teachers give less homework.",
+     "Junior high teachers focus more on independent thinking.",
+     "Senior high teachers encourage more self-directed learning.",
+     "Junior high teachers rarely explain difficult concepts."
+    ],
+    "pass": 3
+   },
+   {
+    "n": 33,
+    "stem": "According to Paragraph 3, how do extra-curricular activities benefit Gaoyi students?",
+    "opts": [
+     "They ensure better academic performance.",
+     "They allow students to avoid social interactions.",
+     "They help in socializing and developing interest.",
+     "They aid students earn extra credits for graduation."
+    ],
+    "pass": 3
+   },
+   {
+    "n": 34,
+    "stem": "The word \"holistic\" in Paragraph 3 is closest in meaning to ________.",
+    "opts": [
+     "focused on one subject",
+     "emphasizing exam results",
+     "related to body health only",
+     "considering the whole person"
+    ],
+    "pass": 3
+   },
+   {
+    "n": 35,
+    "stem": "What is the author's main purpose in writing this passage?",
+    "opts": [
+     "To provide specific tips for passing the Gaokao.",
+     "To criticize the high pressure faced by Gaoyi students.",
+     "To compare different education systems around the world.",
+     "To highlight the significance and challenges of the Gaoyi year."
+    ],
+    "pass": 3
+   }
+  ]
+ },
+ "seven": {
+  "body": [
+   "阅读下面短文，从短文后的选项中选出可以填入空白处的最佳选项。选项中有两项为多余选项。",
+   "How can English be learned well? In my view, keeping up with teachers is a good way. Teachers are experienced and their plans are effective. But remember to work in a way that suits you. ___36___ Keep a notebook to make a record of the mistakes you make — it'll help you avoid making the same ones later.",
+   "The school life may be hard, but you're not alone. You may be busy studying, but you can show your care by calling your friends or sending short messages. ___37___",
+   "It's as important to live well as it is to study well. Going to bed no later than 11:30 pm is important. ___38___ You needn't follow a special diet, but make sure you are eating healthy meals each day.",
+   "___39___ Having a lot of schoolwork doesn't mean having to quit other activities. Playing basketball or having a talk with your classmates can relax yourself. Time out is not a waste of time but helps you study more efficiently.",
+   "Besides taking the College Entrance Examination, you have other choices for college. ___40___ Pay attention to the useful information you can find, whether it's from school, the news media or other sources."
+  ],
+  "opts": [
+   "Don't let your friendships die.",
+   "Your friends are good for your study.",
+   "If you took notes in class, re-read them.",
+   "The person who plays well studies well.",
+   "It puts you in the right state for the next day.",
+   "Some students even apply for studying abroad.",
+   "It's important to learn from past mistakes as well."
+  ],
+  "nums": [
+   36,
+   37,
+   38,
+   39,
+   40
+  ]
+ },
+ "cloze": {
+  "paras": [
+   "I walked into the room. 20 years have gone by since I left high school, but seeing ___41___ faces brought me back to my youth at once.",
+   "\"Dreamlike\" is the best word to ___42___ my 20-year high school reunion (聚会). ___43___ and excited, I recognized (认出) many ___44___. No one seemed to ___45___! The women all looked the same as before, and the men too.",
+   "The high school years are filled with ___46___. It's a period in life when you are trying to know who you are, or simply trying to ___47___ with others. There are disagreements and there is plenty of stress (压力). But here's the thing: none of that ___48___ years later. It doesn't matter whether you were popular or had straight A's.",
+   "20 years later, none of that matters. ___49___ isn't measured (衡量) by the car that you drive or how much money you make. Success is what holds real ___50___ in your life—your happiness, your family and your relationships.",
+   "Success is living ___51___ and making a difference. As I said my goodbyes, I took one last look at this ___52___. There's something special about your teenage friends. You can recognize easily, even if it's been 20 years since you ___52___. I'm thankful for the ___54___ I made as a teenager. I'll see you all in 10 years and hear where ___55___ takes us next."
+  ],
+  "items": [
+   {
+    "opts": [
+     "old",
+     "famous",
+     "different",
+     "fresh"
+    ],
+    "n": 41
+   },
+   {
+    "opts": [
+     "change",
+     "describe",
+     "organize",
+     "forget"
+    ],
+    "n": 42
+   },
+   {
+    "opts": [
+     "Tired",
+     "Annoyed",
+     "Nervous",
+     "Frightened"
+    ],
+    "n": 43
+   },
+   {
+    "opts": [
+     "neighbors",
+     "leaders",
+     "advisers",
+     "classmates"
+    ],
+    "n": 44
+   },
+   {
+    "opts": [
+     "agree",
+     "move",
+     "care",
+     "age"
+    ],
+    "n": 45
+   },
+   {
+    "opts": [
+     "challenges",
+     "information",
+     "hope",
+     "ideas"
+    ],
+    "n": 46
+   },
+   {
+    "opts": [
+     "discuss",
+     "fit in",
+     "work",
+     "check in"
+    ],
+    "n": 47
+   },
+   {
+    "opts": [
+     "appears",
+     "fails",
+     "matters",
+     "ends"
+    ],
+    "n": 48
+   },
+   {
+    "opts": [
+     "Truth",
+     "Success",
+     "Kindness",
+     "Knowledge"
+    ],
+    "n": 49
+   },
+   {
+    "opts": [
+     "meaning",
+     "money",
+     "control",
+     "interest"
+    ],
+    "n": 50
+   },
+   {
+    "opts": [
+     "quietly",
+     "comfortably",
+     "bravely",
+     "fully"
+    ],
+    "n": 51
+   },
+   {
+    "opts": [
+     "school",
+     "family",
+     "couple",
+     "group"
+    ],
+    "n": 52
+   },
+   {
+    "opts": [
+     "registered",
+     "graduated",
+     "explored",
+     "designed"
+    ],
+    "n": 53
+   },
+   {
+    "opts": [
+     "friendships",
+     "decisions",
+     "promises",
+     "progress"
+    ],
+    "n": 54
+   },
+   {
+    "opts": [
+     "history",
+     "education",
+     "life",
+     "society"
+    ],
+    "n": 55
+   }
+  ]
+ },
+ "grammar": {
+  "paras": [
+   "Entering senior high school is an exciting but ___56___ (challenge) experience for many teenagers. On the first day, I felt a mix of ___57___ (anxious) and excitement because everything was new. However, our teacher, an expert in education, gave us a warm welcome and told us to be confident.",
+   "To get used to the new environment quickly, I decided to register ___58___ some extra-curricular activities. I joined ___59___ school debate club, where I made many new friends. We often exchange ideas with each other. My new partner, Li Hua, is an outgoing boy who is always curious about new environment. He is responsible and never leaves others alone ___60___ they are in trouble. Sometimes, his loud voice makes me ___61___ (frighten), but I know he is kind-hearted.",
+   "Besides ___62___ (make) friends, I also need to focus on my studies. Our teachers recommend us ___63___ (take) notes carefully in class. Although the subjects are much ___64___ (advance) than before, I am determined to face the challenges. I believe that as long as I work hard, I ___65___ (leave) a good impression on my teachers and classmates."
+  ],
+  "nums": [
+   56,
+   57,
+   58,
+   59,
+   60,
+   61,
+   62,
+   63,
+   64,
+   65
+  ]
+ },
+ "single": [
+  {
+   "n": 66,
+   "text": "I prefer ___66___ (walk) to school rather than take a bus, because it is good for my health."
+  },
+  {
+   "n": 67,
+   "text": "The speech given by the headmaster was very ___67___ (impress) which inspired all the freshmen."
+  },
+  {
+   "n": 68,
+   "text": "Nowadays, many teenagers are addicted to ___68___ (play) short videos, which has a bad effect on their studies."
+  },
+  {
+   "n": 69,
+   "text": "Much to my ___69___ (annoy) the train was delayed for two hours because of the heavy rain."
+  },
+  {
+   "n": 70,
+   "text": "Many college students volunteer ___70___ (clean) up the garbage on the street during their summer holidays."
+  },
+  {
+   "n": 71,
+   "text": "If you practice spoken English every day, you will speak it with ___71___ (fluently)."
+  },
+  {
+   "n": 72,
+   "text": "She is not only good at dancing but also has a great sense of ___72___ (responsible)."
+  },
+  {
+   "n": 73,
+   "text": "Out of ___73___ (curious), I opened the mysterious box that I found in the attic."
+  },
+  {
+   "n": 74,
+   "text": "The debate we had been looking forward to ___74___ (begin) at last."
+  },
+  {
+   "n": 75,
+   "text": "The girl ___75___ (graduate) from Peking University last year is now working as an editor in a famous company."
+  }
+ ],
+ "write": [
+  {
+   "n": 76,
+   "label": "第一节　应用文写作（满分 15 分）",
+   "prompt": "假定你是校英文报\"Heart-to-Heart\"栏目编辑李华，收到高一新生陈明的来信。他因开学后父母禁止他使用手机与父母发生了激烈争吵，感到非常迷茫。请你用英语给他写一封回信，给出建议。主要内容包括 1. 表达理解。2. 给出建议。",
+   "notes": [
+    "注意：1. 词数 80 左右；",
+    "2. 可以适当增加细节，以使行文连贯。"
+   ],
+   "body": [
+    "Dear Chen Ming,",
+    "Yours,",
+    "Li Hua"
+   ]
+  },
+  {
+   "n": 77,
+   "label": "第二节　口语表达（满分 15 分）",
+   "prompt": "假定你是某国际中学某学生社团社长李华，下周学校将举行社团招新大会，请从这些社团中选择一个：English Club, Debate Club, Basketball Club, Music Club, Volunteer Club，然后用英语写一篇招新演讲稿，吸引同学们加入。内容包括：",
+   "notes": [
+    "1. 社团简介；",
+    "2. 社团主要活动。",
+    "注意：1. 词数 80 左右；",
+    "2. 可以适当增加细节，以使行文连贯。开头和结尾已给出，不计入总词数。"
+   ],
+   "body": [
+    "Good morning, everyone! I'm Li Hua, president of the ... Club. ______________________________",
+    "Thank you for listening!"
+   ]
+  }
+ ]
+}

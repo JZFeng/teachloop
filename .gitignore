@@ -1,24 +1,66 @@
-# Compiled class file
+# ---------- Java / Maven ----------
+target/
 *.class
-
-# Log file
-*.log
-
-# BlueJ files
-*.ctxt
-
-# Mobile Tools for Java (J2ME)
-.mtj.tmp/
-
-# Package Files #
-*.jar
 *.war
 *.nar
 *.ear
 *.zip
 *.tar.gz
 *.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# GitHub 的 Java 模板会忽略 *.jar，但 Maven Wrapper 的 jar 必须提交，故单独放行。
+*.jar
+!.mvn/wrapper/maven-wrapper.jar
+
+# ---------- Node / 前端 ----------
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.tsbuildinfo
+npm-debug.log*
+pnpm-debug.log*
+yarn-error.log*
+.npm-cache/
+
+# ---------- 日志 ----------
+*.log
+
+# ---------- IDE / 编辑器 ----------
+.idea/
+*.iml
+.vscode/
+*.swp
+*~
+*.ctxt
+.mtj.tmp/
+
+# ---------- 操作系统 ----------
+.DS_Store
+Thumbs.db
+
+# ---------- 本地环境与密钥（绝不提交） ----------
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+credentials.yaml
+
+# ---------- 本地数据与隐私素材（绝不提交） ----------
+# 真实试卷与真实学生作答不进入版本库（宪法第七条）
+75145*
+fixtures-local/
+data/
+uploads/
+
+# ---------- 一次性脚本与临时产物 ----------
+work/
+tools/
+*.tmp
+
+# 样例提交与评语：来源未确认（可能是真实同学/学生的作业），先留在本地不提交
+# 确认后若要纳入，删除下面这一行
+docs/rubrics/samples/

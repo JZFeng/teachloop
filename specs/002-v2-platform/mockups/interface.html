@@ -1,0 +1,1905 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 批改平台 · 界面原型</title>
+<style>
+  :root, body[data-theme="saas"]{
+    --bg:#f3f5fa; --panel:#fff; --panel-2:#fafbfd;
+    --line:#e2e7f0; --line-2:#edf0f6;
+    --text:#141821; --muted:#646d7d; --muted-2:#666f7f;
+    --accent:#4f46e5; --accent-2:#7c6cf5; --accent-weak:#eceefc; --on-accent:#fff;
+    --green:#0d7a5c; --green-weak:#e4f4ee;
+    --amber:#96590a; --amber-weak:#fcf2e0;
+    --red:#b32d20; --red-weak:#fcebe9;
+    --done:#2563eb; --done-bg:#e7effd; --on-done:#fff; --done-line:#b9cffa;
+    --shadow:0 1px 2px rgba(16,24,40,.04), 0 2px 6px rgba(16,24,40,.05);
+    --shadow-lg:0 4px 16px rgba(16,24,40,.08);
+    --radius:12px; --radius-sm:8px;
+    --font-head:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --font-body:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  body[data-theme="academic"]{
+    --bg:#f6f4ee; --panel:#fffefb; --panel-2:#f9f7f1;
+    --line:#ddd7c8; --line-2:#eae5d9;
+    --text:#1b1915; --muted:#6a6252; --muted-2:#736c5a;
+    --accent:#1f4e79; --accent-2:#2f6a9e; --accent-weak:#e7eef6; --on-accent:#fff;
+    --green:#2c6644; --green-weak:#e7f0e9;
+    --amber:#845514; --amber-weak:#f7eedb;
+    --red:#8b2d21; --red-weak:#f7e7e3;
+    --done:#1f5fa8; --done-bg:#e6eefa; --on-done:#fff; --done-line:#b9cde8;
+    --shadow:0 1px 2px rgba(70,58,32,.05), 0 2px 8px rgba(70,58,32,.05);
+    --shadow-lg:0 6px 20px rgba(70,58,32,.10);
+    --radius:8px; --radius-sm:5px;
+    --font-head:"Iowan Old Style",Georgia,"Songti SC","Source Han Serif SC",serif;
+    --font-body:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  body[data-theme="eyecare"]{
+    --bg:#e8eee2; --panel:#f6f9f1; --panel-2:#eef3e8;
+    --line:#cfd9c4; --line-2:#dde5d3;
+    --text:#28301f; --muted:#5b6852; --muted-2:#5d6d4d;
+    --accent:#3f6b46; --accent-2:#5b8c62; --accent-weak:#dde9d9; --on-accent:#fff;
+    --green:#2f6b47; --green-weak:#dcebdf;
+    --amber:#7a5410; --amber-weak:#efe9d2;
+    --red:#8b3325; --red-weak:#f0ded8;
+    --done:#2f6ba8; --done-bg:#e3ecf5; --on-done:#fff; --done-line:#b6cce0;
+    --shadow:0 1px 2px rgba(60,80,50,.06), 0 2px 8px rgba(60,80,50,.06);
+    --shadow-lg:0 6px 20px rgba(60,80,50,.12);
+    --radius:10px; --radius-sm:6px;
+    --font-head:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
+    --font-body:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;
+  }
+  body[data-theme="dark"]{
+    --bg:#0d1017; --panel:#151a22; --panel-2:#1a2029;
+    --line:#25303e; --line-2:#1e2733;
+    --text:#e7ebf2; --muted:#98a3b5; --muted-2:#7f8b9c;
+    --accent:#6ea8fe; --accent-2:#9b8cff; --accent-weak:#1a2440; --on-accent:#0a1120;
+    --green:#4ade80; --green-weak:#12261d;
+    --amber:#fbbf24; --amber-weak:#2a2114;
+    --red:#fb7185; --red-weak:#2b161a;
+    --done:#7db2ff; --done-bg:#16283d; --on-done:#0a1120; --done-line:#2b4a6e;
+    --shadow:0 1px 2px rgba(0,0,0,.5);
+    --shadow-lg:0 6px 24px rgba(0,0,0,.5);
+    --radius:12px; --radius-sm:8px;
+    --font-head:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
+    --font-body:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--text); font:14px/1.62 var(--font-body);
+    display:flex; -webkit-font-smoothing:antialiased;
+    transition:background .18s ease, color .18s ease}
+  aside{width:238px; flex:0 0 238px; background:var(--panel);
+    border-right:1px solid var(--line); padding:20px 12px;
+    height:100vh; overflow:auto; position:sticky; top:0}
+  .brand{font-family:var(--font-head); font-weight:700; font-size:15px; padding:0 8px 3px; letter-spacing:-.01em}
+  .brand span{display:block; font-weight:400; font-size:11px; color:var(--muted-2); letter-spacing:.05em; margin-top:2px}
+  .group{font-size:10.5px; color:var(--muted-2); margin:18px 8px 7px; letter-spacing:.1em; font-weight:700; text-transform:uppercase}
+  nav button{display:block; width:100%; text-align:left; border:0; background:none;
+    font:inherit; color:var(--text); padding:7px 10px; border-radius:var(--radius-sm);
+    cursor:pointer; margin-bottom:1px; transition:background .12s}
+  nav button:hover{background:var(--panel-2)}
+  nav button.on{background:var(--accent-weak); color:var(--accent); font-weight:650}
+  nav button .badge{float:right; background:var(--accent); color:var(--on-accent);
+    font-size:10.5px; padding:0 6px; border-radius:999px; font-weight:700; line-height:17px; margin-top:3px}
+
+  main{flex:1; min-width:0; width:100%; padding:28px 34px 96px; max-width:1240px; margin:0 auto}
+  .screen{display:none; animation:fade .18s ease}
+  .screen.on{display:block}
+  @keyframes fade{from{opacity:0; transform:translateY(3px)} to{opacity:1; transform:none}}
+  h1{font-family:var(--font-head); font-size:20px; margin:0 0 4px; letter-spacing:-.015em; font-weight:700}
+  .sub{color:var(--muted); font-size:13px; margin-bottom:20px}
+
+  .card{background:var(--panel); border:1px solid var(--line);
+    border-radius:var(--radius); padding:18px 18px 16px; margin-bottom:16px; box-shadow:var(--shadow)}
+  .card > h2{font-family:var(--font-head); font-size:14px; margin:0 0 14px; font-weight:700}
+  .card > h2 small{font-weight:400; color:var(--muted-2); margin-left:8px; font-size:12px; font-family:var(--font-body)}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px}
+  @media(max-width:1000px){.grid2,.grid3{grid-template-columns:1fr}}
+
+  label.f{display:block; margin-bottom:13px}
+  label.f b{display:block; font-weight:650; font-size:12px; margin-bottom:5px; color:var(--muted)}
+  label.f b i{color:var(--red); font-style:normal}
+  input:not([type]),input[type=text],input[type=password],input[type=email],input[type=number],input[type=date],select,textarea{
+    width:100%; padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius-sm);
+    font:inherit; background:var(--panel); color:var(--text); transition:border-color .12s, box-shadow .12s}
+  input:focus,select:focus,textarea:focus{outline:none; border-color:var(--accent); box-shadow:0 0 0 3px var(--accent-weak)}
+  .hint{font-size:12px; color:var(--muted-2); margin-top:6px; line-height:1.55}
+  .row{display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+
+  .btn{border:1px solid var(--line); background:var(--panel); color:var(--text);
+    padding:8px 14px; border-radius:var(--radius-sm); font:inherit; cursor:pointer;
+    transition:transform .08s, box-shadow .12s, background .12s}
+  .btn:hover{background:var(--panel-2); box-shadow:var(--shadow)}
+  .btn:active{transform:translateY(1px)}
+  .btn.pri{background:linear-gradient(180deg, var(--accent-2), var(--accent));
+    border-color:transparent; color:var(--on-accent); font-weight:650;
+    box-shadow:0 1px 2px rgba(0,0,0,.12), 0 2px 8px -2px var(--accent)}
+  .btn.pri:hover{filter:brightness(1.06)}
+  .btn.danger{color:var(--red); border-color:var(--red-weak)}
+  .btn.sm{padding:5px 10px; font-size:12px}
+
+  table{width:100%; border-collapse:collapse; font-size:13px}
+  th{text-align:left; font-weight:650; font-size:11.5px; color:var(--muted);
+    padding:9px 10px; border-bottom:1px solid var(--line); background:var(--panel-2);
+    letter-spacing:.02em; text-transform:uppercase; white-space:nowrap}
+  th:first-child{border-top-left-radius:var(--radius-sm)}
+  th:last-child{border-top-right-radius:var(--radius-sm)}
+  th[data-sort]{cursor:pointer; user-select:none}
+  th[data-sort]:hover{color:var(--text)}
+  th[data-sort]::after{content:"⇅"; opacity:.32; margin-left:5px; font-size:10px}
+  th.asc::after{content:"▲"; opacity:1; color:var(--accent)}
+  th.desc::after{content:"▼"; opacity:1; color:var(--accent)}
+  td{padding:10px; border-bottom:1px solid var(--line-2); vertical-align:middle}
+  tbody tr{transition:background .1s}
+  tbody tr:hover{background:var(--panel-2)}
+  tr:last-child td{border-bottom:0}
+
+  .tag{display:inline-block; padding:1.5px 8px; border-radius:999px; font-size:11.5px;
+    font-weight:650; white-space:nowrap; border:1px solid transparent}
+  .tag.gray{background:var(--panel-2); color:var(--muted); border-color:var(--line)}
+  .tag.blue{background:var(--accent-weak); color:var(--accent)}
+  .tag.green{background:var(--green-weak); color:var(--green)}
+  .tag.amber{background:var(--amber-weak); color:var(--amber)}
+  .tag.red{background:var(--red-weak); color:var(--red)}
+
+  .proto{background:var(--amber-weak); color:var(--amber); border:1px solid var(--amber);
+    border-color:color-mix(in srgb, var(--amber) 28%, transparent);
+    padding:9px 13px; border-radius:var(--radius-sm); font-size:12.5px; margin-bottom:18px}
+
+  .kv{display:flex; justify-content:space-between; gap:16px; padding:8px 0;
+    border-bottom:1px dashed var(--line-2); font-size:13px}
+  .kv:last-child{border-bottom:0}
+  .kv span:first-child{color:var(--muted); flex:0 0 auto}
+  .kv span:last-child{font-weight:650; text-align:right}
+
+  .bar{height:9px; background:var(--line-2); border-radius:999px; overflow:hidden}
+  .bar > i{display:block; height:100%; border-radius:999px; transition:width .35s ease;
+    background:linear-gradient(90deg, var(--accent-2), var(--accent))}
+  .bar.green > i{background:linear-gradient(90deg,#34d399,var(--green))}
+
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:12.5px}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+
+  .timeline{list-style:none; margin:0; padding:0 0 0 18px; border-left:2px solid var(--line)}
+  .timeline li{position:relative; padding:0 0 18px 16px}
+  .timeline li:last-child{padding-bottom:0}
+  .timeline li::before{content:""; position:absolute; left:-26px; top:5px; width:9px; height:9px;
+    border-radius:50%; background:var(--panel); border:2px solid var(--accent)}
+  .timeline li.done::before{background:var(--green); border-color:var(--green)}
+  .timeline b{display:block; font-size:13px; font-weight:650}
+  .timeline time{font-size:11.5px; color:var(--muted-2)}
+
+  .login-wrap{display:grid; grid-template-columns:1.05fr 1fr; background:var(--panel);
+    border:1px solid var(--line); border-radius:var(--radius); overflow:hidden;
+    min-height:470px; box-shadow:var(--shadow-lg)}
+  @media(max-width:1000px){.login-wrap{grid-template-columns:1fr}}
+  .login-left{padding:46px 40px; background:linear-gradient(155deg, var(--accent-weak), transparent 70%);
+    border-right:1px solid var(--line)}
+  .login-left h2{font-family:var(--font-head); margin:0 0 10px; font-size:23px; letter-spacing:-.025em; font-weight:700}
+  .login-left p{color:var(--muted); font-size:13px; margin:0 0 24px}
+  .login-left ul{margin:0; padding-left:18px; color:var(--muted); font-size:13px}
+  .login-left li{margin-bottom:8px}
+  .login-right{padding:40px}
+  .tabs{display:flex; gap:6px; margin-bottom:24px; border-bottom:1px solid var(--line)}
+  .tabs button{border:0; background:none; font:inherit; padding:9px 4px; margin-right:18px;
+    cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; font-weight:600}
+  .tabs button.on{color:var(--accent); border-bottom-color:var(--accent)}
+  .qr{width:152px; height:152px; border:1px solid var(--line); border-radius:var(--radius-sm);
+    display:grid; place-items:center; color:var(--muted-2); font-size:11px;
+    background:var(--panel-2); margin:0 auto 12px}
+
+  .editor{border:1px solid var(--line); border-radius:var(--radius-sm); overflow:hidden; background:var(--panel)}
+  .toolbar{display:flex; gap:2px; padding:6px; border-bottom:1px solid var(--line);
+    background:var(--panel-2); flex-wrap:wrap}
+  .toolbar button{border:0; background:none; width:30px; height:28px; border-radius:6px;
+    cursor:pointer; font:inherit; color:var(--muted); transition:background .1s}
+  .toolbar button:hover{background:var(--line-2); color:var(--text)}
+  .editor .body{padding:15px 16px; min-height:170px}
+  .editor .body p{margin:0 0 10px}
+  .editor .body ul{margin:0 0 10px; padding-left:22px}
+  .foot{display:flex; justify-content:space-between; align-items:center; padding:8px 12px;
+    border-top:1px solid var(--line); background:var(--panel-2); font-size:12px; color:var(--muted-2)}
+
+  .drop{border:1.5px dashed var(--line); border-radius:var(--radius-sm); padding:26px;
+    text-align:center; color:var(--muted); background:var(--panel-2)}
+  .drop b{display:block; color:var(--text); margin-bottom:4px; font-size:13px}
+
+  .ans-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(76px,1fr)); gap:7px}
+  .ans{display:flex; align-items:center; gap:5px; font-size:12.5px}
+  .ans em{font-style:normal; color:var(--muted-2); width:20px; text-align:right; flex:0 0 20px; font-size:11.5px}
+  .ans input{padding:4px 6px; text-align:center; text-transform:uppercase; font-weight:600}
+
+  .wrong{display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px;
+    border-radius:7px; background:var(--red-weak); color:var(--red); font-weight:700;
+    font-size:11.5px; margin-right:5px}
+  .score-big{font-family:var(--font-head); font-size:36px; font-weight:700;
+    letter-spacing:-.035em; line-height:1; color:var(--accent)}
+  .score-big small{font-size:14px; font-weight:400; color:var(--muted); font-family:var(--font-body)}
+
+  .rubric-row{border:1px solid var(--line); border-radius:var(--radius-sm); padding:13px 14px;
+    margin-bottom:10px; background:var(--panel)}
+  .rubric-row .top{display:flex; justify-content:space-between; align-items:center; margin-bottom:6px}
+  .rubric-row .top b{font-size:13.5px; font-weight:650}
+  .rubric-row .top .pts{font-weight:700; color:var(--accent); font-size:13px}
+  .rubric-row p{margin:0; color:var(--muted); font-size:12.5px; line-height:1.6}
+
+  .switch{display:inline-flex; align-items:center; gap:9px; cursor:pointer; font-size:13px; user-select:none}
+  .switch i{width:38px; height:22px; border-radius:999px; background:var(--line);
+    position:relative; transition:.18s; flex:0 0 auto}
+  .switch i::after{content:""; position:absolute; top:2px; left:2px; width:18px; height:18px;
+    border-radius:50%; background:var(--panel); transition:.18s; box-shadow:0 1px 2px rgba(0,0,0,.2)}
+  .switch.on i{background:var(--accent)}
+  .switch.on i::after{left:18px}
+
+  .flag{font-size:11.5px; color:var(--muted-2)}
+  .inline-note{background:var(--panel-2); border-left:3px solid var(--accent); padding:10px 13px;
+    font-size:12.5px; color:var(--muted); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    margin-bottom:14px; line-height:1.65}
+  .inline-note.ok{border-left-color:var(--green)}
+
+  details{border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px;
+    margin-bottom:10px; background:var(--panel)}
+  details summary{cursor:pointer; font-weight:650; font-size:13px; list-style:none}
+  details summary::-webkit-details-marker{display:none}
+  details summary::before{content:"▸ "; color:var(--muted-2)}
+  details[open] summary::before{content:"▾ "}
+  details p{margin:11px 0 0; color:var(--muted); font-size:13px; line-height:1.7}
+
+  .ck{display:inline-flex; align-items:center; gap:7px; cursor:pointer; font-size:12.5px}
+  .ck input{width:15px; height:15px; accent-color:var(--accent); cursor:pointer; margin:0}
+
+  .filters{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:11px; align-items:end}
+  .filters label.f{margin-bottom:0}
+
+  .two-list{display:grid; grid-template-columns:1fr 1fr; gap:16px}
+  @media(max-width:1080px){.two-list{grid-template-columns:1fr}}
+  .list-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px}
+  .scroll{max-height:340px; overflow:auto; border:1px solid var(--line); border-radius:var(--radius-sm)}
+  .scroll table{margin:0}
+  .scroll th{position:sticky; top:0; z-index:1}
+  .selbar{display:flex; justify-content:space-between; align-items:center; gap:12px;
+    margin-top:14px; padding:12px 86px 12px 14px;
+    background:var(--accent-weak); border-radius:var(--radius-sm)}
+
+  .feed{border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px 16px;
+    margin-bottom:10px; background:var(--panel); cursor:pointer;
+    transition:box-shadow .14s, border-color .14s, transform .08s}
+  .feed:hover{box-shadow:var(--shadow); border-color:var(--accent)}
+  .feed:active{transform:translateY(1px)}
+  .feed .top{display:flex; justify-content:space-between; align-items:flex-start; gap:12px; margin-bottom:6px}
+  .feed b{font-size:14px; font-weight:650}
+  .feed .meta{font-size:12px; color:var(--muted-2); margin-top:3px}
+  .feed .right{text-align:right; flex:0 0 auto}
+  .dot{display:inline-block; width:7px; height:7px; border-radius:50%;
+    background:var(--red); margin-left:6px; vertical-align:middle}
+
+  .conf-low{background:var(--amber-weak)}
+  .conf-low input{background:var(--amber-weak); border-color:var(--amber)}
+
+  /* 主题切换常驻右下角，但常驻的横条会盖住页面底部的操作按钮（报表页的导出三重奏
+     就在这个角上）。默认只留一个窄药丸，悬停或点击才展开；考试专注模式直接隐藏。 */
+  .theme-bar{position:fixed; right:20px; bottom:20px; z-index:50; display:flex; align-items:center; gap:0;
+    padding:8px 10px; background:color-mix(in srgb, var(--panel) 92%, transparent);
+    border:1px solid var(--line); border-radius:999px; box-shadow:var(--shadow-lg); backdrop-filter:blur(8px);
+    cursor:pointer; transition:gap .18s ease}
+  .theme-bar > span{font-size:11px; color:var(--muted-2); margin-right:0; letter-spacing:.06em;
+    transition:margin .18s ease}
+  .theme-bar .opts{display:flex; gap:6px; max-width:0; opacity:0; overflow:hidden;
+    transition:max-width .22s ease, opacity .16s ease, margin .18s ease}
+  .theme-bar:hover, .theme-bar:focus-within, .theme-bar.open{gap:6px}
+  .theme-bar:hover > span, .theme-bar:focus-within > span, .theme-bar.open > span{margin-right:2px}
+  .theme-bar:hover .opts, .theme-bar:focus-within .opts, .theme-bar.open .opts{
+    max-width:360px; opacity:1; margin-left:2px}
+  .theme-bar button{border:1px solid transparent; background:none; font:inherit; font-size:12px;
+    padding:4px 10px; border-radius:999px; cursor:pointer; color:var(--muted); transition:.14s; white-space:nowrap}
+  .theme-bar button:hover{background:var(--panel-2); color:var(--text)}
+  .theme-bar button.on{background:var(--accent); color:var(--on-accent); font-weight:650}
+  body.examfocus .theme-bar{display:none}
+</style>
+</head>
+<body>
+<style>
+  .stepper{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px}
+  .stepper .st{display:flex;align-items:center;gap:7px;padding:6px 12px;border:1px solid var(--line);
+    border-radius:999px;font-size:12.5px;color:var(--muted);background:var(--panel)}
+  .stepper .st b{width:18px;height:18px;border-radius:50%;background:var(--line-2);color:var(--muted);
+    display:grid;place-items:center;font-size:11px}
+  .stepper .st.on{border-color:var(--accent);color:var(--accent);font-weight:650}
+  .stepper .st.on b{background:var(--accent);color:var(--on-accent)}
+  .stepper .st.done b{background:var(--green);color:#fff}
+
+  .seg{display:inline-flex;border:1px solid var(--line);border-radius:999px;overflow:hidden;background:var(--panel)}
+  .seg button{border:0;background:none;font:inherit;font-size:12.5px;padding:5px 12px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:var(--accent);color:var(--on-accent);font-weight:650}
+
+  .pager{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:12px;
+    font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+  .pg{display:flex;gap:4px}
+  .pg button{min-width:28px;height:28px;border:1px solid var(--line);background:var(--panel);
+    border-radius:6px;cursor:pointer;font:inherit;font-size:12.5px;color:var(--text)}
+  .pg button.on{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:650}
+  .pg button:hover{background:var(--panel-2)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(148px,1fr));gap:12px;margin-bottom:16px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:14px 16px;cursor:pointer;transition:.14s;box-shadow:var(--shadow)}
+  .stat:hover{border-color:var(--accent);transform:translateY(-1px)}
+  .stat .n{font-family:var(--font-head);font-size:26px;font-weight:700;letter-spacing:-.03em;line-height:1.15}
+  .stat .l{font-size:12px;color:var(--muted);margin-top:3px}
+  .stat.act{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-weak)}
+  .stat .sub{font-size:11px;color:var(--muted-2);margin-top:4px}
+
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:12px}
+  .chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;
+    padding:5px 12px;font-size:12.5px;cursor:pointer;color:var(--muted)}
+  .chip.on{border-color:var(--accent);background:var(--accent-weak);color:var(--accent);font-weight:650}
+
+  body.examfocus aside{display:none}
+  body.examfocus main{max-width:none;padding:0}
+  body.examfocus .proto{display:none}
+
+  .examshell{display:grid;grid-template-columns:252px 1fr;height:100vh}
+  .treebtn{display:none}
+  @media(max-width:1024px){
+    .examshell{grid-template-columns:1fr}
+    .examtree{position:fixed;top:0;bottom:0;left:0;width:272px;z-index:20;display:none;box-shadow:var(--shadow-lg)}
+    body.treeopen .examtree{display:flex}
+    .treebtn{display:inline-flex}
+  }
+  .examtree{border-right:1px solid var(--line);background:var(--panel);display:flex;flex-direction:column;min-height:0}
+  .tree-head{padding:14px 14px 10px;border-bottom:1px solid var(--line-2)}
+  .tree-head b{font-size:13px;display:block;line-height:1.4}
+  .tree-head .prog{font-size:11.5px;color:var(--muted);margin-top:4px}
+  .tree{flex:1;overflow-y:auto;padding:8px 8px 40px}
+  .tpart{width:100%;display:flex;justify-content:space-between;align-items:center;gap:8px;border:0;
+    background:none;font:inherit;font-size:12.5px;font-weight:650;padding:7px 8px;border-radius:7px;
+    cursor:pointer;color:var(--text);text-align:left}
+  .tpart:hover{background:var(--panel-2)}
+  .tpart span{font-weight:400;color:var(--muted-2);font-size:11px}
+  .tpart.active{background:var(--accent-weak);color:var(--accent)}
+  .tpart.done{color:var(--text)}
+  .tpart.done span{color:var(--muted)}
+  .tpart.done span b{color:var(--done);font-weight:700}
+  .tcount{font-size:11px;color:var(--muted-2);font-variant-numeric:tabular-nums}
+  #timer{cursor:pointer;font-variant-numeric:tabular-nums}
+  #timer.warn{background:var(--red-weak);color:var(--red);border-color:var(--red)}
+  .paperwrap.locked{position:relative}
+  .paperwrap.locked::after{content:'时间到，已自动交卷';position:sticky;bottom:0;display:block;
+    margin:12px 0 0;padding:10px 14px;border-radius:var(--radius-sm);
+    background:var(--red-weak);color:var(--red);font-weight:700;font-size:13px;text-align:center}
+  .paperwrap.locked .qopt,.paperwrap.locked .blank,.paperwrap.locked .writearea,
+  .paperwrap.locked .qopt input{pointer-events:none;opacity:.72}
+  .tpart.done .tcount{color:var(--done);font-weight:700}
+  .tkids{display:none;grid-template-columns:repeat(5,1fr);gap:4px;padding:3px 2px 9px}
+  .tnode.open .tkids{display:grid}
+  .tq{border:1px solid var(--line);background:var(--panel);border-radius:5px;height:25px;
+    font:inherit;font-size:11px;color:var(--muted);cursor:pointer;padding:0}
+  .tq:hover{border-color:var(--accent)}
+  .tq.ans{background:var(--done);border-color:var(--done);color:var(--on-done);font-weight:700}
+  .tq.mark{background:var(--amber-weak);border-color:var(--amber);color:var(--amber)}
+  .tq.active{outline:2px solid var(--accent);outline-offset:1px;font-weight:700}
+  .tq.active:not(.ans){color:var(--text)}
+
+  .exammain{overflow-y:auto;min-height:0;position:relative}
+  .exambar{position:sticky;top:0;z-index:6;background:var(--panel);border-bottom:1px solid var(--line);
+    padding:9px 22px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .paperwrap{max-width:830px;margin:0 auto;padding:26px 30px 140px}
+  .sech{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);
+    border-bottom:1px solid var(--line-2);padding-bottom:6px;margin:26px 0 4px}
+  .sech:first-child{margin-top:0}
+  .sech span{text-transform:none;letter-spacing:0;color:var(--muted-2);font-weight:400;margin-left:6px}
+  .passage{background:var(--panel-2);border:1px solid var(--line-2);border-radius:var(--radius-sm);
+    padding:15px 17px;font-size:13.5px;line-height:1.95;margin:10px 0 4px}
+  .q{border-bottom:1px dashed var(--line-2);padding:13px 0;scroll-margin-top:62px}
+  .q:last-child{border-bottom:0}
+  .q .qh{display:flex;gap:9px;margin-bottom:2px}
+  .q .qn{font-weight:700;color:var(--text);flex:0 0 24px}
+  .q .qp{margin:0;line-height:1.8}
+  .qopts{display:flex;flex-wrap:wrap;gap:7px;margin:8px 0 0 33px}
+  /* 未答=空心（虚线边、浅灰字母）；已答=实心落定（实线边、灰底、实心反白字母）。
+     颜色不参与"答没答"的表达：主题色只留给当前焦点，琥珀只留给标记。 */
+  .qopt{display:inline-flex;align-items:center;gap:7px;border:1px dashed var(--line);background:var(--panel);
+    border-radius:8px;padding:6px 13px;cursor:pointer;font:inherit;font-size:13px;color:var(--text)}
+  .qopt:hover{border-color:var(--accent);border-style:solid}
+  .qopt b{width:18px;height:18px;border-radius:50%;background:var(--panel);color:var(--muted-2);
+    border:1px solid var(--line);display:grid;place-items:center;font-size:11px;font-weight:700}
+  .qopt.on{border-style:solid;border-color:var(--done-line);background:var(--done-bg);color:var(--text);font-weight:650}
+  .qopt.on b{background:var(--done);border-color:var(--done);color:var(--on-done)}
+  /* 多选：字母换成方框，勾上打勾 */
+  .qopt.cb b{border-radius:3px;background:var(--panel);border:1.5px solid var(--line);
+    position:relative;font-size:0}
+  .qopt.cb.on b{background:var(--done);border-color:var(--done)}
+  .qopt.cb.on b:after{content:'';position:absolute;left:5px;top:1.5px;width:4px;height:8px;
+    border:2px solid #fff;border-top:0;border-left:0;transform:rotate(42deg)}
+  .wcount{display:flex;align-items:center;gap:6px;margin:6px 0 0 33px;font-size:12px;color:var(--muted)}
+  .wcount .wn{font-weight:700;color:var(--text);font-variant-numeric:tabular-nums}
+  .wcount.ok .wn{color:var(--green)}
+  .wcount.over .wn{color:var(--red)}
+  .modal{position:fixed;inset:0;background:rgba(15,20,28,.34);z-index:80;display:none;
+    align-items:center;justify-content:center;padding:24px}
+  .modal.on{display:flex; animation:fade .16s ease}
+  .mbox{background:var(--panel);border-radius:14px;box-shadow:var(--shadow-lg);width:min(560px,100%);
+    max-height:78vh;overflow:auto;padding:20px 22px}
+  .modal.on .mbox{animation:mboxin .2s cubic-bezier(.2,.7,.3,1)}
+  @keyframes mboxin{from{opacity:0; transform:scale(.985) translateY(6px)} to{opacity:1; transform:none}}
+  .mbox h3{margin:0 0 4px;font-size:16px}
+  .mchips{display:flex;flex-wrap:wrap;gap:6px;margin:12px 0 4px}
+  .mchip{min-width:34px;height:28px;border:1px solid var(--line);background:var(--panel);border-radius:7px;
+    font:inherit;font-size:12.5px;font-variant-numeric:tabular-nums;color:var(--muted);cursor:pointer;padding:0 7px}
+  .mchip:hover{border-color:var(--accent);color:var(--accent);background:var(--accent-weak)}
+  .mchip.mk{border-color:var(--amber-line,var(--line-2));color:var(--text)}
+  .mgroup{font-size:12px;color:var(--muted-2);margin:12px 0 0;font-weight:650;letter-spacing:.04em}
+  .mfoot{display:flex;gap:8px;justify-content:flex-end;margin-top:18px}
+  .demo{margin:22px 0 0;border:1px dashed var(--line-2);border-radius:var(--radius);padding:14px 16px}
+  .demo .dlabel{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.08em;
+    color:var(--muted-2);border:1px solid var(--line-2);border-radius:99px;padding:1px 8px;margin-bottom:10px}
+  /* 填空：未答=虚线、无色底；已答=实线深色下划线 + 灰底 + 深字 */
+  .blank{border:0;border-bottom:2px dashed var(--line);background:transparent;
+    border-radius:4px 4px 0 0;padding:1px 6px;font:inherit;font-size:13px;color:var(--text);
+    min-width:78px;text-align:center}
+  .blank:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .blank.filled{background:var(--done-bg);border-bottom-style:solid;border-bottom-color:var(--done);color:var(--text);font-weight:600}
+  .writearea{width:calc(100% - 33px);border:1px solid var(--line);border-radius:var(--radius-sm);
+    padding:12px;font:inherit;font-size:14px;line-height:1.85;resize:vertical;background:var(--panel);min-height:0;
+    color:var(--text);margin:8px 0 0 33px}
+  .writearea.filled{border-color:var(--done-line);background:var(--done-bg)}
+
+  .plab{display:inline-block;font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--muted-2);margin-bottom:5px}
+  .blank.sel{text-align:left;padding:1px 4px;min-width:auto;font-size:12.5px;cursor:pointer}
+  .wlines{margin:6px 0 0 0;font-size:13px;color:var(--muted);line-height:2;border-left:2px solid var(--line);padding-left:10px}
+  .feedgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+  .breadcrumb{font-size:12.5px;color:var(--muted-2);margin-bottom:10px}
+  .breadcrumb b{color:var(--text);font-weight:600}
+</style>
+
+<aside>
+  <div class="brand">AI 批改平台<span>界面原型 · 示例数据</span></div>
+  <nav id="nav">
+    <div class="group">通用</div>
+    <button data-s="login" class="on">登录</button>
+    <button data-s="profile">资料补全</button>
+    <div class="group">教师</div>
+    <button data-s="home">首页</button>
+    <button data-s="class">班级与作业</button>
+    <button data-s="grading">批改总览</button>
+    <button data-s="review">复核工作台 <span class="badge">18</span></button>
+    <button data-s="report">报表查询</button>
+    <div class="group">学生</div>
+    <button data-s="exambrief">考前须知</button>
+    <button data-s="exam">考试作答</button>
+    <button data-s="assignment">作业提交</button>
+    <button data-s="feeds">我的反馈</button>
+    <button data-s="overview-s">班级概览</button>
+    <div class="group">二级页（从上级进入）</div>
+    <button data-s="import">导入试卷</button>
+    <button data-s="newflow">新建试卷流程</button>
+    <button data-s="offering">布置给班级</button>
+    <button data-s="editor">试卷编辑</button>
+    <button data-s="grading-detail">作业批改详情</button>
+    <button data-s="summary">班级汇总</button>
+    <button data-s="feedback">反馈详情</button>
+    <button data-s="audit">审计（行内进入）</button>
+  </nav>
+</aside>
+
+<main>
+
+<div class="proto">界面原型，数据全是编的。表格带 <b>⇅</b> 可按列排序，带分页；左侧只保留一级入口，二级页从行操作或按钮进入。</div>
+
+<!-- 登录 -->
+<section class="screen on" id="login">
+  <h1>登录</h1>
+  <div class="sub">微信扫码为主，管理员用邮箱密码</div>
+  <div class="login-wrap">
+    <div class="login-left">
+      <h2>让批改回到教学</h2>
+      <p>客观题当场判分，主观题 AI 给草稿，教师做最终决定。</p>
+      <ul>
+        <li>标准答案是数据，AI 判分时永远看不到</li>
+        <li>每份评语都能追溯到是谁批准的</li>
+        <li>分数是否公布，由教师按作业控制</li>
+      </ul>
+    </div>
+    <div class="login-right">
+      <div class="tabs">
+        <button class="on" data-tab="wx">微信登录</button>
+        <button data-tab="admin">管理员登录</button>
+      </div>
+      <div id="tab-wx">
+        <div class="qr">二维码占位</div>
+        <div class="row" style="justify-content:center"><span class="small muted">请用微信扫码</span></div>
+      </div>
+      <div id="tab-admin" style="display:none">
+        <label class="f"><b>邮箱</b><input type="email" value="admin@example.com"></label>
+        <label class="f"><b>密码</b><input type="password" value="········"></label>
+        <button class="btn pri" style="width:100%">登录</button>
+        <div class="hint">管理员由命令行创建，不能自助注册</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 资料补全 -->
+<section class="screen" id="profile">
+  <h1>补全资料</h1>
+  <div class="sub">首次登录后必须完成，用于通知与账号找回</div>
+  <div class="card" style="max-width:560px">
+    <div class="inline-note">这一步不能跳过。未补全前，除本页与退出外其余页面都会被拦截。</div>
+    <label class="f"><b>手机号 <i>*</i></b><input type="text" value="138 0000 1234">
+      <div class="hint">用于成绩发布通知，v1 不发送验证码</div></label>
+    <label class="f"><b>邮箱 <i>*</i></b><input type="email" value="teacher@school.edu"></label>
+    <div class="row"><button class="btn pri">保存并进入</button><button class="btn">退出登录</button></div>
+  </div>
+</section>
+
+<!-- 教师首页 -->
+<section class="screen" id="home">
+  <h1>首页</h1>
+  <div class="sub">我教的所有班级汇总在一起 · 不需要先选班级</div>
+
+  <div class="stats">
+    <div class="stat act" onclick="go('review')"><div class="n">18</div><div class="l">待复核</div><div class="sub">3 个班</div></div>
+    <div class="stat" onclick="go('grading')"><div class="n">2</div><div class="l">批改中</div><div class="sub">共 60 份</div></div>
+    <div class="stat" onclick="go('grading')"><div class="n">3</div><div class="l">待发布</div><div class="sub">复核已完成</div></div>
+    <div class="stat" onclick="go('grading')"><div class="n">7</div><div class="l">未提交</div><div class="sub">接近截止</div></div>
+  </div>
+
+  <div class="card">
+    <h2>班级筛选 <small>可多选 · 不选等于全部</small></h2>
+    <div class="chips">
+      <button class="chip on" onclick="this.classList.toggle('on')">高一 (3) 班</button>
+      <button class="chip on" onclick="this.classList.toggle('on')">高一 (5) 班</button>
+      <button class="chip on" onclick="this.classList.toggle('on')">高二 (1) 班</button>
+    </div>
+    <div class="hint">切换筛选不会重置下面的排序与分页。</div>
+  </div>
+
+  <div class="card">
+    <h2>最近作业 <small>默认按截止时间倒序</small></h2>
+    <table class="sortable">
+      <thead><tr>
+        <th data-sort>班级</th><th data-sort>作业</th><th data-sort>截止</th>
+        <th data-sort>提交</th><th data-sort>状态</th><th></th>
+      </tr></thead>
+      <tbody>
+        <tr><td data-v="高一 (3) 班">高一 (3) 班</td><td data-v="第一次月考">第一次月考（整卷）</td>
+          <td data-v="2026-10-20">10-20 18:00</td><td data-v="30">30 / 32</td>
+          <td data-v="批改中"><span class="tag amber">批改中 12/30</span></td>
+          <td><button class="btn sm" onclick="go('grading-detail')">详情</button></td></tr>
+        <tr><td data-v="高一 (5) 班">高一 (5) 班</td><td data-v="Unit 4 写作">Unit 4 写作</td>
+          <td data-v="2026-10-19">10-19 22:00</td><td data-v="28">28 / 30</td>
+          <td data-v="待复核"><span class="tag blue">待复核 18</span></td>
+          <td><button class="btn sm" onclick="go('review')">复核</button></td></tr>
+        <tr><td data-v="高二 (1) 班">高二 (1) 班</td><td data-v="语法专项">语法专项</td>
+          <td data-v="2026-10-18">10-18 22:00</td><td data-v="41">41 / 42</td>
+          <td data-v="待发布"><span class="tag green">可发布</span></td>
+          <td><button class="btn sm" onclick="go('summary')">汇总</button></td></tr>
+      </tbody>
+    </table>
+    <div class="pager">
+      <span>共 3 条</span>
+      <div class="pg"><button>‹</button><button class="on">1</button><button>›</button></div>
+      <select style="width:auto"><option>20 / 页</option><option>50 / 页</option><option>100 / 页</option></select>
+    </div>
+  </div>
+</section>
+
+<!-- 班级与作业 -->
+<section class="screen" id="class">
+  <h1>班级</h1>
+  <div class="sub">邀请码属于班级，每个班一个；作业不产生邀请码</div>
+
+  <div class="card">
+    <h2>我的班级 <small>3 个</small></h2>
+    <table class="sortable">
+      <thead><tr><th data-sort>班级</th><th data-sort>学生数</th><th data-sort>待办</th><th>邀请码</th><th data-sort>加入截止</th><th></th></tr></thead>
+      <tbody>
+        <tr>
+          <td data-v="高一 (3) 班"><b>高一 (3) 班</b></td>
+          <td data-v="32">32</td><td data-v="2">2</td>
+          <td><span class="mono">K7QP-3M2X</span> <span class="tag amber">2 天过期</span></td>
+          <td data-v="2026-10-21">10-21</td>
+          <td><button class="btn sm" onclick="go('summary')">汇总</button></td>
+        </tr>
+        <tr>
+          <td data-v="高一 (5) 班"><b>高一 (5) 班</b></td>
+          <td data-v="30">30</td><td data-v="1">1</td>
+          <td><span class="mono">B4XZ-9P1Q</span> <span class="tag amber">18 小时过期</span></td>
+          <td data-v="2026-10-20">10-20</td>
+          <td><button class="btn sm" onclick="go('summary')">汇总</button></td>
+        </tr>
+        <tr>
+          <td data-v="高二 (1) 班"><b>高二 (1) 班</b></td>
+          <td data-v="42">42</td><td data-v="0">0</td>
+          <td><span class="mono">M2TN-7LK4</span> <span class="tag green">已停用</span></td>
+          <td data-v="—">—</td>
+          <td><button class="btn sm" onclick="go('summary')">汇总</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="hint">邀请码默认 3 天过期，由服务端控制；可随时轮换或停用。</div>
+  </div>
+
+  <div class="card">
+    <h2>高一 (3) 班 · 作业与试卷</h2>
+    <table class="sortable">
+      <thead><tr><th data-sort>名称</th><th data-sort>类型</th><th data-sort>截止</th><th data-sort>提交</th><th data-sort>状态</th><th></th></tr></thead>
+      <tbody>
+        <tr><td data-v="第一次月考"><b>高一英语 · 10 月月考</b><div class="small muted">客观 120 + 主观 30 = 150</div></td>
+          <td data-v="试卷"><span class="tag blue">试卷</span></td><td data-v="2026-10-20">10-20 18:00</td>
+          <td data-v="30">30 / 32</td><td data-v="批改中"><span class="tag amber">批改中</span></td>
+          <td><button class="btn sm" onclick="go('grading-detail')">详情</button></td></tr>
+        <tr><td data-v="Unit 4 写作"><b>Unit 4 写作</b><div class="small muted">主观 25</div></td>
+          <td data-v="作业"><span class="tag gray">作业</span></td><td data-v="2026-10-24">10-24 22:00</td>
+          <td data-v="18">18 / 32</td><td data-v="已发布"><span class="tag green">已发布</span></td>
+          <td><button class="btn sm" onclick="go('editor')">编辑</button></td></tr>
+      </tbody>
+    </table>
+    <div class="row" style="margin-top:14px">
+      <button class="btn pri" onclick="go('newflow')">新建作业</button>
+      <button class="btn" onclick="go('import')">导入试卷</button>
+    </div>
+  </div>
+</section>
+
+<!-- 新建作业流程 -->
+<section class="screen" id="offering">
+  <h1>布置给班级</h1>
+  <div class="sub">同一份试卷可以同时给多个班考。试卷本身不含班级，班级关系只存在于这一次布置里。</div>
+
+  <div class="card" style="max-width:900px">
+    <h2>第一次月考（整卷）<small>77 题 · 150 分 · 默认 90 分钟</small></h2>
+
+    <label class="f"><b>类型</b>
+      <select><option>考试（终结性，有倒计时）</option><option>作业（形成性，无倒计时）</option></select>
+      <div class="hint">同一份试卷这次当考试、下次当作业都可以；类型挂在布置上，不挂在试卷上。</div>
+    </label>
+
+    <label class="f"><b>参与班级 <i>*</i></b>
+      <div class="chips" style="margin-top:6px">
+        <span class="chip on">高一（3）班</span>
+        <span class="chip on">高一（5）班</span>
+        <span class="chip on">高二（1）班</span>
+        <span class="chip">高一（2）班</span>
+      </div>
+      <div class="hint">可多选。勾几个班，就生成几条"参与班级"记录，试卷只有一份。</div>
+    </label>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <label class="f"><b>可开始时间</b><input value="2026-10-20 10:00"></label>
+      <label class="f"><b>截止时间</b><input value="2026-10-24 22:00">
+        <div class="hint">考试：一旦开始就按完整时长走，可以跨过截止。</div></label>
+      <label class="f"><b>时长</b><input value="90 分钟">
+        <div class="hint">默认取试卷的默认时长，本场可改。</div></label>
+      <label class="f"><b>计时模式</b>
+        <select><option>个人计时（点「开始答题」起算）</option><option>统一开考（到点全体起算）</option></select>
+        <div class="hint">统一开考意味着休假的学生也在掉时长，只给统一监考的场景用。</div></label>
+    </div>
+
+    <h3 style="margin:18px 0 8px;font-size:14px">按班覆盖（可选）</h3>
+    <table>
+      <thead><tr><th>班级</th><th>截止时间</th><th>时长</th><th>设置</th></tr></thead>
+      <tbody>
+        <tr><td>高一（3）班</td><td>继承本场</td><td>继承本场</td><td><button class="btn sm">单独设置</button></td></tr>
+        <tr><td>高一（5）班</td><td><b>2026-10-25 10:00</b></td><td>继承本场</td><td><button class="btn sm">单独设置</button></td></tr>
+        <tr><td>高二（1）班</td><td>继承本场</td><td><b>100 分钟</b></td><td><button class="btn sm">单独设置</button></td></tr>
+      </tbody>
+    </table>
+
+    <div class="hint" style="margin:14px 0">
+      发布时给试卷内容做快照。之后改标准答案，不会追溯到这场考试已经交的卷子。
+    </div>
+    <button class="btn pri">发布并通知 3 个班</button>
+    <button class="btn">存草稿</button>
+  </div>
+</section>
+
+<section class="screen" id="newflow">
+  <h1>新建试卷</h1>
+  <div class="sub">五步，每步可存草稿。<b>这里不选班级</b>——试卷只是内容，布置时再决定给哪几个班</div>
+
+  <div class="stepper">
+    <div class="st done"><b>✓</b>基本信息</div>
+    <div class="st on"><b>2</b>内容</div>
+    <div class="st"><b>3</b>标准答案</div>
+    <div class="st"><b>4</b>评分项</div>
+    <div class="st"><b>5</b>预览发布</div>
+  </div>
+
+  <div class="card">
+    <h2>第 2 步 · 内容</h2>
+    <div class="drop">
+      <b>上传整卷，或直接粘贴文字</b>
+      支持 .docx / .md / .xlsx · 题目与答案可以写在一起
+    </div>
+    <div class="row" style="margin-top:12px">
+      <span class="tag green">75145_试卷.docx · 已解析</span>
+      <span class="small muted">4 个部分 8 节 · 77 题 · 75 题已识别答案</span>
+    </div>
+    <div class="inline-note" style="margin-top:14px">
+      文档里题目和答案写在一起也能用——解析器会一并抽出来并自动配对，
+      **不需要你把题目和答案拆成两个文件**。
+    </div>
+    <div class="row">
+      <button class="btn">手工添加部分</button>
+      <div style="flex:1"></div>
+      <button class="btn">存草稿</button>
+      <button class="btn pri" onclick="go('import')">下一步：校对</button>
+    </div>
+  </div>
+</section>
+
+<!-- 导入试卷 / 校对 -->
+<section class="screen" id="import">
+  <h1>校对导入结果</h1>
+  <div class="sub">黄色行是低置信度 · 所有字段都可编辑</div>
+
+  <div class="card">
+    <h2>已从文档抽取 <small>4 个部分 8 节 · 77 题 · 75 题有答案</small></h2>
+    <div class="inline-note">
+      解析器按题号切分，并从文档里把答案一起抽出来配对。
+      低置信度的行标黄，不会偷偷用错误内容。
+    </div>
+    <table class="sortable">
+      <thead><tr><th data-sort>题号</th><th>部分</th><th>题干</th><th>选项</th><th>答案</th><th data-sort>状态</th></tr></thead>
+      <tbody>
+        <tr><td data-v="1">1</td><td>听力</td>
+          <td><input type="text" value="What does the woman want to do?"></td>
+          <td class="mono small">A. Stay in　B. Go out　C. Buy tickets</td>
+          <td><input type="text" value="A" style="width:56px;text-align:center"></td>
+          <td data-v="1"><span class="tag green">已配对</span></td></tr>
+        <tr><td data-v="2">2</td><td>听力</td>
+          <td><input type="text" value="Why does the man look tired?"></td>
+          <td class="mono small">A. Illness　B. Work　C. Travel</td>
+          <td><input type="text" value="B" style="width:56px;text-align:center"></td>
+          <td data-v="1"><span class="tag green">已配对</span></td></tr>
+        <tr class="conf-low"><td data-v="41">41</td><td>完形填空</td>
+          <td><input type="text" value="The plan didn't ___ as expected."></td>
+          <td class="mono small">A. take off　B. turn up　C. turn out　D. put off</td>
+          <td><input type="text" value="C" style="width:56px;text-align:center"></td>
+          <td data-v="0"><span class="tag amber">待确认</span></td></tr>
+        <tr><td data-v="56">56</td><td>语法填空</td>
+          <td><input type="text" value="It was a ___ (challenge) task."></td>
+          <td class="muted small">—</td>
+          <td><input type="text" value="challenging" style="width:110px;text-align:center"></td>
+          <td data-v="1"><span class="tag green">已配对</span></td></tr>
+        <tr><td data-v="75">75</td><td>语法填空</td>
+          <td><input type="text" value="She kept ___ (work) late."></td>
+          <td class="muted small">—</td>
+          <td><input type="text" value="" placeholder="缺答案" style="width:110px;text-align:center"></td>
+          <td data-v="0"><span class="tag red">缺答案</span></td></tr>
+      </tbody>
+    </table>
+    <div class="row" style="margin-top:14px">
+      <span class="tag amber">1 行待确认</span><span class="tag red">1 行缺答案</span>
+      <span class="small muted">发布前必须补齐</span>
+      <div style="flex:1"></div>
+      <button class="btn pri" onclick="go('editor')">确认导入</button>
+    </div>
+    <div class="pager">
+      <span>共 77 条</span>
+      <div class="pg"><button>‹</button><button class="on">1</button><button>2</button><button>3</button><button>4</button><button>›</button></div>
+      <select style="width:auto"><option>20 / 页</option><option>50 / 页</option></select>
+    </div>
+  </div>
+</section>
+
+<!-- 试卷编辑 -->
+<section class="screen" id="editor">
+  <h1>第一次月考（整卷）</h1>
+  <div class="sub">试卷 · 编辑中 · 合计 150</div>
+  <div class="grid2">
+    <div class="card">
+      <h2>基本信息</h2>
+      <label class="f"><b>标题</b><input type="text" value="第一次月考（整卷）"></label>
+      <label class="f"><b>截止时间</b><input type="text" value="2026-10-20 18:00"></label>
+      <label class="f"><b>宽限期（小时）</b><input type="number" value="3"></label>
+      <label class="f"><b>最多尝试次数</b><input type="number" value="3"></label>
+      <label class="f"><b>反馈语言</b><select><option>中文</option><option>English</option></select></label>
+    </div>
+    <div class="card">
+      <h2>可见性</h2>
+      <div class="row" style="margin-bottom:14px"><span class="switch on" onclick="this.classList.toggle('on')"><i></i></span><span>允许学生查看班级概览</span></div>
+      <div class="row" style="margin-bottom:14px"><span class="switch" onclick="this.classList.toggle('on')"><i></i></span><span>公布他人分数</span></div>
+      <div class="inline-note">第二个开关关闭时（默认），学生只看到同学「已批改」，但<b>自己的分数永远可见</b>。</div>
+      <div class="kv"><span>概览可见</span><span>姓名 · 是否提交 · 次数 · 时间 · 状态</span></div>
+      <div class="kv"><span>概览不可见</span><span>正文 · 附件 · 评语</span></div>
+    </div>
+  </div>
+  <div class="card">
+    <h2>试卷结构 <small>总分 = 各部分之和</small></h2>
+    <table class="sortable">
+      <thead><tr><th data-sort>部分</th><th data-sort>类型</th><th data-sort>分值</th><th>题项</th><th>判分</th><th></th></tr></thead>
+      <tbody>
+        <tr><td data-v="听力">听力</td><td data-v="客观"><span class="tag blue">客观</span></td><td data-v="30">30</td><td>20 题 × 1.5</td><td class="muted">代码</td><td><button class="btn sm" onclick="go('import')">题目</button></td></tr>
+        <tr><td data-v="阅读理解">阅读理解</td><td data-v="客观"><span class="tag blue">客观</span></td><td data-v="50">50</td><td>20 题 × 2.5</td><td class="muted">代码</td><td><button class="btn sm">题目</button></td></tr>
+        <tr><td data-v="完形填空">完形填空</td><td data-v="客观"><span class="tag blue">客观</span></td><td data-v="15">15</td><td>15 题 × 1</td><td class="muted">代码</td><td><button class="btn sm">题目</button></td></tr>
+        <tr><td data-v="语法填空">语法填空</td><td data-v="客观"><span class="tag blue">客观</span></td><td data-v="30">30</td><td>15 题 × 2</td><td class="muted">代码</td><td><button class="btn sm">题目</button></td></tr>
+        <tr><td data-v="写作">写作</td><td data-v="主观"><span class="tag green">主观</span></td><td data-v="25">25</td><td>2 个评分项</td><td class="muted">AI + 教师</td><td><button class="btn sm">评分项</button></td></tr>
+      </tbody>
+    </table>
+    <div class="row" style="margin-top:14px"><span class="tag green">合计 150，与卷面一致</span><div style="flex:1"></div><button class="btn">添加部分</button></div>
+  </div>
+  <div class="row"><button class="btn pri" onclick="go('grading')">发布并开始批改</button><button class="btn">保存草稿</button></div>
+</section>
+
+<!-- 批改总览 -->
+<section class="screen" id="grading">
+  <h1>批改总览</h1>
+  <div class="sub">我名下全部班级 · 点数字过滤下表，点行进作业详情</div>
+
+  <div class="stats">
+    <div class="stat act" onclick="filterGrading('done',this)"><div class="n">88</div><div class="l">已完成</div></div>
+    <div class="stat" onclick="filterGrading('fail',this)"><div class="n">3</div><div class="l">失败</div><div class="sub">需人工处理</div></div>
+    <div class="stat" onclick="filterGrading('pending',this)"><div class="n">41</div><div class="l">待处理</div></div>
+    <div class="stat" onclick="filterGrading('none',this)"><div class="n">7</div><div class="l">未提交</div></div>
+  </div>
+
+  <div class="card">
+    <h2>作业批改状态 <small>每行一个作业 · 默认按截止倒序</small></h2>
+    <table class="sortable">
+      <thead><tr>
+        <th data-sort>班级</th><th data-sort>作业</th><th data-sort>截止</th><th data-sort>总数</th>
+        <th data-sort>已完成</th><th data-sort>失败</th><th data-sort>待处理</th><th data-sort>状态</th><th></th>
+      </tr></thead>
+      <tbody>
+        <tr><td data-v="高一 (3) 班">高一 (3) 班</td><td data-v="第一次月考">第一次月考</td>
+          <td data-v="2026-10-20">10-20 18:00</td><td data-v="32">32</td><td data-v="30">30</td>
+          <td data-v="1">1</td><td data-v="1">1</td>
+          <td data-v="批改中"><span class="tag amber">批改中</span></td>
+          <td><button class="btn sm" onclick="go('grading-detail')">详情</button></td></tr>
+        <tr><td data-v="高一 (5) 班">高一 (5) 班</td><td data-v="Unit 4 写作">Unit 4 写作</td>
+          <td data-v="2026-10-19">10-19 22:00</td><td data-v="30">30</td><td data-v="30">30</td>
+          <td data-v="0">0</td><td data-v="0">0</td>
+          <td data-v="待复核"><span class="tag blue">待复核</span></td>
+          <td><button class="btn sm" onclick="go('review')">复核</button></td></tr>
+        <tr><td data-v="高二 (1) 班">高二 (1) 班</td><td data-v="语法专项">语法专项</td>
+          <td data-v="2026-10-18">10-18 22:00</td><td data-v="42">42</td><td data-v="40">40</td>
+          <td data-v="2">2</td><td data-v="0">0</td>
+          <td data-v="失败"><span class="tag red">有失败</span></td>
+          <td><button class="btn sm" onclick="go('grading-detail')">详情</button></td></tr>
+      </tbody>
+    </table>
+    <div class="pager">
+      <span>筛选：已完成 · 共 3 条</span>
+      <div class="pg"><button>‹</button><button class="on">1</button><button>›</button></div>
+      <select style="width:auto"><option>20 / 页</option><option>50 / 页</option></select>
+    </div>
+  </div>
+</section>
+
+<!-- 作业批改详情 -->
+<section class="screen" id="grading-detail">
+  <div class="breadcrumb"><span onclick="go('grading')" style="cursor:pointer">批改总览</span> / <b>第一次月考（整卷）</b></div>
+  <h1>第一次月考（整卷）</h1>
+  <div class="sub">高一 (3) 班 · 32 人 · 逐份提交</div>
+
+  <div class="card">
+    <div class="row" style="justify-content:space-between">
+      <div class="row">
+        <span class="tag green">已完成 30</span>
+        <span class="tag red">失败 1</span>
+        <span class="tag amber">待处理 1</span>
+      </div>
+      <div class="row">
+        <button class="btn sm">重试失败项</button>
+        <button class="btn sm">立即派发</button>
+        <button class="btn sm" onclick="go('review')">进入复核</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>逐份状态 <small>默认按提交时间倒序</small></h2>
+    <table class="sortable">
+      <thead><tr><th data-sort>学生</th><th data-sort>尝试</th><th data-sort>提交时间</th>
+        <th data-sort>客观</th><th data-sort>主观</th><th data-sort>状态</th><th>操作</th></tr></thead>
+      <tbody>
+        <tr><td data-v="李娜">李娜</td><td data-v="2">2</td><td data-v="2026-10-20 17:58">10-20 17:58</td>
+          <td data-v="118" class="mono">118</td><td data-v="18" class="mono">18</td>
+          <td data-v="完成"><span class="tag green">完成</span></td>
+          <td><button class="btn sm" onclick="go('review')">复核</button>
+              <button class="btn sm" onclick="go('audit')">审计</button></td></tr>
+        <tr><td data-v="张伟">张伟</td><td data-v="1">1</td><td data-v="2026-10-20 17:12">10-20 17:12</td>
+          <td data-v="124.5" class="mono">124.5</td><td data-v="20" class="mono">20</td>
+          <td data-v="完成"><span class="tag green">完成</span></td>
+          <td><button class="btn sm" onclick="go('review')">复核</button>
+              <button class="btn sm" onclick="go('audit')">审计</button></td></tr>
+        <tr><td data-v="王芳">王芳</td><td data-v="1">1</td><td data-v="2026-10-20 18:20">10-20 18:20 <span class="tag amber">迟交</span></td>
+          <td data-v="121" class="mono">121</td><td data-v="0" class="muted">—</td>
+          <td data-v="失败"><span class="tag red">失败</span></td>
+          <td><button class="btn sm">重试</button></td></tr>
+        <tr><td data-v="陈静">陈静</td><td data-v="0">0</td><td data-v="">—</td>
+          <td data-v="0" class="muted">—</td><td data-v="0" class="muted">—</td>
+          <td data-v="未提交"><span class="tag gray">未提交</span></td>
+          <td class="muted">—</td></tr>
+      </tbody>
+    </table>
+    <div class="pager">
+      <span>共 32 条 · 当前第 1 页</span>
+      <div class="pg"><button>‹</button><button class="on">1</button><button>2</button><button>›</button></div>
+      <select style="width:auto"><option>20 / 页</option><option>50 / 页</option></select>
+    </div>
+    <div class="hint">审计不再占左侧一级导航——从这一行的「审计」进入。</div>
+  </div>
+</section>
+
+<!-- 复核工作台 -->
+<section class="screen" id="review">
+  <div class="breadcrumb"><span onclick="go('grading')" style="cursor:pointer">批改总览</span> / <b>复核工作台</b></div>
+  <h1>复核工作台</h1>
+  <div class="sub">逐份人工判断 · 30 份 · 12 份已处理 · AI 原样通过率 58%</div>
+  <div class="grid2" style="grid-template-columns:260px 1fr">
+    <div class="card" style="padding:10px">
+      <h2 style="margin:0 0 10px 4px">待复核</h2>
+      <div style="font-size:13px">
+        <div class="row" style="justify-content:space-between;padding:8px 10px;border-radius:8px;background:var(--accent-weak)"><b>李娜</b><span class="tag amber">待复核</span></div>
+        <div class="row" style="justify-content:space-between;padding:8px 10px"><span>张伟</span><span class="tag green">已通过</span></div>
+        <div class="row" style="justify-content:space-between;padding:8px 10px"><span>王芳</span><span class="tag red">已驳回</span></div>
+        <div class="row" style="justify-content:space-between;padding:8px 10px"><span>刘洋</span><span class="tag blue">修改后通过</span></div>
+      </div>
+      <div class="hint" style="margin-top:10px">边界敏感的提交单独标出，批量通过默认跳过。</div>
+    </div>
+    <div>
+      <div class="card">
+        <h2>李娜 · 提交内容 <small>第 2 次尝试 · 未迟交</small></h2>
+        <div style="border:1px solid var(--line);border-radius:var(--radius-sm);padding:14px">
+          <p style="margin:0 0 10px">I disagree with the statement that teaching only needs fluency.</p>
+          <p style="margin:0 0 10px">Fluency matters, but a fluent teacher who cannot explain grammar leaves students guessing.
+          Last term I taught a reading class where two students kept confusing <strong>although</strong> with <strong>but</strong>.
+          I stopped the lesson, drew the two clauses on the board, and asked them to connect the sentences themselves.
+          Ten minutes later the whole class could rewrite the sentence correctly.</p>
+          <p style="margin:0">That would not have happened if I had only spoken fluently and moved on.
+          Fluency gets students listening; clear explanation is what makes them learn.</p>
+        </div>
+        <div class="row" style="margin-top:12px"><span class="tag gray">词数 96</span><span class="tag gray">段落 3</span><span class="tag gray">在范围内</span></div>
+      </div>
+      <div class="card">
+        <h2>客观得分 <small>代码判分 · 提交时已出分</small></h2>
+        <div class="row" style="justify-content:space-between;align-items:flex-end">
+          <div class="score-big">118<span class="small muted"> / 120</span></div><div class="small muted">错题 2 道</div>
+        </div>
+        <div style="margin-top:12px"><span class="wrong">41</span><span class="wrong">47</span></div>
+      </div>
+      <div class="card">
+        <h2>AI 草稿 · 主观部分 <small>直接改，改完就是最终版</small></h2>
+        <div class="rubric-row">
+          <div class="top"><b>内容要点</b><span class="pts"><input id="sc1" type="number" value="10" style="width:58px;padding:2px 6px;text-align:center" oninput="markEdited()"> / 15</span></div>
+          <p>明确表达了不同意立场，给出两点理由，但缺少具体课堂例子。</p>
+        </div>
+        <div class="rubric-row">
+          <div class="top"><b>语言准确性</b><span class="pts"><input id="sc2" type="number" value="8" style="width:58px;padding:2px 6px;text-align:center" oninput="markEdited()"> / 15</span></div>
+          <p>语法与用词总体准确，句式清晰。</p>
+        </div>
+        <div class="row" style="margin-top:6px">
+          <span class="muted small">当前总分</span><b id="total">118 + 18 = 136</b>
+          <div style="flex:1"></div><span class="flag" id="state-flag">状态：待复核</span>
+        </div>
+        <div class="inline-note ok" style="margin-top:14px">系统自动记录改没改分，教师不需要判断小改还是大改。</div>
+        <div class="row">
+          <button class="btn pri" onclick="setState('已通过')">原样通过</button>
+          <button class="btn" onclick="setState('修改后通过')">修改后通过</button>
+          <button class="btn danger" onclick="setState('已驳回')">驳回</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 班级汇总 -->
+<section class="screen" id="summary">
+  <div class="breadcrumb"><span onclick="go('grading')" style="cursor:pointer">批改总览</span> / <b>班级汇总</b></div>
+  <h1>班级汇总</h1>
+  <div class="sub">第一次月考（整卷）· 高一 (3) 班 · 与逐份反馈同源</div>
+
+  <div class="stats">
+    <div class="stat" style="cursor:default"><div class="n">30<span class="small muted" style="font-size:14px"> / 32</span></div><div class="l">应交 / 实交</div></div>
+    <div class="stat" style="cursor:default"><div class="n">131.2</div><div class="l">平均分（仅已提交）</div></div>
+    <div class="stat" style="cursor:default"><div class="n">144.5</div><div class="l">最高</div></div>
+    <div class="stat" style="cursor:default"><div class="n">108</div><div class="l">最低</div></div>
+  </div>
+
+  <div class="grid2">
+    <div class="card">
+      <h2>各题正确率 <small>按正确率升序</small></h2>
+      <div style="font-size:12.5px">
+        <div class="row" style="justify-content:space-between"><span>第 41 题 · 完形</span><b>23%</b></div>
+        <div class="bar" style="margin:5px 0 12px"><i style="width:23%"></i></div>
+        <div class="row" style="justify-content:space-between"><span>第 63 题 · 语法</span><b>31%</b></div>
+        <div class="bar" style="margin:5px 0 12px"><i style="width:31%"></i></div>
+        <div class="row" style="justify-content:space-between"><span>第 12 题 · 听力</span><b>34%</b></div>
+        <div class="bar" style="margin:5px 0 12px"><i style="width:34%"></i></div>
+        <div class="row" style="justify-content:space-between"><span>第 1 题 · 听力</span><b>92%</b></div>
+        <div class="bar green" style="margin:5px 0 12px"><i style="width:92%"></i></div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>主观项均分 <small>写作 25</small></h2>
+      <div class="kv"><span>内容要点</span><span>10 / 15</span></div>
+      <div class="kv"><span>语言准确性</span><span>8 / 15</span></div>
+      <h2 style="margin-top:18px">未交名单 <small>2 人</small></h2>
+      <div class="kv"><span>陈静</span><span class="tag gray">未提交</span></div>
+      <div class="kv"><span>赵敏</span><span class="tag gray">未提交</span></div>
+      <div class="hint">未交与失败不参与平均分计算。</div>
+    </div>
+  </div>
+
+  <div class="row">
+    <button class="btn">导出 Markdown</button>
+    <button class="btn">导出 PDF</button>
+    <button class="btn">导出 Excel</button>
+  </div>
+</section>
+
+<!-- 报表查询 -->
+<section class="screen" id="report">
+  <h1>报表查询</h1>
+  <div class="sub">跨班级 + 跨时间段 · 先筛选再勾选导出</div>
+
+  <div class="card">
+    <h2>筛选条件</h2>
+    <div class="filters">
+      <label class="f"><b>作业 / 试卷</b><select><option>全部作业</option><option>第一次月考</option></select></label>
+      <label class="f"><b>开始日期</b><input value="2026-10-01"></label>
+      <label class="f"><b>结束日期</b><input value="2026-10-31"></label>
+      <label class="f"><b>分数段</b>
+        <div class="row" style="gap:6px"><input type="number" placeholder="最低" value="0" style="max-width:78px">
+          <span class="muted">–</span><input type="number" placeholder="最高" value="150" style="max-width:78px"></div>
+      </label>
+      <label class="f"><b>提交状态</b><select><option>全部</option><option>已提交</option><option>未提交</option><option>批改失败</option></select></label>
+      <label class="f"><b>Top N 错题</b><select><option>10</option><option>20</option><option>30</option></select></label>
+    </div>
+    <div style="margin-top:14px">
+      <b style="font-size:12px;color:var(--muted)">班级（可多选，默认全选）</b>
+      <div class="chips" style="margin-top:7px">
+        <button class="chip on" onclick="this.classList.toggle('on')">高一 (3) 班</button>
+        <button class="chip on" onclick="this.classList.toggle('on')">高一 (5) 班</button>
+        <button class="chip on" onclick="this.classList.toggle('on')">高二 (1) 班</button>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px"><button class="btn pri">查询</button><button class="btn">重置</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Top 10 错题 <small>3 个班 · 近半年 · 按错误率降序</small></h2>
+    <table class="sortable">
+      <thead><tr><th data-sort>题号</th><th data-sort>来源试卷</th><th data-sort>部分</th><th data-sort>错误率</th><th>最常错选</th><th>解析</th></tr></thead>
+      <tbody>
+        <tr><td data-v="41">41</td><td data-v="第一次月考">第一次月考</td><td data-v="完形填空">完形填空</td>
+          <td data-v="77"><b style="color:var(--red)">77%</b></td><td class="small">B（18 人）</td><td><span class="tag green">已生成</span></td></tr>
+        <tr><td data-v="63">63</td><td data-v="第一次月考">第一次月考</td><td data-v="语法填空">语法填空</td>
+          <td data-v="69"><b style="color:var(--red)">69%</b></td><td class="small">in（9 人）</td><td><span class="tag green">已生成</span></td></tr>
+        <tr><td data-v="12">12</td><td data-v="语法专项">语法专项</td><td data-v="听力">听力</td>
+          <td data-v="66"><b style="color:var(--amber)">66%</b></td><td class="small">A（14 人）</td><td><span class="tag gray">未生成</span></td></tr>
+      </tbody>
+    </table>
+    <div class="hint">跨班聚合出的错题榜，就是你的讲评清单。</div>
+  </div>
+
+  <div class="two-list">
+    <div class="card">
+      <div class="list-head"><h2 style="margin:0">学生列表 <small>104 条</small></h2>
+        <label class="ck"><input type="checkbox" onclick="selAll('stu',this.checked)">全选</label></div>
+      <div class="scroll">
+        <table class="sortable">
+          <thead><tr><th></th><th data-sort>姓名</th><th data-sort>班级</th><th data-sort>总分</th></tr></thead>
+          <tbody>
+            <tr><td><input type="checkbox" class="stu"></td><td data-v="张伟">张伟</td><td data-v="3">高一 (3)</td><td data-v="144.5" class="mono">144.5</td></tr>
+            <tr><td><input type="checkbox" class="stu" checked></td><td data-v="李娜">李娜</td><td data-v="3">高一 (3)</td><td data-v="136" class="mono">136</td></tr>
+            <tr><td><input type="checkbox" class="stu"></td><td data-v="刘洋">刘洋</td><td data-v="3">高一 (3)</td><td data-v="125.5" class="mono">125.5</td></tr>
+            <tr><td><input type="checkbox" class="stu"></td><td data-v="赵敏">赵敏</td><td data-v="5">高一 (5)</td><td data-v="139" class="mono">139</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="list-head"><h2 style="margin:0">题目列表 <small>225 条</small></h2>
+        <label class="ck"><input type="checkbox" onclick="selAll('q',this.checked)">全选</label></div>
+      <div class="scroll">
+        <table class="sortable">
+          <thead><tr><th></th><th data-sort>题号</th><th data-sort>错误率</th><th>最常错选</th></tr></thead>
+          <tbody>
+            <tr><td><input type="checkbox" class="q" checked></td><td data-v="41">41</td><td data-v="77"><b style="color:var(--red)">77%</b></td><td class="small">B</td></tr>
+            <tr><td><input type="checkbox" class="q" checked></td><td data-v="63">63</td><td data-v="69"><b style="color:var(--red)">69%</b></td><td class="small">in</td></tr>
+            <tr><td><input type="checkbox" class="q"></td><td data-v="12">12</td><td data-v="66"><b style="color:var(--amber)">66%</b></td><td class="small">A</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="pager">
+    <span>共 104 条</span>
+    <div class="pg"><button>‹</button><button class="on">1</button><button>2</button><button>3</button><button>›</button></div>
+    <select style="width:auto"><option>20 / 页</option><option>50 / 页</option></select>
+  </div>
+
+  <div class="selbar">
+    <span>已选 <b>学生 1 人 · 题目 2 道</b></span>
+    <div class="row">
+      <button class="btn">导出 Excel</button><button class="btn">导出 PDF</button><button class="btn">打包反馈（ZIP）</button>
+    </div>
+  </div>
+</section>
+
+<!-- 审计（行内进入） -->
+<section class="screen" id="audit">
+  <div class="breadcrumb"><span onclick="go('grading-detail')" style="cursor:pointer">作业批改详情</span> / <b>审计</b></div>
+  <h1>审计时间线</h1>
+  <div class="sub">李娜 · 第一次月考（整卷）· 最新在最上面</div>
+  <div class="card">
+    <ul class="timeline">
+      <li class="done"><b>发布</b><time>10-21 09:13 · 教师</time><div class="small muted">学生可见</div></li>
+      <li class="done"><b>教师修改后通过</b><time>10-21 09:12 · 教师</time><div class="small muted">内容要点 8 → 10，总分 134 → 136</div></li>
+      <li class="done"><b>错题解析生成完成</b><time>10-20 21:02 · 系统</time><div class="small muted">23 道题生成解析，共 23 次调用</div></li>
+      <li class="done"><b>AI 批改完成（主观）</b><time>10-20 21:00 · 系统</time><div class="small muted">1.9 秒 · deepseek-flash · 校验通过</div></li>
+      <li class="done"><b>到期派发</b><time>10-20 21:00 · 系统</time><div class="small muted">截止 18:00 + 宽限 3 小时</div></li>
+      <li class="done"><b>客观题自动判分</b><time>10-20 17:58 · 系统</time><div class="small muted">118 / 120，错题 41、47</div></li>
+      <li class="done"><b>学生提交 · 第 2 次尝试</b><time>10-20 17:58 · 李娜</time><div class="small muted">客观 75 题 + 写作 2 题</div></li>
+    </ul>
+  </div>
+</section>
+
+<!-- 学生：考试作答（专注模式：左试卷目录树 + 右 inline 试卷） -->
+<section class="screen" id="exambrief">
+  <h1>考前须知</h1>
+  <div class="sub">点「开始答题」后才开始计时。开始之前可以随时离开。</div>
+  <div class="card" style="max-width:760px">
+    <h2>第一次月考（整卷）<small>三年级 1、2、3 班 · 终结性</small></h2>
+    <table style="margin-bottom:16px">
+      <tbody>
+        <tr><th style="width:130px">时长</th><td>90 分钟（个人计时：从你点开始答题起算）</td></tr>
+        <tr><th>题量与总分</th><td>77 题 · 150 分（客观 120 + 主观 30）</td></tr>
+        <tr><th>可开始时间</th><td>10-20 10:00 起，10-24 22:00 前必须开始</td></tr>
+        <tr><th>一旦开始</th><td>按完整 90 分钟走，可以跨过 10-24 22:00</td></tr>
+        <tr><th>到点</th><td>系统自动交卷，以最后一次自动保存为准；不需要你点提交</td></tr>
+        <tr><th>作答方式</th><td>试卷本体就是表单：选项就地选，完形/语法空格就地填，写作就地写</td></tr>
+      </tbody>
+    </table>
+    <div class="hint" style="margin-bottom:16px">
+      考试中不要关闭页面。刷新、换设备、断网重连都不会重置时长——剩余时间以服务端为准。
+      已答的题在左侧目录里会变成蓝色实心；标了标记的题是琥珀色。
+    </div>
+    <button class="btn pri" onclick="go('exam')">开始答题</button>
+    <button class="btn">返回</button>
+  </div>
+</section>
+
+<section class="screen" id="exam">
+  <div class="examshell">
+    <div class="examtree">
+      <div class="tree-head">
+        <b>第一次月考（整卷）</b>
+        <div class="prog" id="prog">已答 0 / 77 · 标记 0</div>
+      </div>
+      <div class="tree" id="tree"></div>
+    </div>
+    <div class="exammain" id="exammain">
+      <div class="exambar">
+        <button class="btn sm treebtn" onclick="toggleTree()">目录</button>
+        <span class="tag amber" id="timer" onclick="timerDemo()" title="演示：点击依次跳到 4:59、0:03、到点自动交卷">剩余 42:18</span>
+        <span class="small muted" id="barcount">已答 0 / 77</span>
+        <div style="flex:1"></div>
+        <button class="btn sm">保存草稿</button>
+        <button class="btn sm" onclick="markCur()">标记本题</button>
+        <button class="btn sm pri" onclick="submitExam()">提交试卷</button>
+        <button class="btn sm" onclick="go('feeds')">退出考试</button>
+      </div>
+      <div class="paperwrap" id="paper"></div>
+    </div>
+  </div>
+</section>
+
+<!-- 学生：作业提交 -->
+<section class="screen" id="assignment">
+  <h1>Unit 4 写作</h1>
+  <div class="sub">学生视图 · 截止 10-24 22:00 · 宽限 3 小时 · 剩余 2 次</div>
+
+  <div class="card">
+    <h2>作业说明</h2>
+    <p style="margin:0 0 10px">Write a short argumentative paragraph (120–180 words) about whether English teachers need near-native fluency.</p>
+    <ul style="margin:0;padding-left:22px;color:var(--muted)">
+      <li>State your position in the first sentence</li>
+      <li>Support it with at least two reasons from this module</li>
+      <li>End with a short conclusion</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>评分标准 <small>教师会按这两项评</small></h2>
+    <div class="rubric-row"><div class="top"><b>内容要点</b><span class="pts">15 分</span></div>
+      <p>立场清晰、理由充分、有具体例子</p></div>
+    <div class="rubric-row"><div class="top"><b>语言准确性</b><span class="pts">15 分</span></div>
+      <p>语法、用词、句式多样</p></div>
+  </div>
+
+  <div class="card">
+    <h2>我的提交</h2>
+    <div class="editor">
+      <div class="toolbar">
+        <button title="粗体"><b>B</b></button><button title="斜体"><i>I</i></button>
+        <button title="下划线"><u>U</u></button><button title="有序列表">1.</button>
+        <button title="无序列表">•</button><button title="小标题">H</button>
+      </div>
+      <div class="body" contenteditable="true">
+        <p>I disagree with the statement that teaching only needs fluency.</p>
+        <p>In my class, I plan lessons with <strong>i+1</strong> and check understanding explicitly.</p>
+      </div>
+      <div class="foot"><span>基础格式：粗体 / 斜体 / 下划线 / 列表 / 小标题</span><span>词数 96</span></div>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <button class="btn">保存草稿</button>
+      <button class="btn pri">提交</button>
+      <div style="flex:1"></div>
+      <span class="small muted">最后保存于 10-20 21:16</span>
+    </div>
+  </div>
+</section>
+
+<!-- 学生：我的反馈（默认卡片，可切表格） -->
+<section class="screen" id="feeds">
+  <h1>我的反馈</h1>
+  <div class="sub">按发布时间倒序，最新的在最上面</div>
+
+  <div class="row" style="margin-bottom:14px">
+    <div class="seg" id="feedseg">
+      <button class="on" onclick="feedView('card',this)">卡片</button>
+      <button onclick="feedView('table',this)">表格</button>
+    </div>
+    <div style="flex:1"></div>
+  </div>
+
+  <div class="feedgrid" id="feed-cards">
+    <div class="feed" onclick="go('feedback')">
+      <div class="top">
+        <div><b>第一次月考（整卷）</b><span class="dot"></span>
+          <div class="meta">10-21 09:13 · 第 2 次尝试</div></div>
+        <div class="right"><div class="score-big" style="font-size:22px">136<span class="small muted"> /150</span></div></div>
+      </div>
+      <div class="row"><span class="tag blue">客观 118</span><span class="tag green">主观 18</span><span class="tag amber">错题 2</span></div>
+    </div>
+    <div class="feed" onclick="go('feedback')">
+      <div class="top">
+        <div><b>Unit 4 写作</b><div class="meta">10-18 20:40 · 第 1 次尝试</div></div>
+        <div class="right"><div class="score-big" style="font-size:22px">21<span class="small muted"> /30</span></div></div>
+      </div>
+      <div class="row"><span class="tag green">主观 21</span><span class="tag gray">无客观题</span></div>
+    </div>
+    <div class="feed" onclick="go('feedback')">
+      <div class="top">
+        <div><b>语法专项</b><div class="meta">10-12 22:10 · 第 1 次尝试</div></div>
+        <div class="right"><div class="score-big" style="font-size:22px">33<span class="small muted"> /40</span></div></div>
+      </div>
+      <div class="row"><span class="tag blue">客观 33</span><span class="tag amber">错题 7</span></div>
+    </div>
+  </div>
+
+  <div class="card" id="feed-table" style="display:none">
+    <table class="sortable">
+      <thead><tr><th data-sort>作业</th><th data-sort>发布时间</th><th data-sort>尝试</th><th data-sort>总分</th><th></th></tr></thead>
+      <tbody>
+        <tr><td data-v="第一次月考">第一次月考（整卷）</td><td data-v="2026-10-21">10-21 09:13</td><td data-v="2">2</td>
+          <td data-v="136" class="mono">136 / 150</td><td><button class="btn sm" onclick="go('feedback')">查看</button></td></tr>
+        <tr><td data-v="Unit 4 写作">Unit 4 写作</td><td data-v="2026-10-18">10-18 20:40</td><td data-v="1">1</td>
+          <td data-v="21" class="mono">21 / 25</td><td><button class="btn sm" onclick="go('feedback')">查看</button></td></tr>
+        <tr><td data-v="语法专项">语法专项</td><td data-v="2026-10-12">10-12 22:10</td><td data-v="1">1</td>
+          <td data-v="33" class="mono">33 / 40</td><td><button class="btn sm" onclick="go('feedback')">查看</button></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="pager">
+    <span>共 3 条</span>
+    <div class="pg"><button>‹</button><button class="on">1</button><button>›</button></div>
+    <select style="width:auto"><option>20 / 页</option></select>
+  </div>
+</section>
+
+<!-- 学生：反馈详情 -->
+<section class="screen" id="feedback">
+  <div class="breadcrumb"><span onclick="go('feeds')" style="cursor:pointer">我的反馈</span> / <b>第一次月考（整卷）</b></div>
+  <h1>第一次月考（整卷）</h1>
+  <div class="sub">第 2 次尝试 · 发布 10-21 09:13</div>
+
+  <div class="card">
+    <h2>① 我的总分</h2>
+    <div class="row" style="justify-content:space-between;align-items:flex-end">
+      <div class="score-big">136<span class="small muted"> / 150</span></div>
+      <div style="text-align:right">
+        <div class="kv" style="border:0;padding:2px 0"><span>客观</span><span class="mono">118 / 120</span></div>
+        <div class="kv" style="border:0;padding:2px 0"><span>主观</span><span class="mono">18 / 30</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>② 我错的题与解析 <small>先看这里</small></h2>
+    <div class="row" style="margin-bottom:12px">
+      <span class="wrong">41</span><span class="wrong">47</span>
+      <span class="small muted">共 2 道</span>
+    </div>
+    <details open>
+      <summary>第 41 题 · 完形填空 <span class="tag gray" style="margin-left:8px">正确率 23%</span></summary>
+      <p>本题考 <b>turn out</b> 与 <b>turn up</b> 的区别。前文说计划没按预期发展，需要"结果是"的意思，只有 turn out 符合。<br>
+      选 B（turn up）是把"出现、到场"套进了"结果"的语境；turn up 的主语通常是人。</p>
+    </details>
+    <details open>
+      <summary>第 47 题 · 完形填空 <span class="tag gray" style="margin-left:8px">正确率 51%</span></summary>
+      <p>第 47 空所在句是 "the team <b>___</b> the plan after the trial run"，前半句说明试运行出了问题，
+      所以这里要"放弃、搁置"的意思，只有 <b>shelved</b> 成立。<br>
+      选 B（put off）是把它读成了"推迟"，但 put off 与 the plan 搭配时指改期，与上下文冲突。</p>
+    </details>
+  </div>
+
+  <div class="card">
+    <h2>③ 写作评语</h2>
+    <div class="rubric-row"><div class="top"><b>内容要点</b><span class="pts">10 / 15</span></div>
+      <p>明确表达了不同意立场，给出两点理由，但缺少具体课堂例子。</p></div>
+    <div class="rubric-row"><div class="top"><b>语言准确性</b><span class="pts">8 / 15</span></div>
+      <p>语法与用词总体准确，句式清晰。</p></div>
+    <div class="kv"><span>优点</span><span style="font-weight:400;text-align:right;max-width:70%">立场明确，能用教学术语支撑观点。</span></div>
+    <div class="kv"><span>建议</span><span style="font-weight:400;text-align:right;max-width:70%">补一个你自己课堂上的具体例子。</span></div>
+  </div>
+
+  <div class="card">
+    <h2>④ 全班情况 <small>教师开启后可见</small></h2>
+    <div class="kv"><span>班级平均</span><span>131.2 / 150</span></div>
+    <div class="kv"><span>我的排名</span><span class="muted">教师未公布</span></div>
+    <div class="kv"><span>这道题的班级正确率</span><span>23%（第 41 题）</span></div>
+    <div class="hint">看不到同学的正文、附件与评语。你永远能看到自己的分数。</div>
+  </div>
+</section>
+
+<!-- 学生：班级概览 -->
+<section class="screen" id="overview-s">
+  <h1>班级概览</h1>
+  <div class="sub">学生视图 · 只能看到概览，看不到任何内容</div>
+  <div class="card">
+    <h2>第一次月考（整卷）</h2>
+    <div class="row" style="margin-bottom:14px">
+      <span class="switch" id="pub" onclick="togglePub()"><i></i></span>
+      <span class="small">公布他人分数（教师开关，这里供你预览两种效果）</span>
+    </div>
+    <table class="sortable">
+      <thead><tr><th data-sort>姓名</th><th data-sort>是否提交</th><th data-sort>尝试</th><th data-sort>提交时间</th><th data-sort>状态</th><th data-sort>分数</th></tr></thead>
+      <tbody>
+        <tr><td data-v="李娜">李娜 <span class="tag blue">我</span></td><td data-v="1"><span class="tag green">已提交</span></td><td data-v="2">2</td><td data-v="2026-10-20 17:58">10-20 17:58</td><td data-v="已发布">已发布</td><td class="mono" data-score="136" data-v="136">136</td></tr>
+        <tr><td data-v="张伟">张伟</td><td data-v="1"><span class="tag green">已提交</span></td><td data-v="1">1</td><td data-v="2026-10-20 17:12">10-20 17:12</td><td data-v="已发布">已发布</td><td class="mono" data-score="144.5" data-v="144.5">144.5</td></tr>
+        <tr><td data-v="刘洋">刘洋</td><td data-v="1"><span class="tag green">已提交</span></td><td data-v="1">1</td><td data-v="2026-10-20 16:40">10-20 16:40</td><td data-v="已发布">已发布</td><td class="mono" data-score="125.5" data-v="125.5">125.5</td></tr>
+        <tr><td data-v="王芳">王芳</td><td data-v="1"><span class="tag green">已提交</span></td><td data-v="1">1</td><td data-v="2026-10-20 18:20">10-20 18:20</td><td data-v="批改中"><span class="tag amber">批改中</span></td><td class="mono" data-score="—" data-v="0">—</td></tr>
+        <tr><td data-v="陈静">陈静</td><td data-v="0"><span class="tag gray">未提交</span></td><td data-v="0">0</td><td data-v="">—</td><td data-v="">—</td><td class="mono" data-score="—" data-v="0">—</td></tr>
+      </tbody>
+    </table>
+    <div class="pager">
+      <span>共 5 条</span>
+      <div class="pg"><button>‹</button><button class="on">1</button><button>›</button></div>
+      <select style="width:auto"><option>20 / 页</option></select>
+    </div>
+    <div class="inline-note" style="margin-top:14px">
+      开关关闭时，别人的分数列显示「已批改」，<b>你自己的分数始终可见</b>。
+    </div>
+  </div>
+</section>
+
+</main>
+
+<div class="theme-bar" id="themebar">
+  <span>主题</span>
+  <div class="opts">
+    <button data-theme="saas" class="on">现代 SaaS</button>
+    <button data-theme="academic">学术素雅</button>
+    <button data-theme="eyecare">护眼绿</button>
+    <button data-theme="dark">深色</button>
+  </div>
+</div>
+
+<script>
+function setTheme(name){
+  document.body.dataset.theme = name;
+  try{ localStorage.setItem('mock-theme', name) }catch(e){}
+  document.querySelectorAll('.theme-bar button').forEach(b=>b.classList.toggle('on', b.dataset.theme === name));
+}
+document.querySelectorAll('.theme-bar button').forEach(b=>b.addEventListener('click', ()=>setTheme(b.dataset.theme)));
+/* 没有悬停能力时（触屏/键盘）也能展开：点药丸本体切 open */
+document.getElementById('themebar').addEventListener('click', (e)=>{
+  if (e.target.closest('button')) return;
+  e.currentTarget.classList.toggle('open');
+});
+document.addEventListener('keydown', (e)=>{ if (e.key === 'Escape') document.getElementById('themebar')?.classList.remove('open'); });
+(function(){ let s='saas'; try{ s = localStorage.getItem('mock-theme') || 'saas' }catch(e){} setTheme(s); })();
+
+function go(name){
+  document.body.classList.toggle('examfocus', name === 'exam');
+  if (name !== 'exam') document.body.classList.remove('treeopen');
+  document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.id===name));
+  if (name === 'exam') enterExam();
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on', b.dataset.s===name));
+  window.scrollTo(0,0);
+}
+document.querySelectorAll('#nav button').forEach(b=>b.addEventListener('click',()=>go(b.dataset.s)));
+
+document.querySelectorAll('.tabs button').forEach(b=>b.addEventListener('click',()=>{
+  document.querySelectorAll('.tabs button').forEach(x=>x.classList.toggle('on',x===b));
+  document.getElementById('tab-wx').style.display = b.dataset.tab==='wx' ? 'block':'none';
+  document.getElementById('tab-admin').style.display = b.dataset.tab==='admin' ? 'block':'none';
+}));
+
+function cellVal(td){
+  if(!td) return '';
+  return td.dataset.v !== undefined ? td.dataset.v : td.textContent.trim();
+}
+document.querySelectorAll('table.sortable').forEach(tb=>{
+  const tbody = tb.querySelector('tbody');
+  if(!tbody) return;
+  [...tb.querySelectorAll('thead th')].forEach((th, idx)=>{
+    if(!th.hasAttribute('data-sort')) return;
+    th.addEventListener('click', ()=>{
+      const dir = th.classList.contains('asc') ? 'desc' : 'asc';
+      tb.querySelectorAll('thead th').forEach(x=>x.classList.remove('asc','desc'));
+      th.classList.add(dir);
+      const rows = [...tbody.querySelectorAll('tr')];
+      // parseFloat("2026-10-20") is 2026, so every date cell compared equal and
+      // clicking a date column silently did nothing. Only strictly numeric cells
+      // count as numbers; the rest falls through to the collator, which orders
+      // "2026-10-20" / "10-20 18:00" correctly because the parts are zero-padded.
+      const NUMERIC = /^-?\d+(\.\d+)?$/;
+      rows.sort((a,b)=>{
+        const av = cellVal(a.children[idx]), bv = cellVal(b.children[idx]);
+        const an = NUMERIC.test(av.trim()) ? parseFloat(av) : NaN;
+        const bn = NUMERIC.test(bv.trim()) ? parseFloat(bv) : NaN;
+        const num = !isNaN(an) && !isNaN(bn);
+        const cmp = num ? an-bn : av.localeCompare(bv,'zh-Hans-CN',{numeric:true});
+        return dir==='asc' ? cmp : -cmp;
+      });
+      rows.forEach(r=>tbody.appendChild(r));
+    });
+  });
+});
+
+function filterGrading(kind, el){
+  document.querySelectorAll('#grading .stat').forEach(s=>s.classList.remove('act'));
+  el.classList.add('act');
+}
+
+function markEdited(){
+  const a=Number(document.getElementById('sc1').value||0);
+  const b=Number(document.getElementById('sc2').value||0);
+  document.getElementById('total').textContent='118 + '+(a+b)+' = '+(118+a+b);
+  document.getElementById('state-flag').textContent='状态：修改后通过（系统自动判定）';
+}
+function setState(s){ document.getElementById('state-flag').textContent='状态：'+s+'（已记录到审计）'; }
+
+function selAll(cls,on){ document.querySelectorAll('input.'+cls).forEach(c=>c.checked=on); }
+
+function feedView(mode, btn){
+  document.querySelectorAll('#feedseg button').forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById('feed-cards').style.display = mode==='card' ? 'grid' : 'none';
+  document.getElementById('feed-table').style.display = mode==='table' ? 'block' : 'none';
+}
+
+/* ================= 考试：整卷作答（内容取自真实试卷） ================= */
+const PAPER = {"listen": [{"n": 1, "stem": "What film will the speakers watch next Saturday?", "opts": ["A comedy film.", "A horror film.", "A historical film."]}, {"n": 2, "stem": "What does the woman offer to do for the man?", "opts": ["Book a double room.", "Change his room.", "Call another hotel."]}, {"n": 3, "stem": "What did the woman enjoy doing most about the course?", "opts": ["Making a lot of friends.", "Trying different ways of drawing.", "Learning a lot from her teachers."]}, {"n": 4, "stem": "What does the woman want to know more about?", "opts": ["A bird.", "A ship.", "An accident."]}, {"n": 5, "stem": "What are the speakers mainly talking about?", "opts": ["What birthday present the woman will buy.", "When the woman will attend the party.", "What clothes the woman will wear."]}, {"n": 6, "stem": "What musical instrument does the man's sister play?", "opts": ["The violin.", "The guitar.", "The piano."]}, {"n": 7, "stem": "What does the man mean in the end?", "opts": ["The woman plays the guitar well.", "The woman sings better than him.", "The woman has little talent for music."]}, {"n": 8, "stem": "How did the woman find out about the new sports center?", "opts": ["She heard about it on the radio.", "A friend of hers works there.", "She saw a poster."]}, {"n": 9, "stem": "What does the man say about the sports center?", "opts": ["It's too noisy.", "It's very expensive.", "It's not big enough."]}, {"n": 10, "stem": "When does the man prefer to go to the sports center?", "opts": ["In the early morning.", "During working hours.", "At the weekend."]}, {"n": 11, "stem": "Who did the man mostly invite to the party?", "opts": ["His family.", "His co-workers.", "His schoolmates."]}, {"n": 12, "stem": "At what time is the party going to begin?", "opts": ["Around 8:00 p.m.", "Around 7:00 p.m.", "Around 6:00 p.m."]}, {"n": 13, "stem": "What does the man suggest the woman take?", "opts": ["Beer.", "Juice.", "Music."]}, {"n": 14, "stem": "What is the relationship between the speakers?", "opts": ["Working partners.", "Old schoolmates.", "Employer and employee."]}, {"n": 15, "stem": "How long did the woman spend on a holiday recently?", "opts": ["10 days.", "14 days.", "30 days."]}, {"n": 16, "stem": "What advice does the woman offer?", "opts": ["Visit Wilson.", "Have a get-together.", "Travel to Australia."]}, {"n": 17, "stem": "What will Wilson do this summer?", "opts": ["Take a holiday.", "Look for a job.", "Deal with his work."]}, {"n": 18, "stem": "What is the speaker?", "opts": ["A tour guide.", "A zookeeper.", "A school teacher."]}, {"n": 19, "stem": "Where will the listeners go first?", "opts": ["The zoo's information center.", "The insect house.", "The lion house."]}, {"n": 20, "stem": "What will take place at 4:00?", "opts": ["A zoo shop will give out toys.", "Visitors will make sandwiches.", "Workers will feed the elephants."]}], "read": {"passages": [{"label": "A", "paras": ["Welcome to join our Summer Youth Language Program to improve English language skills, make new friends worldwide, and have a good time here! Space is limited and first come, first served! So if you are interested, sign up as soon as possible.", "You can also study with us for shorter periods:", "4-week program: $1300", "3-week program: $1000", "Discounts:", "There is a 10% discount (折扣) for each extra family member.", "Program Schedule:", "Monday to Thursday, in the morning from 9 a.m to 2 p.m, you can join the all — age English class, where you will meet international students. In the afternoon from 2 to 3 p.m, have fun after — school activities, like soccer in the park, a visit to Science Museum and a story writing competition.", "Things to Bring:", "Clothes: Shirts, a jacket, long pants, a swimsuit, and comfortable shoes.", "Other things: A camera phone, and photos of friends or family.", "Study materials: Notebooks, pens and pencils.", "Don't bring foods and snacks to avoid any unwanted fees."]}, {"label": "B", "paras": ["Zach Smith, an 18-year-old senior at Dwight-Englewood School in New Jersey, had a problem. \"I was not happy with my school's learning system (系统), and so were my friends,\" Zach said. \"So I thought I could design an app (应用程序) that would bring together your homework and everything you need all in one place to make it easy for students to stay organized.\"", "That idea of creating MyDE+ put Zach on a journey that would find him learning the finer points of UX design, working with coding platforms (编程平台) and, importantly, getting the confidence and trust of the teachers at the school.", "\"I started with Figma, just prototyping (制作原型) what the app would look like. I met with my head teacher at school and showed him the design. He was like, 'Whoa, that looks very cool! How do we get this in our school?' And I don't think he realized it was just a design. So now I had to get to work building the app,\" Zach said.", "At first, Zach was considering teaching himself how to code. That's when he discovered Adalo. Zach was able to create a working prototype. The next question was how to get it on the phones of 500 students in the school. Zach used a business platform called Make. And he changed it and sent everyone a message. \"I met with every grade at the school and showed them how to get the app. After a month I had 500 users on the app, which is almost my whole school,\" Zach explained.", "Zach now has been talking with other heads of technology of schools in New York City and adding all kinds of new functions (功能) like community pages. \"In terms of what comes next, I really hope my app can be used in other schools. I just love it when I can see an idea in my head, and follow it through from start to finish.\""]}, {"label": "C", "paras": ["My studies once showed that students do better when they take notes by hand than when they use laptops (笔记本电脑). Before I knew it, those studies were used as good reasons for laptop bans (禁止) in classrooms in the U.S. I received a lot of emails blaming (责备) me for such ideas. The fact is that I don't actually support laptop bans, and never have. In fact, I don't even ban laptops in my own classes.", "In the research, we asked students to watch TED Talks and had them take notes either on laptops or with a pen and paper. Students using laptops recorded the talks nearly with every word, while students who took handwritten notes could not; they just took notes in their own words. Writing by hand required students to understand and summarize the talk. And deeper processing (加工) of the information led to improved learning. As a result, students in this case get higher points on tests.", "My findings came out. Teachers around the country soon started banning laptops in their classes. But they didn't know what actually made learning difficult was the mindless recording of a lecture. Laptops just let students take notes more quickly.", "Like most technology, laptops are not universally helpful or harmful in class. Whether they are helpful or harmful depends on the goal. The value of a laptop in the classroom depends on the goal of a lesson plan, the nature of the text, the kind of students being taught, etc.", "So can laptops be used in the classroom? If a lesson requires exact quotes, then laptops are excellent. But if the goal is conceptual (概念的) understanding, they will produce the exactly opposite results. Don't forget the situation when deciding whether or not to allow laptops in your class. All in all, the answer to the question is that it depends."]}, {"label": "D", "paras": ["The transition from junior to senior high school is a significant milestone for teenagers worldwide. In China, this period, often referred to as \"Gaoyi,\" marks not only an increase in academic rigor (学业难度) but also a critical stage of personal growth and identity formation. New subjects, more complex concepts, and higher expectations from teachers and parents can create much stress. However, it is this challenge that fosters (培养) resilience (韧性) and independence.", "One of the most noticeable changes is the teaching style. Unlike junior high, where teachers often spoon-feed knowledge, senior high teachers tend to encourage more independent thinking and self-directed learning. Students are expected to preview lessons, actively participate in discussions, and complete extended reading tasks. This change requires them to develop better organizational skills and time management strategies.", "Socially, Gaoyi students are also forming new relationships. They may be in classes with peers (students of the same age) from different junior high schools, necessitating the building of new friendships. Extra-curricular activities, such as clubs and sports teams, provide valuable opportunities for social integration and the exploration of interests beyond academics. These experiences lead to a well-developed personality, which is highly valued in the holistic education method supported by many modern high schools.", "Psychologically, the stress to do well academically, especially with the National College Entrance Examination (Gaokao) in three years, can be intense. It is important for students to develop healthy coping mechanisms (应对方式), such as regular exercise, hobbies, and open communication with trusted adults. Schools are increasingly aware of this and are offering more services and mental health workshops to support student well-being (身心健康).", "Finally, Gaoyi is more than just preparation for university; it is a foundational year for developing lifelong learning habits, emotional intelligence, and a clearer sense of self. Facing the challenges with a positive attitude can turn this stressful period into a benefit journey of growth."]}], "items": [{"n": 21, "stem": "How much should you pay if you and your brother attend a five-week program?", "opts": ["$3200", "$2470", "$3000", "$3040"], "pass": 0}, {"n": 22, "stem": "What will students do at ten in the morning on Tuesday during the program?", "opts": ["Play soccer.", "Have English classes.", "Visit the museum.", "Enjoy fun activities."], "pass": 0}, {"n": 23, "stem": "What should a student bring?", "opts": ["Necessary clothes.", "Snacks.", "Foods.", "A computer."], "pass": 0}, {"n": 24, "stem": "What made Zach create MyDE+?", "opts": ["His interest in coding platforms.", "Advice from the school managers.", "A UX design class from his computer teacher.", "Being not content with the school's learning system."], "pass": 1}, {"n": 25, "stem": "What impressed Zach's head teacher?", "opts": ["The first design of MyDE+.", "The new function of MyDE+.", "The future development of MyDE+.", "The popularity of MyDE+ on campus."], "pass": 1}, {"n": 26, "stem": "What can we expect of MyDE+?", "opts": ["It will be family-friendly.", "It will take the place of Adalo and Make.", "It will be introduced into different schools.", "It will awaken students' interest in technology."], "pass": 1}, {"n": 27, "stem": "Which of the following can be the best title for the text?", "opts": ["Tech Project at Dwight-Englewood School.", "18-Year-Old Student's School App Journey.", "Day in the Life of an 18-Year-Old App Designer.", "Build Community at Dwight-Englewood School."], "pass": 1}, {"n": 28, "stem": "Why did the author receive many blaming emails?", "opts": ["He banned laptops in classes.", "His studies supported laptop bans.", "His research results let people down.", "Schools used his studies to ban laptops."], "pass": 2}, {"n": 29, "stem": "What was the key difference between laptop notes and handwritten notes in the research?", "opts": ["Laptop notes were much more helpful.", "Handwritten notes bettered thinking ability.", "Handwritten notes recorded every word in need.", "Laptop notes were written in students' own words."], "pass": 2}, {"n": 30, "stem": "What did the author think made learning difficult in the case of laptop use?", "opts": ["The technology of laptops itself.", "Students' unsuitable use of laptops.", "The speed of taking notes with laptops.", "The design of lesson plans for laptop users."], "pass": 2}, {"n": 31, "stem": "What is the main idea of the passage?", "opts": ["Handwritten notes are better for students' learning than laptop notes.", "Laptop bans in classrooms are unreasonable and should be prohibited.", "The use of laptops in classrooms should be decided based on situations.", "Research on note-taking methods helps improve teaching achievements."], "pass": 2}, {"n": 32, "stem": "What is a major difference in teaching style between junior and senior high school mentioned in the text?", "opts": ["Senior high teachers give less homework.", "Junior high teachers focus more on independent thinking.", "Senior high teachers encourage more self-directed learning.", "Junior high teachers rarely explain difficult concepts."], "pass": 3}, {"n": 33, "stem": "According to Paragraph 3, how do extra-curricular activities benefit Gaoyi students?", "opts": ["They ensure better academic performance.", "They allow students to avoid social interactions.", "They help in socializing and developing interest.", "They aid students earn extra credits for graduation."], "pass": 3}, {"n": 34, "stem": "The word \"holistic\" in Paragraph 3 is closest in meaning to ________.", "opts": ["focused on one subject", "emphasizing exam results", "related to body health only", "considering the whole person"], "pass": 3}, {"n": 35, "stem": "What is the author's main purpose in writing this passage?", "opts": ["To provide specific tips for passing the Gaokao.", "To criticize the high pressure faced by Gaoyi students.", "To compare different education systems around the world.", "To highlight the significance and challenges of the Gaoyi year."], "pass": 3}]}, "seven": {"body": ["How can English be learned well? In my view, keeping up with teachers is a good way. Teachers are experienced and their plans are effective. But remember to work in a way that suits you. ___36___ Keep a notebook to make a record of the mistakes you make — it'll help you avoid making the same ones later.", "The school life may be hard, but you're not alone. You may be busy studying, but you can show your care by calling your friends or sending short messages. ___37___", "It's as important to live well as it is to study well. Going to bed no later than 11:30 pm is important. ___38___ You needn't follow a special diet, but make sure you are eating healthy meals each day.", "___39___ Having a lot of schoolwork doesn't mean having to quit other activities. Playing basketball or having a talk with your classmates can relax yourself. Time out is not a waste of time but helps you study more efficiently.", "Besides taking the College Entrance Examination, you have other choices for college. ___40___ Pay attention to the useful information you can find, whether it's from school, the news media or other sources."], "opts": ["Don't let your friendships die.", "Your friends are good for your study.", "If you took notes in class, re-read them.", "The person who plays well studies well.", "It puts you in the right state for the next day.", "Some students even apply for studying abroad.", "It's important to learn from past mistakes as well."], "nums": [36, 37, 38, 39, 40]}, "cloze": {"paras": ["I walked into the room. 20 years have gone by since I left high school, but seeing ___41___ faces brought me back to my youth at once.", "\"Dreamlike\" is the best word to ___42___ my 20-year high school reunion (聚会). ___43___ and excited, I recognized (认出) many ___44___. No one seemed to ___45___! The women all looked the same as before, and the men too.", "The high school years are filled with ___46___. It's a period in life when you are trying to know who you are, or simply trying to ___47___ with others. There are disagreements and there is plenty of stress (压力). But here's the thing: none of that ___48___ years later. It doesn't matter whether you were popular or had straight A's.", "20 years later, none of that matters. ___49___ isn't measured (衡量) by the car that you drive or how much money you make. Success is what holds real ___50___ in your life—your happiness, your family and your relationships.", "Success is living ___51___ and making a difference. As I said my goodbyes, I took one last look at this ___52___. There's something special about your teenage friends. You can recognize easily, even if it's been 20 years since you ___52___. I'm thankful for the ___54___ I made as a teenager. I'll see you all in 10 years and hear where ___55___ takes us next."], "items": [{"opts": ["old", "famous", "different", "fresh"], "n": 41}, {"opts": ["change", "describe", "organize", "forget"], "n": 42}, {"opts": ["Tired", "Annoyed", "Nervous", "Frightened"], "n": 43}, {"opts": ["neighbors", "leaders", "advisers", "classmates"], "n": 44}, {"opts": ["agree", "move", "care", "age"], "n": 45}, {"opts": ["challenges", "information", "hope", "ideas"], "n": 46}, {"opts": ["discuss", "fit in", "work", "check in"], "n": 47}, {"opts": ["appears", "fails", "matters", "ends"], "n": 48}, {"opts": ["Truth", "Success", "Kindness", "Knowledge"], "n": 49}, {"opts": ["meaning", "money", "control", "interest"], "n": 50}, {"opts": ["quietly", "comfortably", "bravely", "fully"], "n": 51}, {"opts": ["school", "family", "couple", "group"], "n": 52}, {"opts": ["registered", "graduated", "explored", "designed"], "n": 53}, {"opts": ["friendships", "decisions", "promises", "progress"], "n": 54}, {"opts": ["history", "education", "life", "society"], "n": 55}]}, "grammar": {"paras": ["Entering senior high school is an exciting but ___56___ (challenge) experience for many teenagers. On the first day, I felt a mix of ___57___ (anxious) and excitement because everything was new. However, our teacher, an expert in education, gave us a warm welcome and told us to be confident.", "To get used to the new environment quickly, I decided to register ___58___ some extra-curricular activities. I joined ___59___ school debate club, where I made many new friends. We often exchange ideas with each other. My new partner, Li Hua, is an outgoing boy who is always curious about new environment. He is responsible and never leaves others alone ___60___ they are in trouble. Sometimes, his loud voice makes me ___61___ (frighten), but I know he is kind-hearted.", "Besides ___62___ (make) friends, I also need to focus on my studies. Our teachers recommend us ___63___ (take) notes carefully in class. Although the subjects are much ___64___ (advance) than before, I am determined to face the challenges. I believe that as long as I work hard, I ___65___ (leave) a good impression on my teachers and classmates."], "nums": [56, 57, 58, 59, 60, 61, 62, 63, 64, 65]}, "single": [{"n": 66, "text": "I prefer ___66___ (walk) to school rather than take a bus, because it is good for my health."}, {"n": 67, "text": "The speech given by the headmaster was very ___67___ (impress) which inspired all the freshmen."}, {"n": 68, "text": "Nowadays, many teenagers are addicted to ___68___ (play) short videos, which has a bad effect on their studies."}, {"n": 69, "text": "Much to my ___69___ (annoy) the train was delayed for two hours because of the heavy rain."}, {"n": 70, "text": "Many college students volunteer ___70___ (clean) up the garbage on the street during their summer holidays."}, {"n": 71, "text": "If you practice spoken English every day, you will speak it with ___71___ (fluently)."}, {"n": 72, "text": "She is not only good at dancing but also has a great sense of ___72___ (responsible)."}, {"n": 73, "text": "Out of ___73___ (curious), I opened the mysterious box that I found in the attic."}, {"n": 74, "text": "The debate we had been looking forward to ___74___ (begin) at last."}, {"n": 75, "text": "The girl ___75___ (graduate) from Peking University last year is now working as an editor in a famous company."}], "write": [{"n": 76, "label": "第一节　应用文写作（满分 15 分）", "prompt": "假定你是校英文报\"Heart-to-Heart\"栏目编辑李华，收到高一新生陈明的来信。他因开学后父母禁止他使用手机与父母发生了激烈争吵，感到非常迷茫。请你用英语给他写一封回信，给出建议。主要内容包括 1. 表达理解。2. 给出建议。", "notes": ["注意：1. 词数 80 左右；", "2. 可以适当增加细节，以使行文连贯。"], "body": ["Dear Chen Ming,", "Yours,", "Li Hua"]}, {"n": 77, "label": "第二节　口语表达（满分 15 分）", "prompt": "假定你是某国际中学某学生社团社长李华，下周学校将举行社团招新大会，请从这些社团中选择一个：English Club, Debate Club, Basketball Club, Music Club, Volunteer Club，然后用英语写一篇招新演讲稿，吸引同学们加入。内容包括：", "notes": ["1. 社团简介；", "2. 社团主要活动。", "注意：1. 词数 80 左右；", "2. 可以适当增加细节，以使行文连贯。开头和结尾已给出，不计入总词数。"], "body": ["Good morning, everyone! I'm Li Hua, president of the ... Club. ______________________________", "Thank you for listening!"]}]};
+
+const PARTS = [
+  {id:'p1', name:'听力 · 第一节', from:1,  to:5,  per:1.5, hint:'每小题 1.5 分'},
+  {id:'p2', name:'听力 · 第二节', from:6,  to:20, per:1.5, hint:'每小题 1.5 分'},
+  {id:'p3', name:'阅读理解',      from:21, to:35, per:2.5, hint:'每小题 2.5 分'},
+  {id:'p4', name:'七选五',        from:36, to:40, per:2.5, hint:'每小题 2.5 分'},
+  {id:'p5', name:'完形填空',      from:41, to:55, per:1,   hint:'每小题 1 分'},
+  {id:'p6', name:'语法填空',      from:56, to:65, per:1.5, hint:'每小题 1.5 分'},
+  {id:'p7', name:'单句语法填空',  from:66, to:75, per:1,   hint:'每小题 1 分'},
+  {id:'p8', name:'写作',          from:76, to:77, per:15,  hint:'共 2 题，每题 15 分'}
+];
+const TOTAL = 77, LT = 'ABCDEFG';
+const ANS = {}, MRK = {};
+let curN = 1, built = false;
+
+const progEl = () => document.getElementById('prog');
+const barcEl = () => document.getElementById('barcount');
+const treeEl = () => document.getElementById('tree');
+const paperEl = () => document.getElementById('paper');
+
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const partOf = n => PARTS.find(p => n >= p.from && n <= p.to);
+const numsIn = t => (t.match(/___(\d+)___/g) || []).map(x => +x.replace(/[^\d]/g,''));
+const splitNums = t => { const a = numsIn(t); return a.length ? Math.min.apply(null,a) : null; };
+
+/* 四选一：题干 + 选项按钮 */
+function qChoice(n, stem, opts, multi){
+  const cls = multi ? 'qopt cb' : 'qopt';
+  let h = `<div class="q" id="q${n}" data-spy="${n}">
+    <div class="qh"><span class="qn">${n}</span><div style="flex:1">
+      <p class="qp">${esc(stem)}${multi ? ' <span class="small muted">（多选，可勾选多个）</span>' : ''}</p><div class="qopts">`;
+  opts.forEach((t, i) => {
+    h += `<button class="${cls}" data-q="${n}" data-v="${LT[i]}" onclick="pickOpt(this)"><b>${LT[i]}</b><span>${esc(t)}</span></button>`;
+  });
+  return h + `</div></div></div></div>`;
+}
+
+/* 段内空格：mode=cloze 用该题自己的四个选项；mode=seven 用 A–G；mode=text 用输入框 */
+function fillBlanks(text, mode, n){
+  const safe = esc(text);
+  return safe.replace(/___(\d+)___/g, (m, d) => {
+    const q = +d;
+    if (mode === 'cloze') {
+      const it = PAPER.cloze.items.find(x => x.n === q);
+      let o = `<option value="">选 ${q}</option>`;
+      (it ? it.opts : []).forEach((t, i) => { o += `<option value="${LT[i]}">${LT[i]}. ${esc(t)}</option>`; });
+      return `<select class="blank sel" data-q="${q}" onchange="blankAns(${q},this)">${o}</select>`;
+    }
+    if (mode === 'seven') {
+      let o = `<option value="">空 ${q}</option>`;
+      PAPER.seven.opts.forEach((t, i) => { o += `<option value="${LT[i]}">${LT[i]}</option>`; });
+      return `<select class="blank sel" data-q="${q}" onchange="blankAns(${q},this)">${o}</select>`;
+    }
+    return `<input class="blank" data-q="${q}" oninput="blankAns(${q},this)" style="width:78px" placeholder="${q}">`;
+  });
+}
+
+/* 段落块：每段独立成为滚动锚点，锚点取段内最小的题号 */
+function paraBlock(text, mode, cls){
+  const first = splitNums(text);
+  const anchor = first ? ` id="q${first}" data-spy="${first}"` : '';
+  return `<div class="${cls || 'passage'}"${anchor}><p style="margin:0">${fillBlanks(text, mode)}</p></div>`;
+}
+
+function buildPaper(){
+  const P = PAPER, out = [];
+
+  /* ── 第一部分 听力 ── */
+  out.push(`<div class="sech">第一部分　听力<span>共两节，满分 30 分</span></div>`);
+  P.listen.forEach((it, i) => {
+    if (i === 0) out.push(`<div class="small muted" style="margin:6px 0 0">第一节　第 1–5 题</div>`);
+    if (it.n === 6) out.push(`<div class="sech">第二节　第 6–20 题<span>每小题 1.5 分</span></div>`);
+    out.push(qChoice(it.n, it.stem, it.opts));
+  });
+
+  /* ── 第二部分 阅读 ── */
+  out.push(`<div class="sech">第二部分　阅读理解<span>共两节，满分 50 分</span></div>`);
+  P.read.passages.forEach((ps, pi) => {
+    out.push(`<div class="passage"><span class="plab">${ps.label}</span>${ps.paras.map(t => `<p style="margin:0 0 9px">${esc(t)}</p>`).join('')}</div>`);
+    P.read.items.filter(q => q.pass === pi).forEach(q => out.push(qChoice(q.n, q.stem, q.opts)));
+  });
+  out.push(`<div class="sech">第二节　七选五<span>第 36–40 题，每小题 2.5 分</span></div>`);
+  P.seven.body.forEach(t => out.push(paraBlock(t, 'seven')));
+  out.push(`<div class="passage"><span class="plab">选项</span>${P.seven.opts.map((t, i) => `<p style="margin:0 0 5px"><b>${LT[i]}.</b> ${esc(t)}</p>`).join('')}</div>`);
+
+  /* ── 第三部分 英语知识运用 ── */
+  out.push(`<div class="sech">第三部分　英语知识运用<span>共三节，满分 40 分</span></div>`);
+  out.push(`<div class="sech">第一节　完形填空<span>第 41–55 题，每小题 1 分</span></div>`);
+  P.cloze.paras.forEach(t => out.push(paraBlock(t, 'cloze')));
+  out.push(`<div class="sech">第二节　语法填空<span>第 56–65 题，每小题 1.5 分</span></div>`);
+  P.grammar.paras.forEach(t => out.push(paraBlock(t, 'text')));
+  out.push(`<div class="sech">第三节　单句语法填空<span>第 66–75 题，每小题 1 分</span></div>`);
+  P.single.forEach(it => {
+    out.push(`<div class="q" id="q${it.n}" data-spy="${it.n}">
+      <div class="qh"><span class="qn">${it.n}</span><div style="flex:1"><p class="qp">${fillBlanks(it.text, 'text')}</p></div></div></div>`);
+  });
+
+  /* ── 第四部分 写作 ── */
+  out.push(`<div class="sech">第四部分　写作<span>共两节，满分 30 分</span></div>`);
+  P.write.forEach(w => {
+    const lim = wordLimitOf(w), tol = Math.round(lim * 0.2);
+    out.push(`<div class="q" id="q${w.n}" data-spy="${w.n}">
+      <div class="qh"><span class="qn">${w.n}</span><div style="flex:1">
+        <div class="small muted" style="font-weight:650;color:var(--text)">${esc(w.label)}</div>
+        <p class="qp" style="margin-top:6px">${esc(w.prompt)}</p>
+        <div class="wlines">${w.notes.map(t => `<div>${esc(t)}</div>`).join('')}</div>
+        <div class="wlines">${w.body.map(t => `<div>${esc(t)}</div>`).join('')}</div>
+        <textarea class="writearea" data-q="${w.n}" data-limit="${lim}"
+          oninput="onWrite(this)" placeholder="在此作答，${lim} 词左右"></textarea>
+        <div class="wcount" data-for="${w.n}"><span class="wn">0</span> / 要求 ${lim} 词左右（${lim - tol}–${lim + tol}）</div>
+      </div></div></div>`);
+  });
+
+  /* 本卷没有多选题：单独放一块示例数据，用于确认复选框形态 */
+  out.push(`<div class="demo">
+    <div class="dlabel">示例数据 · 非本卷题目</div>
+    <div class="small muted">题型是每题自己的属性，同一份试卷里单选与多选可以并存。</div>
+    <div style="margin-top:10px">${qChoice('demo', 'Which two activities does the programme offer?', ['A soccer game in the park.', 'A visit to the Science Museum.', 'A cooking class at school.'], true)}</div>
+  </div>`);
+
+  paperEl().innerHTML = out.join('');
+}
+
+/* 从题面「词数 80 左右」抽出字数要求；抽不到返回 0（不设定框高） */
+function wordLimitOf(w){
+  for (const t of [].concat(w.notes || [], w.prompt || '')) {
+    const m = /词数\s*(\d+)/.exec(t);
+    if (m) return +m[1];
+  }
+  return 0;
+}
+
+/* 当前字体下一个「平均词」占多宽（含空格）：用 canvas 实量，不写死 */
+let _mctx = null;
+function pxPerWord(font){
+  if (!_mctx) _mctx = document.createElement('canvas').getContext('2d');
+  _mctx.font = font;
+  const sample = 'The quick brown fox jumps over a lazy dog and keeps running while the sun sets slowly behind the hills today';
+  return _mctx.measureText(sample).width / sample.split(' ').length;
+}
+
+/* 行数 = ⌈字数要求 × 1.2 ÷ 每行词数⌉，夹在 6–22 行之间 */
+function rowsFor(ta, limit){
+  if (!limit) return 6;
+  const cs = getComputedStyle(ta);
+  const w = (ta.clientWidth || 700) - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  const font = `${cs.fontSize} ${cs.fontFamily}`;   /* 拼出 font 简写，避免只读到空串 */
+  const per = Math.max(6, Math.floor(w / pxPerWord(font)));
+  return Math.min(22, Math.max(6, Math.ceil(limit * 1.2 / per)));
+}
+
+/* 宽度变了要重算——高度不是常量，是算出来的 */
+function sizeTextareas(){
+  document.querySelectorAll('#paper .writearea').forEach(ta => {
+    ta.rows = rowsFor(ta, +ta.dataset.limit || 0);
+  });
+}
+
+function countWords(text){ return (text.match(/[A-Za-z0-9'\u2019\-]+/g) || []).length; }
+
+function onWrite(ta){
+  const n = ta.dataset.q, lim = +ta.dataset.limit || 0, tol = Math.round(lim * 0.2);
+  ANS[n] = ta.value;
+  const box = document.querySelector(`.wcount[data-for="${n}"]`);
+  if (box) {
+    const c = countWords(ta.value);
+    box.querySelector('.wn').textContent = c;
+    box.classList.toggle('ok', lim > 0 && c >= lim - tol && c <= lim + tol);
+    box.classList.toggle('over', lim > 0 && c > lim + tol);
+  }
+  refresh();
+}
+
+function buildTree(){
+  treeEl().innerHTML = PARTS.map(p => {
+    const kids = [];
+    for (let n = p.from; n <= p.to; n++) kids.push(`<button class="tq" data-n="${n}" onclick="jumpTo(${n})">${n}</button>`);
+    return `<div class="tnode" data-part="${p.id}">
+      <button class="tpart" onclick="foldPart(this)"><span style="flex:1">${p.name}</span><span class="tcount" data-count="${p.id}">0/${p.to-p.from+1}</span><span>${p.hint}</span></button>
+      <div class="tkids">${kids.join('')}</div></div>`;
+  }).join('');
+  document.querySelector('.tnode[data-part="p1"]').classList.add('open');
+}
+
+function foldPart(btn){ btn.parentElement.classList.toggle('open'); }
+
+function toggleTree(){ document.body.classList.toggle('treeopen'); }
+
+function jumpTo(n){
+  const p = partOf(n); if (!p) return;
+  const ctl = document.querySelector(`[data-q="${n}"]`);
+  const block = ctl ? ctl.closest('.q, .passage') : document.getElementById('q' + n);
+  if (block) block.scrollIntoView({behavior:'smooth', block:'center'});
+  if (ctl && (ctl.tagName === 'INPUT' || ctl.tagName === 'SELECT' || ctl.tagName === 'TEXTAREA')) {
+    setTimeout(() => ctl.focus({preventScroll:true}), 340);
+  }
+  setActive(String(n));
+}
+
+function pickOpt(btn){
+  const n = btn.dataset.q, v = btn.dataset.v;
+  if (btn.classList.contains('cb')) {              /* 多选：切换，不看其他项 */
+    const cur = Array.isArray(ANS[n]) ? ANS[n].slice() : [];
+    const at = cur.indexOf(v);
+    at >= 0 ? cur.splice(at, 1) : cur.push(v);
+    ANS[n] = cur;
+    btn.classList.toggle('on', at < 0);
+  } else {                                          /* 单选：换掉其他项 */
+    document.querySelectorAll(`.qopt[data-q="${n}"]`).forEach(o => o.classList.toggle('on', o === btn));
+    ANS[n] = v;
+  }
+  refresh();
+}
+
+function blankAns(n, el){ ANS[n] = el.value; refresh(); }
+
+let LEFT = 42 * 60 + 18, tickId = null, TIER = 0;
+
+function fmt(s){
+  s = Math.max(0, Math.floor(s));
+  const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), ss = s % 60;
+  return (h ? h + ':' + String(m).padStart(2, '0') : String(m)) + ':' + String(ss).padStart(2, '0');
+}
+
+function paintTimer(){
+  const el = document.getElementById('timer'); if (!el) return;
+  el.textContent = '剩余 ' + fmt(LEFT);
+  el.classList.toggle('warn', LEFT <= 300 && LEFT > 0);
+}
+
+function startTimer(){
+  if (tickId) return;
+  paintTimer();
+  tickId = setInterval(() => {
+    if (LEFT > 0) { LEFT--; paintTimer(); if (LEFT === 0) lockExam(); }
+  }, 1000);
+}
+
+function timerDemo(){
+  TIER = (TIER + 1) % 3;
+  LEFT = TIER === 0 ? 42 * 60 + 18 : TIER === 1 ? 299 : 3;
+  document.querySelector('.paperwrap').classList.remove('locked');
+  document.querySelectorAll('.paperwrap .blank,.paperwrap .writearea').forEach(el => el.disabled = false);
+  paintTimer();
+}
+
+function lockExam(){
+  const w = document.querySelector('.paperwrap'); if (!w) return;
+  w.classList.add('locked');
+  document.querySelectorAll('.paperwrap .blank,.paperwrap .writearea').forEach(el => el.disabled = true);
+  const el = document.getElementById('timer');
+  if (el) { el.textContent = '已自动交卷'; el.classList.add('warn'); }
+}
+
+function markCur(){ MRK[curN] = !MRK[curN]; refresh(); }
+
+function refresh(){
+  const done = Object.keys(ANS).filter(k => {
+    if (String(k).startsWith('demo')) return false;
+    const v = ANS[k];
+    if (Array.isArray(v)) return v.length > 0;
+    return v !== '' && v != null;
+  }).length;
+  const mk = Object.keys(MRK).filter(k => MRK[k]).length;
+  if (progEl()) progEl().textContent = `已答 ${done} / ${TOTAL} · 标记 ${mk}`;
+  if (barcEl()) barcEl().textContent = `已答 ${done} / ${TOTAL}`;
+  document.querySelectorAll('.tq').forEach(b => {
+    const n = b.dataset.n;
+    const v = ANS[n];
+    b.classList.toggle('ans', Array.isArray(v) ? v.length > 0 : (!!v && v !== ''));
+    b.classList.toggle('mark', !!MRK[n]);
+  });
+  /* 部分级：名下 77 题里该部分的完成度 */
+  PARTS.forEach(p => {
+    let d = 0;
+    for (let n = p.from; n <= p.to; n++) {
+      const v = ANS[n];
+      if (Array.isArray(v) ? v.length > 0 : (!!v && v !== '')) d++;
+    }
+    const tot = p.to - p.from + 1;
+    const cnt = document.querySelector(`[data-count="${p.id}"]`);
+    if (cnt) cnt.textContent = `${d}/${tot}`;
+    const row = document.querySelector(`.tnode[data-part="${p.id}"] .tpart`);
+    if (row) row.classList.toggle('done', d === tot && tot > 0);
+  });
+  document.querySelectorAll('#paper .blank, #paper .writearea').forEach(el => {
+    el.classList.toggle('filled', !!el.value);
+  });
+}
+
+function setActive(key){
+  curN = +key;
+  document.querySelectorAll('.tq').forEach(b => b.classList.toggle('active', b.dataset.n === key));
+  const p = partOf(+key);
+  if (p) { const node = document.querySelector(`.tnode[data-part="${p.id}"]`); if (node) node.classList.add('open'); }
+  const on = document.querySelector('.tq.active');
+  if (on) ensureVisible(on);
+}
+
+function ensureVisible(el){
+  const t = treeEl(); if (!t) return;
+  const tr = t.getBoundingClientRect(), er = el.getBoundingClientRect();
+  if (er.top < tr.top + 4) t.scrollTop += er.top - tr.top - 8;
+  else if (er.bottom > tr.bottom - 4) t.scrollTop += er.bottom - tr.bottom + 8;
+}
+
+function spy(){
+  const main = document.getElementById('exammain'); if (!main) return;
+  const top = main.getBoundingClientRect().top + 74;
+  let cur = null, best = -1e9;
+  document.querySelectorAll('#paper [data-spy]').forEach(el => {
+    if (!/^\d+$/.test(el.dataset.spy)) return;   /* 示例块不是题，不参与联动 */
+    const r = el.getBoundingClientRect();
+    if (r.top <= top && r.top > best) { best = r.top; cur = el; }
+  });
+  if (!cur) cur = document.querySelector('#paper [data-spy="1"]');
+  if (!cur) return;
+  /* 多空同段时，当前题就落在这一段里，不要把它改写成段首题号 */
+  const ctl = document.querySelector(`[data-q="${curN}"]`);
+  const own = ctl ? ctl.closest('.q, .passage') : null;
+  if (own === cur) return;
+  if (+cur.dataset.spy !== curN) setActive(cur.dataset.spy);
+}
+
+/* 首次进入考试时再构建（避免初始化时布局未就绪） */
+function enterExam(){
+  if (!built) { buildPaper(); buildTree(); refresh(); built = true; setActive('1'); }
+  sizeTextareas();
+  startTimer();
+  setTimeout(spy, 80);
+}
+
+let rzT = null;
+window.addEventListener('resize', () => {
+  clearTimeout(rzT);
+  rzT = setTimeout(() => { sizeTextareas(); spy(); }, 120);
+});
+
+let rafPending = false;
+(function bindScroll(){
+  const main = document.getElementById('exammain');
+  if (!main) return;
+  main.addEventListener('scroll', () => {
+    if (rafPending) return;
+    rafPending = true;
+    requestAnimationFrame(() => { rafPending = false; spy(); });
+  });
+})();
+
+/* 未作答的题号：数组为空也算没答 */
+function unanswered(){
+  const miss = [];
+  for (let n = 1; n <= TOTAL; n++) {
+    const v = ANS[n];
+    if (Array.isArray(v) ? v.length === 0 : !(v && v !== '')) miss.push(n);
+  }
+  return miss;
+}
+
+function openModal(html){ mbox().innerHTML = html; document.getElementById('modal').classList.add('on'); }
+function closeModal(){ document.getElementById('modal').classList.remove('on'); }
+function mbox(){ return document.getElementById('mbox'); }
+
+/* 提交试卷：把未答题号按部分分组列出来，点一下就跳过去 */
+function submitExam(){
+  const miss = unanswered();
+  const marked = Object.keys(MRK).filter(k => MRK[k]).map(Number).sort((a, b) => a - b);
+
+  if (!miss.length && !marked.length) {
+    openModal(`<h3>全部 ${TOTAL} 题都已作答</h3>
+      <p class="small muted">提交后不能再修改，客观题立即出分，写作等人工复核。</p>
+      <div class="mfoot"><button class="btn sm" onclick="closeModal()">继续检查</button>
+        <button class="btn sm pri" onclick="closeModal();alert2('已提交（原型演示）')">确认提交</button></div>`);
+    return;
+  }
+
+  const groups = PARTS.map(part => {
+    const ns = miss.filter(n => n >= part.from && n <= part.to);
+    if (!ns.length) return '';
+    return `<div class="mgroup">${part.name} · ${ns.length} 题</div>
+      <div class="mchips">${ns.map(n => `<button class="mchip${MRK[n] ? ' mk' : ''}"
+        onclick="jumpTo(${n});closeModal()">${n}</button>`).join('')}</div>`;
+  }).join('');
+
+  openModal(`<h3>还有 ${miss.length} 题未作答${marked.length ? ` · ${marked.length} 题已标记` : ''}</h3>
+    <p class="small muted">点题号可直接跳过去补答，跳转后本提示关闭。不补答也可以直接提交。</p>
+    ${groups}
+    <div class="mfoot"><button class="btn sm" onclick="closeModal()">继续作答</button>
+      <button class="btn sm pri" onclick="closeModal();alert2('已提交（原型演示）')">仍然提交</button></div>`);
+}
+
+function alert2(msg){
+  const d=document.createElement('div');
+  d.textContent=msg;
+  d.style.cssText='position:fixed;left:50%;top:18px;transform:translateX(-50%);background:var(--panel);border:1px solid var(--line);box-shadow:var(--shadow-lg);padding:10px 16px;border-radius:10px;font-size:13px;z-index:99';
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(),2200);
+}
+
+function togglePub(){
+  const sw=document.getElementById('pub');
+  sw.classList.toggle('on');
+  const show=sw.classList.contains('on');
+  document.querySelectorAll('#overview-s td[data-score]').forEach(td=>{
+    const isMe = td.parentElement.querySelector('.tag.blue');
+    const raw = td.dataset.score;
+    if(raw==='—'){ td.textContent='—'; return }
+    if(show || isMe){ td.textContent = raw; td.classList.remove('muted') }
+    else { td.textContent='已批改'; td.classList.add('muted') }
+  });
+}
+</script>
+
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><div class="mbox" id="mbox"></div></div>
+
+</body>
+</html>

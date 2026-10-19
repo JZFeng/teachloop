@@ -1,0 +1,857 @@
+# 技术方案 — TeachLoop（公网 AI 教学平台，v2，Java 版）
+
+- 项目名：**TeachLoop**（2026-10-19 定名；仓库 `teachloop`，groupId / 包根 `com.teachloop`）
+- 特性编号：`002-v2-platform`
+- 上游：`spec.md`（26 用户故事 / 203 验收标准 / 42 功能需求）、`.specify/memory/constitution.md`（v2.1）
+- 日期：2026-10-19（本版为整份重写，非增量修补）
+- 技术栈变更说明：早期方案用 Python/FastAPI，理由是复用 v1 资产与 `dsh` 子进程。用户 review 后确定部署阿里云、取消 OCR、生产直连模型 API，这两条理由都不再成立；且用户最熟悉 Java。故整体改用 Java。
+- 名字为什么叫 TeachLoop：`loop` 同时指两件事——批改反馈的闭环（出卷→作答→批改→复核→发布），与将来背单词模块的间隔重复循环。所以加模块不需要改名。
+
+---
+
+## 0. 怎么评审这份文件
+
+Plan 的退出条件是下面 6 条全部打勾。每条标注了自评结果与验法，评审时直接照这条走。
+
+| # | 检查项 | 自评 | 验法 |
+| :--- | :--- | :--- | :--- |
+| 1 | 每个用户故事在本文件里有承接结构 | ✅ | 附录 A 逐条对照 26 个故事。**追溯粒度到故事与 FR**：203 条 AC 不逐条映射（理由见 `tasks.md` 追踪矩阵开头） |
+| 2 | 每个实体的表、字段、索引、状态迁移写全 | ✅ | §5；状态机见 §7 与 §7.6 |
+| 3 | 每条外部依赖写了失败与重试路径 | ✅ | §6.4 失败处理、§7.2 崩溃恢复、§9 上传、§15 字体自检 |
+| 4 | 模块依赖无环、跨模块只走端口 | ✅ | §3.1 编译期强制；§3.2 端口表；T203 专门验证 |
+| 5 | 每张表只有一个属主、无跨模块 JOIN | ✅ | §3.3 归属清单；T204 验证越界写入与 `@Entity` 泄漏 |
+| 6 | 拆服务路径写得出来 | ✅ | §3.5：哪两个进程、先拆谁、外键清单 |
+
+1–3 回答「能不能做出来」，4–6 回答「做出来会不会烂」。这两组必须分别问——只问前者，后者会一条都发现不了。
+
+---
+
+## 1. 架构总览
+
+承接：US-1 ~ US-26 全部（部署与运行形态）
+
+```
+浏览器 (React 18 + TS + i18next)
+   │ HTTPS
+   ▼
+Nginx (TLS, 静态资源, /api 反代)
+   ▼
+Spring Boot 4.1 应用（fat jar，1..N 实例，profile=app）
+   ├── Spring Security + Spring Session JDBC（会话入库，可吊销）
+   ├── 业务层（试卷 / 布置 / 提交 / 批改 / 复核 / 报表 / 审计）
+   ├── 客观题判分（纯代码 + 可扩展匹配策略，不调模型）
+   ├── 进度由前端每 2 秒轮询（无长连接、无 SSE）
+   ├── Spring AI → DeepSeek API（deepseek-flash）
+   └── StorageBackend（OSS / 本地）
+   ▼
+PostgreSQL（RDS）—— 唯一中间件：业务数据 + 工作项 + 限流 + 会话
+   ▼
+Worker 进程（同一 jar，profile=worker）—— 独占批改工作项并调用模型
+定时（@Scheduled + ShedLock）—— 到期派发、僵尸清扫、到点自动交卷、每日汇总
+```
+
+**关键取舍：不引入 Redis / RabbitMQ / Kafka。** 单校规模（数百到数千份/次）下：
+
+- 批改工作项不需要独立队列——`submissions` 行本身就是工作项，条件 UPDATE 领取即可（§7.1）
+- 进度不需要事件广播——前端轮询一条聚合 SQL 即可（§8）
+- 会话不需要缓存——Postgres 主键查 155 µs，而缓存会留下"退出后仍可用"的窗口（§5.1）
+
+少一个中间件 = 少一套运维、少一笔费用、少一个故障源。
+
+---
+
+## 2. 技术栈
+
+承接：全局
+
+| 层 | 选型 | 说明 |
+| :--- | :--- | :--- |
+| 语言 | **Java 21 (LTS)** | 本机已装 21.0.11 |
+| 框架 | **Spring Boot 4.1.1**（已验证） | Spring Framework 7.0.9 |
+| 构建 | **Maven**（聚合 POM + 九模块） | 用户选定 |
+| Web | Spring MVC | 进度用轮询，不维护长连接 |
+| 持久化 | Spring Data JPA + **Flyway** | 迁移可审阅、可按模块分目录 |
+| JSON | **Jackson 3.1.5**（包名 `tools.jackson`） | Spring Boot 4 已从 `com.fasterxml.jackson` 迁到 Jackson 3，**两者不可混用** |
+| 驱动 | PostgreSQL JDBC | |
+| 会话 | **Spring Session JDBC** | 多实例共享、可服务端吊销 |
+| 安全 | Spring Security + BCrypt + Cookie CSRF（双提交） | |
+| AI | **Spring AI 2.0.1** + `spring-ai-starter-model-deepseek`，模型名 **`deepseek-flash`** | `deepseek-chat` 是旧名，已下线 |
+| 调度 | `@Scheduled` + **ShedLock** | 多实例互斥 |
+| 富文本 | **OWASP Java HTML Sanitizer** | 经过审计的白名单实现 |
+| 文档解析 | Apache **PDFBox**（pdf）/ Apache **POI**（docx） | 不做 OCR |
+| 导出 | **OpenPDF**（pdf）/ POI（xlsx、docx） | 纯 JVM，无 pango/cairo 依赖 |
+| 存储 | 阿里云 OSS SDK | `StorageBackend` 抽象，`LocalStorage` 供开发 |
+| 视频探测 | 外部 `ffprobe` 子进程 | 唯一的外部二进制依赖 |
+| 测试 | JUnit 5 + **Testcontainers**（已验证） | 2.x 改了构件坐标，旧坐标需显式锁 `1.21.4` |
+| 前端 | React 18 + TS + Vite + react-i18next | 从 v1 迁移，语言不变 |
+
+### 本机环境现状
+
+| 项 | 状态 |
+| :--- | :--- |
+| JDK 21.0.11 | ✅ 已装（Homebrew `openjdk@21`） |
+| `JAVA_HOME` | ⚠️ 必须显式设为 `/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home`（Homebrew JDK 未注册进 `/usr/libexec/java_home`） |
+| Maven | ⚠️ 未全局安装，用 Maven Wrapper 或工作区内二进制 |
+| `ffprobe` | ✅ 已装 |
+
+---
+
+## 3. 代码组织（模块化单体）
+
+承接：US-1 ~ US-26（边界）+ 未来模块接入
+
+项目名 **TeachLoop**（用户 2026-10-19 定名）。GitHub 仓库 `teachloop`，groupId `com.teachloop`，Java 包根 `com.teachloop`。九个子模块摆在仓库根下，不再套一层目录——仓库本身就是这个 Java 工程。
+
+`batch-grading/`（v1 Python 实现，823MB）已于 2026-10-19 删除（移入废纸篓），不再保留。它的设计结论已经被本文件吸收，代码不可复用。
+
+**为什么不拆微服务**：现在是一个教师、几十个学生、一台 ECS。拆服务的代价（网络、部署、分布式事务、链路追踪）立即要付，收益（独立扩容）现在用不上。**用 Maven 多模块拿到编译期的边界，保留以后拆服务的可能**——模块之间不共享实现类、不互相查表，将来某个模块要独立，把它连表带迁移一起搬走就行。
+
+```
+teachloop/                          # 仓库根 = Maven 聚合 POM
+├── pom.xml                         # <modules> 九个
+├── teachloop-shared/               # 无业务：错误码、i18n、Clock、审计原语、JSON、分页约定
+├── teachloop-identity/             # 认证与账号：用户、会话、角色、资料补全、限流
+├── teachloop-classroom/            # 班级：班级、成员、邀请码
+├── teachloop-paper/                # 出卷：试卷、部分、题项、标准答案、rubric、导入拆分
+├── teachloop-sitting/              # 答卷：布置、参与班级、计时、作答、草稿、提交
+├── teachloop-grading/              # 阅卷：客观判分、AI 主观、错题解析、复核、发布
+├── teachloop-report/               # 报告：统计、错题 Top N、导出（md/pdf/xlsx/docx）
+├── teachloop-observability/        # 可观测：请求日志、前端事件、daily_stats、审计查询
+├── teachloop-app/                  # 唯一启动模块：Spring Boot、Controller、装配
+├── web/                            # React 前端
+├── specs/                          # 规范与方案（本文件所在处）
+└── AGENTS.md
+```
+
+### 3.1 依赖方向（编译期强制）
+
+```
+teachloop-app ──▶ paper / sitting / grading / report / observability
+                        │
+                        ▼
+                   classroom ──▶ identity ──▶ shared
+```
+
+`shared` 不依赖任何业务模块；`identity` 与 `classroom` 不依赖出卷/答卷/阅卷。反向依赖与循环依赖**编译不过**——这是选多模块而不是多包的唯一理由。
+
+### 3.2 跨模块只走端口
+
+| 谁要什么 | 走哪个端口 | 说明 |
+| :--- | :--- | :--- |
+| 答卷要读试卷内容 | `PaperCatalog`（paper 暴露，只读快照视图） | 布置时拿快照（AC-26.6），不回查活表 |
+| 阅卷要读作答 | `SittingLedger`（sitting 暴露，只读） | 阅卷不 join `sitting_*` 表 |
+| 阅卷要写分数 | `GradingOutcome`（grading 暴露，sitting 调用写入） | 写回经端口，不由阅卷直接改表 |
+| 报告要跨模块统计 | 允许跨模块**只读**聚合 | 唯一豁免，且只能读不能写 |
+| 任何模块要发通知 | `NotificationPort`（identity 暴露） | 学生名单与联系方式只在 identity / classroom |
+
+**禁止跨模块 JOIN 是硬规则。** 代价是偶尔多一次查询（本地 Postgres 主键查 155 µs，实测见 §5.1），换来的是模块可搬走。
+
+### 3.3 表归属与迁移
+
+每张表**只属于一个模块**，只有属主能写。用归属清单而不是字符串前缀来约束（前缀是装饰，归属清单可检查）。
+
+| 模块 | 拥有的表 | 迁移目录（模块内） |
+| :--- | :--- | :--- |
+| identity | `users`、`sessions`、`teacher_invites`、`rate_limits` | `teachloop-identity/src/main/resources/db/migration/` |
+| classroom | `classes`、`class_members` | `teachloop-classroom/…/db/migration/` |
+| paper | `papers`、`paper_sections`、`objective_items`、`section_criteria` | `teachloop-paper/…/db/migration/` |
+| sitting | `offerings`、`offering_classes`、`submissions`、`objective_answers`、`submission_metrics` | `teachloop-sitting/…/db/migration/` |
+| grading | `grading_runs`、`reviews`、`item_explanations`、`ai_calls`、`notifications` | `teachloop-grading/…/db/migration/` |
+| report | 无表（只读） | — |
+| observability | `audit_logs`、`daily_stats` | `teachloop-observability/…/db/migration/` |
+
+规则：
+
+- Flyway 在 `teachloop-app` 统一调度，按上表顺序执行；文件名 `V<序号>__<模块>_<描述>.sql`。
+- **一条迁移只写一个模块的表**。跨模块写即为越界，属 Code Review 检查项，T204 自动验证。
+- 跨模块外键**允许**（单库，完整性与级联删除需要它），但**禁止跨模块 JOIN 读数据**——读要走 §3.2 的端口。这个不对称是刻意的：**外键是数据完整性，JOIN 是耦合**。
+
+### 3.4 未来模块怎么接（背单词是第一个试验）
+
+计划中的「背单词 + 间隔重复」模块，按现有边界只需：
+
+- 新增 `teachloop-vocab/`，依赖 `shared` + `identity` + `classroom`，**不依赖 paper / sitting / grading**；
+- 自带表 `vocab_wordlist`、`vocab_item`、`vocab_review`、`vocab_schedule`（SRS 的 `due_at`、`interval`、`ease`、`reps`）；
+- 复用：登录与会话、班级成员名单（"把词表发给某班全体学生"就是一次 classroom 的成员查询）、通知、审计原语、请求日志；
+- 前端加一个一级导航与一组路由。
+
+**验收标准**：接入背单词时，**阅卷模块的文件改动数必须为 0**。做不到就说明边界划错了，先改边界再动功能。
+
+### 3.5 拆服务的路径（V1 不做，但每个决定都为它让路）
+
+V1 的形态是**一个 JAR、一个 Postgres、两个进程**（`app` 与 `grading-worker`，见 §7）。模块之间是**进程内 Java 方法调用**，不是 HTTP。一个进程里的两个模块走 HTTP 是最差组合：付了网络的代价（序列化、超时、重试、链路追踪），却拿不到独立部署的好处。
+
+拆服务真正难的三件事都不是"包怎么分"：
+
+| 难点 | 拆服务时会怎样 | 现在怎么处理 |
+| :--- | :--- | :--- |
+| 共享表 | 两个服务读写同一张表，必须先拆数据 | 一表一属主、不跨模块 JOIN。拆时每个模块连 Flyway 目录一起搬走，**不需要拆数据** |
+| 跨模块外键 | 跨库外键不存在，迁移时必须全部删 | 允许，但**限清单**（下表）。拆时按清单逐条删；新增一条要在这里登记 |
+| 跨模块事务 | 审计与业务同事务，跨服务做不到 | 审计收敛到 `AuditPort` 一个入口。拆服务时换实现为"每个服务写自己的 audit 表"，报表层 union |
+
+端口的三条约束是专为拆服务设的：
+
+- **粗粒度**：一次端口调用将来就是一次 RPC。要 `essaysOf(ids)`，不要 `essayOf(id)` 循环。
+- **只传 record**：端口签名里的 DTO 必须是 `record`，不得是 `@Entity`、不得带懒加载、不得泄漏 `EntityManager`。否则将来序列化不过网络。
+- **查询与命令分开**：查询端口将来变 gRPC/HTTP；命令端口将来变消息队列——消息是至少一次投递，所以**命令类端口必须幂等**。
+
+拆的顺序不是"9 个服务一起拆"：
+
+1. **V1**：`app` + `grading-worker` 两个进程。
+2. AI 批改成为瓶颈 → worker 独立扩容，端口调用换队列消息（§7.5 三条约束已保证可换）。
+3. 报表压库 → `report` 拆为独立服务，只读副本。
+4. **不拆**：`identity`、`classroom`、`paper`、`sitting`。强事务、低压力，拆开只增成本。
+
+跨模块外键清单（拆服务时要删的那几条，新增需在此登记）：
+
+| 外键 | 属主 | 被引用 |
+| :--- | :--- | :--- |
+| `classes.teacher_id` → `users.id` | classroom | identity |
+| `class_members.student_id` → `users.id` | classroom | identity |
+| `offerings.paper_id` → `papers.id` | sitting | paper |
+| `offering_classes.class_id` → `classes.id` | sitting | classroom |
+| `submissions.student_id` → `users.id` | sitting | identity |
+| `grading_runs.submission_id` → `submissions.id` | grading | sitting |
+| `reviews.submission_id` → `submissions.id` | grading | sitting |
+| `item_explanations.item_id` → `objective_items.id` | grading | paper |
+| `notifications.recipient_id` → `users.id` | grading | identity |
+| `audit_logs.actor_id` → `users.id` | observability | identity |
+
+---
+
+## 4. 可替换边界（宪法第六条）
+
+承接：US-1（认证）、US-10（引擎）、US-14（导出）、US-18（解析）、US-5（匹配）
+
+| 边界 | 接口 | 实现 |
+| :--- | :--- | :--- |
+| 认证 | `AuthProvider` | `WeChatOpenProvider` / `AdminPasswordProvider` / `DevProvider` |
+| AI 引擎 | `GradingEngine` | `SpringAiGradingEngine`（生产）/ `StubGradingEngine`（测试与降级） |
+| 存储 | `StorageBackend` | `OssStorage` / `LocalStorage` |
+| PDF | `PdfRenderer` | `OpenPdfRenderer` |
+| 匹配策略 | `MatchStrategy` | 注册表，内置 4 种，可扩展 |
+| 解析生成 | `ExplanationEngine` | `SpringAiExplanationEngine` / `StubExplanationEngine` |
+| 日志去向 | `LogSink` | `FileLogSink`（MVP）/ `ElasticsearchLogSink`（可选） |
+
+---
+
+## 5. 数据模型
+
+承接：US-2、US-4、US-5、US-6、US-7、US-8、US-9、US-11、US-16、US-18、US-26
+
+由 **Flyway** 管理，**按模块分目录**（归属清单见 §3.3）。本节只描述表结构；哪个模块拥有哪张表由 §3.3 规定，跨模块读写规则见 §3.1–3.2。
+
+### 5.0 三张表表达"试卷与班级解耦"
+
+```
+papers ──< paper_sections ──< objective_items
+   │                     └──< section_criteria
+   │
+   └──< offerings ──< offering_classes >── classes
+              │
+              └──< submissions >── users
+```
+
+- `papers`：标题、`default_duration_minutes`、总分、版本、状态。**没有 `class_id`。**
+- `offerings`：`paper_id`、`kind`（`exam` / `assignment`）、`start_at`、`due_at`、`duration_minutes`（默认取试卷默认值）、`timing_mode`（`individual` / `fixed_window`）、`grace_hours`、`max_attempts`、`publish_scores`、`feedback_language`、**`paper_snapshot`**（布置瞬间的内容快照 JSONB + `paper_version`）。
+- `offering_classes`：`offering_id`、`class_id`、可空的 `due_at_override` / `duration_override`。唯一键 `(offering_id, class_id)`。
+- `submissions` 外键挂 `offering_id`；唯一索引 `(offering_id, student_id) WHERE active`。
+
+**为什么快照必须落库**：教师在考前一周还会改标准答案。若不快照，改答案会追溯改变已经考完的 90 份卷子的分数——这是无法用审计解释的事故。
+
+关键约束：
+
+- `submissions` 部分唯一索引：`(offering_id, student_id) WHERE active`。
+- `submissions` 计时与迟交列：`started_at`、`deadline_at`、`auto_submitted`、`late_by_seconds`、`rejected_at`、`reject_reason`。
+- `submissions` 工作项状态列（替代独立队列表，见 §7）：`grading_state`、`grading_attempts`、`grading_started_at`、`grading_error`、`grading_run_id`。
+- `objective_items` 唯一 `(paper_section_id, number)`；增列 `stem`（题干）、`options`（选项 JSONB）、`question_type`（`single_choice` / `multiple_choice` / `fill_blank` / `essay`）、`answer_key`、`match_strategy`、以及解析工作项状态 `explanation_state` / `explanation_attempts` / `explanation_started_at` / `explanation_error`。
+- `item_explanations` 唯一 `(item_id, language, prompt_version)` —— 这是「同一题只调一次模型」的保证。
+- 枚举用 PG enum 或 check 约束；新增值必须有迁移，不手改线上。
+
+### 5.1 数据放置原则
+
+承接：US-16、US-17
+
+**两类东西，两个生命周期，不能混在一个库里。**
+
+| | **审计** | **运行日志 / 前端事件** |
+| :--- | :--- | :--- |
+| 性质 | 证据链 | 运行痕迹 |
+| 保留 | **永久，不删除**（可归档冷存） | 90 天，到期清 |
+| 一致性 | **与业务写入同一事务** | 不需要 |
+| 存储 | 业务库（Postgres） | **文件 + 每日汇总表** |
+
+审计**绝不能**异步写文件：一旦异步化，崩溃窗口里就会出现「有分数、没审计」，直接违反宪法第二条。这意味着审计表跟着业务库一起备份、一起迁移——这是成本，但正确。
+
+**实测（2026-10-18，本地 Postgres 16 + 本机 SSD，各 1000 次）**
+
+| 操作 | 耗时 |
+| :--- | :--- |
+| 主键查询（会话） | 155 µs |
+| 30 行聚合（进度） | 148 µs |
+| 单行 INSERT | 188 µs |
+| 批量 INSERT（1000 条/批） | **7 µs/条** |
+| JSONL 文件追加 | **1.7 µs/行** |
+
+**结论：单条写比批量写慢 27 倍，批量写比写文件慢 4 倍。第一优化方向是「攒批」，不是「把数据搬走」。**
+
+**体量（一学期约 120 天）**
+
+| 数据 | 行数 |
+| :--- | :--- |
+| 业务数据合计（提交/作答/复核/AI 调用/审计） | ≈ 25,000 |
+| 前端事件 | ≈ 72,000 |
+| 请求日志（1 万次/天） | ≈ 1,200,000 |
+
+真正撑的不是业务表，是请求日志。放进业务库的四个实际问题（与"撑不撑爆"无关）：
+
+1. 保留期不同——日志 90 天、成绩永久，同库无法分开治理
+2. 备份被污染——每次备份都把日志一起带上
+3. 清理耦合——大批 DELETE 产生膨胀与 vacuum 压力
+4. 查询模式冲突——日志是全表扫描聚合，业务是主键索引查
+
+**方案：原始写文件 + 每日汇总入库**
+
+```
+原始事件 / 请求日志 → JSONL，按天滚动，90 天后删除文件
+每日任务（凌晨）    → 聚合昨天的数据，写一行进 daily_stats
+报表               → 查 daily_stats（纯 SQL，快且简单）
+明细排查           → 翻当天的文件
+```
+
+`daily_stats(stat_date PK, page_views, actions, submissions, gradings, errors, slow_requests, total_requests, p95_latency_ms)`
+
+**为什么不引入 Kafka**：Kafka 解决「多生产者、高吞吐、多消费者组」。我们是一个应用写、几个用户产生事件、一个消费者做汇总——引入集群运维、位点管理、序列化治理，换不来收益；而写本地文件只要 1.7 µs/行。
+
+**为什么不引入 KV 数据库**：`item_explanations`（错题解析缓存）本身就是标准 KV 用法——按 key 查一份文本，Postgres 主键查 155 µs。嵌入式 KV（RocksDB/MapDB）会引入第二个一致性域，备份、迁移、测试的成本大于收益。
+
+**会话不缓存**：会话是唯一「每请求一次」的读，但 spec 要求退出后**立即失效**。加缓存会留下最多一个 TTL 的窗口期——学生被踢下线后仍能继续操作。用 155 µs 换这个风险不划算。
+
+---
+
+## 6. 判分流程
+
+承接：US-5、US-9、US-10、US-11、US-18
+
+```
+学生提交
+ ├─ 客观部分：写入 objective_answers → 按每题 question_type 与 match_strategy 判分 → objective_total
+ │    └─ 立即返回得分与错题清单（不调模型）
+ ├─ 富文本：HTML 消毒 → 提取纯文本 → 客观指标
+ ├─ 文件：PDFBox / POI 提取文本
+ └─ 视频：ffprobe 校验（≤360s、≤1920×1080），无转写
+
+due_at + grace_hours 到达 → 派发（见 §7）
+
+Worker 执行一份：
+ ├─ 条件 UPDATE 领取该行（grading_state pending -> running）
+ ├─ 校验 paper_version，不一致则重取快照
+ ├─ 组装 prompt：仅主观评分项 + 学生正文 + 客观指标
+ │    （不含标准答案、不含客观得分——由类型系统保证调用方拿不到这些字段）
+ ├─ Spring AI ChatClient → deepseek-flash，输出用 Jackson 3 反序列化并校验
+ ├─ 校验：项名/顺序/满分/总分；失败重试一次；仍失败 → 标 failed 并保存原始输出
+ ├─ 写 reviews（objective_total 由代码汇总，subjective_total 为 AI 合计）
+ └─ 写回 grading_state=done（前端轮询看到）
+```
+
+**AI 看不到客观答案**这一条用代码结构强制：`SubjectiveGradeRequest` 记录类里根本不存在 `answers` 与 `objectiveTotal` 字段，`buildPrompt` 只能拿到该类型。
+
+### 6.1 Prompt 分层契约
+
+Prompt 必须严格分两层，**顺序不可变**：
+
+| 层 | 内容 | 变化频率 |
+| :--- | :--- | :--- |
+| `system` | 角色设定 + 本次 rubric + 输出契约（JSON 形状与规则） | 同一场考试内**完全不变** |
+| `user` | 客观指标（词数/段数/时长/边界敏感）+ 学生正文 | **每份都不同** |
+
+实测请求体（写作题、一位学生）：
+
+```json
+{
+  "model": "deepseek-flash",
+  "temperature": 0.2,
+  "response_format": { "type": "json_object" },
+  "messages": [
+    { "role": "system",
+      "content": "你是一名资深英语教师，按下方 rubric 评分。\n\n## 评分标准（本次固定）\n1. 内容要点 15 分：…\n2. 语言准确性 10 分：…\n\n## 输出契约\n只输出 JSON：{\"criteria\":[…],\"total\":…,\"strength\":…,\"suggestion\":…}" },
+    { "role": "user",
+      "content": "## 客观指标\n词数 96；段落数 2；边界敏感 否\n\n## 学生正文\n{这位学生的作文全文}" }
+  ]
+}
+```
+
+**硬规则（违反即缓存失效，且很难在功能上被发现）**
+
+1. 不变的内容必须位于最前面，从第 0 个 token 起稳定。
+2. **禁止**把每份都不同的内容放进前缀：学生姓名、学号、`submission_id`、提交时间。客观指标里只放数值；需要标识时写进日志与审计，**不进 prompt**。
+3. `temperature` 固定 0.2（判分要稳定，不要发挥）。
+4. `response_format` 固定 `json_object`。
+
+### 6.2 缓存策略与度量
+
+DeepSeek 的上下文硬盘缓存**自动生效、无需代码开关**，但只认"从第 0 个 token 起相同"的前缀，且以 64 tokens 为存储单元（不足 64 不缓存）。
+
+**官方现价（2026 版）**：
+
+| | 空闲时段 | 高峰时段 |
+| :--- | :--- | :--- |
+| 输入（缓存命中） | 0.02 元/M | 0.04 元/M |
+| 输入（缓存未命中） | 1 元/M | 2 元/M |
+| 输出 | 4 元/M | 8 元/M |
+
+**缓存命中与未命中的价差是 50 倍**（0.02 vs 1 元），不是早期公告里的 10 倍。所以 §6.1 的前缀排布纪律必须严格执行。
+
+**已定：保留 Spring AI，保持技术栈统一（用户 2026-10-18）。** 代价是 Spring AI 2.0.1 的 `Usage` 只暴露 `promptTokens / completionTokens / totalTokens`，没有 DeepSeek 的 `prompt_cache_hit_tokens` / `prompt_cache_miss_tokens`——**缓存命中率只能从 DeepSeek 控制台看，不进我们的报表**。
+
+**已定：不用 `.entity()`。** S-4 实测发现 `.entity()` 会自行追加格式指令，导致"实际发给模型的 prompt"与"我们记录的 prompt"不一致，与宪法第二条（可审计）冲突。统一走「我们的 prompt + `.content()` + 自己的 Jackson 校验 + 失败重试一次」。
+
+### 6.3 为什么不"一次批全班"
+
+| 方案 | 优点 | 问题 |
+| :--- | :--- | :--- |
+| 全班塞进一次调用 | rubric 只发一次 | 输出过长易截断或格式崩；一份出错整批重跑；UI 无法显示逐份进度；审计上说不清这次调用评的是谁 |
+| 每 5 份一批 | 折中 | 重试粒度变粗；失败影响 5 份 |
+| **逐份调用 + 前缀缓存（采用）** | 隔离性好、可逐份重试、进度可逐份查询、审计逐份清晰 | rubric 重复发送（被缓存抵消） |
+
+成本量级（30 人班、rubric 600 tokens、正文 400、输出 300）：
+
+| 项 | 每份 tokens | 单价 | 30 份合计 |
+| :--- | :--- | :--- | :--- |
+| rubric（第 2 份起命中） | 600 | 0.02 元/M | ≈ 0.0003 元 |
+| 学生正文（未命中） | 400 | 1 元/M | ≈ 0.012 元 |
+| 输出 | 300 | 4 元/M | ≈ 0.036 元 |
+
+结论：整班约几分钱。**重复不是经济问题**，主要收益是命中缓存后首 token 延迟大幅下降。
+
+**另一项更大的节省**：客观题永远不发送——标准答案、客观作答、客观得分均不进 prompt。一份 150 分的试卷，AI 只收到写作题那部分的 rubric 与学生的作文。
+
+### 6.4 错题解析（题目级共享，不是学生级）
+
+**这是与判分完全分开的一条路径。** 宪法第五条的唯一例外：生成解析时 AI 可以拿到题干、选项与标准答案（不看答案写不出"为什么错"），但**不得拿到学生身份、答错的是谁、或其他学生的任何数据**；解析也不参与任何计分。
+
+| 环节 | 做法 |
+| :--- | :--- |
+| 入口 | 独立的 `ExplanationEngine`，与 `GradingEngine` 不共用调用 |
+| 触发 | 主观题批改全部进入终态后，作为同一流程的下一步 |
+| 选哪些题 | `objective_answers` 中 `is_correct=false` 的题，按**答错人次降序**取前 N（默认 **50**） |
+| 去重 | `INSERT … ON CONFLICT DO NOTHING`，唯一键 `(item_id, language, prompt_version)` |
+| 工作项 | `objective_items.explanation_state`，沿用 §7.1 的条件 UPDATE 领取模式 |
+| 失败 | 记 `explanation_attempts` 与 `explanation_error`，超过 3 次置 `failed`，教师可手动重试 |
+| 复用 | 学生反馈查表取解析，**零额外调用** |
+| 发布 | **不等待解析**；解析到达后学生侧自动补上 |
+| 按需 | 教师可对单题手动触发生成 |
+
+**成本对比**（一份 75 题客观卷、30 人、人均错 15 题）：
+
+| 做法 | 调用次数 |
+| :--- | :--- |
+| 朴素：每个学生每道错题都问一次 | 30 × 15 = **450** |
+| 题目级去重（本方案） | 实际被错过的题数，通常 **20–50** |
+| 上限保护 | 即使有人全卷答错，也封顶在 N（默认 50） |
+
+**成本与班级人数无关**：50 人错同一题仍只生成 1 次。
+
+`prompt_version` 进唯一键：以后想提升解析质量，整卷重新生成即可，旧版自动失效。教师改标准答案或题干时，该题解析置为失效并重新排队。
+
+**统计与解析是两件事**：正确率、最常错选项、Top N 错题榜全部是**纯 SQL 聚合**，覆盖全部客观题，不受 N=50 上限影响；只有解析文本受上限约束。
+
+---
+
+## 7. 批改调度（状态机，不是队列）
+
+承接：US-8、US-9、US-10、US-26
+
+**设计决定**：不建独立任务队列表、不用 `SKIP LOCKED`、不用租约。工作项就是 `submissions` 行本身，用**条件 UPDATE** 领取。
+
+### 7.1 领取
+
+```sql
+UPDATE submissions
+SET grading_state = 'running',
+    grading_started_at = now(),
+    grading_attempts = grading_attempts + 1
+WHERE id = (
+    SELECT id FROM submissions
+    WHERE grading_run_id = :runId AND grading_state = 'pending'
+    ORDER BY id
+    LIMIT 1
+)
+AND grading_state = 'pending'
+RETURNING id;
+```
+
+`AND grading_state = 'pending'` 是正确的并发保证：多个 worker 同时抢同一行时，只有一个的 UPDATE 生效（返回 1 行），其余返回 0 行并继续下一轮。**既不需要行级锁，也不需要 `SKIP LOCKED`。**
+
+### 7.2 崩溃恢复（两级清扫）
+
+| 触发 | 动作 |
+| :--- | :--- |
+| 应用启动 | 把 `grading_state='running'` 且 `grading_started_at` 早于阈值的行退回 `pending` |
+| 定时（每 2 分钟） | 同上，处理运行期间的 worker 崩溃 |
+
+阈值默认 **5 分钟**（单份实测 1.8 秒，余量充足）。代价是极小概率重复批一次（多花几分钱）；换来的是不需要维护租约、心跳与回收循环。
+
+### 7.3 到期派发（幂等）
+
+`@Scheduled` + ShedLock 互斥；`offerings.grading_dispatched_at IS NULL` 的条件更新保证同一场考试重复扫描只产生一个 `grading_run`。
+
+派发时点是 `due_at + grace_hours`（默认 3 小时），**不是** `due_at`：宽限期留给迟交（§8 的 AC-8.5）。宽限期内的提交照常进入同一个 run。
+
+### 7.4 峰谷调度（挑半价时段批改）
+
+DeepSeek 官方时段口径：
+
+> 北京时间**周一至周五（不含中国法定节假日）9:00–12:00、14:00–18:00** 为高峰时段；其余时段（含周末与法定节假日全天）为空闲时段，**空闲价为高峰价的一半**。
+
+| 规则 | 说明 |
+| :--- | :--- |
+| 默认行为 | 到期派发时若处于**高峰时段**，推迟到下一个空闲时段的起点再派发 |
+| 延迟上限 | **最多约 4 小时**（14:00 之后最快要 18:00 才进入空闲）；周末与节假日**零延迟** |
+| 手动派发 | 教师点"立即批改"**不受窗口限制**，随时执行 |
+| 时区 | 一律按 `Asia/Shanghai` 判断，与服务器时区无关 |
+| 关闭开关 | `grading.peak_aware=false` 可完全关闭 |
+| 已知局限 | 官方口径含"法定节假日全天空闲"，V1 **不做节假日日历**，因此节假日会被当成工作日、最多多等 4 小时 |
+
+合算：批改一份作业的实际成本已是"几分钱"级别（见 §6.3），峰谷调度的绝对节省很小，主要价值是不浪费；因此**它必须可关闭**，不能因为省钱让老师等反馈。
+
+### 7.5 将来换成消息队列的路径
+
+MVP 用数据库状态机 + 轮询。将来若换消息队列（RabbitMQ / Redis Streams / Kafka），要守住三条约束，替换成本才会真的低：
+
+| 约束 | 为什么 |
+| :--- | :--- |
+| `gradeSubmission(submissionId)` **不感知自己被谁调用** | 轮询循环与 MQ 消费者都只是调用它的外壳；批改逻辑里不得出现"下一个待处理是谁"这类查询 |
+| 进度**只**从数据库 `grading_state` 聚合 | 不读 MQ 的内部队列状态；换掉 MQ 时进度接口与前端一行不改 |
+| 状态机自带幂等（已是 `done` 就跳过） | MQ 是 **at-least-once**，重复投递是常态；幂等保证重复投递不会重复计费批改 |
+
+替换时真正要改的只有两处：**派发改为发布消息**、**worker 循环改为消费者**。
+
+**不提前引入 `TaskQueue` 接口抽象**（YAGNI）：只有一个实现时接口是纯开销；只要守住上表三条，加第二个实现就是新增一个类。
+
+### 7.6 考试计时与到点自动交卷
+
+承接：US-21、US-26
+
+**为什么必须服务端权威**：倒计时若放在前端，改本机时间、刷新页面、断网重连、换设备四种情况都能把时长无限延长。考试是唯一有"时间就是分数"性质的场景，这里不能省。
+
+| 事项 | 做法 |
+| :--- | :--- |
+| 起算点 | `individual`：学生点「开始答题」写 `submissions.started_at = now()`；`fixed_window`：到 `offerings.start_at` 时把参与班所有未开始的提交一次性写入同一 `started_at` |
+| 截止点 | `deadline_at = started_at + duration_minutes`（`offering_classes.duration_override` 优先）。**落库，不在请求时计算**，避免时长被中途改掉影响进行中的考试 |
+| 下发 | 每次自动保存/心跳的响应带 `remaining_seconds`；前端只做 1 秒插值显示，收到回执即校正。**前端不得自行累计** |
+| 归零 | 复用 §7.2 的定时清扫循环，新增一条：`deadline_at < now()` 且非终态的提交 → 置 `auto_submitted=true`，按最后一次自动保存定稿，进入 `pending` 批改 |
+| 幂等 | 归零处理用条件更新 `WHERE deadline_at < now() AND grading_state = 'draft'`，重复扫描无副作用 |
+| 宽限期不适用 | 考试的 `deadline_at` 到期即终态；`grace_hours` 只推迟**批改派发**（§7.3），不是作答截止 |
+| 按班覆盖 | `offering_classes.due_at_override` / `duration_override` 优先于布置级的值 |
+
+**`fixed_window` 的代价要写清**：全班同时起算意味着只要窗口开了，请假的学生也在掉时长。所以它只给"统一监考"的场景用，默认还是 `individual`。
+
+---
+
+## 8. 进度查询（轮询，不用 SSE）
+
+承接：US-20
+
+`GET /api/offerings/{id}/progress` 返回：
+
+```json
+{ "runId": "…", "status": "running", "total": 30, "done": 12,
+  "failed": 1, "pending": 17, "running": 0 }
+```
+
+实现是一条聚合 SQL（`GROUP BY grading_state`）。任何实例返回相同结果，不依赖长连接、不需要 nginx 改 `proxy_buffering`、不需要事件回放与重连逻辑。
+
+**不采用 SSE 的理由**：批改是分钟级任务，2 秒粒度不影响体验；而 SSE 需要维护 `SseEmitter` 生命周期、跨实例扇出、断线重连三块代码。将来若确实需要实时性，加回 SSE 是增量改动——进度数据本来就在库里。
+
+前端约定：只在「批改中」的页面轮询，进入终态立即停止；页面隐藏（`visibilitychange`）时暂停。
+
+---
+
+## 9. 认证与安全
+
+承接：US-1、US-3
+
+| 项 | 方案 |
+| :--- | :--- |
+| 微信登录 | `AuthProvider` + RestClient 调开放平台 |
+| 管理员登录 | 邮箱 + BCrypt 密码 |
+| 会话 | Spring Session JDBC，Cookie `HttpOnly` + `Secure` + `SameSite=Lax` |
+| CSRF | `CookieCsrfTokenRepository` 双提交 |
+| 停用账号 | 会话强制失效（删 session 行） |
+| 限流 | `rate_limits(key, window_start, count)` 表 + `INSERT … ON CONFLICT DO UPDATE`，跨实例精确 |
+| 上传 | 扩展名 + 内容类型双校验；100 MB 上限；视频 ffprobe 探测 |
+| 富文本 | OWASP Sanitizer 白名单；脚本标签丢弃并记安全事件 |
+| 越权 | 访问非本人资源一律 **404**（不泄漏存在性） |
+
+---
+
+## 10. 文档与富文本处理
+
+承接：US-6
+
+| 场景 | 方案 |
+| :--- | :--- |
+| 富文本入库 | 原文 HTML（已消毒）存 `content_html`，纯文本存 `content_text` 供 AI |
+| `.docx` 提取 | POI `XWPFDocument` 段落 + 表格 |
+| `.pdf` 提取 | PDFBox `PDFTextStripper`；无文本层 → `unreadable`（不 OCR） |
+| `.doc` | 拒绝，提示另存为 `.docx` |
+| 视频 | `ProcessBuilder` 调 `ffprobe -show_format -show_streams`，解析 JSON；超时长/超分辨率直接拒收 |
+| 邮件/短信 | V1 不做，通知只站内 |
+
+---
+
+## 11. 国际化
+
+承接：US-15
+
+- 后端：`MessageSource` + `messages_zh_CN.properties` / `messages_en.properties`；错误统一 `ApiError(code, message, detail)`，`code` 稳定、`message` 本地化。
+- 前端：`react-i18next`，语言存用户资料与 localStorage。
+- 批改语言：`offerings.feedback_language` 决定 prompt 要求模型输出的语言。
+- 静态检查：禁止在 `api/`、`service/` 下出现中文字符串字面量（i18n 资源除外）。
+
+---
+
+## 12. 可观测
+
+承接：US-16、US-24
+
+| 层 | 方案 |
+| :--- | :--- |
+| 请求日志 | `OncePerRequestFilter`：requestId、userId、method、route、status、耗时；**不含正文** |
+| 审计 | `audit_logs` 只追加，服务层显式写，与业务同事务；按 `offering_id` 可拉出完整时间线 |
+| 前端事件 | `POST /api/events` 批量接收，白名单 + 限流，**追加写 JSONL 文件**（不入业务库） |
+| 日志输出 | JSON 结构化到 JSONL，按天滚动；`LogSink` 接口，接 ES 时不改业务代码 |
+| 每日汇总 | 凌晨聚合前一天数据写入 `daily_stats`，报表查它（见 §5.1） |
+| 清理 | **日志与事件文件按 90 天删除**；**审计不删除**（永久保留，可归档冷存储） |
+| 健康检查 | `/healthz`（存活）+ `/healthz?deep=1`（依赖：DB、字体、ffprobe） |
+
+---
+
+## 13. 导出
+
+承接：US-14
+
+| 产物 | 实现 |
+| :--- | :--- |
+| 逐份反馈 `.md` | 模板渲染（YAML front matter） |
+| 逐份反馈 `.pdf` | OpenPDF + 内置 Noto Sans CJK |
+| 班级汇总 `.md` / `.pdf` | 同上 |
+| 成绩 `.xlsx` | POI `SXSSFWorkbook` |
+| 成绩 `.docx` | POI `XWPFDocument` |
+| 打包 `.zip` | 只含已发布反馈 |
+
+字体自检：启动时校验字体可加载，失败则 `/healthz?deep=1` 报错、导出返回 503。**不提供 `.txt` 导出**（用户明确要求）。
+
+---
+
+## 14. 报表
+
+承接：US-17、US-23、US-24
+
+数据源分两条线，这是报表与日志唯一必须分开的地方：
+
+- **分数与统计**：只查业务库，保证与界面数字绝对一致。
+- **日志类指标**（页面行为、API 性能）：走 `daily_stats` 与 JSONL 明细。V1 不接 ES。
+
+落地判断：
+
+- **先不做预计算表**：聚合 SQL（`GROUP BY` + 窗口函数）+ 只读 Service。数据量到万级再考虑物化视图。
+- **导出复用**：Excel 用 POI，PDF 用 OpenPDF（与 §13 同一套）。
+- **权限**：教师仅限自己班级；管理员全局（但不可见教师评语正文）。
+- **口径**：缺考/未交不计入平均分，单列人数（AC-17.8）。
+- **常见错误**（AC-17.9）：每道客观题的正确率、最常被选错的选项与人数，按正确率升序，即教师讲评清单。**纯 SQL 聚合，无 AI 成本**，覆盖全部客观题；只有解析文本受 50 道上限约束。
+- **跨班聚合**（AC-17.11/17.12）：班级是多选筛选维度，不是入口层级。
+- **待定**：定时报表与订阅、教师自定义报表、图表形态。
+
+---
+
+## 15. 部署（阿里云）
+
+承接：全局
+
+| 组件 | 生产 |
+| :--- | :--- |
+| 应用 | ECS + Docker（或 systemd），`java -jar app.jar`，1..N 实例，`--spring.profiles.active=app` |
+| Worker | 同一 jar，`--spring.profiles.active=worker` |
+| 前端 | OSS + CDN，或 Nginx 静态目录 |
+| 数据库 | RDS PostgreSQL 16（内网） |
+| 对象存储 | OSS 私有 Bucket + 签名 URL |
+| TLS | 自有 DNS + 证书（Let's Encrypt 或阿里云证书） |
+| 迁移 | 部署前独立执行 `flyway migrate` |
+| 定时 | 含在 `app` 内，ShedLock 保证多实例只有一个在跑 |
+| 密钥 | 环境变量 / KMS；**不进配置文件、不进仓库** |
+
+**注意**：多实例下不要用 Spring Boot 自动 Flyway 启动迁移（会并发执行）——用独立迁移步骤或 `flyway` 命令行。
+
+---
+
+## 16. 与 v1（Python）的关系
+
+承接：全局
+
+| 资产 | 处置 |
+| :--- | :--- |
+| 后端 Python 代码（约 8000 行、136 测试） | **已删除**（2026-10-19）；设计结论已吸收进本文件，代码不再保留 |
+| 四模型段落计数算法 | **移植到 Java**，并用 v1 那 10 份真实作业做 parity 测试，段数必须逐份一致 |
+| 客观题匹配策略设计 | 设计沿用，Java 重写为注册表 |
+| 复核状态机 / 审计结构 | 设计沿用（四态 → 三态按 spec） |
+| React 前端 | **迁移复用**，补富文本编辑器、客观题作答页、报表页 |
+
+---
+
+## 17. 实测记录（2026-10-18）
+
+验证工程 `.spike/` 已删除（用完即弃，未进仓库）。结论保留在此，供将来复核。
+
+| 编号 | 验证项 | 结果 | 关键发现 |
+| :--- | :--- | :--- | :--- |
+| S-1 | 环境 | ✅ | JDK 21.0.11 已装；Maven 3.9.16 可用；`JAVA_HOME` 必须显式设置 |
+| S-2 | Spring Boot 骨架 | ✅ | Boot 4.1.1 启动 **1.0 秒**，`/actuator/health` 返回 UP |
+| S-3 | Spring AI + DeepSeek | ✅ | 返回合法 JSON，Jackson 3 解析成功；单次调用约 **1.8 秒** |
+| S-4 | 输出不合规 | ⚠️ | `.entity()` 会自行追加格式指令 → 弃用，见 §6.2 |
+| S-5 | 并发领取 | ✅ | 3 个 worker 抢 5 个任务，**零重复领取**。当时验的是 `SKIP LOCKED`；现方案改条件 UPDATE，并发保证等价且代码更少 |
+| S-6 | LISTEN / NOTIFY | ✅ | 通知可送达；payload 约 8 KB 上限（7900 接受 / 8100 拒绝）。**现方案不依赖此能力**，结论留档备查 |
+| S-7 | Testcontainers | ✅ | `postgres:16-alpine` 拉起并连通；Testcontainers 2.x 改了构件坐标，旧坐标需锁 `1.21.4` |
+
+两条由实测直接决定的设计：
+
+1. **不用 `.entity()`**（S-4）——审计冲突，见 §6.2。
+2. **不用 LISTEN/NOTIFY 做推送**（S-6 的 8 KB payload 限制）——改轮询，见 §8。
+
+---
+
+## 18. 测试策略
+
+承接：全局
+
+### 18.1 四层
+
+| 层 | 内容 | 速度 | 外部依赖 |
+| :--- | :--- | :--- | :--- |
+| ① 单元 | 匹配策略、总分合成、段落计数、HTML 消毒、prompt 构造、输出校验 | 秒级 | 无 |
+| ② 集成 | 迁移与约束、条件 UPDATE 领取、僵尸清扫、派发幂等、计时与自动交卷、峰谷边界、依赖方向守卫 | 十几秒 | Testcontainers 起 Postgres |
+| ③ 真机 AI（默认跳过） | 真实调 `deepseek-flash`，确认 prompt 被接受、输出可解析 | 几秒 | 真 Key |
+| ④ E2E（手工，见 18.4） | 整份试卷、纯写作两条旅程 | 分钟级 | 浏览器 |
+
+`make test` 只跑 ①②：不需要网络、不需要 API Key。`make test-ai` 跑 ③，需显式调用。
+
+### 18.2 外部依赖在本地怎么替
+
+| 依赖 | 本地替代 | 备注 |
+| :--- | :--- | :--- |
+| 微信登录 | `DevProvider` | 生产 profile 下必须注册失败 |
+| 阿里云 OSS | `LocalStorage` | 同一 `StorageBackend` 接口 |
+| DeepSeek | `StubGradingEngine`（默认） | 真 Key 仅 `make test-ai` 使用 |
+| 中文字体 | 仓库内置 Noto Sans CJK | 保证 PDF 测试跨机器一致 |
+| `ffprobe` | 本机二进制 | 缺失时明确报错，不猜时长 |
+
+### 18.3 两条硬性测试纪律
+
+**① 必须注入 `Clock`，禁止直接 `now()`**
+
+有五块逻辑依赖"现在几点"：宽限期判定、峰谷调度、僵尸清扫、到期派发、考试到点自动交卷。写死 `LocalDateTime.now()` 会让这五处**无法测边界**——不可能让真时钟停在 `due_at + 3h` 那一秒，也无法让系统以为现在是周一上午 10 点。全项目统一注入 `java.time.Clock`，测试用 `Clock.fixed(...)`。
+
+**② 断言结构，不断言分数**
+
+模型输出有随机性，断言"这篇应该得 18 分"会变成 flaky 测试。测试只断言：JSON 合法、评分项名与顺序正确、各项不超满分、总分等于各项之和。分数对不对，靠 18.5 的 golden set 人工看。
+
+### 18.4 手工 E2E 清单（MVP 不做自动化 E2E）
+
+每次涉及主链路的改动，按此清单在本地跑一遍并记录结果。
+
+**旅程 A — 整份试卷（考试型）**
+1. `DevProvider` 登录为教师 → 补全手机号与邮箱
+2. 建班 × 3 → 拿到每班一个邀请码
+3. 建**试卷**（4 部分 8 节、77 题、含标准答案与写作 rubric，默认时长 90 分钟）
+4. 把试卷**布置给 3 个班**，`kind=exam`、`timing_mode=individual`，并给其中一个班设 `duration_override`
+5. 换学生身份凭码入班 → 考前须知 → 点「开始答题」→ 作答（选项点选、完形就地填、写作带字数）→ 提交
+6. 观察目录树完成态、剩余时间、到点自动交卷（用 `Clock.fixed` 或调 `deadline_at` 直接触发）
+7. 到 `due_at + grace_hours` → 触发派发 → 观察进度轮询
+8. 教师复核：一份原样通过、一份改分后通过、一份驳回重批
+9. 发布 → 学生看到总分 → 错题解析 → 评语 → 全班概览
+10. 导出 Markdown / PDF / XLSX / DOCX，检查中文
+
+**旅程 B — 纯写作（作业型）+ 新 attempt**
+1. 建"作业"型（仅主观，无倒计时）→ 发布
+2. 学生提交富文本（含粗体与列表）→ 再发起一次新 attempt
+3. 过 `due_at` 后仍可提交，确认被标 `late` 且教师可拒收
+4. 到点派发 → 复核通过 → 发布
+5. 确认被批改的是**最新一次** attempt，历史仍在
+
+### 18.5 golden set：质量回归
+
+自动化测不出"AI 批得准不准"。维护一个小集子：
+
+- 挑 10 份**已人工评过分**的真实作业（v1 那批可直接用）
+- 每次改 prompt、换模型、调 temperature，跑一遍
+- 把 AI 分数与人工分数并排放，**人工看偏差分布**
+
+不做自动断言。只记录：平均偏差、最大偏差、偏差方向（系统性偏高还是偏低）。若某次改动让平均偏差明显变大，就回退。
+
+### 18.6 本地手工验证
+
+```
+docker compose up     # postgres + app + worker
+make seed             # 1 个班 + 30 个学生 + 1 份带标准答案的试卷
+浏览器 127.0.0.1:8010  # DevProvider 直接登录成教师
+```
+
+`make seed` 必须可重复执行（先清再建），否则每次手工验证都要手点建数据。
+
+---
+
+## 19. 风险
+
+| 风险 | 影响 | 缓解 |
+| :--- | :--- | :--- |
+| Spring AI 版本线与 DeepSeek 模块组合未验证 | 白写一层集成代码 | S-3 已验证；仍失败即退裸 HTTP |
+| 全量重写 Java | 工期显著长于沿用 Python | 前端与设计可复用；按阶段交付，每阶段可运行 |
+| 条件 UPDATE 领取有空转 | 极端并发下少量无效循环 | `ORDER BY id` 走索引，空转代价极低；单校规模可忽略 |
+| 僵尸清扫阈值设得过短 | 正在跑的项被重复领取 | 默认 5 分钟（单份 1.8 秒），可配置；重复批只多花几分钱 |
+| OpenPDF 中文字体 | 导出乱码 | 字体入库资源 + 启动自检 |
+| `ffprobe` 外部依赖 | 部署缺二进制 | 镜像内预装；缺失时明确报错，不猜时长 |
+| 多实例 Flyway 并发 | 迁移冲突 | 迁移独立执行，不在应用启动时跑 |
+| `fixed_window` 被误用 | 请假学生也在掉时长 | 默认 `individual`；创建页写明代价 |
+| 缓存前缀被污染 | 成本涨 50 倍且难被测出 | §6.1 四条硬规则 + 禁止把姓名/学号/id 放进 prompt |
+
+---
+
+## 附录 A：用户故事 → 本文件章节
+
+用于验检查项 1（每个用户故事都有承接结构）。`tasks.md` 的追踪矩阵再把 26 个故事与 42 条 FR 映射到任务；203 条 AC 不逐条映射，理由写在该矩阵开头。
+
+| 故事 | 主题 | 本文件章节 |
+| :--- | :--- | :--- |
+| US-1 | 登录与账号资料 | §4、§9、§2 |
+| US-2 | 班级与邀请码 | §3.3（`classes` / `class_members`）、§5 |
+| US-3 | 账号开通 | §4、§9 |
+| US-4 | 试卷（内容，独立于班级） | §5.0（`papers` 无 `class_id`）、§5 |
+| US-5 | 标准答案与匹配策略 | §4（`MatchStrategy`）、§5、§6 |
+| US-6 | 提交 | §6、§10 |
+| US-7 | 新 attempt | §5（`(offering_id, student_id) WHERE active`） |
+| US-8 | 截止与迟交（作答侧） | §7.3、§7.6、§5 |
+| US-9 | 自动派发 | §7.1–7.4 |
+| US-10 | AI 批改（仅主观部分） | §6、§6.1–6.3、§4 |
+| US-11 | 复核 | §6、§8 |
+| US-12 | 学生反馈 | §6.4、§8 |
+| US-13 | 班级概览 | §14 |
+| US-14 | 导出 | §13 |
+| US-15 | 国际化 | §11 |
+| US-16 | 可观测与审计 | §5.1、§12 |
+| US-17 | 报表 | §5.1、§14 |
+| US-18 | 错题解析（题目级共享） | §6.4、§5 |
+| US-19 | 教师首页（跨班级聚合） | §14、§8 |
+| US-20 | 批改总览与详情 | §8 |
+| US-21 | 学生考试视图 | §7.6、§5（`submissions` 计时列） |
+| US-22 | 学生作业视图 | §7.6（`kind=assignment` 不计时）、§7.3 |
+| US-23 | 班级汇总 | §14 |
+| US-24 | 全局列表与表格约定 | §8、§12 |
+| US-25 | 行操作与详情入口 | §12 |
+| US-26 | 一场考试 / 一次布置 | §5.0（`offerings` / `offering_classes`）、§7.6、§3.3 |
+
+## 附录 B：本文件与下游文档的约定
+
+- 表名、字段名、端口名以本文件为准；`spec.md` 不谈实现，`tasks.md` 按本文件拆。
+- 任何架构级改动（新增模块、改端口、加跨模块外键）必须同时改本文件与宪法，否则视为未发生。
+- 本文件里的"已定"表示用户已拍板，评审时不必再问；"待定"仅出现在 §14 末尾三条。

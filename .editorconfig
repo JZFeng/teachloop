@@ -1,0 +1,28 @@
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{java,xml,xsd}]
+indent_size = 4
+
+[*.{js,jsx,ts,tsx,json,css,html,vue}]
+indent_size = 2
+
+[*.md]
+# Markdown 用行尾两个空格表示换行，不能裁剪
+trim_trailing_whitespace = false
+
+[Makefile]
+indent_style = tab
+
+[*.{yml,yaml}]
+indent_size = 2
+
+[*.sql]
+indent_size = 4
