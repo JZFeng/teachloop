@@ -5,7 +5,7 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help build test run start-db stop-db clean
+.PHONY: help build test run start-db stop-db clean check-deps
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -13,6 +13,7 @@ help:
 	@echo "make test       跑全部测试（需要 Docker）"
 	@echo "make run        启动应用（8010）"
 	@echo "make clean      清理 target"
+	@echo "make check-deps 依赖方向守卫（T203）"
 
 start-db:
 	@docker start teachloop-pg 2>/dev/null || docker run -d --name teachloop-pg \
@@ -21,6 +22,9 @@ start-db:
 
 stop-db:
 	@docker stop teachloop-pg
+
+check-deps:
+	@python3 scripts/check-deps.py
 
 build:
 	@$(MVN) -q -DskipTests package
