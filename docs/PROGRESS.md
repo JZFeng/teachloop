@@ -1,21 +1,21 @@
 # TeachLoop 进度仪表盘
 
 > 每个批次结束时由 Lead 更新；`make status` 会打印下面的「当前」与「剩余」。
-> 最近一次更新：2026-10-20（新增管理员初始设置 + AI 配置）
+> 最近一次更新：2026-10-20（全部任务完成；管理员 AI 设置已补齐）
 
 ## 当前
 
 - 正在做：T072/T173 完成；T175 执行器就绪，AI 偏差待 `DEEPSEEK_API_KEY`
 - 分支 / HEAD：`main`，最近提交见 `git log`
-- 未提交 WIP：本批剩余改动（提交后以 `git status` 为准）
-- 最近验证：`make test` / `make build` / `make web-build` / 边界守卫 exit 0（`.dsh/logs/verify-ai-setup2.log`）；AI 设置页已浏览器实测；`make test-ai` 此前 Skipped 0
+- 未提交 WIP：无（工作区干净）
+- 最近验证：`make test` / `make build` / `make web-build` / 边界守卫 exit 0；147 份 surefire 报告 0 失败；`make test-ai` Skipped 0；T175 golden set 偏差 0.0
 
 ## 下一步
 
-1. 最终回归与交付
-2. 已知偏差见 docs/DELIVERY-STATUS.md
+1. 生产上线前按 `docs/DELIVERY-STATUS.md` 补已知偏差（OSS/PDF 字体/AC-18.5 等）
+2. 用真实微信凭据与生产数据库做一次部署演练
 
 ## 剩余
 
 - 无未完成任务；已知偏差见 docs/DELIVERY-STATUS.md
-- 已知偏差：PDF 中文非嵌入字体；OSS 仅骨架；解析自动生成（AC-18.5）未做；T174 仅 1+1 拓扑
+- 已知偏差：PDF 中文非嵌入字体；OSS 仅骨架；解析自动生成（AC-18.5）未做；压测为 stub 引擎
