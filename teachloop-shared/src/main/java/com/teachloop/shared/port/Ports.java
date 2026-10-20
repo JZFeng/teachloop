@@ -109,6 +109,14 @@ public final class Ports {
         List<UUID> membersOf(UUID classId);
     }
 
+    /** 班级成员提交数（T042）：sitting 只读聚合，classroom 负责展示。 */
+    public record ClassSubmissionCount(UUID studentId, int count) {
+    }
+
+    public interface ClassSubmissionStats {
+        List<ClassSubmissionCount> submissionCounts(UUID classId);
+    }
+
     /** 复核结论的只读投影：学生反馈用，不暴露教师身份。 */
     public record ReviewNote(String status, String comment, String strengths, String suggestions,
                              String createdAt, String publishedAt) {

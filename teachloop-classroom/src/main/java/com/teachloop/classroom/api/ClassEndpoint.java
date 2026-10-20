@@ -1,6 +1,7 @@
 package com.teachloop.classroom.api;
 
 import com.teachloop.classroom.domain.*;
+import com.teachloop.shared.port.Ports;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.shared.error.ApiException;
 import jakarta.validation.Valid;
@@ -9,6 +10,7 @@ import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -21,12 +23,17 @@ public class ClassEndpoint {
 
     private final ClassRepository classes;
     private final ClassMemberRepository members;
+    private final Ports.StudentDirectory students;
+    private final Ports.ClassSubmissionStats submissionStats;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
-    public ClassEndpoint(ClassRepository classes, ClassMemberRepository members, Clock clock) {
+    public ClassEndpoint(ClassRepository classes, ClassMemberRepository members,
+                         Ports.StudentDirectory students, Ports.ClassSubmissionStats submissionStats, Clock clock) {
         this.classes = classes;
         this.members = members;
+        this.students = students;
+        this.submissionStats = submissionStats;
         this.clock = clock;
     }
 
@@ -70,10 +77,22 @@ public class ClassEndpoint {
         return view(c);
     }
 
+    public record MemberView(String studentId, String displayName, int submissionCount) {
+    }
+
+    /** T042：教师可见成员姓名与提交数；学生访问 403。 */
     @GetMapping("/{id}/members")
-    public List<String> memberIds(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
+    public List<MemberView> memberList(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
+        if (me.is("STUDENT")) {
+            throw ApiException.forbidden("学生不能查看班级成员列表");
+        }
         requireOwned(id, me);
-        return members.findByClassId(id).stream().map(m -> m.getStudentId().toString()).toList();
+        List<ClassMember> rows = members.findByClassId(id);
+        Map<UUID, String> names = students.displayNames(rows.stream().map(ClassMember::getStudentId).toList());
+        Map<UUID, Integer> counts = new java.util.HashMap<>();
+        submissionStats.submissionCounts(id).forEach(c -> counts.put(c.studentId(), c.count()));
+        return rows.stream().map(m -> new MemberView(m.getStudentId().toString(),
+                names.getOrDefault(m.getStudentId(), ""), counts.getOrDefault(m.getStudentId(), 0))).toList();
     }
 
     @PostMapping("/{id}/invite/regenerate")

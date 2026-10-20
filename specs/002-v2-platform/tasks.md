@@ -395,6 +395,9 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T035 角色守卫 | 完成 | Security 规则：`/api/admin/**` 仅 ADMIN、`/api/papers/**` 仅 TEACHER/ADMIN；控制器层原有 require* 保留；`IdentityAuthTest` 覆盖学生建卷 403、教师建邀请码 403、未登录 401；停用旧会话失效 |
 | 2026-10-19 | T172 安全自查 | 完成 | `.docs/security-self-check.md` 逐项映射：未登录 401、缺 CSRF 403、越权 403/404、上传白名单、富文本消毒、限流 429、停用下线、资料补全、prod 禁开发登录；目标测试组合 exit 0 |
 | 2026-10-19 | T020 迁移集成测试 | 完成 | `MigrationTest`：空库迁移全部 applied、无 pending；断言 18 张关键表与 `submissions_active_uk` 索引；重复 `migrate()` 执行 0 条且数量不变 |
+| 2026-10-19 | T042 成员列表（含提交数） | 完成 | `GET /api/classes/{id}/members` 改为 `{studentId, displayName, submissionCount}`；sitting 新增 `ClassSubmissionStats` 端口按班聚合提交数；学生访问 403；`ClassAccessTest` 覆盖 |
+| 2026-10-19 | T043 班级访问控制 | 完成 | 教师 `/api/classes` 只返回自己的班；学生只返回已加入的班；跨教师成员列表 404；学生不能用邀请码再生成（404）；`ClassAccessTest` 覆盖 |
+
 | 2026-10-19 | T021 可重复 seed | 完成 | `DemoSeedRunner`（`teachloop.seed.demo=true`）：1 班 + 30 学生 + 1 份 4 题带答案试卷，固定 UUID/邀请码；重复执行只补缺；`DemoSeedTest` 连跑两次断言用户/班级/成员/试卷/题项数量不变；`make seed` 目标 |
 
 | 2026-10-19 | T170/T171 E2E 记录 | 部分完成 | `.docs/e2e-report-v2.md` 记录实际执行与偏差：旅程 A 用 1 班 3 题跑主链路（3 班/77 题未逐项重放）；旅程 B 富文本/文件/new attempt/迟交/拒收/复核由自动化测试覆盖。**不宣称完整通过** |
