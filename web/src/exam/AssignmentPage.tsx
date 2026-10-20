@@ -60,7 +60,8 @@ export default function AssignmentPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [submitResult, setSubmitResult] = useState<SubmitResponse | null>(null)
-  const [mode, setMode] = useState<'text' | 'file'>('text')
+  const [mode, setMode] = useState<'text' | 'file' | 'rich'>('text')
+  const [richHtml, setRichHtml] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
 
@@ -127,6 +128,7 @@ export default function AssignmentPage() {
     try {
       const response = await api.put<AnswerSaveResponse>(`/api/offerings/${offeringId}/answers`, {
         contentText: content,
+        contentHtml: mode === 'rich' ? richHtml : null,
         answers: [],
       })
       setLastSaved(response.serverTime)
@@ -149,6 +151,7 @@ export default function AssignmentPage() {
     try {
       const response = await api.post<SubmitResponse>(`/api/offerings/${offeringId}/submissions`, {
         contentText: content,
+        contentHtml: mode === 'rich' ? richHtml : null,
         answers: [],
       })
       setSubmitResult(response)
@@ -303,6 +306,11 @@ export default function AssignmentPage() {
               : <span className="tag amber">{t('exam.pendingGrade')}</span>}
             {latest.lateBySeconds > 0 && <span className="tag amber">{t('exam.lateTag')}</span>}
             {latest.autoSubmitted && <span className="tag gray">{t('exam.submittedAuto')}</span>}
+            {attempts?.canRetry && (
+              <button type="button" className="btn" disabled={busy} onClick={() => void startAttempt()}>
+                {t('exam.newAttempt')}
+              </button>
+            )}
             {latest.attachmentName && latest.submissionId && (
               <a className="btn" href={`/api/submissions/${latest.submissionId}/attachment`}>
                 {t('exam.downloadAttachment')} · {latest.attachmentName}
@@ -320,6 +328,7 @@ export default function AssignmentPage() {
           <h2>{t('exam.assignmentSubmission')}</h2>
           <div className="row" style={{ marginBottom: 8 }}>
             <button type="button" className={`chip${mode === 'text' ? ' on' : ''}`} onClick={() => setMode('text')}>{t('exam.textMode')}</button>
+            <button type="button" className={`chip${mode === 'rich' ? ' on' : ''}`} onClick={() => setMode('rich')}>{t('exam.richMode')}</button>
             <button type="button" className={`chip${mode === 'file' ? ' on' : ''}`} onClick={() => setMode('file')}>{t('exam.fileMode')}</button>
           </div>
           {mode === 'file' && (
@@ -327,6 +336,22 @@ export default function AssignmentPage() {
               <p className="small muted" style={{ marginTop: 0 }}>{t('exam.fileHint')}</p>
               <input type="file" accept=".pdf,.docx,.txt,.md" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
               {file && <div className="small muted" style={{ marginTop: 6 }}>{file.name} · {Math.round(file.size / 1024)} KB</div>}
+            </>
+          )}
+          {mode === 'rich' && (
+            <>
+              <p className="small muted" style={{ marginTop: 0 }}>{t('exam.richHint')}</p>
+              <div
+                contentEditable
+                suppressContentEditableWarning
+                className="writearea assignment-textarea"
+                style={{ minHeight: 180 }}
+                onInput={(e) => {
+                  const html = (e.currentTarget as HTMLDivElement).innerHTML
+                  setRichHtml(html)
+                  setContent((e.currentTarget as HTMLDivElement).innerText)
+                }}
+              />
             </>
           )}
           {mode === 'text' && (
@@ -341,18 +366,19 @@ export default function AssignmentPage() {
           <div className="wcount"><span className="wn">{words}</span> {t('exam.assignmentWordCount')}</div>
           </>
           )}
+          {mode === 'rich' && <div className="wcount"><span className="wn">{words}</span> {t('exam.assignmentWordCount')}</div>}
           {mode === 'file' && (
             <button type="button" className="btn pri" style={{ marginTop: 10 }} disabled={!file || uploading} onClick={() => void uploadFile()}>
               {uploading ? t('exam.submitting') : t('exam.uploadSubmit')}
             </button>
           )}
           <div className="row" style={{ marginTop: 12 }}>
-            {mode === 'text' && (
+            {(mode === 'text' || mode === 'rich') && (
               <button type="button" className="btn" disabled={busy} onClick={() => void saveDraft()}>
                 {busy ? t('exam.saving') : t('exam.saveDraft')}
               </button>
             )}
-            {mode === 'text' && (
+            {(mode === 'text' || mode === 'rich') && (
               <button type="button" className="btn pri" disabled={busy} onClick={() => void submit()}>
                 {busy ? t('exam.submitting') : t('exam.submitAssignment')}
               </button>
