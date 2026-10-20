@@ -33,8 +33,15 @@ spring:
 teachloop:
   grading:
     engine: stub
-    poll-interval-ms: 2000
+    poll-ms: 2000
     batch-size: 5
+    # 到期派发的扫描周期（T092）；互斥在 SQL 条件更新，不靠这里
+    dispatch-ms: 60000
+    # 峰谷调度（T093）：北京时间工作日 9-12 / 14-18 为高峰，自动派发推迟到空闲起点；手动派发不受限
+    peak-aware: true
+    # 僵尸清扫（T091）：启动时 + 每 sweep-ms 把超过 stale-minutes 的 RUNNING 退回 PENDING
+    sweep-ms: 120000
+    stale-minutes: 5
   exam:
     # 到点自动交卷的扫描周期：归零后最迟这么久定稿（T199 验收要求 60 秒内）
     scan-ms: 30000

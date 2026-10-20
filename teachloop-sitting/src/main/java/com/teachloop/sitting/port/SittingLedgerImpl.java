@@ -5,26 +5,30 @@ import com.teachloop.sitting.service.SnapshotCodec;
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.port.Ports;
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** sitting 实现两个端口：读作答（SittingLedger）、回写分数（GradingOutcome）。 */
+/** sitting 实现的三个端口：读作答（SittingLedger）、写分数（GradingOutcome）、推进工作项（GradingWorkQueue）。 */
 @Component
-public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutcome {
+public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutcome, Ports.GradingWorkQueue {
 
     private final SubmissionRepository submissions;
     private final ObjectiveAnswerRepository answers;
     private final OfferingRepository offerings;
     private final SnapshotCodec codec;
+    private final Clock clock;
 
     public SittingLedgerImpl(SubmissionRepository submissions, ObjectiveAnswerRepository answers,
-                             OfferingRepository offerings, SnapshotCodec codec) {
+                             OfferingRepository offerings, SnapshotCodec codec, Clock clock) {
         this.submissions = submissions;
         this.answers = answers;
         this.offerings = offerings;
         this.codec = codec;
+        this.clock = clock;
     }
 
     @Override
@@ -50,7 +54,7 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
     @Override
     @Transactional
     public void markRunning(UUID submissionId) {
-        submissions.claim(submissionId);
+        submissions.claim(submissionId, Instant.now(clock));
     }
 
     @Override

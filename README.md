@@ -28,7 +28,7 @@
 - 后端：Java 21 + Spring Boot 4.1.x（Spring Framework 7）+ Jackson 3（`tools.jackson`）+ Flyway + PostgreSQL 16
 - 模型：DeepSeek `deepseek-flash`，经 Spring AI 直连官方 API
 - 前端：React + TypeScript + Vite
-- 队列：不引入消息队列，工作项就是提交行，条件更新领取；定时任务 `@Scheduled` + ShedLock
+- 队列：不引入消息队列，工作项就是提交行，条件更新领取；定时任务 `@Scheduled` + 数据库条件更新（不引入独立锁表）
 
 九个 Maven 子模块（`teachloop-shared` … `teachloop-app`）与依赖方向见 plan §3。**模块边界是编译期强制的**，不是约定。
 

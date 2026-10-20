@@ -47,6 +47,8 @@ class FlowIntegrationTest {
         r.add("spring.datasource.username", PG::getUsername);
         r.add("spring.datasource.password", PG::getPassword);
         r.add("teachloop.grading.poll-ms", () -> "3600000"); // 关掉后台轮询，测试里手动跑一批
+        r.add("teachloop.grading.dispatch-ms", () -> "3600000"); // 关掉自动派发，测试里手动派发
+        r.add("teachloop.grading.sweep-ms", () -> "3600000"); // 关掉定时清扫，避免干扰手动流程
     }
 
     @Autowired
@@ -108,6 +110,16 @@ class FlowIntegrationTest {
                                 Map.of("number", 2, "answer", "C"))),
                 "submissionId");
 
+        // T092：交卷只进 QUEUED；派发（手动、不受峰谷限制）才把这一场放进队列。
+        Submission queued = submissions.findById(UUID.fromString(submissionId)).orElseThrow();
+        assertThat(queued.getGradingState()).isEqualTo(GradingState.QUEUED);
+
+        Map<String, Object> dispatch = send(base, teacher, "POST",
+                "/api/offerings/" + offeringId + "/grading/dispatch", Map.of());
+        assertThat(dispatch.get("runId")).isNotNull();
+        assertThat(dispatch.get("firstDispatch")).isEqualTo(true);
+        assertThat(((Number) dispatch.get("enqueued")).intValue()).isEqualTo(1);
+
         worker.processBatch(10);
 
         Submission s = submissions.findById(UUID.fromString(submissionId)).orElseThrow();
@@ -117,6 +129,12 @@ class FlowIntegrationTest {
         assertThat(reviews.findBySubmissionId(s.getId()).orElseThrow().getStatus())
                 .isEqualTo(ReviewStatus.PENDING);
         assertThat(auditLogs.count()).isGreaterThanOrEqualTo(4);
+
+        // T094：一条聚合 SQL；终态下 done = 1
+        Map<String, Object> progress = get(base, teacher, "/api/offerings/" + offeringId + "/progress");
+        assertThat(((Number) progress.get("total")).intValue()).isEqualTo(1);
+        assertThat(((Number) progress.get("done")).longValue()).isEqualTo(1);
+        assertThat(((Number) progress.get("pending")).longValue()).isZero();
     }
 
     // ---------- helpers ----------

@@ -302,13 +302,20 @@ public class ExamSessionService {
         return offerings.findById(s.getOfferingId()).orElseThrow(() -> ApiException.notFound("布置不存在"));
     }
 
+    /**
+     * 交卷后的初始工作项状态（T092）：有主观作答或正文 → QUEUED，等这一场被派发后再转 PENDING；
+     * 全客观题 → 直接 DONE（客观分在提交时已判）。
+     *
+     * <p>QUEUED 而不是 PENDING 是「一场一条 run」的前提：worker 只领 PENDING，
+     * 未派发的提交不会被提前批改，迟到提交也还能进同一个 run。
+     */
     private String gradingStateFor(Offering offering, Submission s) {
         Ports.PaperSnapshot snap = codec.read(offering.getPaperSnapshot());
         boolean hasEssayAnswer = answers.findBySubmissionId(s.getId()).stream()
                 .anyMatch(a -> snap.items().stream()
                         .anyMatch(i -> i.number() == a.getNumber() && "ESSAY".equals(i.questionType())));
         boolean hasText = s.getContentText() != null && !s.getContentText().isBlank();
-        return hasEssayAnswer || hasText ? GradingState.PENDING.name() : GradingState.DONE.name();
+        return hasEssayAnswer || hasText ? GradingState.QUEUED.name() : GradingState.DONE.name();
     }
 
     private int totalPoints(Offering offering) {

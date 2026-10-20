@@ -47,7 +47,7 @@ Spring Boot 4.1 应用（fat jar，1..N 实例，profile=app）
 PostgreSQL（RDS）—— 唯一中间件：业务数据 + 工作项 + 限流 + 会话
    ▼
 Worker 进程（同一 jar，profile=worker）—— 独占批改工作项并调用模型
-定时（@Scheduled + ShedLock）—— 到期派发、僵尸清扫、到点自动交卷、每日汇总
+定时（@Scheduled + 数据库条件更新）—— 到期派发、僵尸清扫、到点自动交卷、每日汇总
 ```
 
 **关键取舍：不引入 Redis / RabbitMQ / Kafka。** 单校规模（数百到数千份/次）下：
@@ -76,7 +76,7 @@ Worker 进程（同一 jar，profile=worker）—— 独占批改工作项并调
 | 会话 | **Spring Session JDBC** | 多实例共享、可服务端吊销 |
 | 安全 | Spring Security + BCrypt + Cookie CSRF（双提交） | |
 | AI | **Spring AI 2.0.1** + `spring-ai-starter-model-deepseek`，模型名 **`deepseek-flash`** | `deepseek-chat` 是旧名，已下线 |
-| 调度 | `@Scheduled` + **ShedLock** | 多实例互斥 |
+| 调度 | `@Scheduled` + **数据库条件更新** | 多实例互斥；不引入独立锁表（详见 §7.3） |
 | 富文本 | **OWASP Java HTML Sanitizer** | 经过审计的白名单实现 |
 | 文档解析 | Apache **PDFBox**（pdf）/ Apache **POI**（docx） | 不做 OCR |
 | 导出 | **OpenPDF**（pdf）/ POI（xlsx、docx） | 纯 JVM，无 pango/cairo 依赖 |
@@ -141,7 +141,8 @@ teachloop-app ──▶ paper / sitting / grading / report / observability
 | 答卷要读试卷内容 | `PaperCatalog`（paper 暴露，只读快照视图） | 布置时拿快照（AC-26.6），不回查活表 |
 | 阅卷要读作答 | `SittingLedger`（sitting 暴露，只读） | 阅卷不 join `sitting_*` 表 |
 | 阅卷要写分数 | `GradingOutcome`（grading 暴露，sitting 调用写入） | 写回经端口，不由阅卷直接改表 |
-| 阅卷要领取/推进工作项 | `GradingWorkQueue`（sitting 暴露，唯一命令式端口） | `submissions.grading_state` 归 sitting，阅卷不得直接 `update`；方法必须幂等（换成 MQ 后至少一次投递不重复扣分） |
+| 阅卷要领取/推进工作项 | `GradingWorkQueue`（sitting 暴露，命令端口） | `submissions.grading_state` 归 sitting，阅卷不得直接 `update`；方法必须幂等（换成 MQ 后至少一次投递不重复扣分） |
+| sitting 要派发一场考试去批改 | `GradingDispatch`（grading 暴露，命令端口） | 一个 offering 只产生一条 `grading_runs`；重复调用返回同一 run（幂等） |
 | 报告要跨模块统计 | 允许跨模块**只读**聚合 | 唯一豁免，且只能读不能写 |
 | 任何模块要发通知 | `NotificationPort`（identity 暴露） | 学生名单与联系方式只在 identity / classroom |
 
@@ -209,15 +210,24 @@ V1 的形态是**一个 JAR、一个 Postgres、两个进程**（`app` 与 `grad
 | :--- | :--- | :--- |
 | `classes.teacher_id` → `users.id` | classroom | identity |
 | `class_members.student_id` → `users.id` | classroom | identity |
+| `papers.author_id` → `users.id` | paper | identity |
 | `offerings.paper_id` → `papers.id` | sitting | paper |
 | `offering_classes.class_id` → `classes.id` | sitting | classroom |
 | `submissions.student_id` → `users.id` | sitting | identity |
+| `objective_answers.item_id` → `objective_items.id` | sitting | paper |
 | `grading_runs.submission_id` → `submissions.id` | grading | sitting |
+| `grading_runs.offering_id` → `offerings.id` | grading | sitting |
 | `reviews.submission_id` → `submissions.id` | grading | sitting |
+| `reviews.teacher_id` → `users.id` | grading | identity |
 | `item_explanations.item_id` → `objective_items.id` | grading | paper |
 | `audit_logs.actor_id` → `users.id` | observability | identity |
 
 `notifications.recipient_id → users.id` 不在清单里：两张表同属 identity，拆服务时一起搬走。
+
+> 2026-10-19（T204 落地时补齐）：原清单 9 条漏登记了 `papers.author_id`、
+> `objective_answers.item_id`、`reviews.teacher_id` 三条已存在的外键；同一次登记了
+> T092 新增的 `grading_runs.offering_id`。当前清单 13 条，`scripts/check-boundaries.py`
+> 以此表为唯一真源校验。
 
 ---
 
@@ -390,6 +400,19 @@ Prompt 必须严格分两层，**顺序不可变**：
 3. `temperature` 固定 0.2（判分要稳定，不要发挥）。
 4. `response_format` 固定 `json_object`。
 
+**实现口径（2026-10-19，T080–T083 落地时确认）**：
+
+- 模型调用走一个最小可替换接口 `grading/ai/LlmClient`，默认实现 `DeepSeekLlmClient`
+  （JDK `HttpClient`，OpenAI 兼容端点 `/chat/completions`，`response_format=json_object`，
+  `temperature 0.2`，model 默认 `deepseek-flash`）。**没有引入 Spring AI**：本机沙箱不允许写
+  `~/.m2`，新增依赖无法解析；`LlmClient` 就是为了保留「换回 `ChatClient` 只改一个实现类」的路。
+  这一偏差已记录在 `tasks.md` 执行记录，等依赖可用时再切。
+- 主观评分项暂从 `rubricMarkdown` 解析（`### 1. Name — 2 points` / `- 名称（15 分）` 等写法）；
+  缺分值或分值和不等于主观满分时按剩余满分均分。等 `PaperSnapshot` 暴露 `section_criteria`
+  结构化字段后移除这条 fallback。
+- `ai_calls` 只记录**收到响应**的调用（model / prompt_version / tokens / latency / raw）；
+  网络与鉴权失败没有 tokens 可记，只进日志与 `submissions.grading_error`。
+
 ### 6.2 缓存策略与度量
 
 DeepSeek 的上下文硬盘缓存**自动生效、无需代码开关**，但只认"从第 0 个 token 起相同"的前缀，且以 64 tokens 为存储单元（不足 64 不缓存）。
@@ -496,7 +519,12 @@ RETURNING id;
 
 ### 7.3 到期派发（幂等）
 
-`@Scheduled` + ShedLock 互斥；`offerings.grading_dispatched_at IS NULL` 的条件更新保证同一场考试重复扫描只产生一个 `grading_run`。
+**互斥不靠 ShedLock**：`@Scheduled` 只是触发外壳，互斥是
+`UPDATE offerings SET grading_dispatched_at = :now WHERE id = :id AND grading_dispatched_at IS NULL`
+这一条条件更新。PostgreSQL READ COMMITTED 下，后到的 UPDATE 会等先到的事务提交，再按新值重新判断
+`IS NULL`，得到 0 行并跳过派发；多实例天然一致。`grading_runs (offering_id)` 的部分唯一索引 +
+`ON CONFLICT DO NOTHING` 是第二层兜底。条件更新、建 run、`QUEUED → PENDING` 入队与审计在同一个事务里，
+进程中途崩溃不会留下半成品。
 
 派发时点是 `due_at + grace_hours`（默认 3 小时），**不是** `due_at`：宽限期留给迟交（§8 的 AC-8.5）。宽限期内的提交照常进入同一个 run。
 
@@ -695,7 +723,7 @@ MVP 用数据库状态机 + 轮询。将来若换消息队列（RabbitMQ / Redis
 | 对象存储 | OSS 私有 Bucket + 签名 URL |
 | TLS | 自有 DNS + 证书（Let's Encrypt 或阿里云证书） |
 | 迁移 | 部署前独立执行 `flyway migrate` |
-| 定时 | 含在 `app` 内，ShedLock 保证多实例只有一个在跑 |
+| 定时 | 含在 `app` 内；多实例互斥靠数据库条件更新（§7.3），不需要独立锁表 |
 | 密钥 | 环境变量 / KMS；**不进配置文件、不进仓库** |
 
 **注意**：多实例下不要用 Spring Boot 自动 Flyway 启动迁移（会并发执行）——用独立迁移步骤或 `flyway` 命令行。

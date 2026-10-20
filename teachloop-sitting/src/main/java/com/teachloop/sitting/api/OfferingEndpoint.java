@@ -6,6 +6,7 @@ import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.port.Ports;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.sitting.domain.*;
+import com.teachloop.sitting.service.OfferingGradingDispatcher;
 import com.teachloop.sitting.service.OfferingWindows;
 import com.teachloop.sitting.service.SnapshotCodec;
 import java.math.BigDecimal;
@@ -34,13 +35,15 @@ public class OfferingEndpoint {
     private final Ports.NotificationPort notifications;
     private final SnapshotCodec codec;
     private final OfferingWindows windows;
+    private final OfferingGradingDispatcher dispatcher;
     private final AuditPort audit;
     private final Clock clock;
 
     public OfferingEndpoint(OfferingRepository offerings, OfferingClassRepository offeringClasses,
                             SubmissionRepository submissions, Ports.PaperCatalog paperCatalog,
                             Ports.ClassMembership membership, Ports.NotificationPort notifications,
-                            SnapshotCodec codec, OfferingWindows windows, AuditPort audit, Clock clock) {
+                            SnapshotCodec codec, OfferingWindows windows,
+                            OfferingGradingDispatcher dispatcher, AuditPort audit, Clock clock) {
         this.offerings = offerings;
         this.offeringClasses = offeringClasses;
         this.submissions = submissions;
@@ -49,6 +52,7 @@ public class OfferingEndpoint {
         this.notifications = notifications;
         this.codec = codec;
         this.windows = windows;
+        this.dispatcher = dispatcher;
         this.audit = audit;
         this.clock = clock;
     }
@@ -180,14 +184,32 @@ public class OfferingEndpoint {
         return view(o);
     }
 
+    /**
+     * 批改进度（T094 / AC-10.5 / FR-018）：一条聚合 SQL 返回 total/done/running/pending/failed。
+     *
+     * <p>任何实例都从同一张表聚合，所以多实例结果一致；不依赖长连接、不做 N 次 count。
+     * QUEUED（已交卷、还没派发）计进 pending，否则派发前进度会全是 0。
+     */
     @GetMapping("/{id}/progress")
     public SittingDtos.ProgressView progress(@PathVariable UUID id) {
-        long done = submissions.countByOfferingIdAndGradingState(id, GradingState.DONE);
-        long running = submissions.countByOfferingIdAndGradingState(id, GradingState.RUNNING);
-        long pending = submissions.countByOfferingIdAndGradingState(id, GradingState.PENDING);
-        long failed = submissions.countByOfferingIdAndGradingState(id, GradingState.FAILED);
-        int total = submissions.findByOfferingIdOrderByCreatedAtDesc(id).size();
-        return new SittingDtos.ProgressView(total, done, running, pending, failed);
+        SubmissionRepository.GradingProgress p = submissions.progressOf(id);
+        return new SittingDtos.ProgressView((int) p.getTotal(), p.getDone(), p.getRunning(),
+                p.getPending(), p.getFailed());
+    }
+
+    /**
+     * 手动派发（AC-9.3 / US-20「立即派发」）：教师/管理员可用，学生 403。
+     * 与自动派发共用条件更新互斥，但不看峰谷时段。
+     */
+    @PostMapping("/{id}/grading/dispatch")
+    public SittingDtos.GradingDispatchView dispatchGrading(@PathVariable UUID id,
+                                                           @RequestAttribute("currentUser") CurrentUser me) {
+        if (me.is("STUDENT")) {
+            throw ApiException.forbidden("学生不能派发批改");
+        }
+        OfferingGradingDispatcher.DispatchResult result = dispatcher.dispatchNow(id, me.id());
+        return new SittingDtos.GradingDispatchView(result.offeringId().toString(),
+                result.runId().toString(), result.firstDispatch(), result.enqueued());
     }
 
     /** 按班统计（T202 / T191 的最小可用面）：按时提交率与迟交份数分开。 */

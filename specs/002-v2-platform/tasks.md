@@ -20,7 +20,7 @@
 | T005 | Jackson 3（`tools.jackson`）配置；时间统一 UTC 序列化 | T003 | 时间字段输出带 `Z`；不引入 Jackson 2 依赖 |
 | T006 | Testcontainers 基线：一个连 `postgres:16-alpine` 的集成测试 | T001 | `make test` 绿；Testcontainers 锁 `1.21.4` |
 | T007 | 静态检查：`api/`、`service/` 禁止中文字符串字面量 | T002 | 故意插入中文常量时检查失败 |
-| T204 | **跨模块越界检查**：模块的迁移文件只写自己拥有的表（§3.3 清单）；业务模块不得直接查别人的表；**端口签名只收发 `record`，出现 `@Entity` 即失败**（为拆服务留路，§3.5）；跨模块外键只允许清单内那 10 条 | T203、T010 | 故意在 `grading` 迁移里写 `paper_` 表时检查失败；把 `GradingOutcome` 的参数从 `record` 换成 `@Entity` 时检查失败 |
+| T204 | **跨模块越界检查**：模块的迁移文件只写自己拥有的表（§3.3 清单）；业务模块不得直接查别人的表；**端口签名只收发 `record`，出现 `@Entity` 即失败**（为拆服务留路，§3.5）；跨模块外键只允许 plan §3.5 清单内那 13 条 | T203、T010 | 故意在 `grading` 迁移里写 `paper_` 表时检查失败；把 `GradingOutcome` 的参数从 `record` 换成 `@Entity` 时检查失败 |
 | T205 | **端口定义**（宪法第十四条 + plan §3.2）：`PaperCatalog`（paper 暴露，只读快照）、`SittingLedger`（sitting 暴露，只读作答）、`GradingOutcome`（grading 暴露）、`NotificationPort`，以及阅卷改工作项状态用的 `GradingWorkQueue`（sitting 暴露）；**端口只收发 `record`，命令类方法必须幂等** | T210、T018 | 端口签名里没有 `@Entity`；阅卷模块代码里不出现 `submissions` 的 Repository；把 `GradingOutcome` 入参换成 `@Entity` 时 T204 失败 |
 | T008 | `web/` 前端工程：Vite + React + TS + i18next 骨架 | T001 | `npm run build` 通过 |
 | T009 | **`Clock` bean**：全项目统一注入 `java.time.Clock`，禁止直接 `now()` | T003 | 可用 `Clock.fixed(...)` 把系统时间钉在任意时刻（宽限期/峰谷/清扫都要用它） |
@@ -124,7 +124,7 @@
 | :--- | :--- | :--- | :--- |
 | T090 | 领取：条件 UPDATE（`pending` → `running`），多 worker 安全；**`gradeSubmission(submissionId)` 与调用来源解耦** | T018 | 并发抢同一行只有一个成功；批改逻辑里不出现"下一个待处理是谁"的查询（便于将来换 MQ） |
 | T091 | 僵尸清扫：启动清扫 + 每 2 分钟定时清扫（阈值 5 分钟） | T090,T009 | 用固定时钟模拟崩溃后任务被重新领取；不重复批在跑的项 |
-| T092 | 到期派发：`@Scheduled` + ShedLock + `WHERE grading_dispatched_at IS NULL` 幂等 | T091,T009 | 两次并发派发只产生一个 `grading_run`；到点判定用固定时钟 |
+| T092 | 到期派发：`@Scheduled` + **数据库条件更新**（`WHERE grading_dispatched_at IS NULL`）幂等；不引入 ShedLock | T091,T009 | 两次并发派发只产生一个 `grading_run`；到点判定用固定时钟 |
 | T093 | 峰谷调度（`peak_aware`）：高峰推迟到空闲起点；**手动派发不受限**；时区 `Asia/Shanghai` | T092,T009 | 用固定时钟测 8:59/9:00/11:59/12:00/13:59/14:00/17:59/18:00 与周末；关闭开关后立即派发 |
 | T094 | 进度查询接口 `GET /api/offerings/{id}/progress`（单条聚合 SQL） | T091 | 多实例返回一致；响应 ≤ 200 ms |
 
@@ -336,5 +336,9 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T200 考试入口页（考前须知） | 完成 | `GET /api/offerings/{id}/entry` 返回标题/题量/总分/时长/窗口/注意事项；`individual` 未点开始不计时；`fixed_window` 无开始按钮，两名学生拿到同一 `deadline_at`，文案「已统一开考，本场在 11:00 结束」 |
 | 2026-10-19 | T201 布置页（与建卷分开） | 完成 | `POST /api/offerings` 支持 `classes[]` 多选 + 按班覆盖；勾 3 个班生成 1 条 offering + 3 条 offering_classes；发布触发 `NotificationPort`（当前落审计，T208 换成站内通知）；`GET /{id}` 返回各班覆盖与成员数 |
 | 2026-10-19 | T202 迟交与拒收 | 完成 | 迟交按有效 `due_at` 算 `late_by_seconds`，过截止仍可提交；`POST /api/offerings/{id}/submissions/{sid}/reject` 需理由（400/403 用例覆盖），拒收后学生可见理由并可重交 attempt 2；`GET /{id}/class-summary` 分列按时/迟交/拒收与按时提交率 |
+| 2026-10-19 | T205 端口定义（查询/命令分离） | 完成 | `SittingLedger` 只保留只读 `load`；命令方法移到 `GradingWorkQueue`；新增 `GradingDispatch`（一场一条 run，幂等）。`make check-boundaries` 断言 7 个端口只收发 record |
+| 2026-10-19 | T204 跨模块越界检查 | 完成 | 新增 `scripts/check-boundaries.py` 并接入 `make test`：迁移表归属（23 张表）、跨模块外键清单（13 条）、业务模块 import 越界、端口签名。故意让 grading 迁移 `alter table papers` → 退出码 1；把 `GradingOutcome` 参数换成 `@Entity` → 退出码 1；还原后全绿 |
+| 2026-10-19 | T091–T094 批改调度闭环 | 完成 | 僵尸清扫（启动 + 2 分钟，阈值 5 分钟、注入 Clock）；到期派发用 `offerings.grading_dispatched_at` 条件更新互斥（不引入 ShedLock），宽限期按 `due_at + grace_hours`；峰谷 8 个边界时刻 + 周末 + 开关；progress 改单条聚合 SQL。`GradingDispatchTest` 7 个用例全绿，`FlowIntegrationTest` 改为「交卷 QUEUED → 手动派发 → worker」 |
+| 2026-10-19 | T080–T083 真实 AI 判分 | 完成（结构化 rubric 待补） | Prompt 分层（system=角色+rubric+输出契约，user=客观指标+正文），单测断言无标准答案/客观分/学生身份；DeepSeek OpenAI 兼容调用（`LlmClient` 可替换；Spring AI 因沙箱无法写 `~/.m2` 而回退，已记录）；输出校验失败重试一次；`ai_calls` 留痕。grading 模块 19 个单测全绿，真机测试无 Key 自动跳过 |
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。

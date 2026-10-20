@@ -45,10 +45,16 @@ public final class Ports {
                                 List<ItemExplanation> explanations) {
     }
 
-    /** sitting 暴露：阅卷读作答 + 领取/推进工作项（唯一命令式端口，方法必须幂等）。 */
+    /** sitting 暴露的**查询**端口：阅卷只读作答，不做任何状态推进。 */
     public interface SittingLedger {
         WorkItem load(UUID submissionId);
+    }
 
+    /**
+     * sitting 暴露的**命令**端口：领取与推进工作项。
+     * 将来换成消息队列仍要求至少一次投递，所以每个方法都必须幂等。
+     */
+    public interface GradingWorkQueue {
         /** 待批改的工作项（PENDING），返回上限 limit 条。 */
         List<UUID> pendingIds(int limit);
 
@@ -57,6 +63,14 @@ public final class Ports {
         void markDone(UUID submissionId, GradingResult result);
 
         void markFailed(UUID submissionId, String error);
+    }
+
+    /**
+     * grading 暴露的命令端口：到期派发一场考试，一个 offering 只产生一条 run。
+     * 重复调用返回同一条 run 的 id（幂等）。
+     */
+    public interface GradingDispatch {
+        UUID dispatch(UUID offeringId);
     }
 
     /** grading 暴露：sitting 回写分数。 */

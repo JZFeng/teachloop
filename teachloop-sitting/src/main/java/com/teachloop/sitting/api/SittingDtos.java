@@ -80,4 +80,8 @@ public final class SittingDtos {
 
     public record ProgressView(int total, long done, long running, long pending, long failed) {
     }
+
+    /** 手动派发结果（T092）：runId 幂等，firstDispatch 区分「刚创建 run」与「本来就派过」。 */
+    public record GradingDispatchView(String offeringId, String runId, boolean firstDispatch, int enqueued) {
+    }
 }
