@@ -5,7 +5,7 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help build test test-ai run start-db stop-db clean check-deps check-boundaries web-install web-build web-dev
+.PHONY: help status build test test-ai run start-db stop-db clean check-deps check-boundaries web-install web-build web-dev
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -18,7 +18,7 @@ help:
 	@echo "make web-dev    启动前端开发服务器（5173，代理到 8010）"
 	@echo "make clean      清理 target"
 	@echo "make check-deps 依赖方向守卫（T203）"
-	@echo "make check-boundaries 模块边界守卫（T204）"
+	@echo "make status     一眼看清：提交/工作区/测试/进度"
 
 start-db:
 	@docker start teachloop-pg 2>/dev/null || docker run -d --name teachloop-pg \
@@ -27,6 +27,9 @@ start-db:
 
 stop-db:
 	@docker stop teachloop-pg
+
+status:
+	@bash scripts/status.sh
 
 check-deps:
 	@python3 scripts/check-deps.py

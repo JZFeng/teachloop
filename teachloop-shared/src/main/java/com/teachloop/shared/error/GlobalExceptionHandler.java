@@ -1,5 +1,7 @@
 package com.teachloop.shared.error;
 
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -9,6 +11,12 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private final MessageSource messages;
+
+    public GlobalExceptionHandler(MessageSource messages) {
+        this.messages = messages;
+    }
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApi(ApiException ex) {
@@ -22,20 +30,24 @@ public class GlobalExceptionHandler {
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .findFirst().orElse("validation failed");
         return ResponseEntity.badRequest()
-                .body(new ApiError(ErrorCode.VALIDATION_FAILED.name(), "请求参数不合法", detail));
+                .body(new ApiError(ErrorCode.VALIDATION_FAILED.name(), message("error.validation"), detail));
     }
 
     /** 不存在的路径必须是 404，不能落进兜底的 500。 */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiError> handleNoResource(NoResourceFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
-                .body(ApiError.of(ErrorCode.NOT_FOUND, "接口不存在"));
+                .body(ApiError.of(ErrorCode.NOT_FOUND, message("error.api.route_not_found")));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleOther(Exception ex) {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiError.of(ErrorCode.INTERNAL, "服务内部错误"));
+                .body(ApiError.of(ErrorCode.INTERNAL, message("error.INTERNAL")));
+    }
+
+    private String message(String key) {
+        return messages.getMessage(key, null, key, LocaleContextHolder.getLocale());
     }
 
     private static HttpStatus status(ErrorCode code) {

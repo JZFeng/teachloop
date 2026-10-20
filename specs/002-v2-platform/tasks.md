@@ -375,6 +375,8 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T066/T067 不可读与存储 | 完成 | 解析失败/空文本 → `unreadable=true`、`grading_state=SKIPPED`，不产生 0 分；`StorageBackend` + `LocalStorage`（默认 ./uploads，路径穿越防护），OSS 骨架条件装配、未配置 503；上传失败分类 400/503 |
 | 2026-10-19 | T064 new attempt | 完成 | `POST /api/offerings/{id}/attempts`：已交卷/被拒收后仍有次数可开新 attempt，旧 attempt 置非 active（native 更新避免唯一索引冲突）；`max_attempts` 超限 409；`NewAttemptTest` 覆盖 active 唯一与三次上限；前端考试/作业页接入「再考一次」 |
 | 2026-10-19 | 提交前端 | 完成 | 作业页支持文本/文件两种提交、附件下载、unreadable 提示；考试页与作业页新 attempt 按钮；`make web-build` 通过 |
+| 2026-10-19 | T130 后端国际化 | 完成 | `MessageSource`（UTF-8、禁用 system locale fallback）+ `Accept-Language`；框架级错误（未知路由 404、参数校验 400、500）的 message 本地化，`code` 保持不变；`I18nErrorTest` 用中英两种语言断言 code 相同、message 不同。业务级 ApiException 的细粒度文案仍走原 message，待后续补 key |
+| 2026-10-19 | 可见性仪表盘 | 完成 | `docs/PROGRESS.md` + `make status`（最近提交/工作区/最近测试/当前与剩余）；每批结束更新并提交，长命令日志落 `.dsh/logs/` |
 
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。
