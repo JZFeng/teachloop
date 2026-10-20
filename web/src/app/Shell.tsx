@@ -71,6 +71,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className="app-main-wrap">
         <header className="app-topbar">
           <div className="row" style={{ gap: 8 }}>
+            <button className="btn sm" onClick={() => navigate('/profile')}>{t('nav.profile', { defaultValue: '资料' })}</button>
             <button className="btn sm" onClick={() => navigate('/notifications')} title={t('nav.notifications')}>
               🔔 {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
             </button>

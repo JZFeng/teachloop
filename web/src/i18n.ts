@@ -11,6 +11,7 @@ const baseZh = {
     home: '首页', classes: '班级', papers: '试卷', grading: '批改', review: '复核',
     reports: '报表', settings: '设置', exams: '考试', assignments: '作业', feedback: '我的反馈',
     notifications: '通知',
+    profile: '资料',
   },
   common: {
     save: '保存', cancel: '取消', confirm: '确定', back: '返回', next: '下一步', prev: '上一步',
@@ -34,6 +35,7 @@ const baseEn = {
     home: 'Home', classes: 'Classes', papers: 'Papers', grading: 'Grading', review: 'Review',
     reports: 'Reports', settings: 'Settings', exams: 'Exams', assignments: 'Assignments', feedback: 'My feedback',
     notifications: 'Notifications',
+    profile: 'Profile',
   },
   common: {
     save: 'Save', cancel: 'Cancel', confirm: 'Confirm', back: 'Back', next: 'Next', prev: 'Previous',

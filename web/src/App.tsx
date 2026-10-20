@@ -7,6 +7,7 @@ import { Loading } from './components/States'
 import { ExamFocusLayout, Shell } from './app/Shell'
 import LoginPage from './app/LoginPage'
 import NotificationsPage from './app/NotificationsPage'
+import ProfilePage from './app/ProfilePage'
 import TeacherHomePage from './teacher/HomePage'
 import ClassesPage from './teacher/ClassesPage'
 import PapersPage from './teacher/PapersPage'
@@ -76,6 +77,7 @@ export default function App() {
           <Route path="feedback" element={<FeedbackListPage />} />
           <Route path="feedback/:offeringId" element={<FeedbackDetailPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
         <Route path="/exams/:offeringId" element={<Shell><ExamEntryPage /></Shell>} />
         <Route path="/exams/:offeringId/live" element={<ExamFocusLayout><ExamLivePage /></ExamFocusLayout>} />
