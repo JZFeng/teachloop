@@ -1,0 +1,63 @@
+# T161：app + worker + postgres；无 Redis。
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER:-teachloop}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_DB: teachloop
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-teachloop} -d teachloop"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    image: teachloop:latest
+    env_file: .env
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/teachloop
+      DB_USER: ${DB_USER:-teachloop}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      PORT: 8010
+    ports:
+      - "8010:8010"
+    volumes:
+      - uploads:/app/uploads
+      - applogs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8010/healthz?deep=1 >/dev/null"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  worker:
+    build: .
+    image: teachloop:latest
+    env_file: .env
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/teachloop
+      DB_USER: ${DB_USER:-teachloop}
+      DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      SPRING_PROFILES_ACTIVE: worker
+      TEACHLOOP_SEED_ENABLED: "false"
+    volumes:
+      - uploads:/app/uploads
+      - applogs:/app/logs
+    depends_on:
+      app:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:
+  applogs:

@@ -1,0 +1,10 @@
+# 独立批改 worker（T161）：同一镜像、无 Web 端口，只跑调度与队列消费。
+# Flyway 由 app 进程负责，worker 不重复迁移。
+spring:
+  main:
+    web-application-type: none
+  flyway:
+    enabled: false
+teachloop:
+  seed:
+    enabled: false

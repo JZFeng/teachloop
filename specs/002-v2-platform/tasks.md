@@ -382,6 +382,12 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T141 前端事件 | 完成 | `POST /api/events` 白名单（page_view/action_click/exam_start/answer_save/submit）批量写 `events-YYYY-MM-DD.jsonl`，非白名单 400，不写业务库；前端新增 `trackEvent`，接入页面浏览、开考、自动保存、交卷、作业提交 |
 | 2026-10-19 | T142–T144 清理与日报 | 完成 | `LogRetentionService` 按天文件 + 90 天清理（注入 Clock，审计不删）；V020 `daily_stats(day,metric,value)`；`DailyStatsService` 读前一天 JSONL 聚合 8 个指标、`ON CONFLICT` 重跑幂等、每日 00:10 UTC；`LogSink` 接口 + FileLogSink 占位 |
 | 2026-10-19 | 可观测回归 | 完成 | `ObservabilityTest` 4 例、`RateLimitTest` 3 例、app 全量 44 例全绿；日志目录已加入 .gitignore |
+| 2026-10-19 | T160 生产镜像 | 完成 | 多阶段 Dockerfile（Maven 构建 → Temurin 21 JRE）；运行镜像内置 `fonts-noto-cjk`、`ffmpeg/ffprobe`、`curl`；非 root 用户；HEALTHCHECK 调 `/healthz?deep=1`；新增深度探针检查数据库与 PDF 中文字体，异常 503 |
+| 2026-10-19 | T161 compose（app + worker + postgres） | 完成 | `docker-compose.prod.yml`：db 健康检查 + 数据卷；app 迁移/Flyway + 健康检查；worker 同镜像 `SPRING_PROFILES_ACTIVE=worker`（无 Web、关闭 Flyway）、共享 uploads/logs 卷；`docker compose config` 通过 |
+| 2026-10-19 | T162 阿里云部署文档 | 完成 | `docs/deploy-aliyun.md`：DNS/安全组、RDS 或容器库、反向代理 100MB、certbot、备份恢复、健康检查、ES 可选、安全清单与未完成项 |
+| 2026-10-19 | T163 .env.example | 完成 | 数据库、DeepSeek Key、seed 关闭、AI client/model、存储（local/OSS）、可观测日志目录、本地 JAVA_HOME 提示 |
+| 2026-10-19 | 部署回归 | 完成 | `make build/test/web-build/check-*` 全部 exit 0；`DeepHealthTest` 覆盖 `/healthz` 与 `?deep=1`；`docker compose config` 通过；`docker build` 成功；镜像 1.82GB；实际起容器连 Postgres 后 `/healthz?deep=1` 返回 `{"status":"UP","db":"UP","pdfFont":"UP"}` |
+
 
 
 

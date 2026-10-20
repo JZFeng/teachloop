@@ -5,7 +5,7 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help status build test test-ai run start-db stop-db clean check-deps check-boundaries web-install web-build web-dev
+.PHONY: help status build test test-ai run start-db stop-db clean check-deps check-boundaries web-install web-build web-dev docker-build compose-up compose-down
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -19,6 +19,8 @@ help:
 	@echo "make clean      清理 target"
 	@echo "make check-deps 依赖方向守卫（T203）"
 	@echo "make status     一眼看清：提交/工作区/测试/进度"
+	@echo "make docker-build 构建生产镜像（含 Noto CJK/ffprobe）"
+	@echo "make compose-up   起 app + worker + postgres（需 .env）"
 
 start-db:
 	@docker start teachloop-pg 2>/dev/null || docker run -d --name teachloop-pg \
@@ -54,6 +56,15 @@ web-build:
 
 web-dev:
 	@cd web && pnpm run dev
+
+docker-build:
+	@docker build -t teachloop:latest .
+
+compose-up:
+	@docker compose -f docker-compose.prod.yml up -d --build
+
+compose-down:
+	@docker compose -f docker-compose.prod.yml down
 
 run: build
 	@DB_URL=$(DB_URL) DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) PORT=$(PORT) \
