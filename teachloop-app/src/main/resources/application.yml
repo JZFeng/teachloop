@@ -52,6 +52,17 @@ teachloop:
   exam:
     # 到点自动交卷的扫描周期：归零后最迟这么久定稿（T199 验收要求 60 秒内）
     scan-ms: 30000
+  observability:
+    # T140–T144：请求日志与前端事件写 JSONL 文件（不入业务库），按天滚动
+    log-dir: ${OBSERVABILITY_LOG_DIR:./logs}
+    # 日志保留天数；到期只删文件，审计永久保留（AC-16.5）
+    retention-days: 90
+    # 超过该耗时的请求计入 slow_requests
+    slow-request-ms: 1000
+    # 日志清理扫描周期（毫秒）
+    cleanup-ms: 3600000
+    # 每日汇总（UTC 00:10）聚合前一天文件；可用 cron 覆盖
+    daily-stats-cron: "0 10 0 * * *"
 
 management:
   endpoints:

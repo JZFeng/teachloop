@@ -377,6 +377,12 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | 提交前端 | 完成 | 作业页支持文本/文件两种提交、附件下载、unreadable 提示；考试页与作业页新 attempt 按钮；`make web-build` 通过 |
 | 2026-10-19 | T130 后端国际化 | 完成 | `MessageSource`（UTF-8、禁用 system locale fallback）+ `Accept-Language`；框架级错误（未知路由 404、参数校验 400、500）的 message 本地化，`code` 保持不变；`I18nErrorTest` 用中英两种语言断言 code 相同、message 不同。业务级 ApiException 的细粒度文案仍走原 message，待后续补 key |
 | 2026-10-19 | 可见性仪表盘 | 完成 | `docs/PROGRESS.md` + `make status`（最近提交/工作区/最近测试/当前与剩余）；每批结束更新并提交，长命令日志落 `.dsh/logs/` |
+| 2026-10-19 | T037 限流 | 完成 | V019 `rate_limits`（key/action/window_start/count，唯一键）；`RateLimiter` 单条原子 upsert；过滤器顺序 SessionAuthFilter → RateLimit → 授权；登录按 IP、上传/派发/事件按用户；429 + `RATE_LIMITED` + `Retry-After` + `X-RateLimit-Limit`；默认 登录 30/60s、上传 20/60s、派发 20/60s、事件 120/60s，可用 `teachloop.rate-limit.<action>.*` 覆盖；`RateLimitTest` 3 例全绿（含跨窗恢复、匿名 401 不占配额） |
+| 2026-10-19 | T140 请求日志 | 完成 | `RequestLoggingFilter`（order -90）写 `requests-YYYY-MM-DD.jsonl`：ts/requestId/userId/method/route/status/durationMs；响应回写 `X-Request-Id`；**不含正文/query/头**；写失败不影响请求 |
+| 2026-10-19 | T141 前端事件 | 完成 | `POST /api/events` 白名单（page_view/action_click/exam_start/answer_save/submit）批量写 `events-YYYY-MM-DD.jsonl`，非白名单 400，不写业务库；前端新增 `trackEvent`，接入页面浏览、开考、自动保存、交卷、作业提交 |
+| 2026-10-19 | T142–T144 清理与日报 | 完成 | `LogRetentionService` 按天文件 + 90 天清理（注入 Clock，审计不删）；V020 `daily_stats(day,metric,value)`；`DailyStatsService` 读前一天 JSONL 聚合 8 个指标、`ON CONFLICT` 重跑幂等、每日 00:10 UTC；`LogSink` 接口 + FileLogSink 占位 |
+| 2026-10-19 | 可观测回归 | 完成 | `ObservabilityTest` 4 例、`RateLimitTest` 3 例、app 全量 44 例全绿；日志目录已加入 .gitignore |
+
 
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。

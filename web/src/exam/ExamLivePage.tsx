@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError, fmtDuration } from '../api/client'
+import { trackEvent } from '../api/events'
 import type {
   AnswerSaveResponse,
   ExamPaper as ExamPaperView,
@@ -223,6 +224,7 @@ export default function ExamLivePage() {
         answers: buildAnswerList(paper.items, nextAnswers),
       })
       setSavedAt(response.serverTime)
+      trackEvent('answer_save', { offeringId, answered: Object.keys(nextAnswers).length })
       if (typeof response.remainingSeconds === 'number') setRemaining(response.remainingSeconds)
       writeDraft({
         offeringId,
@@ -343,6 +345,7 @@ export default function ExamLivePage() {
         answers: buildAnswerList(paper.items, answers),
       })
       setSubmitResult(response)
+      trackEvent('submit', { offeringId })
       setSubmitted(true)
       setLocked(true)
       setDialogOpen(false)

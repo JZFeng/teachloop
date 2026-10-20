@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError, fmtDateTime } from '../api/client'
+import { trackEvent } from '../api/events'
 import type {
   AnswerSaveResponse,
   AttemptView,
@@ -151,6 +152,7 @@ export default function AssignmentPage() {
         answers: [],
       })
       setSubmitResult(response)
+      trackEvent('submit', { offeringId, mode: 'text' })
       clearLocalDraft(offeringId)
       await load()
     } catch (submitFailure) {
@@ -180,6 +182,7 @@ export default function AssignmentPage() {
         throw new Error(payload?.detail || payload?.message || `HTTP ${res.status}`)
       }
       setSubmitResult(payload as SubmitResponse)
+      trackEvent('submit', { offeringId, mode: 'file' })
       setFile(null)
       await load()
     } catch (uploadError) {

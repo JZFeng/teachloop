@@ -1,4 +1,6 @@
-import { Navigate, Outlet, Route, Routes } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { trackEvent } from './api/events'
 import { useAuth } from './api/auth'
 import { Loading } from './components/States'
 import { ExamFocusLayout, Shell } from './app/Shell'
@@ -43,6 +45,12 @@ function ShellLayout() {
 
 export default function App() {
   const { me } = useAuth()
+  const location = useLocation()
+
+  useEffect(() => {
+    trackEvent('page_view', { route: location.pathname })
+  }, [location.pathname])
+
   return (
     <Routes>
       <Route path="/login" element={me ? <Navigate to="/" replace /> : <LoginPage />} />

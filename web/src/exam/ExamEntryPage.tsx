@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, fmtDateTime, fmtDuration } from '../api/client'
+import { trackEvent } from '../api/events'
 import type { AttemptView, EntryView, MyAttemptsView, SessionView } from '../api/types'
 import { ErrorState, Loading, PageHeader } from '../components/States'
 import './exam.css'
@@ -54,6 +55,7 @@ export default function ExamEntryPage() {
         ? `/api/offerings/${offeringId}/attempts`
         : `/api/offerings/${offeringId}/start`
       await api.post<SessionView>(path)
+      trackEvent('exam_start', { offeringId })
       navigate(`/exams/${offeringId}/live`)
     } catch (startFailure) {
       setStartError((startFailure as Error).message)
