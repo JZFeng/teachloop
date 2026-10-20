@@ -1,17 +1,17 @@
 # TeachLoop 进度仪表盘
 
 > 每个批次结束时由 Lead 更新；`make status` 会打印下面的「当前」与「剩余」。
-> 最近一次更新：2026-10-19（停止后重建仪表盘）
+> 最近一次更新：2026-10-19（恢复执行 T037/T140）
 
 ## 当前
 
-- 正在做：无（用户要求先停；T130 已完成待提交，T037/T140 为被中断的 WIP）
+- 正在做：T037 限流、T140–T144 可观测（从被中断的 WIP 恢复，teammates 正在复验）
 - 分支 / HEAD：`main`，最后提交 `3271b01`
 - 未提交 WIP：
   - T130 后端 i18n：`I18nConfig`、`GlobalExceptionHandler`、`messages*.properties`、`I18nErrorTest`
   - T037 限流：`identity/rate/`、`V019`、`SecurityConfig`、`RateLimitTest`
   - T140–T144 可观测：`observability/log/`、`service/`、`EventEndpoint`、`DailyStat*`、`V020`、`ObservabilityTest`
-- 最近验证：T130 的 `make build` + `I18nErrorTest` 通过；RateLimitTest 3 例、ObservabilityTest 4 例的报告也显示通过，但中断后的工作区尚未整体回归
+- 最近验证：T130 已提交（`1fe8bf0`），`make build` + `I18nErrorTest` 通过；RateLimitTest 3 例、ObservabilityTest 4 例报告通过，正在复验
 
 ## 下一步
 
