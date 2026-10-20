@@ -1,0 +1,283 @@
+import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
+import { api } from '../api/client'
+import type { ClassView, OfferingView } from '../api/types'
+import { DataTable } from '../components/DataTable'
+import type { Column } from '../components/DataTable'
+import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
+import { useListState } from '../components/useListState'
+import {
+  fmtNum,
+  fmtRate,
+  loadAggregates,
+  PageSizePicker,
+  Tag,
+  TeacherPage,
+  useApiData,
+} from './common'
+import type { OfferingAggregate } from './common'
+
+interface ReportsData {
+  offerings: OfferingView[]
+  classes: ClassView[]
+  aggregates: Record<string, OfferingAggregate>
+}
+
+interface ReportRow {
+  key: string
+  offeringId: string
+  offeringTitle: string
+  dueAt: string
+  classId: string
+  className: string
+  expected: number
+  submitted: number
+  onTime: number
+  late: number
+  rejected: number
+  onTimeRate: number | null
+  averageScore: number | null
+}
+
+/**
+ * T192 报表：先用已接入的 /class-summary 做「按作业 × 班级」汇总。
+ * Top N 错题、跨班跨时间段聚合、正确率分布、导出均无后端接口，
+ * 页面上明确标注「未接入」，不编造任何数字。
+ */
+export default function ReportsPage() {
+  const { t } = useTranslation('translation')
+  const [params, setParams] = useSearchParams()
+  const { sort, page, pageSize, setSort, setPage } = useListState(
+    { key: 'dueAt', dir: 'desc' },
+    20,
+  )
+
+  const { data, loading, error, reload } = useApiData<ReportsData>(async () => {
+    const [offerings, classes] = await Promise.all([
+      api.get<OfferingView[]>('/api/offerings'),
+      api.get<ClassView[]>('/api/classes'),
+    ])
+    return { offerings, classes, aggregates: await loadAggregates(offerings) }
+  }, [])
+
+  const offerings = data?.offerings ?? []
+  const classes = data?.classes ?? []
+  const aggregates = data?.aggregates ?? {}
+  const chosenOffering = params.get('offering') ?? 'all'
+  const chosenClasses = new Set((params.get('classes') ?? '').split(',').filter(Boolean))
+
+  const rows: ReportRow[] = offerings.flatMap((offering) => {
+    const agg = aggregates[offering.id]
+    if (!agg) return []
+    return agg.summary.map((summary) => ({
+      key: `${offering.id}-${summary.classId}`,
+      offeringId: offering.id,
+      offeringTitle: offering.paperTitle,
+      dueAt: offering.dueAt,
+      classId: summary.classId,
+      className: classes.find((c) => c.id === summary.classId)?.name ?? summary.classId,
+      expected: Number(summary.expected),
+      submitted: Number(summary.submitted),
+      onTime: Number(summary.onTime),
+      late: Number(summary.late),
+      rejected: Number(summary.rejected),
+      onTimeRate: summary.onTimeRate === null ? null : Number(summary.onTimeRate),
+      averageScore: summary.averageScore === null ? null : Number(summary.averageScore),
+    }))
+  })
+
+  const filtered = rows.filter((row) => {
+    if (chosenOffering !== 'all' && row.offeringId !== chosenOffering) return false
+    if (chosenClasses.size > 0 && !chosenClasses.has(row.classId)) return false
+    return true
+  })
+
+  const setOffering = (value: string) => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (value === 'all') next.delete('offering')
+      else next.set('offering', value)
+      next.delete('page')
+      return next
+    })
+  }
+
+  const toggleClass = (classId: string) => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev)
+      const chosen = new Set((next.get('classes') ?? '').split(',').filter(Boolean))
+      if (chosen.has(classId)) chosen.delete(classId)
+      else chosen.add(classId)
+      if (chosen.size > 0) next.set('classes', [...chosen].join(','))
+      else next.delete('classes')
+      next.delete('page')
+      return next
+    })
+  }
+
+  const columns: Column<ReportRow>[] = [
+    {
+      key: 'offeringTitle',
+      title: t('teacher.reports.colOffering'),
+      value: (row) => row.offeringTitle,
+      sortable: true,
+      render: (row) => <b>{row.offeringTitle}</b>,
+    },
+    {
+      key: 'className',
+      title: t('teacher.reports.colClass'),
+      value: (row) => row.className,
+      sortable: true,
+      render: (row) => row.className,
+    },
+    {
+      key: 'dueAt',
+      title: t('teacher.reports.colDue'),
+      value: (row) => row.dueAt,
+      sortable: true,
+      render: (row) => new Date(row.dueAt).toLocaleDateString(),
+    },
+    {
+      key: 'expected',
+      title: t('teacher.reports.colExpected'),
+      value: (row) => row.expected,
+      sortable: true,
+      render: (row) => <span className="mono">{row.expected}</span>,
+    },
+    {
+      key: 'submitted',
+      title: t('teacher.reports.colSubmitted'),
+      value: (row) => row.submitted,
+      sortable: true,
+      render: (row) => (
+        <span className="mono">
+          {row.submitted} / {row.expected}
+        </span>
+      ),
+    },
+    {
+      key: 'late',
+      title: t('teacher.reports.colLate'),
+      value: (row) => row.late,
+      sortable: true,
+      render: (row) =>
+        row.late > 0 ? <Tag tone="amber">{row.late}</Tag> : <span className="mono">0</span>,
+    },
+    {
+      key: 'onTimeRate',
+      title: t('teacher.reports.colRate'),
+      value: (row) => (row.onTimeRate === null ? -1 : row.onTimeRate),
+      sortable: true,
+      render: (row) => <span className="mono">{fmtRate(row.onTimeRate)}</span>,
+    },
+    {
+      key: 'averageScore',
+      title: t('teacher.reports.colAverage'),
+      value: (row) => (row.averageScore === null ? -1 : row.averageScore),
+      sortable: true,
+      render: (row) =>
+        row.averageScore === null ? (
+          <Tag tone="gray">{t('teacher.summary.notPublished')}</Tag>
+        ) : (
+          <b className="mono">{fmtNum(row.averageScore)}</b>
+        ),
+    },
+  ]
+
+  return (
+    <TeacherPage>
+      <PageHeader title={t('teacher.reports.title')} sub={t('teacher.reports.sub')} />
+
+      {loading && <Loading label={t('teacher.common.loading')} />}
+      {error && <ErrorState error={error} onRetry={reload} />}
+
+      {data && (
+        <>
+          <div className="card">
+            <h2>{t('teacher.reports.filters')}</h2>
+            <div className="filters">
+              <label className="f">
+                <b>{t('teacher.reports.offering')}</b>
+                <select value={chosenOffering} onChange={(e) => setOffering(e.target.value)}>
+                  <option value="all">{t('teacher.reports.allOfferings')}</option>
+                  {offerings.map((offering) => (
+                    <option key={offering.id} value={offering.id}>
+                      {offering.paperTitle}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <b className="small muted">{t('teacher.reports.classes')}</b>
+              <div className="chips" style={{ marginTop: 7, marginBottom: 0 }}>
+                {classes.map((c) => (
+                  <button
+                    key={c.id}
+                    type="button"
+                    className={`chip${chosenClasses.has(c.id) ? ' on' : ''}`}
+                    onClick={() => toggleClass(c.id)}
+                  >
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+              <div className="hint">{t('teacher.reports.classesHint')}</div>
+            </div>
+            <div className="hint">{t('teacher.reports.filterHint')}</div>
+          </div>
+
+          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
+            <h2 style={{ margin: 0 }}>
+              {t('teacher.reports.tableTitle')}{' '}
+              <small className="muted">
+                {t('teacher.reports.tableCount', { n: filtered.length })}
+              </small>
+            </h2>
+            <PageSizePicker pageSize={pageSize} />
+          </div>
+
+          {rows.length === 0 ? (
+            <Empty>{t('teacher.reports.empty')}</Empty>
+          ) : (
+            <DataTable
+              rows={filtered}
+              columns={columns}
+              rowKey={(row) => row.key}
+              sort={sort}
+              page={page}
+              pageSize={pageSize}
+              onSortChange={setSort}
+              onPageChange={setPage}
+              empty={t('teacher.reports.filteredEmpty')}
+            />
+          )}
+
+          <div className="card">
+            <h2>
+              {t('teacher.reports.topTitle')} <small>{t('teacher.reports.topSub')}</small>
+            </h2>
+            <div className="inline-note">{t('teacher.reports.topNotConnected')}</div>
+            <div className="row">
+              <button type="button" className="btn" disabled title={t('teacher.common.notConnected')}>
+                {t('teacher.reports.topQuery')}
+              </button>
+              <Tag tone="amber">{t('teacher.common.notConnected')}</Tag>
+            </div>
+          </div>
+
+          <div className="card">
+            <h2>{t('teacher.reports.moreTitle')}</h2>
+            <ul style={{ margin: '0 0 10px', paddingLeft: 20, color: 'var(--muted)' }}>
+              <li>{t('teacher.reports.moreAccuracy')}</li>
+              <li>{t('teacher.reports.moreDistribution')}</li>
+              <li>{t('teacher.reports.moreTrend')}</li>
+              <li>{t('teacher.reports.moreExport')}</li>
+            </ul>
+            <Tag tone="amber">{t('teacher.common.notConnected')}</Tag>
+          </div>
+        </>
+      )}
+    </TeacherPage>
+  )
+}

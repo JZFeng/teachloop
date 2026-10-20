@@ -64,3 +64,7 @@ tools/
 # 样例提交与评语：来源未确认（可能是真实同学/学生的作业），先留在本地不提交
 # 确认后若要纳入，删除下面这一行
 docs/rubrics/samples/
+
+# 前端本地依赖缓存
+.pnpm-store/
+web/.npm-cache/

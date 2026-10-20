@@ -1,0 +1,250 @@
+/*
+ * 教师端页面样式。mockup.css 抽出的设计令牌与基础组件（card/btn/tag/row/f/hint）
+ * 已覆盖大部分需求；这里只补 mockup 内联样式里尚未抽出的教师端展示类，
+ * 全部限定在 .teacher-page 下，避免影响学习端与考试端。
+ */
+.teacher-page .stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(148px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.teacher-page .stat {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  cursor: pointer;
+  transition: border-color .14s, transform .14s, box-shadow .14s;
+  box-shadow: var(--shadow);
+}
+.teacher-page .stat:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+.teacher-page .stat:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.teacher-page .stat .n {
+  font-family: var(--font-head);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -.03em;
+  line-height: 1.15;
+}
+.teacher-page .stat .l {
+  font-size: 12px;
+  color: var(--muted);
+  margin-top: 3px;
+}
+.teacher-page .stat .sub {
+  font-size: 11px;
+  color: var(--muted-2);
+  margin-top: 4px;
+}
+.teacher-page .stat.act {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-weak);
+}
+.teacher-page .stat.flat {
+  cursor: default;
+}
+
+.teacher-page .chips {
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.teacher-page .chip {
+  border: 1px solid var(--line);
+  background: var(--panel);
+  border-radius: 999px;
+  padding: 5px 12px;
+  font-size: 12.5px;
+  cursor: pointer;
+  color: var(--muted);
+}
+.teacher-page .chip.on {
+  border-color: var(--accent);
+  background: var(--accent-weak);
+  color: var(--accent);
+  font-weight: 650;
+}
+
+.teacher-page .breadcrumb {
+  font-size: 12.5px;
+  color: var(--muted-2);
+  margin-bottom: 10px;
+}
+.teacher-page .breadcrumb a {
+  color: var(--muted-2);
+  text-decoration: none;
+}
+.teacher-page .breadcrumb a:hover {
+  color: var(--accent);
+}
+.teacher-page .breadcrumb b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.teacher-page .stepper {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+.teacher-page .stepper .st {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 12.5px;
+  color: var(--muted);
+  background: var(--panel);
+}
+.teacher-page .stepper .st b {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--line-2);
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+}
+.teacher-page .stepper .st.on {
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: 650;
+}
+.teacher-page .stepper .st.on b {
+  background: var(--accent);
+  color: var(--on-accent);
+}
+.teacher-page .stepper .st.done b {
+  background: var(--green);
+  color: #fff;
+}
+
+.teacher-page .form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 900px) {
+  .teacher-page .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.teacher-page .inline-form {
+  display: flex;
+  gap: 8px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  padding: 12px 14px;
+  border: 1px dashed var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--panel-2);
+  margin-bottom: 12px;
+}
+.teacher-page .inline-form .f {
+  margin-bottom: 0;
+}
+.teacher-page .inline-form .f b {
+  font-size: 11.5px;
+}
+
+.teacher-page .wizard-list {
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.teacher-page .wizard-list table {
+  margin: 0;
+}
+
+.teacher-page .switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  cursor: pointer;
+  font-size: 13px;
+  user-select: none;
+  border: 0;
+  background: none;
+  color: inherit;
+  font-family: inherit;
+  padding: 0;
+}
+.teacher-page .switch i {
+  width: 38px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--line);
+  position: relative;
+  transition: .18s;
+  flex: 0 0 auto;
+}
+.teacher-page .switch i::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--panel);
+  transition: .18s;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .2);
+}
+.teacher-page .switch.on i {
+  background: var(--accent);
+}
+.teacher-page .switch.on i::after {
+  left: 18px;
+}
+
+.teacher-page .member-ids {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.teacher-page .member-ids code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  padding: 2px 6px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--panel-2);
+}
+
+.teacher-page .stat-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* datetime-local 不在 mockup.css 的 input 选择器里，这里补上同一套外观。 */
+.teacher-page input[type="datetime-local"] {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  font: inherit;
+  background: var(--panel);
+  color: var(--text);
+  transition: border-color .12s, box-shadow .12s;
+}
+.teacher-page input[type="datetime-local"]:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-weak);
+}

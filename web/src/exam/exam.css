@@ -1,0 +1,212 @@
+/* 考试 / 作业端样式：只补 app.css 未覆盖的作答控件、目录树与弹层。
+   颜色一律用 styles/mockup.css 的令牌（--done / --amber / --accent / --line…），
+   不写死色值；四通道（未答 / 已答 / 焦点 / 标记）分别用形状 + 颜色表达。 */
+
+/* ---------- 专注模式外框 ---------- */
+.exam-focus-page { min-height: 100vh; background: var(--bg); color: var(--text); padding: 24px 20px 64px; }
+.exam-focus-card { max-width: 860px; margin: 0 auto; }
+.exam-bar {
+  position: sticky; top: 0; z-index: 30;
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 9px 16px; background: var(--panel); border-bottom: 1px solid var(--line);
+  box-shadow: var(--shadow);
+}
+.exam-bar-title { font-weight: 700; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 34vw; }
+.exam-bar .spacer { flex: 1 1 auto; }
+.exam-tree-toggle { display: none; }
+.exam-live-wrap { max-width: 1180px; margin: 0 auto; padding: 20px; }
+.exam-paper { min-width: 0; max-width: 830px; width: 100%; margin: 0 auto; }
+.exam-part { margin-bottom: 8px; }
+.exam-part-title {
+  font-size: 12.5px; letter-spacing: .06em; color: var(--muted);
+  border-bottom: 1px solid var(--line-2); padding-bottom: 6px; margin: 26px 0 4px; font-weight: 700;
+}
+.exam-part:first-child .exam-part-title { margin-top: 0; }
+.exam-part-title .part-points { font-weight: 400; letter-spacing: 0; margin-left: 8px; color: var(--muted-2); }
+
+/* ---------- 题目本体 ---------- */
+.exam-question { border-top: 1px dashed var(--line-2); padding: 14px 0; scroll-margin-top: 76px; }
+.exam-question:first-of-type { border-top: 0; }
+.exam-question.current {
+  border-left: 3px solid var(--accent); padding-left: 12px; margin-left: -15px;
+  background: color-mix(in srgb, var(--accent-weak) 34%, transparent); border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+.exam-question.marked { box-shadow: inset 3px 0 0 var(--amber); }
+.q-head { display: flex; gap: 10px; align-items: flex-start; }
+.q-number {
+  flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%;
+  display: grid; place-items: center; font-size: 12.5px; font-weight: 700;
+  border: 1.5px dashed var(--line); color: var(--muted-2); background: var(--panel);
+  font-variant-numeric: tabular-nums;
+}
+.exam-question.answered .q-number { border-style: solid; border-color: var(--done); background: var(--done); color: var(--on-done); }
+.exam-question.current .q-number { outline: 2px solid var(--accent); outline-offset: 1px; }
+.exam-question.marked .q-number { border-color: var(--amber); }
+.q-body { flex: 1; min-width: 0; }
+.exam-stem { font-weight: 600; margin: 3px 0 8px; line-height: 1.8; white-space: pre-wrap; word-break: break-word; }
+.q-meta { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
+.q-foot { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 10px; }
+.q-mark-btn { border-color: var(--line); color: var(--muted); }
+.q-mark-btn.on { border-color: var(--amber); color: var(--amber); background: var(--amber-weak); font-weight: 650; }
+
+/* ---------- 选项：未答=虚线空心；已答=实线 + 蓝色实心徽章（AC-21.14） ---------- */
+.qopts { display: flex; flex-wrap: wrap; gap: 8px; margin: 2px 0 0; }
+.qopts.stack { flex-direction: column; align-items: stretch; }
+.qopt {
+  display: inline-flex; align-items: flex-start; gap: 8px;
+  border: 1px dashed var(--line); background: var(--panel); color: var(--text);
+  border-radius: 8px; padding: 7px 13px; font: inherit; font-size: 13.5px; line-height: 1.6;
+  cursor: pointer; text-align: left; transition: border-color .12s, background .12s;
+}
+.qopt:hover:not(:disabled) { border-color: var(--accent); border-style: solid; }
+.qopt:disabled { cursor: not-allowed; opacity: .72; }
+.qopt b {
+  flex: 0 0 20px; width: 20px; height: 20px; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--panel); color: var(--muted-2);
+  display: grid; place-items: center; font-size: 11px; font-weight: 700;
+}
+.qopt.cb b { border-radius: 4px; }
+.qopt.on {
+  border-style: solid; border-color: var(--done-line); background: var(--done-bg);
+  color: var(--text); font-weight: 600;
+}
+.qopt.on b { background: var(--done); border-color: var(--done); color: var(--on-done); }
+.qopt.cb.on b::after {
+  content: ''; display: block; width: 4px; height: 8px; margin-top: -2px;
+  border: 2px solid var(--on-done); border-top: 0; border-left: 0; transform: rotate(42deg);
+}
+.qopt.cb.on b { font-size: 0; }
+
+/* ---------- 填空 / 写作 ---------- */
+.blank-input {
+  border: 1px solid var(--line); border-bottom: 2px dashed var(--line);
+  background: transparent; border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  padding: 6px 10px; font: inherit; font-size: 14px; color: var(--text);
+  min-width: 220px; max-width: 100%;
+}
+.blank-input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.blank-input.filled { background: var(--done-bg); border-bottom-style: solid; border-bottom-color: var(--done); font-weight: 600; }
+.blank-input:disabled { opacity: .72; cursor: not-allowed; }
+.essay-wrap { margin-top: 6px; }
+.writearea {
+  width: 100%; border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 12px; font: inherit; font-size: 14px; line-height: 1.85; resize: vertical;
+  background: var(--panel); color: var(--text); min-height: 0; display: block;
+}
+.writearea:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.writearea.filled { border-color: var(--done-line); }
+.writearea:disabled { opacity: .72; cursor: not-allowed; }
+.wcount { display: flex; gap: 6px; align-items: center; margin-top: 6px; font-size: 12px; color: var(--muted); }
+.wcount .wn { font-weight: 700; color: var(--text); font-variant-numeric: tabular-nums; }
+.wcount.ok .wn { color: var(--green); }
+.wcount.over .wn { color: var(--red); }
+
+/* ---------- 目录树 ---------- */
+.exam-tree { border-right: 1px solid var(--line-2); padding-right: 8px; overflow: visible; max-height: none; }
+.tree-head { padding: 2px 6px 10px; border-bottom: 1px solid var(--line-2); margin-bottom: 8px; }
+.tree-head b { display: block; font-size: 13px; line-height: 1.4; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tree-head .prog { font-size: 11.5px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
+.tree-scroll { max-height: calc(100vh - 150px); overflow: auto; padding-bottom: 24px; }
+.tree-part-wrap { margin-bottom: 2px; }
+.tree-part {
+  width: 100%; display: flex; align-items: center; gap: 6px; text-align: left;
+  border: 1px solid transparent; background: none; color: var(--muted);
+  font: inherit; font-size: 12.5px; font-weight: 650; padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer;
+}
+.tree-part:hover { background: var(--panel-2); color: var(--text); }
+.tree-part.done { color: var(--text); }
+.tree-part.done .tree-part-count { color: var(--done); font-weight: 700; }
+.tree-part-count { margin-left: auto; font-size: 11px; color: var(--muted-2); font-variant-numeric: tabular-nums; }
+.tree-caret { color: var(--muted-2); font-size: 10px; width: 10px; }
+.tree-kids { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; padding: 3px 2px 8px; }
+.tree-item { justify-content: center; gap: 4px; padding: 4px 2px; font-variant-numeric: tabular-nums; position: relative; }
+.tree-item.marked { border-color: var(--amber); background: var(--amber-weak); color: var(--amber); }
+.tree-item.marked.done .dot { background: var(--done); border-color: var(--done); }
+.tree-item.marked::after {
+  content: ''; position: absolute; top: 2px; right: 3px; width: 4px; height: 4px;
+  border-radius: 50%; background: var(--amber);
+}
+/* 已答 = 蓝色实心；当前 = 主题色描边；标记 = 琥珀色，四通道互不复用 */
+.exam-tree .tree-item.done { background: var(--done); border-color: var(--done); color: var(--on-done); font-weight: 700; }
+.exam-tree .tree-item.done.marked { border-color: var(--amber); }
+.exam-tree .tree-item.current { background: var(--done); color: var(--on-done); outline: 2px solid var(--accent); outline-offset: 1px; }
+.exam-tree .tree-item.current:not(.done) { background: var(--accent-weak); color: var(--accent); outline: 2px solid var(--accent); }
+.exam-tree .dot { display: inline-block; flex: 0 0 6px; width: 6px; height: 6px; }
+.exam-tree .tree-item.done .dot { background: var(--on-done); border-color: var(--on-done); }
+.exam-tree .tree-item.marked .dot { background: var(--amber); border-color: var(--amber); }
+.tree-item.done { font-weight: 700; }
+.exam-drawer-backdrop { display: none; }
+
+/* ---------- 顶部计时 / 保存状态 ---------- */
+.remaining { padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2); color: var(--text); }
+.remaining.warn { color: var(--red); border-color: var(--red); background: var(--red-weak); }
+.remaining.over { color: var(--red); border-color: var(--red); background: var(--red-weak); }
+.save-state { font-size: 12px; color: var(--muted-2); }
+.exam-banner {
+  margin: 12px 0; padding: 10px 14px; border-radius: var(--radius-sm);
+  font-size: 13px; background: var(--amber-weak); color: var(--amber); border: 1px solid var(--amber);
+}
+.exam-banner.danger { background: var(--red-weak); color: var(--red); border-color: var(--red); }
+.exam-banner.info { background: var(--accent-weak); color: var(--accent); border-color: var(--accent); }
+.exam-submit-bar { display: flex; justify-content: flex-end; gap: 10px; padding: 24px 0 8px; }
+
+/* ---------- 弹层 ---------- */
+.exam-modal {
+  position: fixed; inset: 0; z-index: 80; padding: 24px;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(15, 20, 28, .34);
+}
+.exam-modal-box {
+  width: min(600px, 100%); max-height: 80vh; overflow: auto;
+  background: var(--panel); color: var(--text);
+  border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-lg);
+  padding: 20px 22px;
+}
+.exam-modal-box h3 { margin: 0 0 4px; font-size: 16px; }
+.exam-modal-box p { margin: 4px 0 0; }
+.mgroups { margin-top: 12px; }
+.mgroup-title { font-size: 12px; font-weight: 650; color: var(--muted-2); margin: 14px 0 6px; letter-spacing: .04em; }
+.mchips { display: flex; flex-wrap: wrap; gap: 6px; }
+.mchip {
+  min-width: 34px; height: 28px; border: 1px solid var(--line); background: var(--panel);
+  border-radius: 7px; font: inherit; font-size: 12.5px; color: var(--muted); cursor: pointer;
+  padding: 0 7px; font-variant-numeric: tabular-nums;
+}
+.mchip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
+.mchip.mk { border-color: var(--amber); color: var(--amber); background: var(--amber-weak); }
+.mfoot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+
+/* ---------- 交卷结果 ---------- */
+.exam-result { max-width: 760px; margin: 0 auto; }
+.exam-result-score { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.score-big { font-size: 36px; font-weight: 700; letter-spacing: -.035em; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.score-big small { font-size: 14px; font-weight: 400; color: var(--muted); }
+.result-facts { min-width: 210px; }
+.result-facts .kv { padding: 4px 0; border-bottom: 0; }
+.result-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 18px; }
+
+/* ---------- 作业页 ---------- */
+.assignment-page { max-width: 900px; margin: 0 auto; }
+.assignment-textarea { min-height: 220px; }
+.rubric-row { border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 13px 14px; margin-bottom: 10px; background: var(--panel); }
+.rubric-row p { margin: 0; color: var(--muted); font-size: 12.5px; }
+.assign-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+@media (max-width: 1023px) {
+  .exam-tree-toggle { display: inline-flex; }
+  .exam-tree { padding-right: 0; }
+  .tree-scroll { max-height: calc(100vh - 96px); }
+  .exam-drawer-backdrop {
+    display: block; position: fixed; inset: 0; z-index: 35;
+    background: rgba(15, 20, 28, .34);
+  }
+  .exam-live-wrap { padding: 12px 14px 72px; }
+  .exam-bar { padding: 8px 12px; }
+  .exam-bar-title { max-width: 46vw; font-size: 13px; }
+  .exam-question.current { margin-left: -11px; padding-left: 8px; }
+}
+@media (max-width: 640px) {
+  .exam-bar-title { display: none; }
+  .qopts { flex-direction: column; align-items: stretch; }
+  .tree-kids { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}

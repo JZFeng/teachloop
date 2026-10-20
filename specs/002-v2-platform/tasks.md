@@ -340,5 +340,11 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T204 跨模块越界检查 | 完成 | 新增 `scripts/check-boundaries.py` 并接入 `make test`：迁移表归属（23 张表）、跨模块外键清单（13 条）、业务模块 import 越界、端口签名。故意让 grading 迁移 `alter table papers` → 退出码 1；把 `GradingOutcome` 参数换成 `@Entity` → 退出码 1；还原后全绿 |
 | 2026-10-19 | T091–T094 批改调度闭环 | 完成 | 僵尸清扫（启动 + 2 分钟，阈值 5 分钟、注入 Clock）；到期派发用 `offerings.grading_dispatched_at` 条件更新互斥（不引入 ShedLock），宽限期按 `due_at + grace_hours`；峰谷 8 个边界时刻 + 周末 + 开关；progress 改单条聚合 SQL。`GradingDispatchTest` 7 个用例全绿，`FlowIntegrationTest` 改为「交卷 QUEUED → 手动派发 → worker」 |
 | 2026-10-19 | T080–T083 真实 AI 判分 | 完成（结构化 rubric 待补） | Prompt 分层（system=角色+rubric+输出契约，user=客观指标+正文），单测断言无标准答案/客观分/学生身份；DeepSeek OpenAI 兼容调用（`LlmClient` 可替换；Spring AI 因沙箱无法写 `~/.m2` 而回退，已记录）；输出校验失败重试一次；`ai_calls` 留痕。grading 模块 19 个单测全绿，真机测试无 Key 自动跳过 |
+| 2026-10-19 | T008 + T131 前端工程与国际化 | 完成 | 新建 `web/`（Vite 8 + React 19 + TS 7 + i18next + react-router 7）；`make web-build` 通过；中英切换与 localStorage 持久化；ApiError 统一错误模型 |
+| 2026-10-19 | T180/T181/T183/T184 教师端框架 | 完成 | 首页跨班聚合（未选班级即可看全部待办）、批改总览/详情、列表排序分页写 URL、行内审计抽屉（无一级「审计」导航）。浏览器实测截图：`.docs/screenshots/teacher-home.png`、`grading-detail.png`、`review.png` |
+| 2026-10-19 | T182/T185/T191/T192 教师端流程 | 完成（部分依赖未接入） | 立即派发（runId/firstDispatch/enqueued 回执）、行内拒收理由、审计；5 步建卷向导（localStorage 草稿、全程不选班级）；班级汇总按班分列；报表页按作业×班级汇总。单份重试、导出、Top N 错题、正确率分布**未接入**并在界面可见标注 |
+| 2026-10-19 | T187–T189/T195/T197/T200 考试端 | 完成 | 考前须知、专注模式（隐藏全局导航）、两级目录树（已答/未答/已标记、部分级 `已答 x/y`）、IntersectionObserver 滚动联动、断点续答与提交前未答检查弹层、写作框按字数与容器宽度计算高度、服务端计时与到点锁定。浏览器实测截图：`.docs/screenshots/exam-entry.png`、`exam-live.png`、`exam-submit-check.png`、`exam-result.png` |
+| 2026-10-19 | T190/T193/T194 学生端 | 完成（部分依赖未接入） | 作业提交（草稿/提交/拒收后重交）、反馈列表表格/卡片切换且切换被记住、反馈详情固定顺序。错题与解析、班级概览依赖尚未实现的 T110/T111，界面明确显示「未接入」，未编造 |
+| 2026-10-19 | 浏览器联调（教师 + 学生） | 完成 | 起 8010 后端 + 5173 前端，经 API 种入 1 份卷、1 个班、1 场考试、1 次作业；实测登录 → 教师首页 → 批改详情 → 立即派发 → 复核通过 → 学生考试 → 作答 → 未答检查 → 交卷。1280×813，截图在 `.docs/screenshots/` |
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。
