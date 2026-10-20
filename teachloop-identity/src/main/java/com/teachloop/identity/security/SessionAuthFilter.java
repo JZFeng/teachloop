@@ -32,13 +32,22 @@ public class SessionAuthFilter extends OncePerRequestFilter {
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
                                     FilterChain chain) throws ServletException, IOException {
         HttpSession session = request.getSession(false);
+        boolean authenticated = false;
         if (session != null) {
             Object uid = session.getAttribute(SESSION_UID);
             if (uid instanceof String s && !s.isBlank()) {
-                users.findById(UUID.fromString(s))
-                        .filter(u -> u.getStatus() == UserStatus.ACTIVE)
-                        .ifPresent(u -> authenticate(request, u));
+                var active = users.findById(UUID.fromString(s))
+                        .filter(u -> u.getStatus() == UserStatus.ACTIVE);
+                if (active.isPresent()) {
+                    authenticate(request, active.get());
+                    authenticated = true;
+                }
             }
+        }
+        // 账号被停用/删除后，Spring Security 可能已从会话恢复旧认证；这里必须清掉，T036 才能立即踢下线。
+        if (!authenticated) {
+            SecurityContextHolder.clearContext();
+            request.removeAttribute("currentUser");
         }
         chain.doFilter(request, response);
     }

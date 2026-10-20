@@ -45,7 +45,8 @@ public class SecurityConfig {
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 .sessionFixation(f -> f.none()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/healthz", "/actuator/health", "/actuator/health/**", "/api/auth/login").permitAll()
+                .requestMatchers("/healthz", "/actuator/health", "/actuator/health/**",
+                        "/api/auth/login", "/api/auth/wechat", "/api/auth/teacher-invite").permitAll()
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e.authenticationEntryPoint(new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
             .addFilterBefore(new SessionAuthFilter(users), UsernamePasswordAuthenticationFilter.class)

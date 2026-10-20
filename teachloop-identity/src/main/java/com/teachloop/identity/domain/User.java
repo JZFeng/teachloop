@@ -15,7 +15,8 @@ public class User {
     @Column(nullable = false)
     private UserRole role;
 
-    @Column(nullable = false, unique = true)
+    /** 微信先于邮箱存在：允许为空，资料补全后再写。 */
+    @Column(unique = true)
     private String email;
 
     @Column(name = "password_hash")
@@ -32,6 +33,9 @@ public class User {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private UserStatus status = UserStatus.ACTIVE;
+
+    @Column(name = "wechat_openid")
+    private String wechatOpenId;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -51,6 +55,7 @@ public class User {
     public UUID getId() { return id; }
     public UserRole getRole() { return role; }
     public String getEmail() { return email; }
+    public String getWechatOpenId() { return wechatOpenId; }
     public String getPasswordHash() { return passwordHash; }
     public String getPhone() { return phone; }
     public String getDisplayName() { return displayName; }
@@ -64,4 +69,6 @@ public class User {
     public void setPhone(String phone) { this.phone = phone; }
     public void setLocale(String locale) { this.locale = locale; }
     public void setStatus(UserStatus status) { this.status = status; }
+    public void setEmail(String email) { this.email = email; }
+    public void setWechatOpenId(String openId) { this.wechatOpenId = openId; }
 }

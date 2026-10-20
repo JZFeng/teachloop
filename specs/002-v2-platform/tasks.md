@@ -387,6 +387,10 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T162 阿里云部署文档 | 完成 | `docs/deploy-aliyun.md`：DNS/安全组、RDS 或容器库、反向代理 100MB、certbot、备份恢复、健康检查、ES 可选、安全清单与未完成项 |
 | 2026-10-19 | T163 .env.example | 完成 | 数据库、DeepSeek Key、seed 关闭、AI client/model、存储（local/OSS）、可观测日志目录、本地 JAVA_HOME 提示 |
 | 2026-10-19 | 部署回归 | 完成 | `make build/test/web-build/check-*` 全部 exit 0；`DeepHealthTest` 覆盖 `/healthz` 与 `?deep=1`；`docker compose config` 通过；`docker build` 成功；镜像 1.82GB；实际起容器连 Postgres 后 `/healthz?deep=1` 返回 `{"status":"UP","db":"UP","pdfFont":"UP"}` |
+| 2026-10-19 | T030/T032 认证提供者 | 完成 | `DevPasswordAuthProvider` 仅非 prod；prod 下教师/学生密码登录 503、管理员 BCrypt 登录可用；`ProdAuthTest` 覆盖 |
+| 2026-10-19 | T031 微信登录 | 完成（无真实凭据） | `WeChatAuthProvider`：code→openid（可配 base-url）、同一 openid 复用账号、新 openid 建学生、未配置 503；V021 email 可空 + `wechat_openid` 唯一；`WeChatAuthProviderTest` 用本地 HTTP 替身覆盖成功/errcode/缺 openid |
+| 2026-10-19 | T036 管理员 CLI 与教师邀请码 | 完成 | V022 `teacher_invites`（3 天过期、一次性、可停用）；管理员 CLI `--create-admin=email`（密码取 ADMIN_PASSWORD 或随机打印）；`POST /api/auth/teacher-invite` 兑换后升级 TEACHER；`POST /api/admin/teacher-invites`、`/users/{id}/disable`；停用后旧会话立即 401（修掉 Spring Security 会话恢复旧认证）；`IdentityAuthTest` 覆盖 |
+
 
 
 

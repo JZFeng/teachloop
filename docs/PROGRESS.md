@@ -1,14 +1,14 @@
 # TeachLoop 进度仪表盘
 
 > 每个批次结束时由 Lead 更新；`make status` 会打印下面的「当前」与「剩余」。
-> 最近一次更新：2026-10-19（T160–T163 完成，镜像与深健康验证通过）
+> 最近一次更新：2026-10-19（T030/T031/T032/T036 完成，T033–T035 待做）
 
 ## 当前
 
-- 正在做：T160–T163 已完成，准备提交
+- 正在做：T030–T036 身份批次（T030/T031/T032/T036 已完成；T033–T035 下一批）
 - 分支 / HEAD：`main`，最后提交 `3271b01`
 - 未提交 WIP：无（本批即将提交）
-- 最近验证：`make build/test/web-build/check-*` 全部 exit 0（`.dsh/logs/verify-deploy.log`）；`DeepHealthTest` 通过；`docker compose config` 通过；`docker build` 成功（1.82GB），起容器连 Postgres 后 `/healthz?deep=1` 返回 UP/UP/UP
+- 最近验证：`make build` / `make test` / `make web-build` / 两个守卫全部 exit 0（`.dsh/logs/verify-identity.log`）；`IdentityAuthTest`、`ProdAuthTest`、`WeChatAuthProviderTest`、`FlowIntegrationTest` 通过
 
 ## 下一步
 
@@ -18,7 +18,7 @@
 
 ## 剩余
 
-- 身份：T030–T036
+- 身份：T033–T035（CSRF 双提交、资料补全拦截、角色守卫测试）
 - 边界/班级：T042、T043
 - 试卷：T053–T056、T062、T206
 - 判分收尾：T071、T072、T102
