@@ -53,6 +53,8 @@ class IdentityAuthTest {
 
         String teacher = login(base, "teacher@teachloop.local", "teachloop123");
         assertThat(teacher).isNotBlank();
+        // 开发 profile 关闭 CSRF 时 /api/csrf 也应 200（返回空 token），不能 500
+        assertThat(request(base, null, "GET", "/api/csrf", null).statusCode()).isEqualTo(200);
 
         adminService.createAdmin("root@teachloop.local", "root-pass-123");
         String admin = login(base, "root@teachloop.local", "root-pass-123");

@@ -89,8 +89,9 @@ export default function ImportPaperPage() {
 
       <div className="card">
         <div className="row" style={{ alignItems: 'flex-start' }}>
-          <label className="f" style={{ flex: 2 }}><b>试卷标题</b>
+          <label className="f" style={{ flex: 2 }}><b>试卷标题 <i>*</i></b>
             <input value={title} placeholder="例如：高一英语期中卷" onChange={(e) => setTitle(e.target.value)} />
+            <div className="hint">先填标题才能创建草稿试卷；解析后仍可改标题。</div>
           </label>
           <label className="f" style={{ flex: 1 }}><b>部分名称</b>
             <input value={sectionTitle} onChange={(e) => setSectionTitle(e.target.value)} />
@@ -118,12 +119,13 @@ export default function ImportPaperPage() {
         )}
 
         <div className="row" style={{ marginTop: 10 }}>
-          <button className="btn pri" disabled={busy} onClick={() => void runImport()}>
+          <button className="btn pri" disabled={busy || !title.trim() || (mode === 'file' ? !file : !text.trim())}
+            onClick={() => void runImport()}>
             {busy ? '解析中…' : '创建试卷并解析'}
           </button>
           <span className="small muted">会先创建一份草稿试卷和一个部分，解析结果可逐题修正。</span>
         </div>
-        {error && <ErrorState error={new Error(error)} onRetry={() => setError(null)} />}
+        {error && <div className="inline-note danger">{error}</div>}
       </div>
 
       {result && (
