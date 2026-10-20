@@ -50,6 +50,12 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
             + "and submitted_at is not null and rejected_at is null", nativeQuery = true)
     int retryFailed(UUID offeringId);
 
+    /** T064：开新 attempt 前先把旧的 active 置 false（唯一部分索引要求同一时刻只有一条 active）。 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("update Submission s set s.active = false "
+            + "where s.offeringId = :offeringId and s.studentId = :studentId and s.active = true")
+    int deactivateActive(UUID offeringId, UUID studentId);
+
     /** T092：派发时把这一场 QUEUED 的行批量放进队列；重复执行无副作用。 */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "update submissions set grading_state = 'PENDING' "

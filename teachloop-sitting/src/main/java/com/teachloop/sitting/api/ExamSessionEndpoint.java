@@ -9,6 +9,7 @@ import com.teachloop.sitting.domain.*;
 import com.teachloop.sitting.service.ExamSessionService;
 import com.teachloop.sitting.service.OfferingWindows;
 import com.teachloop.sitting.service.SnapshotCodec;
+import com.teachloop.sitting.service.SubmissionAttachments;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
@@ -46,6 +47,7 @@ public class ExamSessionEndpoint {
     private final SnapshotCodec codec;
     private final OfferingWindows windows;
     private final ExamSessionService sessions;
+    private final SubmissionAttachments attachments;
     private final AuditPort audit;
     private final Clock clock;
 
@@ -55,7 +57,8 @@ public class ExamSessionEndpoint {
                                org.springframework.beans.factory.ObjectProvider<Ports.ExplanationCatalog> explanations,
                                Ports.ClassMembership membership,
                                SnapshotCodec codec, OfferingWindows windows,
-                               ExamSessionService sessions, AuditPort audit, Clock clock) {
+                               ExamSessionService sessions, SubmissionAttachments attachments,
+                               AuditPort audit, Clock clock) {
         this.offerings = offerings;
         this.offeringClasses = offeringClasses;
         this.submissions = submissions;
@@ -66,6 +69,7 @@ public class ExamSessionEndpoint {
         this.codec = codec;
         this.windows = windows;
         this.sessions = sessions;
+        this.attachments = attachments;
         this.audit = audit;
         this.clock = clock;
     }
@@ -219,6 +223,16 @@ public class ExamSessionEndpoint {
         return sessionDto(o, me.id(), sessions.start(o, me.id()));
     }
 
+    /** T064：已交卷后开新一次作答；旧 attempt 保留但不再 active。 */
+    @PostMapping("/attempts")
+    public SittingDtos.SessionView newAttempt(@PathVariable UUID offeringId,
+                                              @RequestAttribute("currentUser") CurrentUser me) {
+        Offering o = published(offeringId);
+        requireStudent(me);
+        requireParticipant(o, me);
+        return sessionDto(o, me.id(), sessions.startNewAttempt(o, me.id()));
+    }
+
     /** 心跳 / 重连：只读，不重置计时（AC-26.7）。 */
     @GetMapping("/session")
     public SittingDtos.SessionView session(@PathVariable UUID offeringId,
@@ -237,7 +251,8 @@ public class ExamSessionEndpoint {
         Offering o = published(offeringId);
         requireStudent(me);
         requireParticipant(o, me);
-        ExamSessionService.SessionView s = sessions.saveDraft(o, me.id(), body.contentText(), body.answers());
+        ExamSessionService.SessionView s = sessions.saveDraft(o, me.id(), body.contentHtml(),
+                body.contentText(), body.answers());
         Submission sub = s.submission() == null ? null : s.submission();
         return new SittingDtos.AnswerSaveResponse(sub == null ? null : sub.getId().toString(),
                 sub == null ? null : sub.getObjectiveTotal(), s.remainingSeconds(), Instant.now(clock).toString());
@@ -251,10 +266,36 @@ public class ExamSessionEndpoint {
         Offering o = published(offeringId);
         requireStudent(me);
         requireParticipant(o, me);
-        ExamSessionService.Finalized f = sessions.submit(o, me.id(), body.contentText(), body.answers());
+        ExamSessionService.Finalized f = sessions.submit(o, me.id(), body.contentHtml(),
+                body.contentText(), body.answers());
+        return submitResponse(f);
+    }
+
+    /**
+     * 文件提交（T061 / AC-6.1 / AC-6.5）：multipart {@code file}，≤ 100 MB，pdf/docx/txt/md。
+     *
+     * <p>文件先存 StorageBackend、再复用 {@link ExamSessionService#submitFile} 的会话/截止/
+     * attempts/定稿逻辑；解析失败或无文本层时响应里 {@code unreadable=true}，不进 AI 队列。
+     */
+    @PostMapping(value = "/submissions/file", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public SittingDtos.SubmitResponse submitFile(@PathVariable UUID offeringId,
+                                                 @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+                                                 @RequestAttribute("currentUser") CurrentUser me) {
+        Offering o = published(offeringId);
+        requireStudent(me);
+        requireParticipant(o, me);
+        SubmissionAttachments.Prepared prepared = attachments.prepare(o.getId(), file);
+        ExamSessionService.Finalized f = sessions.submitFile(o, me.id(),
+                new ExamSessionService.FileAttachment(prepared.storagePath(), prepared.fileName(),
+                        prepared.mime(), prepared.text(), prepared.unreadable()));
+        return submitResponse(f);
+    }
+
+    private SittingDtos.SubmitResponse submitResponse(ExamSessionService.Finalized f) {
         return new SittingDtos.SubmitResponse(f.submission().getId().toString(),
                 f.submission().getAttemptNo(), f.objectiveScore(), java.math.BigDecimal.valueOf(f.totalPoints()),
-                f.autoSubmitted(), f.lateBySeconds(), f.submission().getGradingState().name());
+                f.autoSubmitted(), f.lateBySeconds(), f.submission().getGradingState().name(),
+                f.submission().isUnreadable(), f.submission().getAttachmentName());
     }
 
     /** 学生的全部尝试：含拒收状态与理由，可据此重交（T202 / AC-8.6）。 */
@@ -270,7 +311,9 @@ public class ExamSessionEndpoint {
                 .orElse(null);
         // 只有「没有进行中的作答」时才可能重新开始：被拒收后 active 会被清掉。
         // 已交卷但未拒收的尝试不算可重交（T064 的 new attempt 不在本阶段范围内）。
-        boolean canRetry = attempts.size() < o.getMaxAttempts() && active == null;
+        // 已交卷但仍有次数时允许再考一次（T064）；有未交卷草稿时只能继续，不能新开。
+        boolean canRetry = attempts.size() < o.getMaxAttempts()
+                && (active == null || active.getSubmittedAt() != null);
         List<SittingDtos.AttemptView> views = attempts.stream()
                 .sorted(Comparator.comparingInt(Submission::getAttemptNo))
                 .map(this::attemptView)
@@ -346,7 +389,8 @@ public class ExamSessionEndpoint {
         return new SittingDtos.AttemptView(s.getAttemptNo(), str(s.getSubmittedAt()), s.isAutoSubmitted(),
                 s.getLateBySeconds(), str(s.getRejectedAt()), s.getRejectReason(), s.getGradingState().name(),
                 s.getObjectiveTotal(), s.getSubjectiveTotal(),
-                s.getObjectiveTotal().add(s.getSubjectiveTotal()), s.isActive());
+                s.getObjectiveTotal().add(s.getSubjectiveTotal()), s.isActive(),
+                s.getId().toString(), s.getAttachmentName());
     }
 
     private Offering published(UUID id) {

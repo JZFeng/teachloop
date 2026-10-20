@@ -255,6 +255,8 @@ export interface SubmitResponse {
   autoSubmitted: boolean
   lateBySeconds: number
   gradingState: string
+  unreadable?: boolean
+  attachmentName?: string | null
 }
 
 export interface AttemptView {
@@ -269,6 +271,8 @@ export interface AttemptView {
   subjectiveScore: number
   totalScore: number
   active: boolean
+  submissionId: string | null
+  attachmentName: string | null
 }
 
 export interface MyAttemptsView {

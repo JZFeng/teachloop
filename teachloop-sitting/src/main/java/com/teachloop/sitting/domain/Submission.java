@@ -30,6 +30,24 @@ public class Submission {
     @Column(name = "content_text", columnDefinition = "text")
     private String contentText;
 
+    /** T060：消毒后的富文本原文（回显用）；content_text 是从它提取的纯文本。 */
+    @Column(name = "content_html", columnDefinition = "text")
+    private String contentHtml;
+
+    /** T061：附件在 StorageBackend 中的 key；不存二进制、不暴露存储根目录。 */
+    @Column(name = "attachment_path", columnDefinition = "text")
+    private String attachmentPath;
+
+    @Column(name = "attachment_name")
+    private String attachmentName;
+
+    @Column(name = "attachment_mime")
+    private String attachmentMime;
+
+    /** T066：文件解析失败或无文本层，不参与评分（不产生 0 分）。 */
+    @Column(nullable = false)
+    private boolean unreadable = false;
+
     @Column(name = "objective_total", nullable = false)
     private BigDecimal objectiveTotal = BigDecimal.ZERO;
 
@@ -93,6 +111,11 @@ public class Submission {
     public String getInputKind() { return inputKind; }
     public boolean isActive() { return active; }
     public String getContentText() { return contentText; }
+    public String getContentHtml() { return contentHtml; }
+    public String getAttachmentPath() { return attachmentPath; }
+    public String getAttachmentName() { return attachmentName; }
+    public String getAttachmentMime() { return attachmentMime; }
+    public boolean isUnreadable() { return unreadable; }
     public BigDecimal getObjectiveTotal() { return objectiveTotal; }
     public BigDecimal getSubjectiveTotal() { return subjectiveTotal; }
     public Instant getStartedAt() { return startedAt; }
@@ -107,6 +130,7 @@ public class Submission {
     public String getGradingError() { return gradingError; }
 
     public void setActive(boolean active) { this.active = active; }
+    public void setInputKind(String kind) { this.inputKind = kind; }
     public void setSubmittedAt(Instant t) { this.submittedAt = t; }
     public void setAttemptNo(int n) { this.attemptNo = n; }
     public void setObjectiveTotal(BigDecimal v) { this.objectiveTotal = v; }
@@ -121,4 +145,9 @@ public class Submission {
     public void setGradingError(String e) { this.gradingError = e; }
     public void setGradingAttempts(int n) { this.gradingAttempts = n; }
     public void setContentText(String t) { this.contentText = t; }
+    public void setContentHtml(String html) { this.contentHtml = html; }
+    public void setAttachmentPath(String path) { this.attachmentPath = path; }
+    public void setAttachmentName(String name) { this.attachmentName = name; }
+    public void setAttachmentMime(String mime) { this.attachmentMime = mime; }
+    public void setUnreadable(boolean v) { this.unreadable = v; }
 }

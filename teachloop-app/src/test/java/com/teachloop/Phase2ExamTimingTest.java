@@ -379,7 +379,7 @@ class Phase2ExamTimingTest {
         Map<String, Object> mine = get(base, student, "/api/offerings/" + offeringId + "/my-submissions");
         Map<?, ?> firstAttempt = (Map<?, ?>) ((List<?>) mine.get("attempts")).get(0);
         assertThat(((Number) firstAttempt.get("lateBySeconds")).longValue()).isEqualTo(3600);
-        assertThat(mine.get("canRetry")).isEqualTo(false); // 已交卷未拒收：不能直接重交
+        assertThat(mine.get("canRetry")).isEqualTo(true); // T064：已交卷但仍有次数，可以再考一次
         assertThat(firstAttempt.get("rejectedAt")).isNull();
 
         // 按班汇总：按时 0 / 迟交 1

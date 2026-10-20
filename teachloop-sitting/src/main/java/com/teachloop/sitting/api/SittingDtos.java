@@ -34,7 +34,8 @@ public final class SittingDtos {
     public record AnswerInput(int number, String answer) {
     }
 
-    public record SubmitRequest(String contentText, List<AnswerInput> answers) {
+    /** T060：contentHtml 优先（会消毒并提取 contentText）；没有富文本时按纯文本 contentText 处理。 */
+    public record SubmitRequest(String contentText, String contentHtml, List<AnswerInput> answers) {
     }
 
     public record SessionView(String submissionId, int attemptNo, String startedAt, String deadlineAt,
@@ -46,9 +47,10 @@ public final class SittingDtos {
                                      String serverTime) {
     }
 
+    /** T061：文件提交额外返回 unreadable（解析失败不评分）与附件原名，便于前端提示。 */
     public record SubmitResponse(String submissionId, int attemptNo, BigDecimal objectiveScore,
                                  BigDecimal totalPoints, boolean autoSubmitted, long lateBySeconds,
-                                 String gradingState) {
+                                 String gradingState, boolean unreadable, String attachmentName) {
     }
 
     /** 考试入口页（考前须知，T200 / AC-21.16）。 */
@@ -63,7 +65,7 @@ public final class SittingDtos {
     public record AttemptView(int attemptNo, String submittedAt, boolean autoSubmitted, long lateBySeconds,
                               String rejectedAt, String rejectReason, String gradingState,
                               BigDecimal objectiveScore, BigDecimal subjectiveScore, BigDecimal totalScore,
-                              boolean active) {
+                              boolean active, String submissionId, String attachmentName) {
     }
 
     public record MyAttemptsView(String offeringId, int attemptsUsed, int maxAttempts, boolean canRetry,

@@ -27,10 +27,17 @@ spring:
       initialize-schema: never
   servlet:
     multipart:
-      max-file-size: 32MB
-      max-request-size: 32MB
+      # T060/T061：单文件 100 MB 上限（AC-6.5）
+      max-file-size: 100MB
+      max-request-size: 100MB
 
 teachloop:
+  storage:
+    # T067：附件存储抽象；开发用 local，生产切 oss（未配置 bucket 时启动即报错）
+    backend: ${STORAGE_BACKEND:local}
+    local-dir: ${STORAGE_LOCAL_DIR:./uploads}
+    oss:
+      bucket: ${STORAGE_OSS_BUCKET:}
   grading:
     engine: stub
     poll-ms: 2000

@@ -49,7 +49,11 @@ export default function ExamEntryPage() {
     setStarting(true)
     setStartError(null)
     try {
-      await api.post<SessionView>(`/api/offerings/${offeringId}/start`)
+      // T064：之前已有 attempt（交卷或被拒收）时开新一次，而不是复用 start 的幂等逻辑
+      const path = attempts && attempts.attemptsUsed > 0
+        ? `/api/offerings/${offeringId}/attempts`
+        : `/api/offerings/${offeringId}/start`
+      await api.post<SessionView>(path)
       navigate(`/exams/${offeringId}/live`)
     } catch (startFailure) {
       setStartError((startFailure as Error).message)
@@ -155,9 +159,16 @@ export default function ExamEntryPage() {
                 </div>
               )}
             </div>
-            <button type="button" className="btn pri" onClick={() => navigate(`/feedback/${offeringId}`)}>
-              {t('exam.viewFeedback')}
-            </button>
+            <div className="row" style={{ gap: 8 }}>
+              {attempts?.canRetry && (
+                <button type="button" className="btn" disabled={starting} onClick={() => void start()}>
+                  {starting ? t('exam.starting') : t('exam.newAttempt')}
+                </button>
+              )}
+              <button type="button" className="btn pri" onClick={() => navigate(`/feedback/${offeringId}`)}>
+                {t('exam.viewFeedback')}
+              </button>
+            </div>
           </div>
         )}
 

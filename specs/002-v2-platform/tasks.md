@@ -370,6 +370,11 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T208/T114 站内通知 | 完成 | V017 `notifications` 表（identity）；`Ports.NotificationPort.notify` 落库；四个 API（列表/unread-count/read/read-all，他人 404）；场次发布、成绩发布、复核发布都生成通知；`NotificationTest` 3 例全绿。前端顶部铃铛 + `/notifications` 页（未读过滤/标记已读/轮询） |
 | 2026-10-19 | 复核工作台前端 | 完成 | 队列 + 详情两栏：正文、客观/主观/AI 草稿、题项作答与标准答案、评语/优点/建议编辑、通过/弃用/发布/撤回、批量通过、审计抽屉；`make web-build` 通过 |
 | 2026-10-19 | 回归（复核+通知批次） | 完成 | `make build` / `make test`（105 个常规测试全绿）/ `make web-build` / 两个守卫全绿 |
+| 2026-10-19 | T060 富文本提交 | 完成 | V018 submissions 增加 content_html；jsoup 1.23.2 白名单消毒（无属性保留），剥离脚本/事件并写审计 `security:rich_text_stripped`；content_text 从消毒后 DOM 提取，模型拿不到标签；SubmissionFormsTest 覆盖 |
+| 2026-10-19 | T061 文件提交 | 完成 | `POST /api/offerings/{id}/submissions/file`（multipart，≤100MB；pdf/docx/txt/md；.doc 拒绝）；PDFBox 3.0.8 / POI 5.5.1 / UTF-8 提取；复用会话与交卷路径；附件下载 `GET /api/submissions/{id}/attachment`（教师或本人，他人 404） |
+| 2026-10-19 | T066/T067 不可读与存储 | 完成 | 解析失败/空文本 → `unreadable=true`、`grading_state=SKIPPED`，不产生 0 分；`StorageBackend` + `LocalStorage`（默认 ./uploads，路径穿越防护），OSS 骨架条件装配、未配置 503；上传失败分类 400/503 |
+| 2026-10-19 | T064 new attempt | 完成 | `POST /api/offerings/{id}/attempts`：已交卷/被拒收后仍有次数可开新 attempt，旧 attempt 置非 active（native 更新避免唯一索引冲突）；`max_attempts` 超限 409；`NewAttemptTest` 覆盖 active 唯一与三次上限；前端考试/作业页接入「再考一次」 |
+| 2026-10-19 | 提交前端 | 完成 | 作业页支持文本/文件两种提交、附件下载、unreadable 提示；考试页与作业页新 attempt 按钮；`make web-build` 通过 |
 
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。

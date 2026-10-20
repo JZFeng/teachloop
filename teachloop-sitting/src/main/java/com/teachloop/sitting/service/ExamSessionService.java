@@ -28,19 +28,27 @@ public class ExamSessionService {
     private final ObjectiveAnswerRepository answers;
     private final SnapshotCodec codec;
     private final OfferingWindows windows;
+    private final RichTextSanitizer richText;
     private final AuditPort audit;
     private final Clock clock;
 
     public ExamSessionService(OfferingRepository offerings, SubmissionRepository submissions,
                               ObjectiveAnswerRepository answers, SnapshotCodec codec,
-                              OfferingWindows windows, AuditPort audit, Clock clock) {
+                              OfferingWindows windows, RichTextSanitizer richText,
+                              AuditPort audit, Clock clock) {
         this.offerings = offerings;
         this.submissions = submissions;
         this.answers = answers;
         this.codec = codec;
         this.windows = windows;
+        this.richText = richText;
         this.audit = audit;
         this.clock = clock;
+    }
+
+    /** T061：文件提交落库所需的一切（文件本体已经存进 StorageBackend，这里只带 key 与解析结果）。 */
+    public record FileAttachment(String storagePath, String fileName, String mime,
+                                 String extractedText, boolean unreadable) {
     }
 
     /** 作答会话（fixed_window 下可能还没有数据库行，计时已经在跑）。 */
@@ -138,30 +146,120 @@ public class ExamSessionService {
     }
 
     /**
+     * 开新的 attempt（T064）：已交卷后仍有次数时可以再考一次；旧 attempt 置为非 active。
+     * 与 start 不同，这里明确要求「没有进行中的草稿」。
+     */
+    @Transactional
+    public SessionView startNewAttempt(Offering offering, UUID studentId) {
+        if (!windows.isParticipant(offering, studentId)) {
+            throw ApiException.notFound("考试不存在");
+        }
+        Submission active = submissions.findByOfferingIdAndStudentIdAndActiveTrue(offering.getId(), studentId)
+                .orElse(null);
+        if (active != null && active.getSubmittedAt() == null) {
+            throw ApiException.conflict("已有进行中的作答，请先交卷");
+        }
+        OfferingWindows.Window window = windows.forStudent(offering, studentId);
+        Instant now = Instant.now(clock);
+        if (offering.getKind() == OfferingKind.EXAM) {
+            if (offering.getTimingMode() == TimingMode.FIXED_WINDOW) {
+                if (offering.getStartAt() == null) {
+                    throw ApiException.conflict("本场未设置统一开考时间，无法开始");
+                }
+                Instant deadlineAt = offering.getStartAt().plus(Duration.ofMinutes(window.durationMinutes()));
+                if (now.isBefore(offering.getStartAt()) || now.isAfter(deadlineAt)) {
+                    throw ApiException.conflict("本场考试已结束");
+                }
+                createAttempt(offering, studentId, now, offering.getStartAt(), deadlineAt);
+            } else {
+                if (now.isAfter(window.dueAt())) {
+                    throw ApiException.conflict("考试已结束，不能再开始");
+                }
+                createAttempt(offering, studentId, now, now,
+                        now.plus(Duration.ofMinutes(window.durationMinutes())));
+            }
+        } else {
+            createAttempt(offering, studentId, now, null, null);
+        }
+        Submission created = submissions.findByOfferingIdAndStudentIdAndActiveTrue(offering.getId(), studentId)
+                .orElseThrow(() -> ApiException.conflict("无法开始新一次作答"));
+        audit.record(new AuditEvent(studentId, "exam:new_attempt", "submission", created.getId().toString(),
+                Map.of("offeringId", offering.getId().toString(), "attemptNo", created.getAttemptNo())));
+        return session(offering, studentId, false);
+    }
+
+    /**
      * 自动保存：只写草稿，不交卷；到点后由服务端定稿。
      * 到点定稿必须落库后再返回 409，所以 ApiException 不回滚事务。
+     *
+     * <p>T060：带了 {@code contentHtml} 就走富文本消毒（白名单），并把消毒后的 DOM 文本写进
+     * {@code content_text}；否则按纯文本处理。
      */
     @Transactional(noRollbackFor = ApiException.class)
-    public SessionView saveDraft(Offering offering, UUID studentId, String contentText,
+    public SessionView saveDraft(Offering offering, UUID studentId, String contentHtml, String contentText,
                                  List<SittingDtos.AnswerInput> answerInputs) {
         Submission s = requireDraft(offering, studentId);
         Instant now = Instant.now(clock);
-        writeAnswers(offering, s, contentText, answerInputs, now);
+        applyContent(offering, s, contentHtml, contentText);
+        writeAnswers(offering, s, answerInputs, now);
         submissions.save(s);
         return session(offering, studentId, false);
     }
 
+    /** 兼容旧调用：纯文本自动保存。 */
+    public SessionView saveDraft(Offering offering, UUID studentId, String contentText,
+                                 List<SittingDtos.AnswerInput> answerInputs) {
+        return saveDraft(offering, studentId, null, contentText, answerInputs);
+    }
+
     /** 手动交卷：以本次请求携带的作答为准；到点定稿同样要先落库再报冲突。 */
     @Transactional(noRollbackFor = ApiException.class)
+    public Finalized submit(Offering offering, UUID studentId, String contentHtml, String contentText,
+                            List<SittingDtos.AnswerInput> answerInputs) {
+        Submission s = activeOrStart(offering, studentId);
+        Instant now = prepareSubmit(s);
+        applyContent(offering, s, contentHtml, contentText);
+        writeAnswers(offering, s, answerInputs, now);
+        submissions.save(s);
+        Finalized finalized = finalizeSubmission(offering, s, now, false);
+        audit.record(new AuditEvent(studentId, "submission:submit", "submission", s.getId().toString(),
+                Map.of("attempt", s.getAttemptNo(), "late", finalized.lateBySeconds())));
+        return finalized;
+    }
+
+    /** 兼容旧调用：纯文本交卷。 */
     public Finalized submit(Offering offering, UUID studentId, String contentText,
                             List<SittingDtos.AnswerInput> answerInputs) {
-        Submission s = submissions.findByOfferingIdAndStudentIdAndActiveTrue(offering.getId(), studentId)
-                .orElseGet(() -> {
-                    // 兼容「没有单独点开始就直接交卷」：按开始规则起算
-                    start(offering, studentId);
-                    return submissions.findByOfferingIdAndStudentIdAndActiveTrue(offering.getId(), studentId)
-                            .orElseThrow(() -> ApiException.conflict("无法开始作答"));
-                });
+        return submit(offering, studentId, null, contentText, answerInputs);
+    }
+
+    /**
+     * 文件交卷（T061）：复用与文本交卷同一套会话/截止/attempts/定稿逻辑，
+     * 只把作答换成「附件 + 提取出的纯文本」。文件本体已经由调用方存进 StorageBackend。
+     *
+     * <p>提取失败或空文本 → {@code unreadable=true}，定稿状态为 SKIPPED（不进 AI 队列），
+     * 绝不给 0 分。目标题作答保留自动保存里已写入的客观分，不会被文件提交清掉。
+     */
+    @Transactional(noRollbackFor = ApiException.class)
+    public Finalized submitFile(Offering offering, UUID studentId, FileAttachment attachment) {
+        Submission s = activeOrStart(offering, studentId);
+        Instant now = prepareSubmit(s);
+        s.setInputKind("FILE");
+        s.setAttachmentPath(attachment.storagePath());
+        s.setAttachmentName(attachment.fileName());
+        s.setAttachmentMime(attachment.mime());
+        s.setContentText(attachment.extractedText());
+        s.setUnreadable(attachment.unreadable());
+        submissions.save(s);
+        Finalized finalized = finalizeSubmission(offering, s, now, false);
+        audit.record(new AuditEvent(studentId, "submission:file_submit", "submission", s.getId().toString(),
+                Map.of("attempt", s.getAttemptNo(), "unreadable", attachment.unreadable(),
+                        "mime", String.valueOf(attachment.mime()))));
+        return finalized;
+    }
+
+    /** 交卷前的公共校验：可能顺带触发到点自动交卷，返回本次交卷时间。 */
+    private Instant prepareSubmit(Submission s) {
         if (s.getSubmittedAt() != null) {
             throw ApiException.conflict("已交卷，不能重复提交");
         }
@@ -170,12 +268,42 @@ public class ExamSessionService {
             autoSubmit(s);
             throw ApiException.conflict("已到交卷时间，试卷已自动提交");
         }
-        writeAnswers(offering, s, contentText, answerInputs, now);
-        submissions.save(s);
-        Finalized finalized = finalizeSubmission(offering, s, now, false);
-        audit.record(new AuditEvent(studentId, "submission:submit", "submission", s.getId().toString(),
-                Map.of("attempt", s.getAttemptNo(), "late", finalized.lateBySeconds())));
-        return finalized;
+        return now;
+    }
+
+    /** 没有进行中的草稿时按开始规则起算（兼容「没点开始就直接交卷」）。 */
+    private Submission activeOrStart(Offering offering, UUID studentId) {
+        Submission active = submissions.findByOfferingIdAndStudentIdAndActiveTrue(offering.getId(), studentId)
+                .orElse(null);
+        if (active != null) {
+            return active;
+        }
+        start(offering, studentId);
+        return submissions.findByOfferingIdAndStudentIdAndActiveTrue(offering.getId(), studentId)
+                .orElseThrow(() -> ApiException.conflict("无法开始作答"));
+    }
+
+    /**
+     * T060：写入正文。富文本走白名单消毒（存消毒后的 HTML + 提取的纯文本），
+     * 纯文本则清空 content_html，避免「上一次富文本残留」被回显。
+     * 丢弃过标签/属性时记 {@code security:rich_text_stripped} 安全事件（plan §9）。
+     */
+    private void applyContent(Offering offering, Submission s, String contentHtml, String contentText) {
+        if (contentHtml != null && !contentHtml.isBlank()) {
+            RichTextSanitizer.Sanitized sanitized = richText.sanitize(contentHtml);
+            s.setInputKind("RICH_TEXT");
+            s.setContentHtml(sanitized.html());
+            s.setContentText(sanitized.text());
+            if (sanitized.stripped()) {
+                audit.record(new AuditEvent(s.getStudentId(), "security:rich_text_stripped", "submission",
+                        s.getId().toString(), Map.of("offeringId", offering.getId().toString(),
+                                "rawLength", contentHtml.length())));
+            }
+        } else {
+            s.setInputKind("TEXT");
+            s.setContentHtml(null);
+            s.setContentText(contentText);
+        }
     }
 
     /** 到点定稿：以最后一次自动保存为准，条件更新保证幂等（AC-26.8）。 */
@@ -254,11 +382,8 @@ public class ExamSessionService {
         if (attempts.size() >= offering.getMaxAttempts()) {
             throw ApiException.conflict("已达到最大尝试次数");
         }
-        for (Submission old : attempts) {
-            if (old.isActive()) {
-                old.setActive(false);
-            }
-        }
+        // 必须先落库把旧 active 置 false，否则部分唯一索引会挡住新行（Hibernate 先 insert 后 update）
+        submissions.deactivateActive(offering.getId(), studentId);
         int attemptNo = attempts.isEmpty() ? 1 : attempts.get(0).getAttemptNo() + 1;
         Submission s = new Submission(UUID.randomUUID(), offering.getId(), studentId, attemptNo, "TEXT",
                 null, GradingState.DRAFT, now);
@@ -269,10 +394,9 @@ public class ExamSessionService {
         return submissions.save(s);
     }
 
-    private void writeAnswers(Offering offering, Submission s, String contentText,
+    private void writeAnswers(Offering offering, Submission s,
                               List<SittingDtos.AnswerInput> inputs, Instant now) {
         Ports.PaperSnapshot snap = codec.read(offering.getPaperSnapshot());
-        s.setContentText(contentText);
         answers.deleteBySubmissionId(s.getId());
 
         Map<Integer, Ports.ItemSpec> byNumber = new HashMap<>();
@@ -312,6 +436,10 @@ public class ExamSessionService {
      * 未派发的提交不会被提前批改，迟到提交也还能进同一个 run。
      */
     private String gradingStateFor(Offering offering, Submission s) {
+        // T066：解析失败/无文本层的文件不参与评分，也不能变成 0 分；SKIPPED 不进 AI 队列。
+        if (s.isUnreadable()) {
+            return GradingState.SKIPPED.name();
+        }
         Ports.PaperSnapshot snap = codec.read(offering.getPaperSnapshot());
         boolean hasEssayAnswer = answers.findBySubmissionId(s.getId()).stream()
                 .anyMatch(a -> snap.items().stream()

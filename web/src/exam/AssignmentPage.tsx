@@ -59,6 +59,9 @@ export default function AssignmentPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [submitResult, setSubmitResult] = useState<SubmitResponse | null>(null)
+  const [mode, setMode] = useState<'text' | 'file'>('text')
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
 
   const load = useCallback(async () => {
     if (!offeringId) return
@@ -104,7 +107,10 @@ export default function AssignmentPage() {
     setBusy(true)
     setActionError(null)
     try {
-      await api.post(`/api/offerings/${offeringId}/start`)
+      const path = attempts && attempts.attemptsUsed > 0
+        ? `/api/offerings/${offeringId}/attempts`
+        : `/api/offerings/${offeringId}/start`
+      await api.post(path)
       await load()
     } catch (startFailure) {
       setActionError((startFailure as Error).message)
@@ -156,6 +162,30 @@ export default function AssignmentPage() {
       }
     } finally {
       setBusy(false)
+    }
+  }
+
+  const uploadFile = async () => {
+    if (!file || uploading) return
+    setUploading(true)
+    setActionError(null)
+    try {
+      const body = new FormData()
+      body.append('file', file)
+      const res = await fetch(`/api/offerings/${offeringId}/submissions/file`, {
+        method: 'POST', credentials: 'include', body,
+      })
+      const payload = await res.json().catch(() => null)
+      if (!res.ok) {
+        throw new Error(payload?.detail || payload?.message || `HTTP ${res.status}`)
+      }
+      setSubmitResult(payload as SubmitResponse)
+      setFile(null)
+      await load()
+    } catch (uploadError) {
+      setActionError((uploadError as Error).message)
+    } finally {
+      setUploading(false)
     }
   }
 
@@ -239,7 +269,9 @@ export default function AssignmentPage() {
             </div>
           </div>
           <div className="row" style={{ marginTop: 12 }}>
-            <span className="tag amber">{t('exam.pendingGrade')}</span>
+            {showResult.unreadable
+              ? <span className="tag red">{t('exam.unreadable')}</span>
+              : <span className="tag amber">{t('exam.pendingGrade')}</span>}
             {showResult.lateBySeconds > 0 && <span className="tag amber">{t('exam.lateTag')}</span>}
             <button type="button" className="btn" onClick={() => navigate(`/feedback/${offeringId}`)}>
               {t('exam.viewFeedback')}
@@ -268,6 +300,11 @@ export default function AssignmentPage() {
               : <span className="tag amber">{t('exam.pendingGrade')}</span>}
             {latest.lateBySeconds > 0 && <span className="tag amber">{t('exam.lateTag')}</span>}
             {latest.autoSubmitted && <span className="tag gray">{t('exam.submittedAuto')}</span>}
+            {latest.attachmentName && latest.submissionId && (
+              <a className="btn" href={`/api/submissions/${latest.submissionId}/attachment`}>
+                {t('exam.downloadAttachment')} · {latest.attachmentName}
+              </a>
+            )}
             <button type="button" className="btn" onClick={() => navigate(`/feedback/${offeringId}`)}>
               {t('exam.viewFeedback')}
             </button>
@@ -278,7 +315,19 @@ export default function AssignmentPage() {
       {hasDraft && !rejected && (
         <div className="card">
           <h2>{t('exam.assignmentSubmission')}</h2>
-          <p className="small muted" style={{ marginTop: 0 }}>{t('exam.assignmentFormsMissing')}</p>
+          <div className="row" style={{ marginBottom: 8 }}>
+            <button type="button" className={`chip${mode === 'text' ? ' on' : ''}`} onClick={() => setMode('text')}>{t('exam.textMode')}</button>
+            <button type="button" className={`chip${mode === 'file' ? ' on' : ''}`} onClick={() => setMode('file')}>{t('exam.fileMode')}</button>
+          </div>
+          {mode === 'file' && (
+            <>
+              <p className="small muted" style={{ marginTop: 0 }}>{t('exam.fileHint')}</p>
+              <input type="file" accept=".pdf,.docx,.txt,.md" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              {file && <div className="small muted" style={{ marginTop: 6 }}>{file.name} · {Math.round(file.size / 1024)} KB</div>}
+            </>
+          )}
+          {mode === 'text' && (
+          <>
           <textarea
             className="writearea assignment-textarea"
             value={content}
@@ -287,13 +336,24 @@ export default function AssignmentPage() {
             onChange={(event) => setContent(event.target.value)}
           />
           <div className="wcount"><span className="wn">{words}</span> {t('exam.assignmentWordCount')}</div>
+          </>
+          )}
+          {mode === 'file' && (
+            <button type="button" className="btn pri" style={{ marginTop: 10 }} disabled={!file || uploading} onClick={() => void uploadFile()}>
+              {uploading ? t('exam.submitting') : t('exam.uploadSubmit')}
+            </button>
+          )}
           <div className="row" style={{ marginTop: 12 }}>
-            <button type="button" className="btn" disabled={busy} onClick={() => void saveDraft()}>
-              {busy ? t('exam.saving') : t('exam.saveDraft')}
-            </button>
-            <button type="button" className="btn pri" disabled={busy} onClick={() => void submit()}>
-              {busy ? t('exam.submitting') : t('exam.submitAssignment')}
-            </button>
+            {mode === 'text' && (
+              <button type="button" className="btn" disabled={busy} onClick={() => void saveDraft()}>
+                {busy ? t('exam.saving') : t('exam.saveDraft')}
+              </button>
+            )}
+            {mode === 'text' && (
+              <button type="button" className="btn pri" disabled={busy} onClick={() => void submit()}>
+                {busy ? t('exam.submitting') : t('exam.submitAssignment')}
+              </button>
+            )}
             <div style={{ flex: 1 }} />
             <span className="small muted">
               {lastSaved ? t('exam.savedAt', { time: fmtDateTime(lastSaved) }) : t('exam.draftLocalOnly')}
