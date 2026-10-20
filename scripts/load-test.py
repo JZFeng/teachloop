@@ -32,10 +32,12 @@ def call(op, method, path, payload=None):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--base", default="http://127.0.0.1:8010")
+    ap.add_argument("--base2", default="", help="第二实例入口；设置后提交轮询分散到两实例")
     ap.add_argument("--students", type=int, default=25)
     ap.add_argument("--concurrency", type=int, default=10)
     args = ap.parse_args()
     base = args.base.rstrip("/")
+    base2 = args.base2.rstrip("/") if args.base2 else base
 
     teacher = session(base, "teacher@teachloop.local")
     for op in [teacher]: op.base = base
@@ -53,8 +55,12 @@ def main():
         call(teacher, "POST", base + f"/api/offerings/{o['id']}/publish", {})
         offerings.append(o["id"])
 
-    students = [session(base, f"student{i:02d}@teachloop.local") for i in range(1, args.students + 1)]
-    for op in students: op.base = base
+    students = []
+    for i in range(1, args.students + 1):
+        b = base2 if (args.base2 and i % 2 == 0) else base
+        op = session(b, f"student{i:02d}@teachloop.local")
+        op.base = b
+        students.append(op)
 
     def submit(i):
         op = students[i % len(students)]

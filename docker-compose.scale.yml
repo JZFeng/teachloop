@@ -1,0 +1,89 @@
+# T174：2 app + 2 worker 压测拓扑（同一镜像；共享 Postgres / uploads / logs）。
+# app1 对宿主机 18010，app2 对 18011；worker 无 Web 端口。
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: teachloop
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD required}
+      POSTGRES_DB: teachloop
+    volumes:
+      - scaledb:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U teachloop -d teachloop"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  app1:
+    image: teachloop:test
+    environment: &appenv
+      DB_URL: jdbc:postgresql://db:5432/teachloop
+      DB_USER: teachloop
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+      PORT: 8010
+      TEACHLOOP_SEED_ENABLED: "false"
+      TEACHLOOP_GRADING_ENGINE: stub
+      TEACHLOOP_RATE_LIMIT_LOGIN_LIMIT: "1000"
+      TEACHLOOP_RATE_LIMIT_UPLOAD_LIMIT: "1000"
+      TEACHLOOP_RATE_LIMIT_GRADING_DISPATCH_LIMIT: "1000"
+      TEACHLOOP_RATE_LIMIT_EVENTS_LIMIT: "1000"
+      OBSERVABILITY_LOG_DIR: /app/logs
+      STORAGE_LOCAL_DIR: /app/uploads
+    ports:
+      - "18010:8010"
+    volumes:
+      - scaleuploads:/app/uploads
+      - scalelogs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8010/healthz >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+
+  app2:
+    image: teachloop:test
+    environment: *appenv
+    ports:
+      - "18011:8010"
+    volumes:
+      - scaleuploads:/app/uploads
+      - scalelogs:/app/logs
+    depends_on:
+      db:
+        condition: service_healthy
+
+  worker1:
+    image: teachloop:test
+    environment:
+      <<: *appenv
+      SPRING_PROFILES_ACTIVE: worker
+      TEACHLOOP_SEED_ENABLED: "false"
+    volumes:
+      - scaleuploads:/app/uploads
+      - scalelogs:/app/logs
+    depends_on:
+      app1:
+        condition: service_healthy
+
+  worker2:
+    image: teachloop:test
+    environment:
+      <<: *appenv
+      SPRING_PROFILES_ACTIVE: worker
+      TEACHLOOP_SEED_ENABLED: "false"
+    volumes:
+      - scaleuploads:/app/uploads
+      - scalelogs:/app/logs
+    depends_on:
+      app1:
+        condition: service_healthy
+
+volumes:
+  scaledb:
+  scaleuploads:
+  scalelogs:
