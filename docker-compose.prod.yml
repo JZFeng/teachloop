@@ -22,6 +22,7 @@ services:
       DB_URL: jdbc:postgresql://db:5432/teachloop
       DB_USER: ${DB_USER:-teachloop}
       DB_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD is required}
+      SPRING_PROFILES_ACTIVE: ${SPRING_PROFILES_ACTIVE:-prod}
       PORT: 8010
     ports:
       - "8010:8010"
