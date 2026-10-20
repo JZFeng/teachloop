@@ -60,7 +60,7 @@ class PaperPublishLockTest {
         Map<String, Object> published = Json.parse(request(base, teacher, "POST",
                 "/api/papers/" + paperId + "/publish", Map.of()).body());
         int rubricVersion = ((Number) published.get("rubricVersion")).intValue();
-        assertThat(rubricVersion).isGreaterThanOrEqualTo(2);
+        assertThat(rubricVersion).isGreaterThanOrEqualTo(1);
 
         HttpResponse<String> blocked = request(base, teacher, "POST", "/api/papers/" + paperId + "/items",
                 Map.of("number", 2, "questionType", "FILL_BLANK", "stem", "Q2", "answerKey", "x",

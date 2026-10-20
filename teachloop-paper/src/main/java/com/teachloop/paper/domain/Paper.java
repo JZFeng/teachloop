@@ -73,9 +73,11 @@ public class Paper {
     public void setGradingPromptTemplate(String p) { this.gradingPromptTemplate = p; }
 
     public void publish() {
-        // T054：每次发布都递增内容版本与评分标准版本，历史反馈可追溯到当时的 rubric。
-        this.version += 1;
-        this.rubricVersion += 1;
+        // T054：首次发布保持 v1；之后每次重新发布递增内容版本与评分标准版本。
+        if (status == PaperStatus.PUBLISHED) {
+            this.version += 1;
+            this.rubricVersion += 1;
+        }
         this.status = PaperStatus.PUBLISHED;
     }
 }

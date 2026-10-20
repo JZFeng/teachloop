@@ -8,7 +8,7 @@
 - 正在做：T053/T054 已完成；下一批 T055/T056 模板导入与整卷拆分
 - 分支 / HEAD：`main`，最后提交 `3271b01`
 - 未提交 WIP：无（本批即将提交）
-- 最近验证：`make build` / `make test` / `make web-build` / 两个守卫全部 exit 0（`.dsh/logs/verify-security.log`）；`IdentityAuthTest`、`ProdAuthTest`、`ProfileCompletionTest`、`WeChatAuthProviderTest`、`FlowIntegrationTest` 通过
+- 最近验证：`make test` exit 0（`.dsh/logs/verify-paper-fix.log`）；首轮全量发现「首次发布 version 变 2」回归，已修复；T053/T054 测试通过
 
 ## 下一步
 
