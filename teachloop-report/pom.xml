@@ -27,5 +27,17 @@
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-data-jpa</artifactId>
     </dependency>
+    <!-- T123：成绩 XLSX 与汇总 DOCX。版本由 Lead 预下载，避免联网。 -->
+    <dependency>
+      <groupId>org.apache.poi</groupId>
+      <artifactId>poi-ooxml</artifactId>
+      <version>5.5.1</version>
+    </dependency>
+    <!-- T122：逐份反馈 PDF，内置 STSong-Light + UniGB-UCS2-H 生成中文。 -->
+    <dependency>
+      <groupId>com.github.librepdf</groupId>
+      <artifactId>openpdf</artifactId>
+      <version>3.0.5</version>
+    </dependency>
   </dependencies>
 </project>

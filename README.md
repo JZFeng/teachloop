@@ -15,7 +15,7 @@
 | Mock | 完成 | [`specs/002-v2-platform/mockups/interface.html`](specs/002-v2-platform/mockups/interface.html) — 20 个界面、四套主题、可点击 |
 | Plan | 完成（已确认） | [`specs/002-v2-platform/plan.md`](specs/002-v2-platform/plan.md) |
 | Tasks | 完成 | [`specs/002-v2-platform/tasks.md`](specs/002-v2-platform/tasks.md) — 133 个任务 |
-| Implement | **进行中** | 后端纵切 + T198–T202 + T204/T205 + T091–T094 + T080–T083 + T186 导入 + T192 错题报表 + Markdown/ZIP 导出 + 错题解析；前端 `web/` 覆盖 T180–T197（班级汇总含分布/正确率/未交名单）；PDF/Excel 导出因依赖限制仍标注「未接入」 |
+| Implement | **进行中** | 后端纵切 + T198–T202 + T204/T205 + T091–T094 + T080–T083 + T186 导入 + T192 错题报表 + Markdown/ZIP 导出 + 错题解析；前端 `web/` 覆盖 T180–T197；导出支持 Markdown / XLSX / DOCX / 反馈 ZIP / 反馈 PDF；真实 DeepSeek 调用已验证 |
 
 ## 文档怎么读
 
@@ -26,7 +26,7 @@
 ## 技术栈
 
 - 后端：Java 21 + Spring Boot 4.1.x（Spring Framework 7）+ Jackson 3（`tools.jackson`）+ Flyway + PostgreSQL 16
-- 模型：DeepSeek `deepseek-flash`，经 `LlmClient` 直连 OpenAI 兼容端点（后续可换回 Spring AI `ChatClient`，只改一个实现类）
+- 模型：DeepSeek `deepseek-flash`，经 Spring AI 2.0.1 `ChatClient` 调用 OpenAI 兼容端点；`LlmClient` 的 JDK HttpClient 实现保留为 `teachloop.ai.client=http` 回退
 - 前端：`web/`，React 19 + TypeScript + Vite 8 + i18next；视觉与交互按 `specs/002-v2-platform/mockups/interface.html`
 - 队列：不引入消息队列，工作项就是提交行，条件更新领取；定时任务 `@Scheduled` + 数据库条件更新（不引入独立锁表）
 

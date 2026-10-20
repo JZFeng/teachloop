@@ -434,9 +434,11 @@ export const teacherZh = {
     exportMarkdown: '导出 Markdown 汇总',
     exportZip: '导出逐份反馈 ZIP',
     exportZipBlocked: '成绩尚未发布，不能导出逐份反馈',
-    exportPdf: '导出 PDF',
+    exportPdf: '导出逐份反馈 PDF',
+    exportXlsx: '导出 XLSX',
+    exportDocx: '导出 DOCX',
     exportExcel: '导出 Excel',
-    exportHint: 'Markdown 与 ZIP 已接入；PDF / Excel 需要 OpenPDF / POI 依赖，暂未接入。',
+    exportHint: 'Markdown / XLSX / DOCX 汇总随时可导出；逐份反馈 ZIP 与 PDF 需先发布成绩。PDF 中文由内置 CJK 字体渲染。',
     sameSource: '平均分只统计已提交的提交；未交与拒收不参与平均分。',
   },
   reports: {

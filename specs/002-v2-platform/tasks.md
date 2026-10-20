@@ -361,5 +361,10 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T196 前端 | 完成 | 出卷向导题项表单增加多选计分策略；第 2 步增加「按题号区间批量设定题型」（本地草稿 + 已保存题项同步后端），题项同步 payload 带 strategy；`make web-build` 通过 |
 | 2026-10-19 | T191 班级汇总补全 | 完成（PDF/XLSX 受限） | `GET /api/offerings/{id}/class-summary` 增加：未交名单（经 identity 端口取姓名）、分数分布（按满分百分比 5 桶，便于跨卷比较）、逐题正确率（只统计客观题，未答不拉低分母）。班级汇总页展示三块并保留按班分列；`Phase2ExamTimingTest` 新增断言。md/zip 已可导出；PDF/XLSX 需新增依赖 |
 | 2026-10-19 | 全量回归（本轮） | 完成 | `make build` / `make test`（93 个测试：92 通过 + 1 真机 AI 跳过）/ `make web-build` / 两个守卫全绿 |
+| 2026-10-19 | T081 切回 Spring AI ChatClient | 完成 | 依赖 spring-ai-client-chat / spring-ai-openai 2.0.1；`SpringAiLlmClient` 使用 `ChatClient…call().content()`（temperature 0.2、response_format=json_object、maxRetries 0）；默认 `teachloop.ai.client=spring-ai`，`http` 回退；无 Key 不构造客户端、不发网络、不影响上下文启动。**真机验证**：`AiGradingRealCallTest` 与 `SpringAiLlmRealCallTest` 在 `DEEPSEEK_API_KEY` 下均为 Tests run 1 / Skipped 0，返回合法 JSON（5.2s / 3.6s） |
+| 2026-10-19 | T122 PDF 导出 | 完成（字体口径见备注） | OpenPDF 3.0.5；`feedback.pdf` 每人一页，含客观/主观/总分/错题与标准答案/评语；`PdfFontProbe` 启动自检，失败返回 503；`publish_scores=false` → 409。备注：使用内置 CJK 字体 STSong-Light（非嵌入），中文渲染正常但不可文本检索；若需可选中中文，后续嵌入 Noto Sans CJK |
+| 2026-10-19 | T123 XLSX / DOCX 导出 | 完成 | POI 5.5.1：`summary.xlsx`（3 个工作表）与 `summary.docx`，表头随 `lang=zh-CN|en`；中文姓名/班级/题干读回正常；未发布时平均分写「未发布」 |
+| 2026-10-19 | 导出前端 | 完成 | 班级汇总页接入 Markdown / XLSX / DOCX / 反馈 ZIP / 反馈 PDF 下载（带当前语言），未发布时 ZIP/PDF 置灰并提示；PDF 503 按字体不可用提示 |
+| 2026-10-19 | 依赖与真机授权 | 完成 | 用户授权后以放宽权限预下载 POI 5.5.1、OpenPDF 3.0.5、Spring AI 2.0.1 及其传递依赖；用户提供 `DEEPSEEK_API_KEY` 完成两次真实调用验证（Key 未写入仓库） |
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。

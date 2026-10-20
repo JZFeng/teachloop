@@ -27,7 +27,8 @@ interface SummaryData {
  * Markdown 与逐份反馈 ZIP 已接入；PDF / Excel 需要新增依赖，按钮禁用并明示。
  */
 export default function ClassSummaryPage() {
-  const { t } = useTranslation('translation')
+  const { t, i18n } = useTranslation('translation')
+  const lang = i18n.language.startsWith('zh') ? 'zh-CN' : 'en'
   const { offeringId = '' } = useParams()
   const { sort, page, pageSize, setSort, setPage } = useListState(
     { key: 'className', dir: 'asc' },
@@ -254,22 +255,31 @@ export default function ClassSummaryPage() {
               <a className="btn" href={`/api/offerings/${offeringId}/export/summary.md`}>
                 {t('teacher.summary.exportMarkdown')}
               </a>
+              <a className="btn" href={`/api/offerings/${offeringId}/export/summary.xlsx?lang=${lang}`}>
+                {t('teacher.summary.exportXlsx')}
+              </a>
+              <a className="btn" href={`/api/offerings/${offeringId}/export/summary.docx?lang=${lang}`}>
+                {t('teacher.summary.exportDocx')}
+              </a>
               {offering?.publishScores ? (
-                <a className="btn" href={`/api/offerings/${offeringId}/export/feedback.zip`}>
-                  {t('teacher.summary.exportZip')}
-                </a>
+                <>
+                  <a className="btn" href={`/api/offerings/${offeringId}/export/feedback.zip`}>
+                    {t('teacher.summary.exportZip')}
+                  </a>
+                  <a className="btn" href={`/api/offerings/${offeringId}/export/feedback.pdf?lang=${lang}`}>
+                    {t('teacher.summary.exportPdf')}
+                  </a>
+                </>
               ) : (
-                <button type="button" className="btn" disabled title={t('teacher.summary.exportZipBlocked')}>
-                  {t('teacher.summary.exportZip')}
-                </button>
+                <>
+                  <button type="button" className="btn" disabled title={t('teacher.summary.exportZipBlocked')}>
+                    {t('teacher.summary.exportZip')}
+                  </button>
+                  <button type="button" className="btn" disabled title={t('teacher.summary.exportZipBlocked')}>
+                    {t('teacher.summary.exportPdf')}
+                  </button>
+                </>
               )}
-              <button type="button" className="btn" disabled title={t('teacher.common.notConnected')}>
-                {t('teacher.summary.exportPdf')}
-              </button>
-              <button type="button" className="btn" disabled title={t('teacher.common.notConnected')}>
-                {t('teacher.summary.exportExcel')}
-              </button>
-              <Tag tone="amber">{t('teacher.common.notConnected')}</Tag>
             </div>
             <div className="hint">{t('teacher.summary.exportHint')}</div>
           </div>

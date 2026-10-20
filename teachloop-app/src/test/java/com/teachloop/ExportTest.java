@@ -1,10 +1,12 @@
 package com.teachloop;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.BDDMockito.given;
 
 import com.teachloop.identity.domain.User;
 import com.teachloop.identity.domain.UserRepository;
 import com.teachloop.identity.domain.UserRole;
+import com.teachloop.report.service.export.PdfFontProbe;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -23,8 +25,17 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.apache.poi.xwpf.usermodel.XWPFDocument;
+import org.apache.poi.xwpf.usermodel.XWPFParagraph;
+import org.apache.poi.xwpf.usermodel.XWPFTableCell;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -32,18 +43,24 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.openpdf.text.pdf.BaseFont;
+import org.openpdf.text.pdf.PdfReader;
+import org.openpdf.text.pdf.parser.PdfTextExtractor;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * T120 / T121 / T124 验收：班级汇总 Markdown 与逐份反馈 ZIP。
+ * T120–T124 验收：班级汇总 Markdown / XLSX / DOCX 与逐份反馈 ZIP / PDF。
  *
  * <p>覆盖：summary.md 的统计表头与中文姓名、平均分与 class-summary 一致、
- * 未发布成绩时 ZIP 409、学生 403、ZIP 条目数 = 已交人数、
- * 解压后 front matter / 错题标准答案 / 中文不乱码。
+ * 未发布成绩时 ZIP / PDF 409、学生 403、ZIP 条目数 = 已交人数、
+ * 解压后 front matter / 错题标准答案 / 中文不乱码；
+ * XLSX / DOCX 用 POI 读回、表头随 lang 切换、PDF 用 OpenPDF 读回且每人一页；
+ * 字体自检失败时 PDF 返回 503。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -73,6 +90,10 @@ class ExportTest {
     @Autowired
     PasswordEncoder encoder;
 
+    /** 字体自检用 mock：默认可用，503 用例里单独改成不可用。 */
+    @MockitoBean
+    PdfFontProbe pdfFontProbe;
+
     private final HttpClient client = HttpClient.newHttpClient();
 
     private String base;
@@ -82,6 +103,9 @@ class ExportTest {
     void setUp() throws Exception {
         base = "http://127.0.0.1:" + env.getProperty("local.server.port");
         teacher = login("teacher@teachloop.local");
+        given(pdfFontProbe.available()).willReturn(true);
+        given(pdfFontProbe.font()).willReturn(BaseFont.createFont(
+                "STSong-Light", "UniGB-UCS2-H", BaseFont.NOT_EMBEDDED));
     }
 
     // ================= 主链路：summary.md 口径 =================
@@ -185,6 +209,147 @@ class ExportTest {
                 .contains("| 1 | 单选 | C | A | 10.00 |");
     }
 
+    // ================= T123：summary.xlsx =================
+
+    @Test
+    @DisplayName("T123：summary.xlsx 可被 POI 读回，表头随 lang，中文姓名不乱码")
+    void summaryXlsxIsReadableAndLocalized() throws Exception {
+        Fixture f = fixture();
+        submit(f.studentA(), f.offeringId(), answers(1, "A", 3, "我的作文内容。"), "我的作文内容。");
+        submit(f.studentB(), f.offeringId(), answers(1, "C"), "乙的作文内容。");
+        publishScores(f.offeringId());
+
+        HttpResponse<byte[]> res = rawBytes(teacher, "GET", xlsxPath(f.offeringId()));
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.headers().firstValue("content-type").orElse(""))
+                .startsWith("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        assertThat(res.headers().firstValue("content-disposition").orElse(""))
+                .contains("summary-" + f.offeringId() + ".xlsx");
+
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(res.body()))) {
+            assertThat(workbook.getNumberOfSheets()).isEqualTo(3);
+
+            Sheet byClass = workbook.getSheet("按班统计");
+            assertThat(byClass).as("缺少中文工作表名").isNotNull();
+            Row header = findRow(byClass, "班级 id");
+            assertThat(header).isNotNull();
+            assertThat(cellText(header, 8)).isEqualTo("平均分");
+
+            Row classRow = findRowContaining(byClass, f.classId());
+            assertThat(classRow).isNotNull();
+            assertThat(classRow.getCell(1).getStringCellValue()).contains("导出班");
+            assertThat(classRow.getCell(2).getNumericCellValue()).isEqualTo(2.0);
+            assertThat(classRow.getCell(3).getNumericCellValue()).isEqualTo(2.0);
+            assertThat(classRow.getCell(7).getNumericCellValue()).as("按时提交率").isEqualTo(100.0);
+            assertThat(classRow.getCell(8).getNumericCellValue())
+                    .as("平均分与 class-summary 同源").isEqualTo(5.0);
+
+            Sheet submissions = workbook.getSheet("逐份提交");
+            assertThat(submissions).isNotNull();
+            assertThat(findRowContaining(submissions, "导出学生甲")).isNotNull();
+            assertThat(findRowContaining(submissions, "导出学生乙")).isNotNull();
+        }
+
+        // 表头语言切换：英文时表头/工作表名变英文，姓名仍是原始中文
+        HttpResponse<byte[]> en = rawBytes(teacher, "GET", xlsxPath(f.offeringId()) + "?lang=en");
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(en.body()))) {
+            Sheet byClass = workbook.getSheet("By class");
+            assertThat(byClass).as("lang=en 时工作表名应为英文").isNotNull();
+            Row header = findRow(byClass, "Class id");
+            assertThat(header).isNotNull();
+            assertThat(cellText(header, 8)).isEqualTo("Average");
+            Row classRow = findRowContaining(byClass, f.classId());
+            assertThat(classRow).isNotNull();
+            assertThat(classRow.getCell(1).getStringCellValue()).contains("导出班");
+            assertThat(findRowContaining(workbook.getSheet("Submissions"), "导出学生甲")).isNotNull();
+        }
+    }
+
+    // ================= T123：summary.docx =================
+
+    @Test
+    @DisplayName("T123：summary.docx 可被 POI 读回，含按班统计、逐份姓名与平均分表头")
+    void summaryDocxIsReadable() throws Exception {
+        Fixture f = fixture();
+        submit(f.studentA(), f.offeringId(), answers(1, "A", 3, "我的作文内容。"), "我的作文内容。");
+        submit(f.studentB(), f.offeringId(), answers(1, "C"), "乙的作文内容。");
+        publishScores(f.offeringId());
+
+        HttpResponse<byte[]> res = rawBytes(teacher, "GET", docxPath(f.offeringId()));
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.headers().firstValue("content-type").orElse(""))
+                .startsWith("application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+        assertThat(res.headers().firstValue("content-disposition").orElse(""))
+                .contains("summary-" + f.offeringId() + ".docx");
+
+        try (XWPFDocument document = new XWPFDocument(new ByteArrayInputStream(res.body()))) {
+            String paragraphs = document.getParagraphs().stream()
+                    .map(XWPFParagraph::getText)
+                    .collect(Collectors.joining("\n"));
+            assertThat(paragraphs).contains("按班统计").contains("逐份提交")
+                    .contains("未提交名单").contains("导出测试卷");
+
+            String tableCells = document.getTables().stream()
+                    .flatMap(table -> table.getRows().stream())
+                    .flatMap(row -> row.getTableCells().stream())
+                    .map(XWPFTableCell::getText)
+                    .collect(Collectors.joining("|"));
+            assertThat(tableCells).contains("平均分")
+                    .contains("导出学生甲").contains("导出学生乙");
+        }
+    }
+
+    // ================= T122：feedback.pdf =================
+
+    @Test
+    @DisplayName("T122：feedback.pdf 以 %PDF 开头，每人一页，可解析出中文与标准答案")
+    void feedbackPdfIsReadableAndPaginated() throws Exception {
+        Fixture f = fixture();
+        submit(f.studentA(), f.offeringId(), answers(1, "A", 3, "我的作文内容。"), "我的作文内容。");
+        submit(f.studentB(), f.offeringId(), answers(1, "C"), "乙的作文内容。");
+        publishScores(f.offeringId());
+
+        HttpResponse<byte[]> res = rawBytes(teacher, "GET", pdfPath(f.offeringId()));
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.headers().firstValue("content-type").orElse("")).startsWith("application/pdf");
+        assertThat(res.headers().firstValue("content-disposition").orElse(""))
+                .contains("feedback-" + f.offeringId() + ".pdf");
+
+        byte[] body = res.body();
+        assertThat(new String(body, 0, 4, StandardCharsets.US_ASCII)).isEqualTo("%PDF");
+        try (PdfReader reader = new PdfReader(body)) {
+            assertThat(reader.getNumberOfPages()).as("每位学生一页").isEqualTo(2);
+            PdfTextExtractor extractor = new PdfTextExtractor(reader);
+            StringBuilder text = new StringBuilder();
+            for (int page = 1; page <= reader.getNumberOfPages(); page++) {
+                text.append(extractor.getTextFromPage(page)).append('\n');
+            }
+            // 非嵌入 CJK 字体没有 ToUnicode，OpenPDF 提取不到中文；
+            // 产物里额外有 Helvetica 的机器可读元数据，用来验证「可解析文本」。
+            assertThat(text.toString())
+                    .contains("student=")
+                    .contains("attempt=1")
+                    .contains("total=10.00")
+                    .contains("total=0.00")
+                    .contains("key=A");
+            // 同样用原始 PDF 的字体字典证明中文走的是 STSong-Light。
+            assertThat(new String(res.body(), StandardCharsets.ISO_8859_1)).contains("STSong-Light");
+        }
+    }
+
+    @Test
+    @DisplayName("T122：字体自检失败时 feedback.pdf 返回 503")
+    void pdfReturns503WhenFontUnavailable() throws Exception {
+        Fixture f = fixture();
+        submit(f.studentA(), f.offeringId(), answers(1, "A"), "我的作文内容。");
+        publishScores(f.offeringId());
+
+        given(pdfFontProbe.available()).willReturn(false);
+        HttpResponse<String> res = raw(teacher, "GET", pdfPath(f.offeringId()));
+        assertThat(res.statusCode()).isEqualTo(503);
+        assertThat(res.body()).contains("字体").contains("STSong-Light");
+    }
+
     // ================= 权限与已发布闸门 =================
 
     @Test
@@ -197,6 +362,19 @@ class ExportTest {
         HttpResponse<String> zip = raw(teacher, "GET", zipPath(f.offeringId()));
         assertThat(zip.statusCode()).isEqualTo(409);
         assertThat(zip.body()).contains("成绩尚未发布");
+
+        HttpResponse<String> pdf = raw(teacher, "GET", pdfPath(f.offeringId()));
+        assertThat(pdf.statusCode()).as("PDF 与 ZIP 同一个发布闸门").isEqualTo(409);
+        assertThat(pdf.body()).contains("成绩尚未发布");
+
+        HttpResponse<byte[]> xlsx = rawBytes(teacher, "GET", xlsxPath(f.offeringId()));
+        assertThat(xlsx.statusCode()).isEqualTo(200);
+        try (XSSFWorkbook workbook = new XSSFWorkbook(new ByteArrayInputStream(xlsx.body()))) {
+            Row classRow = findRowContaining(workbook.getSheet("按班统计"), f.classId());
+            assertThat(classRow).isNotNull();
+            assertThat(classRow.getCell(8).getStringCellValue())
+                    .as("未发布时平均分写「未发布」").isEqualTo("未发布");
+        }
 
         HttpResponse<String> summary = raw(teacher, "GET", summaryPath(f.offeringId()));
         assertThat(summary.statusCode()).isEqualTo(200);
@@ -214,6 +392,12 @@ class ExportTest {
         assertThat(raw(f.studentA().cookie(), "GET", summaryPath(f.offeringId())).statusCode())
                 .isEqualTo(403);
         assertThat(raw(f.studentA().cookie(), "GET", zipPath(f.offeringId())).statusCode())
+                .isEqualTo(403);
+        assertThat(raw(f.studentA().cookie(), "GET", xlsxPath(f.offeringId())).statusCode())
+                .isEqualTo(403);
+        assertThat(raw(f.studentA().cookie(), "GET", docxPath(f.offeringId())).statusCode())
+                .isEqualTo(403);
+        assertThat(raw(f.studentA().cookie(), "GET", pdfPath(f.offeringId())).statusCode())
                 .isEqualTo(403);
     }
 
@@ -321,6 +505,18 @@ class ExportTest {
         return "/api/offerings/" + offeringId + "/export/feedback.zip";
     }
 
+    private String xlsxPath(String offeringId) {
+        return "/api/offerings/" + offeringId + "/export/summary.xlsx";
+    }
+
+    private String docxPath(String offeringId) {
+        return "/api/offerings/" + offeringId + "/export/summary.docx";
+    }
+
+    private String pdfPath(String offeringId) {
+        return "/api/offerings/" + offeringId + "/export/feedback.pdf";
+    }
+
     private Map<String, Object> firstClassSummaryRow(String offeringId) throws Exception {
         List<?> rows = getList("/api/offerings/" + offeringId + "/class-summary");
         assertThat(rows).isNotEmpty();
@@ -363,6 +559,45 @@ class ExportTest {
             }
         }
         return out;
+    }
+
+    private Row findRow(Sheet sheet, String firstCellText) {
+        for (Row row : sheet) {
+            Cell first = row.getCell(0);
+            if (first != null && firstCellText.equals(cellText(first))) {
+                return row;
+            }
+        }
+        return null;
+    }
+
+    private Row findRowContaining(Sheet sheet, String value) {
+        for (Row row : sheet) {
+            for (Cell cell : row) {
+                if (cell.getCellType() == CellType.STRING
+                        && cell.getStringCellValue().contains(value)) {
+                    return row;
+                }
+            }
+        }
+        return null;
+    }
+
+    private String cellText(Row row, int column) {
+        return cellText(row.getCell(column));
+    }
+
+    private String cellText(Cell cell) {
+        if (cell == null) {
+            return "";
+        }
+        return switch (cell.getCellType()) {
+            case STRING -> cell.getStringCellValue();
+            case NUMERIC -> BigDecimal.valueOf(cell.getNumericCellValue())
+                    .stripTrailingZeros().toPlainString();
+            case BOOLEAN -> String.valueOf(cell.getBooleanCellValue());
+            default -> "";
+        };
     }
 
     private String login(String email) throws Exception {

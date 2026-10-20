@@ -39,9 +39,11 @@ public class OfferingExportService {
     private static final int MAX_BASE_NAME_LENGTH = 60;
 
     private final ExportReadService read;
+    private final PdfFontProbe pdfFonts;
 
-    public OfferingExportService(ExportReadService read) {
+    public OfferingExportService(ExportReadService read, PdfFontProbe pdfFonts) {
         this.read = read;
+        this.pdfFonts = pdfFonts;
     }
 
     /** 班级汇总 Markdown。仅教师 / 管理员可调用，角色闸门在 endpoint。 */
@@ -53,48 +55,97 @@ public class OfferingExportService {
         return ExportMarkdownRenderer.summary(offering, stats, submissions, missing);
     }
 
+    /** 成绩表 XLSX（T123）：按班统计 + 逐份提交 + 未提交名单，表头随 lang。 */
+    public byte[] summaryXlsx(UUID offeringId, String lang) {
+        OfferingMeta offering = requireOffering(offeringId);
+        return ExportSpreadsheetWriter.summary(offering,
+                read.classStats(offeringId, offering.publishScores()),
+                read.latestSubmitted(offeringId),
+                read.missingStudents(offeringId),
+                ExportLabels.of(lang));
+    }
+
+    /** 班级汇总 DOCX（T123）：内容与 Markdown 汇总同源，表头随 lang。 */
+    public byte[] summaryDocx(UUID offeringId, String lang) {
+        OfferingMeta offering = requireOffering(offeringId);
+        return ExportDocxWriter.summary(offering,
+                read.classStats(offeringId, offering.publishScores()),
+                read.latestSubmitted(offeringId),
+                read.missingStudents(offeringId),
+                ExportLabels.of(lang));
+    }
+
     /**
      * 逐份反馈 ZIP。
      *
      * @throws ApiException 404 布置不存在；409 成绩尚未发布（AC-14.5：只打包已发布反馈）
      */
     public byte[] feedbackZip(UUID offeringId) {
-        OfferingMeta offering = requireOffering(offeringId);
-        if (!offering.publishScores()) {
-            throw ApiException.conflict("成绩尚未发布");
-        }
+        OfferingMeta offering = requirePublishedOffering(offeringId);
+        List<FeedbackEntry> entries = feedbackEntries(offeringId);
 
-        List<StudentSubmission> submissions = read.latestSubmitted(offeringId);
-        List<UUID> submissionIds = submissions.stream()
-                .map(StudentSubmission::submissionId)
-                .toList();
-        Map<UUID, List<WrongItem>> wrongItems = read.wrongItems(submissionIds);
-        Map<UUID, String> comments = read.reviewComments(submissionIds);
-
-        List<String> baseNames = new ArrayList<>(submissions.size());
+        List<String> baseNames = new ArrayList<>(entries.size());
         Map<String, Integer> seen = new HashMap<>();
-        for (StudentSubmission s : submissions) {
-            String base = safeFileBase(s.studentName());
+        for (FeedbackEntry entry : entries) {
+            String base = safeFileBase(entry.submission().studentName());
             baseNames.add(base);
             seen.merge(base.toLowerCase(Locale.ROOT), 1, Integer::sum);
         }
 
-        List<FeedbackDoc> docs = new ArrayList<>(submissions.size());
+        List<FeedbackDoc> docs = new ArrayList<>(entries.size());
         Set<String> usedNames = new HashSet<>();
-        for (int i = 0; i < submissions.size(); i++) {
-            StudentSubmission s = submissions.get(i);
+        for (int i = 0; i < entries.size(); i++) {
+            StudentSubmission s = entries.get(i).submission();
             String base = baseNames.get(i);
             if (seen.get(base.toLowerCase(Locale.ROOT)) > 1) {
                 // 没有单独的「学号」列，重名时用学生 id 前 8 位做区分后缀。
                 base = base + "-" + s.studentId().toString().substring(0, 8);
             }
             String fileName = uniqueName(base, s.attemptNo(), usedNames);
-            FeedbackEntry entry = new FeedbackEntry(s,
-                    wrongItems.getOrDefault(s.submissionId(), List.of()),
-                    comments.get(s.submissionId()));
-            docs.add(new FeedbackDoc(fileName, ExportMarkdownRenderer.feedback(offering, entry)));
+            docs.add(new FeedbackDoc(fileName, ExportMarkdownRenderer.feedback(offering, entries.get(i))));
         }
         return zip(docs);
+    }
+
+    /**
+     * 逐份反馈 PDF（T122）。
+     *
+     * @throws ApiException                 404 布置不存在；409 成绩尚未发布
+     * @throws PdfFontUnavailableException   中文字体自检失败 → 503（AC-14.6）
+     */
+    public byte[] feedbackPdf(UUID offeringId, String lang) {
+        OfferingMeta offering = requirePublishedOffering(offeringId);
+        if (!pdfFonts.available()) {
+            throw new PdfFontUnavailableException(
+                    "PDF 中文字体不可用（STSong-Light / UniGB-UCS2-H），请检查部署包字体资源");
+        }
+        return ExportPdfWriter.feedback(offering, feedbackEntries(offeringId),
+                pdfFonts.font(), ExportLabels.of(lang));
+    }
+
+    /** 逐份反馈的公共数据装配：最新一次已提交且未拒收的 attempt + 错题 + 评语。 */
+    private List<FeedbackEntry> feedbackEntries(UUID offeringId) {
+        List<StudentSubmission> submissions = read.latestSubmitted(offeringId);
+        List<UUID> submissionIds = submissions.stream()
+                .map(StudentSubmission::submissionId)
+                .toList();
+        Map<UUID, List<WrongItem>> wrongItems = read.wrongItems(submissionIds);
+        Map<UUID, String> comments = read.reviewComments(submissionIds);
+        List<FeedbackEntry> entries = new ArrayList<>(submissions.size());
+        for (StudentSubmission s : submissions) {
+            entries.add(new FeedbackEntry(s,
+                    wrongItems.getOrDefault(s.submissionId(), List.of()),
+                    comments.get(s.submissionId())));
+        }
+        return entries;
+    }
+
+    private OfferingMeta requirePublishedOffering(UUID offeringId) {
+        OfferingMeta offering = requireOffering(offeringId);
+        if (!offering.publishScores()) {
+            throw ApiException.conflict("成绩尚未发布");
+        }
+        return offering;
     }
 
     private OfferingMeta requireOffering(UUID offeringId) {

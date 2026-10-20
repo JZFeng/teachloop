@@ -402,11 +402,12 @@ Prompt 必须严格分两层，**顺序不可变**：
 
 **实现口径（2026-10-19，T080–T083 落地时确认）**：
 
-- 模型调用走一个最小可替换接口 `grading/ai/LlmClient`，默认实现 `DeepSeekLlmClient`
-  （JDK `HttpClient`，OpenAI 兼容端点 `/chat/completions`，`response_format=json_object`，
-  `temperature 0.2`，model 默认 `deepseek-flash`）。**没有引入 Spring AI**：本机沙箱不允许写
-  `~/.m2`，新增依赖无法解析；`LlmClient` 就是为了保留「换回 `ChatClient` 只改一个实现类」的路。
-  这一偏差已记录在 `tasks.md` 执行记录，等依赖可用时再切。
+- 模型调用走 `grading/ai/LlmClient` 接口；**默认实现是 Spring AI 2.0.1 `ChatClient`**
+  （OpenAI 兼容端点、`response_format=json_object`、`temperature 0.2`、model 默认 `deepseek-flash`，
+  取 `.content()` 而非 `.entity()`）。`DeepSeekLlmClient`（JDK `HttpClient`）保留为
+  `teachloop.ai.client=http` 的回退实现，两者可配置切换。
+- 真实 DeepSeek 调用已验证：`AiGradingRealCallTest` 与 `SpringAiLlmRealCallTest` 在提供
+  `DEEPSEEK_API_KEY` 时通过（非跳过），返回合法 JSON 并通过契约校验。
 - 主观评分项暂从 `rubricMarkdown` 解析（`### 1. Name — 2 points` / `- 名称（15 分）` 等写法）；
   缺分值或分值和不等于主观满分时按剩余满分均分。等 `PaperSnapshot` 暴露 `section_criteria`
   结构化字段后移除这条 fallback。
@@ -679,11 +680,15 @@ MVP 用数据库状态机 + 轮询。将来若换消息队列（RabbitMQ / Redis
 | 产物 | 实现 |
 | :--- | :--- |
 | 逐份反馈 `.md` | 模板渲染（YAML front matter） |
-| 逐份反馈 `.pdf` | OpenPDF + 内置 Noto Sans CJK |
-| 班级汇总 `.md` / `.pdf` | 同上 |
-| 成绩 `.xlsx` | POI `SXSSFWorkbook` |
-| 成绩 `.docx` | POI `XWPFDocument` |
-| 打包 `.zip` | 只含已发布反馈 |
+| 逐份反馈 `.pdf` | OpenPDF 3.0.5 + 内置 CJK 字体 STSong-Light / UniGB-UCS2-H；启动自检，字体不可用返回 503 |
+| 班级汇总 `.md` | `summary.md`，确定性统计，不生成教学建议 |
+| 成绩 `.xlsx` | POI 5.5.1 `XSSFWorkbook`（按班统计 / 逐份提交 / 未提交名单，`lang` 切表头） |
+| 成绩 `.docx` | POI 5.5.1 `XWPFDocument`（与 Markdown 汇总同源） |
+| 打包 `.zip` | 只含已发布反馈（`publish_scores=false` 返回 409） |
+
+**实现说明（2026-10-19）**：PDF 使用 OpenPDF 内置 CJK 字体（非嵌入），中文渲染正常，
+但复制/检索中文不可用（无 ToUnicode）；若要求可选中中文，需改为嵌入 Noto Sans CJK 字体文件。
+XLSX/DOCX 由 POI 生成；Markdown/ZIP 不依赖第三方库。
 
 字体自检：启动时校验字体可加载，失败则 `/healthz?deep=1` 报错、导出返回 503。**不提供 `.txt` 导出**（用户明确要求）。
 

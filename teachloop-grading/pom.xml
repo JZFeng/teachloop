@@ -25,6 +25,16 @@
       <artifactId>teachloop-shared</artifactId>
     </dependency>
     <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-client-chat</artifactId>
+      <version>2.0.1</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.ai</groupId>
+      <artifactId>spring-ai-openai</artifactId>
+      <version>2.0.1</version>
+    </dependency>
+    <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-web</artifactId>
     </dependency>
