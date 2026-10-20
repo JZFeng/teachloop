@@ -351,5 +351,11 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T192 报表 Top N 错题聚合 | 完成（导出未接入） | 新增 `GET /api/reports/wrong-items`（report 模块只读 SQL，CTE 去重最新 attempt；`objective_answers.correct` 聚合；classIds/from/to/limit）。报表页接线：查询按钮 + 正确率升序 + 最常错选；`WrongItemsReport` 6 个用例全绿（含 AC-17.10 limit 不缩统计、学生 403、时间/班级过滤、最新 attempt） |
 | 2026-10-19 | T182 补：重试失败项 | 完成 | `POST /api/offerings/{id}/grading/retry-failed` 只把 FAILED 退回 PENDING（运行中/已完成不动），写审计；教师端按钮启用并显示重试份数 |
 | 2026-10-19 | 浏览器复核（报表 + 反馈） | 完成 | 重启后端（含 V012）与 Vite，实测报表页 Top N 查询（正确率/最常错选/作答分布）与学生反馈详情（错题/正确答案/解析未生成/概览）；截图 `.docs/screenshots/reports-wrong-items.png`、`feedback-detail.png` |
+| 2026-10-19 | T186 导入 .docx/.md/.xlsx | 完成 | `POST /api/papers/{id}/import`（multipart，教师；.doc 拒绝）；zip+XML 解析 docx/xlsx（无第三方依赖）；题号/选项/答案区配对，支持 `1. A`、`1-5 ABCDA`、`1 A 2 B`、行内 `（答案：A）`；缺答案创建 item 并返回 missingAnswers；错误带源文档行号；27 个 paper 测试全绿。向导第 2 步接入导入入口、预览与 warnings |
+| 2026-10-19 | T120/T121/T124 Markdown/ZIP 导出 | 完成（PDF/XLSX 未接入） | `GET /api/offerings/{id}/export/summary.md`（确定性统计、与 class-summary 逐位一致、不生成教学建议）；`GET /api/offerings/{id}/export/feedback.zip`（publishScores=false → 409；逐份反馈 Markdown 含 YAML front matter、错题标准答案、复核评语；UTF-8 中文文件名）。班级汇总页接入两个下载；PDF/Excel 按钮保留「未接入」 |
+| 2026-10-19 | T087/T088/T115 错题解析（后端 + 接口） | 完成（真机 AI 需 Key） | V013 `item_explanations` + 唯一键；`POST /api/offerings/{id}/explanations/generate`（教师；经 `ExplanationWorkQueue` 取答错人次 Top N，跳过已有/缺题干，幂等写入，返回 generated/existing/noStem/failed）；`Ports.ExplanationCatalog` 供 `/my-feedback` 读取，学生端有值显示解析、无值显示「解析未生成」；18 个新增测试全绿。无 DEEPSEEK_API_KEY 时失败计数且不写假解析 |
+| 2026-10-19 | V014 历史数据回填 | 完成 | 对 V012 之前的 `objective_answers` 按单选/填空（大小写+空白归一）与多选（忽略顺序）回填 `correct`；复杂策略无法在 SQL 还原，已在迁移注释写明 |
+| 2026-10-19 | 前端接导入/导出/解析 | 完成 | 向导第 2 步导入（错误显示 detail 行号、缺答案提示、导入后刷新总分）；班级汇总页下载 Markdown 与反馈 ZIP；批改详情「生成错题解析」按钮 + 四项计数回执。`make web-build` 通过 |
+| 2026-10-19 | 全量回归 | 完成 | `make build` / `make test`（85 个测试通过，1 个真机 AI 跳过）/ `make web-build` / `make check-boundaries` / `make check-deps` 全绿 |
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。

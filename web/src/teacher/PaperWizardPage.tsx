@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
-import type { PaperDetail, PaperItem, PaperView } from '../api/types'
+import type { PaperDetail, PaperImportResult, PaperItem, PaperView } from '../api/types'
 import { ErrorState, Loading, PageHeader } from '../components/States'
 import {
   errorMessage,
@@ -254,6 +254,10 @@ export default function PaperWizardPage() {
   const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState<PaperImportResult | null>(null)
+  const [importError, setImportError] = useState<string | null>(null)
   const [resumed, setResumed] = useState(false)
 
   const [sectionForm, setSectionForm] = useState({ title: '', pointsPerItem: '' })
@@ -673,6 +677,33 @@ export default function PaperWizardPage() {
     )
   }
 
+  const runImport = async () => {
+    if (!draft?.paperId || !importFile) return
+    setImporting(true)
+    setImportError(null)
+    setImportResult(null)
+    try {
+      const body = new FormData()
+      body.append('file', importFile)
+      const res = await fetch(`/api/papers/${draft.paperId}/import`, {
+        method: 'POST',
+        credentials: 'include',
+        body,
+      })
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        throw new Error(payload?.detail || payload?.message || `HTTP ${res.status}`)
+      }
+      setImportResult((await res.json()) as PaperImportResult)
+      setImportFile(null)
+      setReloadKey((k) => k + 1)
+    } catch (err) {
+      setImportError(errorMessage(err))
+    } finally {
+      setImporting(false)
+    }
+  }
+
   if (!draft) {
     return (
       <TeacherPage>
@@ -855,6 +886,68 @@ export default function PaperWizardPage() {
               </div>
             )}
             <div className="hint">{t('teacher.wizard.editLimitation')}</div>
+          </div>
+
+          <div className="card">
+            <h2>{t('teacher.wizard.importTitle')}</h2>
+            <div className="hint" style={{ marginBottom: 12 }}>{t('teacher.wizard.importHint')}</div>
+            {draft.paperId === null ? (
+              <p className="muted">{t('teacher.wizard.importNeedPaper')}</p>
+            ) : draft.locked ? (
+              <p className="muted">{t('teacher.wizard.importLocked')}</p>
+            ) : (
+              <>
+                <div className="row">
+                  <input
+                    type="file"
+                    accept=".docx,.md,.md,.txt,.xlsx"
+                    onChange={(e) => { setImportFile(e.target.files?.[0] ?? null); setImportResult(null); setImportError(null) }}
+                  />
+                  <button type="button" className="btn pri" disabled={!importFile || importing} onClick={() => void runImport()}>
+                    {importing ? t('teacher.common.loading') : t('teacher.wizard.importRun')}
+                  </button>
+                </div>
+                <div className="hint">{t('teacher.wizard.importRequirements')}</div>
+                {importError && <div className="hint" style={{ color: 'var(--red)' }}>{importError}</div>}
+                {importResult && (
+                  <div style={{ marginTop: 12 }}>
+                    <div className="row" style={{ gap: 8 }}>
+                      <Tag tone="green">{t('teacher.wizard.importImported', { n: importResult.imported })}</Tag>
+                      {importResult.missingAnswers.length > 0 && (
+                        <Tag tone="amber">{t('teacher.wizard.importMissing', { list: importResult.missingAnswers.join(', ') })}</Tag>
+                      )}
+                    </div>
+                    {importResult.warnings.length > 0 && (
+                      <ul className="small muted" style={{ marginTop: 8, paddingLeft: 20 }}>
+                        {importResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
+                      </ul>
+                    )}
+                    {importResult.items.length > 0 && (
+                      <table style={{ marginTop: 10 }}>
+                        <thead>
+                          <tr>
+                            <th>{t('teacher.wizard.colNumber')}</th>
+                            <th>{t('teacher.wizard.colStem')}</th>
+                            <th>{t('teacher.wizard.colAnswer')}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importResult.items.map((item) => (
+                            <tr key={item.number}>
+                              <td className="mono">{item.number}</td>
+                              <td className="small">{item.stem}</td>
+                              <td className={item.answerKey ? 'mono' : ''}>
+                                {item.answerKey ?? <Tag tone="amber">{t('teacher.wizard.importNoAnswer')}</Tag>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                  </div>
+                )}
+              </>
+            )}
           </div>
         </>
       )}

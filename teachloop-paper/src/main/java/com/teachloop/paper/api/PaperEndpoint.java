@@ -2,19 +2,31 @@ package com.teachloop.paper.api;
 
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.paper.domain.*;
+import com.teachloop.paper.importing.DocumentTextExtractor;
+import com.teachloop.paper.importing.ImportException;
+import com.teachloop.paper.importing.PaperTextParser;
 import com.teachloop.shared.audit.AuditEvent;
 import com.teachloop.shared.audit.AuditPort;
+import com.teachloop.shared.error.ApiError;
 import com.teachloop.shared.error.ApiException;
+import com.teachloop.shared.error.ErrorCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/papers")
@@ -68,6 +80,13 @@ public class PaperEndpoint {
     }
 
     public record PaperDetail(PaperView paper, List<SectionView> sections, List<String> criteriaNames) {
+    }
+
+    public record ImportedItem(int number, String stem, String options, String answerKey) {
+    }
+
+    public record ImportResult(int imported, List<Integer> missingAnswers, List<ImportedItem> items,
+                               List<String> warnings) {
     }
 
     @PostMapping
@@ -128,6 +147,91 @@ public class PaperEndpoint {
         recalcTotal(p);
         return new ItemView(item.getId().toString(), item.getNumber(), item.getQuestionType().name(),
                 item.getStem(), item.getOptions(), item.getAnswerKey(), item.getPoints().intValue());
+    }
+
+    /**
+     * 从 .docx / .md / .txt / .xlsx 导入客观题项（T186）。
+     *
+     * <p>题目与答案写在同一个文档里也能一次导入：答案按题号自动配对，
+     * 没配上的题照样创建，但题号列进 {@code missingAnswers}。</p>
+     *
+     * <p>只新增 {@code objective_items}：已存在的题号跳过（进 warnings，不覆盖）；
+     * 不触碰已有题项。</p>
+     */
+    @PostMapping(path = "/{id}/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Transactional
+    public ResponseEntity<?> importFile(@PathVariable UUID id,
+                                       @RequestPart("file") MultipartFile file,
+                                       @RequestParam(name = "sectionId", required = false) UUID sectionId,
+                                       @RequestAttribute("currentUser") CurrentUser me) {
+        if (me != null && me.is("STUDENT")) {
+            throw ApiException.forbidden("学生不能导入试卷");
+        }
+        Paper p = load(id);
+        if (p.getStatus() == PaperStatus.PUBLISHED) {
+            throw ApiException.conflict("已发布的试卷内容已锁定，请复制为新版本再改");
+        }
+        PaperSection section = resolveSection(id, sectionId);
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("请选择要导入的文件");
+        }
+
+        PaperTextParser.Result parsed;
+        try {
+            DocumentTextExtractor.ExtractedDocument document =
+                    DocumentTextExtractor.extract(file.getOriginalFilename(), file.getBytes());
+            parsed = PaperTextParser.parse(document.lines());
+        } catch (ImportException ex) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiError(ErrorCode.BAD_REQUEST.name(), "导入失败", ex.getMessage()));
+        } catch (IOException ex) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiError(ErrorCode.BAD_REQUEST.name(), "导入失败",
+                            "读取上传文件失败：" + ex.getMessage()));
+        }
+
+        Set<Integer> existingNumbers = new HashSet<>();
+        for (ObjectiveItem existing : items.findByPaperIdOrderByNumber(id)) {
+            existingNumbers.add(existing.getNumber());
+        }
+        BigDecimal points = section.getPointsPerItem() == null ? BigDecimal.ONE : section.getPointsPerItem();
+        int position = items.findByPaperSectionIdOrderByPosition(section.getId()).size();
+
+        List<String> warnings = new ArrayList<>(parsed.warnings());
+        List<ImportedItem> imported = new ArrayList<>();
+        List<Integer> missingAnswers = new ArrayList<>();
+        for (PaperTextParser.ParsedItem parsedItem : parsed.items()) {
+            if (existingNumbers.contains(parsedItem.number())) {
+                warnings.add("题号 " + parsedItem.number() + " 已存在，已跳过（不覆盖已有题项）");
+                continue;
+            }
+            QuestionType type = parsedItem.options() == null
+                    ? QuestionType.FILL_BLANK
+                    : (parsedItem.answerKey() != null && parsedItem.answerKey().length() > 1
+                            ? QuestionType.MULTIPLE_CHOICE : QuestionType.SINGLE_CHOICE);
+            var item = new ObjectiveItem(UUID.randomUUID(), id, section.getId(), parsedItem.number(),
+                    ++position, type, parsedItem.stem(), parsedItem.options(),
+                    parsedItem.answerKey(), points);
+            items.save(item);
+            existingNumbers.add(parsedItem.number());
+            if (parsedItem.answerKey() == null || parsedItem.answerKey().isBlank()) {
+                missingAnswers.add(parsedItem.number());
+            }
+            imported.add(new ImportedItem(parsedItem.number(), parsedItem.stem(), parsedItem.options(),
+                    parsedItem.answerKey()));
+        }
+        recalcTotal(p);
+        return ResponseEntity.ok(new ImportResult(imported.size(), missingAnswers, imported, warnings));
+    }
+
+    private PaperSection resolveSection(UUID paperId, UUID sectionId) {
+        List<PaperSection> all = sections.findByPaperIdOrderByPosition(paperId);
+        if (sectionId == null) {
+            return all.stream().findFirst()
+                    .orElseThrow(() -> ApiException.badRequest("请先创建部分"));
+        }
+        return all.stream().filter(s -> s.getId().equals(sectionId)).findFirst()
+                .orElseThrow(() -> ApiException.badRequest("指定的部分不属于这张试卷"));
     }
 
     @PostMapping("/{id}/criteria")

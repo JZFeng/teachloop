@@ -107,6 +107,21 @@ public final class Ports {
                              String createdAt) {
     }
 
+    /** 生成解析所需的一道错题（题目级，不含学生身份）。 */
+    public record ExplanationItem(java.util.UUID itemId, int number, String questionType, String stem,
+                                  String options, String answerKey, int wrongCount, String language) {
+    }
+
+    /** sitting 暴露：某场考试需要生成解析的错题（按答错人次降序）。 */
+    public interface ExplanationWorkQueue {
+        java.util.List<ExplanationItem> wrongItemsOf(java.util.UUID offeringId, int limit);
+    }
+
+    /** grading 暴露：错题解析（题目级共享，按语言与 prompt 版本缓存）。 */
+    public interface ExplanationCatalog {
+        java.util.Optional<String> explanationOf(UUID itemId, String language);
+    }
+
     /** grading 暴露：学生反馈读复核结论（只读）。 */
     public interface ReviewFeedback {
         java.util.Optional<ReviewNote> noteOf(UUID submissionId);

@@ -4,6 +4,7 @@ import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime } from '../api/client'
 import type {
   ClassView,
+  ExplanationGenerateResult,
   GradingDispatchView,
   OfferingSubmissionView,
   OfferingView,
@@ -63,6 +64,9 @@ export default function GradingDetailPage() {
   const [dispatchError, setDispatchError] = useState<string | null>(null)
   const [dispatching, setDispatching] = useState(false)
   const [retrying, setRetrying] = useState(false)
+  const [explaining, setExplaining] = useState(false)
+  const [explainResult, setExplainResult] = useState<ExplanationGenerateResult | null>(null)
+  const [explainError, setExplainError] = useState<string | null>(null)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectError, setRejectError] = useState<string | null>(null)
@@ -122,6 +126,20 @@ export default function GradingDetailPage() {
       setDispatchError(errorMessage(err))
     } finally {
       setRetrying(false)
+    }
+  }
+
+  const generateExplanations = async () => {
+    setExplaining(true)
+    setExplainError(null)
+    setExplainResult(null)
+    try {
+      setExplainResult(await api.post<ExplanationGenerateResult>(
+        `/api/offerings/${offeringId}/explanations/generate?limit=50`))
+    } catch (err) {
+      setExplainError(errorMessage(err))
+    } finally {
+      setExplaining(false)
     }
   }
 
@@ -399,6 +417,14 @@ export default function GradingDetailPage() {
                 >
                   {dispatching ? t('teacher.common.loading') : t('teacher.detail.dispatch')}
                 </button>
+                <button
+                  type="button"
+                  className="btn sm"
+                  disabled={explaining}
+                  onClick={() => void generateExplanations()}
+                >
+                  {explaining ? t('teacher.common.loading') : t('teacher.detail.generateExplanations')}
+                </button>
                 <Link className="btn sm" to={`/review?offeringId=${offering.id}`}>
                   {t('teacher.detail.toReview')}
                 </Link>
@@ -409,6 +435,25 @@ export default function GradingDetailPage() {
             </div>
 
 
+            {explainError && (
+              <div className="hint" style={{ color: 'var(--red)' }}>{explainError}</div>
+            )}
+            {explainResult && (
+              <div className="inline-note" style={{ marginTop: 12 }}>
+                <b>{t('teacher.detail.explanationReceipt')}</b>
+                <div className="small">
+                  {t('teacher.detail.explanationCounts', {
+                    generated: explainResult.generated,
+                    existing: explainResult.skippedExisting,
+                    noStem: explainResult.skippedNoStem,
+                    failed: explainResult.failed,
+                  })}
+                </div>
+                {explainResult.failed > 0 && (
+                  <div className="small muted">{t('teacher.detail.explanationFailedHint')}</div>
+                )}
+              </div>
+            )}
             {dispatchError && (
               <div className="hint" style={{ color: 'var(--red)' }}>
                 {t('teacher.detail.dispatchFailed', { message: dispatchError })}

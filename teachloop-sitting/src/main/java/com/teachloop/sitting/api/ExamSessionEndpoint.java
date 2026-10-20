@@ -41,6 +41,7 @@ public class ExamSessionEndpoint {
     private final SubmissionRepository submissions;
     private final ObjectiveAnswerRepository answers;
     private final Ports.ReviewFeedback reviewFeedback;
+    private final org.springframework.beans.factory.ObjectProvider<Ports.ExplanationCatalog> explanations;
     private final Ports.ClassMembership membership;
     private final SnapshotCodec codec;
     private final OfferingWindows windows;
@@ -50,7 +51,9 @@ public class ExamSessionEndpoint {
 
     public ExamSessionEndpoint(OfferingRepository offerings, OfferingClassRepository offeringClasses,
                                SubmissionRepository submissions, ObjectiveAnswerRepository answers,
-                               Ports.ReviewFeedback reviewFeedback, Ports.ClassMembership membership,
+                               Ports.ReviewFeedback reviewFeedback,
+                               org.springframework.beans.factory.ObjectProvider<Ports.ExplanationCatalog> explanations,
+                               Ports.ClassMembership membership,
                                SnapshotCodec codec, OfferingWindows windows,
                                ExamSessionService sessions, AuditPort audit, Clock clock) {
         this.offerings = offerings;
@@ -58,6 +61,7 @@ public class ExamSessionEndpoint {
         this.submissions = submissions;
         this.answers = answers;
         this.reviewFeedback = reviewFeedback;
+        this.explanations = explanations;
         this.membership = membership;
         this.codec = codec;
         this.windows = windows;
@@ -149,8 +153,11 @@ public class ExamSessionEndpoint {
                     })
                     .map(a -> {
                         Ports.ItemSpec spec = specByNumber.get(a.getNumber());
+                        String explanation = explanations.getIfAvailable() == null ? null
+                                : explanations.getIfAvailable()
+                                        .explanationOf(spec.itemId(), o.getFeedbackLanguage()).orElse(null);
                         return new SittingDtos.FeedbackWrongItem(a.getNumber(), spec.questionType(),
-                                spec.points(), spec.stem(), a.getAnswer(), spec.answerKey());
+                                spec.points(), spec.stem(), a.getAnswer(), spec.answerKey(), explanation);
                     })
                     .toList();
             review = reviewFeedback.noteOf(base.getId())

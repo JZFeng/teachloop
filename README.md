@@ -15,7 +15,7 @@
 | Mock | 完成 | [`specs/002-v2-platform/mockups/interface.html`](specs/002-v2-platform/mockups/interface.html) — 20 个界面、四套主题、可点击 |
 | Plan | 完成（已确认） | [`specs/002-v2-platform/plan.md`](specs/002-v2-platform/plan.md) |
 | Tasks | 完成 | [`specs/002-v2-platform/tasks.md`](specs/002-v2-platform/tasks.md) — 133 个任务 |
-| Implement | **进行中** | 后端纵切 + T198–T202 + T204/T205 + T091–T094 + T080–T083；前端 `web/` 已落 T180–T197（部分依赖未实现的后端接口，界面内明确标注「未接入」） |
+| Implement | **进行中** | 后端纵切 + T198–T202 + T204/T205 + T091–T094 + T080–T083 + T186 导入 + T192 错题报表 + Markdown/ZIP 导出 + 错题解析；前端 `web/` 覆盖 T180–T197，PDF/Excel 导出因依赖限制仍标注「未接入」 |
 
 ## 文档怎么读
 

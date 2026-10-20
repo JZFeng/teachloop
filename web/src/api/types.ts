@@ -49,6 +49,20 @@ export interface PaperSection {
   items: PaperItem[]
 }
 
+export interface PaperImportItem {
+  number: number
+  stem: string
+  options: string | null
+  answerKey: string | null
+}
+
+export interface PaperImportResult {
+  imported: number
+  missingAnswers: number[]
+  items: PaperImportItem[]
+  warnings: string[]
+}
+
 export interface PaperDetail {
   paper: PaperView
   sections: PaperSection[]
@@ -122,6 +136,14 @@ export interface OfferingSubmissionView {
   subjectiveScore: number
   totalScore: number
   active: boolean
+}
+
+export interface ExplanationGenerateResult {
+  generated: number
+  skippedExisting: number
+  skippedNoStem: number
+  failed: number
+  total: number
 }
 
 export interface GradingDispatchView {
@@ -263,6 +285,7 @@ export interface FeedbackWrongItem {
   stem: string | null
   given: string
   correctAnswer: string | null
+  explanation: string | null
 }
 
 export interface FeedbackReviewNote {

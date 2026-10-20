@@ -24,7 +24,7 @@ interface SummaryData {
 /**
  * T191 班级汇总：一场考试挂多班时按班分别统计，不混算。
  * 平均分只统计已提交；publishScores=false 时后端返回 null，页面显示「未发布」。
- * 导出后端尚未接入，按钮禁用并明示。
+ * Markdown 与逐份反馈 ZIP 已接入；PDF / Excel 需要新增依赖，按钮禁用并明示。
  */
 export default function ClassSummaryPage() {
   const { t } = useTranslation('translation')
@@ -172,9 +172,18 @@ export default function ClassSummaryPage() {
           <div className="card">
             <h2>{t('teacher.summary.exportTitle')}</h2>
             <div className="row">
-              <button type="button" className="btn" disabled title={t('teacher.common.notConnected')}>
+              <a className="btn" href={`/api/offerings/${offeringId}/export/summary.md`}>
                 {t('teacher.summary.exportMarkdown')}
-              </button>
+              </a>
+              {offering?.publishScores ? (
+                <a className="btn" href={`/api/offerings/${offeringId}/export/feedback.zip`}>
+                  {t('teacher.summary.exportZip')}
+                </a>
+              ) : (
+                <button type="button" className="btn" disabled title={t('teacher.summary.exportZipBlocked')}>
+                  {t('teacher.summary.exportZip')}
+                </button>
+              )}
               <button type="button" className="btn" disabled title={t('teacher.common.notConnected')}>
                 {t('teacher.summary.exportPdf')}
               </button>

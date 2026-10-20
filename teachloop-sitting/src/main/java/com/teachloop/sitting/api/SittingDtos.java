@@ -100,7 +100,7 @@ public final class SittingDtos {
 
     /** 学生反馈里的错题（T111 / T194）：已发布反馈才返回标准答案。 */
     public record FeedbackWrongItem(int number, String questionType, BigDecimal points, String stem,
-                                    String given, String correctAnswer) {
+                                    String given, String correctAnswer, String explanation) {
     }
 
     public record FeedbackReviewNote(String status, String comment, String strengths, String suggestions,

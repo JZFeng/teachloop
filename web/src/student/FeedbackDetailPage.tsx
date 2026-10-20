@@ -123,7 +123,11 @@ export default function FeedbackDetailPage() {
                         <span className="muted" style={{ marginLeft: 16 }}>{t('student.wrongCorrect')}：</span>
                         <span className="mono">{item.correctAnswer || '—'}</span>
                       </div>
-                      <div className="small muted" style={{ marginTop: 4 }}>{t('student.explanationMissing')}</div>
+                      {item.explanation ? (
+                        <div className="small" style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{item.explanation}</div>
+                      ) : (
+                        <div className="small muted" style={{ marginTop: 4 }}>{t('student.explanationMissing')}</div>
+                      )}
                     </li>
                   ))}
                 </ol>
