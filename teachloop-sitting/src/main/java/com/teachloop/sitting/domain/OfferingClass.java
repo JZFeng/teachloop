@@ -26,9 +26,16 @@ public class OfferingClass {
     }
 
     public OfferingClass(UUID id, UUID offeringId, UUID classId) {
+        this(id, offeringId, classId, null, null);
+    }
+
+    public OfferingClass(UUID id, UUID offeringId, UUID classId, java.time.Instant dueAtOverride,
+                         Integer durationOverride) {
         this.id = id;
         this.offeringId = offeringId;
         this.classId = classId;
+        this.dueAtOverride = dueAtOverride;
+        this.durationOverride = durationOverride;
     }
 
     public UUID getId() { return id; }
@@ -36,4 +43,7 @@ public class OfferingClass {
     public UUID getClassId() { return classId; }
     public java.time.Instant getDueAtOverride() { return dueAtOverride; }
     public Integer getDurationOverride() { return durationOverride; }
+
+    public void setDueAtOverride(java.time.Instant t) { this.dueAtOverride = t; }
+    public void setDurationOverride(Integer d) { this.durationOverride = d; }
 }

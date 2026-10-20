@@ -19,9 +19,9 @@ public final class Ports {
     public record AnswerRow(UUID itemId, int number, String answer) {
     }
 
-    /** 试卷只读快照（布置时固化，不回查活表）。 */
-    public record PaperSnapshot(UUID paperId, String title, int totalPoints, int durationMinutes,
-                                List<ItemSpec> items, String rubricMarkdown) {
+    /** 试卷只读快照（布置时固化，不回查活表）；paperVersion 随快照一起落库，便于追溯。 */
+    public record PaperSnapshot(UUID paperId, int paperVersion, String title, int totalPoints,
+                                int durationMinutes, List<ItemSpec> items, String rubricMarkdown) {
     }
 
     /** 阅卷需要的一切，一次取齐（胖消息、瘦 Worker）。 */
@@ -69,13 +69,17 @@ public final class Ports {
         PaperSnapshot load(UUID paperId);
     }
 
-    /** classroom 暴露：某学生所在的班级 id。 */
+    /** classroom 暴露：班级成员关系（只读，不暴露学生资料）。 */
     public interface ClassMembership {
         List<UUID> classIdsOf(UUID studentId);
+
+        List<UUID> membersOf(UUID classId);
     }
 
-    /** identity 暴露。 */
+    /** identity 暴露；接收方与联系方式不外出。 */
     public interface NotificationPort {
+        void notifyOfferingPublished(UUID offeringId);
+
         void notifyScoresPublished(UUID offeringId);
     }
 }

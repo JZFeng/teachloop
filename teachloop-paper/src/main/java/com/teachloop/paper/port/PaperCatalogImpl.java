@@ -29,7 +29,7 @@ public class PaperCatalogImpl implements Ports.PaperCatalog {
                         i.getAnswerKey(), i.getPoints(), i.getStem()))
                 .toList();
         String rubric = p.getRubricMarkdown() == null ? defaultRubric() : p.getRubricMarkdown();
-        return new Ports.PaperSnapshot(paperId, p.getTitle(), p.getTotalPoints().intValue(),
+        return new Ports.PaperSnapshot(paperId, p.getVersion(), p.getTitle(), p.getTotalPoints().intValue(),
                 p.getDefaultDurationMinutes() == null ? 60 : p.getDefaultDurationMinutes(), specs, rubric);
     }
 

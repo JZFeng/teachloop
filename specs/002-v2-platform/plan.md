@@ -549,6 +549,20 @@ MVP 用数据库状态机 + 轮询。将来若换消息队列（RabbitMQ / Redis
 
 **`fixed_window` 的代价要写清**：全班同时起算意味着只要窗口开了，请假的学生也在掉时长。所以它只给"统一监考"的场景用，默认还是 `individual`。
 
+**实现口径（2026-10-19，T199 落地时确认）**：
+
+- `fixed_window` **不做「批量预建 submissions 行」**。截止时间改由服务端在每次读会话/入口页时按
+  `start_at + duration` 推导（`剩余 = start_at + duration − now`）；学生第一次开始作答或自动保存时才落
+  `submissions` 行，并把 `started_at = start_at`、`deadline_at = start_at + duration` 写死。
+  等价保证「未点击的学生也在计时」，代价是**从未打开过考试的学生不会留下空提交**——这是期望行为。
+- 到点自动交卷只扫**已有行**：`deadline_at < now AND submitted_at IS NULL AND active`，用条件 UPDATE
+  定稿，重复扫描无副作用；扫描周期 `teachloop.exam.scan-ms` 默认 30 秒（验收要求 60 秒内）。
+- 草稿态用 `grading_state = 'DRAFT'` 表示，**不进入批改队列**（队列只取 `PENDING`）；
+  定稿时若存在主观作答或正文则转 `PENDING` 送 AI 批改，否则直接 `DONE`。
+- 学生同时在多个参与班且各班覆盖不同时，**取最早的 `due_at` 与最短的 `duration_minutes`**，
+  不允许跨班叠加时长。
+- `NotificationPort` 目前只写审计痕迹；站内通知表属 T208，建表后替换投递实现。
+
 ---
 
 ## 8. 进度查询（轮询，不用 SSE）

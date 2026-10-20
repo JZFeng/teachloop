@@ -331,5 +331,10 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T001 Maven 聚合工程 + 九模块建壳 | 完成 | `./mvnw -v` = Maven 3.9.9 / Java 21.0.11；`make validate` 通过；`make build` 产出 9 个 jar |
 | 2026-10-19 | T002 Makefile | 完成 | `make help` 列出 8 个目标；`make java-home` 输出可 export 的路径 |
 | 2026-10-19 | T203 依赖方向守卫 | 完成 | 故意让 classroom 依赖 grading 时 `make check-deps` 退出码 1，报「越界依赖」并指出环 `classroom -> grading -> sitting -> classroom`；还原后通过 |
+| 2026-10-19 | T198 内容快照与按班覆盖 | 完成 | `paper_snapshot` 改 JSONB，`paper_version` 取自 `papers.version`；`offering_classes.due_at_override` / `duration_override` 参与截止与时长（`OfferingWindows`）。测试：布置后改标准答案分数不变；只覆盖 c1 时 c2 学生仍是 60 分钟/10 天后；同卷布置 3 次 `papers` 仍 1 行 |
+| 2026-10-19 | T199 服务端权威计时与到点自动交卷 | 完成 | `started_at` / `deadline_at` 落库，`submitted_at` 区分草稿/已交；`GET /session` 剩余时间由服务端算，换会话重连不重置；`fixed_window` 未点开始也在计时；`ExamDeadlineJob` 每 30 秒扫 `deadline_at < now AND submitted_at IS NULL`，条件 UPDATE 定稿 `auto_submitted=true`，二次扫描 0 条。`grading_state=DRAFT` 的草稿不进批改队列 |
+| 2026-10-19 | T200 考试入口页（考前须知） | 完成 | `GET /api/offerings/{id}/entry` 返回标题/题量/总分/时长/窗口/注意事项；`individual` 未点开始不计时；`fixed_window` 无开始按钮，两名学生拿到同一 `deadline_at`，文案「已统一开考，本场在 11:00 结束」 |
+| 2026-10-19 | T201 布置页（与建卷分开） | 完成 | `POST /api/offerings` 支持 `classes[]` 多选 + 按班覆盖；勾 3 个班生成 1 条 offering + 3 条 offering_classes；发布触发 `NotificationPort`（当前落审计，T208 换成站内通知）；`GET /{id}` 返回各班覆盖与成员数 |
+| 2026-10-19 | T202 迟交与拒收 | 完成 | 迟交按有效 `due_at` 算 `late_by_seconds`，过截止仍可提交；`POST /api/offerings/{id}/submissions/{sid}/reject` 需理由（400/403 用例覆盖），拒收后学生可见理由并可重交 attempt 2；`GET /{id}/class-summary` 分列按时/迟交/拒收与按时提交率 |
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。

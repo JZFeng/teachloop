@@ -64,6 +64,10 @@ public class Submission {
     @Column(name = "grading_error", columnDefinition = "text")
     private String gradingError;
 
+    /** 交卷时间（含自动交卷）；null 表示仍在作答（草稿）。 */
+    @Column(name = "submitted_at")
+    private Instant submittedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -95,6 +99,7 @@ public class Submission {
     public Instant getDeadlineAt() { return deadlineAt; }
     public boolean isAutoSubmitted() { return autoSubmitted; }
     public long getLateBySeconds() { return lateBySeconds; }
+    public Instant getSubmittedAt() { return submittedAt; }
     public Instant getRejectedAt() { return rejectedAt; }
     public String getRejectReason() { return rejectReason; }
     public GradingState getGradingState() { return gradingState; }
@@ -102,6 +107,8 @@ public class Submission {
     public String getGradingError() { return gradingError; }
 
     public void setActive(boolean active) { this.active = active; }
+    public void setSubmittedAt(Instant t) { this.submittedAt = t; }
+    public void setAttemptNo(int n) { this.attemptNo = n; }
     public void setObjectiveTotal(BigDecimal v) { this.objectiveTotal = v; }
     public void setSubjectiveTotal(BigDecimal v) { this.subjectiveTotal = v; }
     public void setStartedAt(Instant t) { this.startedAt = t; }

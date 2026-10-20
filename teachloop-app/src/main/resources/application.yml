@@ -35,6 +35,9 @@ teachloop:
     engine: stub
     poll-interval-ms: 2000
     batch-size: 5
+  exam:
+    # 到点自动交卷的扫描周期：归零后最迟这么久定稿（T199 验收要求 60 秒内）
+    scan-ms: 30000
 
 management:
   endpoints:

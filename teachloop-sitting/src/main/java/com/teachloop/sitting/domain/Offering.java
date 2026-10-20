@@ -1,6 +1,8 @@
 package com.teachloop.sitting.domain;
 
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -51,7 +53,8 @@ public class Offering {
     @Column(nullable = false)
     private OfferingStatus status = OfferingStatus.DRAFT;
 
-    @Column(name = "paper_snapshot", columnDefinition = "text", nullable = false)
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "paper_snapshot", columnDefinition = "jsonb", nullable = false)
     private String paperSnapshot;
 
     @Column(name = "paper_version", nullable = false)
@@ -111,4 +114,8 @@ public class Offering {
     public void setStatus(OfferingStatus status) { this.status = status; }
     public void setPublishScores(boolean v) { this.publishScores = v; }
     public void setGradingDispatchedAt(Instant t) { this.gradingDispatchedAt = t; }
+    public void setMaxAttempts(int v) { this.maxAttempts = v; }
+    public void setGraceHours(int v) { this.graceHours = v; }
+    public void setFeedbackLanguage(String v) { this.feedbackLanguage = v; }
+    public void setShowPeerOverview(boolean v) { this.showPeerOverview = v; }
 }

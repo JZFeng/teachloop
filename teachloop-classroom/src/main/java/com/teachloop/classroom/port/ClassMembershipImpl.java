@@ -19,4 +19,9 @@ public class ClassMembershipImpl implements Ports.ClassMembership {
     public List<UUID> classIdsOf(UUID studentId) {
         return members.findByStudentId(studentId).stream().map(m -> m.getClassId()).toList();
     }
+
+    @Override
+    public List<UUID> membersOf(UUID classId) {
+        return members.findByClassId(classId).stream().map(m -> m.getStudentId()).toList();
+    }
 }
