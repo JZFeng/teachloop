@@ -25,6 +25,9 @@ public class Paper {
     @Column(nullable = false)
     private int version = 1;
 
+    @Column(name = "rubric_version", nullable = false)
+    private int rubricVersion = 1;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private PaperStatus status = PaperStatus.DRAFT;
@@ -57,6 +60,7 @@ public class Paper {
     public Integer getDefaultDurationMinutes() { return defaultDurationMinutes; }
     public BigDecimal getTotalPoints() { return totalPoints; }
     public int getVersion() { return version; }
+    public int getRubricVersion() { return rubricVersion; }
     public PaperStatus getStatus() { return status; }
     public UUID getAuthorId() { return authorId; }
     public String getRubricMarkdown() { return rubricMarkdown; }
@@ -69,9 +73,9 @@ public class Paper {
     public void setGradingPromptTemplate(String p) { this.gradingPromptTemplate = p; }
 
     public void publish() {
-        if (status == PaperStatus.PUBLISHED) {
-            this.version += 1;
-        }
+        // T054：每次发布都递增内容版本与评分标准版本，历史反馈可追溯到当时的 rubric。
+        this.version += 1;
+        this.rubricVersion += 1;
         this.status = PaperStatus.PUBLISHED;
     }
 }

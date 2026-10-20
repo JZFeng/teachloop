@@ -82,8 +82,8 @@ public class PaperEndpoint {
     public record Rubric(String rubricMarkdown, String gradingPromptTemplate) {
     }
 
-    public record PaperView(String id, String title, int totalPoints, int version, String status,
-                            Integer defaultDurationMinutes) {
+    public record PaperView(String id, String title, int totalPoints, int version, int rubricVersion,
+                            String status, Integer defaultDurationMinutes) {
     }
 
     public record ItemView(String id, int number, String questionType, String stem, String options,
@@ -132,8 +132,10 @@ public class PaperEndpoint {
 
     @PostMapping("/{id}/sections")
     @Transactional
-    public SectionView addSection(@PathVariable UUID id, @RequestBody @Valid CreateSection body) {
-        load(id);
+    public SectionView addSection(@PathVariable UUID id, @RequestBody @Valid CreateSection body,
+                                  @RequestParam(defaultValue = "false") boolean confirm,
+                                  @RequestAttribute("currentUser") CurrentUser me) {
+        editable(id, confirm, me, "add_section");
         int pos = sections.findByPaperIdOrderByPosition(id).size() + 1;
         var s = new PaperSection(UUID.randomUUID(), id, body.title().trim(), pos, body.pointsPerItem());
         sections.save(s);
@@ -143,11 +145,10 @@ public class PaperEndpoint {
 
     @PostMapping("/{id}/items")
     @Transactional
-    public ItemView addItem(@PathVariable UUID id, @RequestBody @Valid CreateItem body) {
-        Paper p = load(id);
-        if (p.getStatus() == PaperStatus.PUBLISHED) {
-            throw ApiException.conflict("已发布的试卷内容已锁定，请复制为新版本再改");
-        }
+    public ItemView addItem(@PathVariable UUID id, @RequestBody @Valid CreateItem body,
+                            @RequestParam(defaultValue = "false") boolean confirm,
+                            @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = editable(id, confirm, me, "add_item");
         UUID sectionId = body.sectionId();
         if (sectionId == null) {
             sectionId = sections.findByPaperIdOrderByPosition(id).stream().findFirst()
@@ -171,19 +172,22 @@ public class PaperEndpoint {
      * <p>只新增 {@code objective_items}：已存在的题号跳过（进 warnings，不覆盖）；
      * 不触碰已有题项。</p>
      */
+    /** 兼容旧测试/内部调用的重载（不注册为端点）。 */
+    public ResponseEntity<?> importFile(UUID id, MultipartFile file, UUID sectionId, CurrentUser me) {
+        return importFile(id, file, sectionId, false, me);
+    }
+
     @PostMapping(path = "/{id}/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Transactional
     public ResponseEntity<?> importFile(@PathVariable UUID id,
                                        @RequestPart("file") MultipartFile file,
                                        @RequestParam(name = "sectionId", required = false) UUID sectionId,
+                                       @RequestParam(defaultValue = "false") boolean confirm,
                                        @RequestAttribute("currentUser") CurrentUser me) {
         if (me != null && me.is("STUDENT")) {
             throw ApiException.forbidden("学生不能导入试卷");
         }
-        Paper p = load(id);
-        if (p.getStatus() == PaperStatus.PUBLISHED) {
-            throw ApiException.conflict("已发布的试卷内容已锁定，请复制为新版本再改");
-        }
+        Paper p = editable(id, confirm, me, "import");
         PaperSection section = resolveSection(id, sectionId);
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("请选择要导入的文件");
@@ -249,8 +253,10 @@ public class PaperEndpoint {
 
     @PostMapping("/{id}/criteria")
     @Transactional
-    public void addCriteria(@PathVariable UUID id, @RequestBody @Valid CreateCriteria body) {
-        Paper p = load(id);
+    public void addCriteria(@PathVariable UUID id, @RequestBody @Valid CreateCriteria body,
+                            @RequestParam(defaultValue = "false") boolean confirm,
+                            @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = editable(id, confirm, me, "add_criteria");
         UUID sectionId = body.sectionId();
         if (sectionId == null) {
             sectionId = sections.findByPaperIdOrderByPosition(id).stream().findFirst()
@@ -264,8 +270,10 @@ public class PaperEndpoint {
 
     @PutMapping("/{id}/rubric")
     @Transactional
-    public PaperView rubric(@PathVariable UUID id, @RequestBody Rubric body) {
-        Paper p = load(id);
+    public PaperView rubric(@PathVariable UUID id, @RequestBody Rubric body,
+                            @RequestParam(defaultValue = "false") boolean confirm,
+                            @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = editable(id, confirm, me, "update_rubric");
         p.setRubricMarkdown(body.rubricMarkdown());
         p.setGradingPromptTemplate(body.gradingPromptTemplate());
         return view(p);
@@ -288,9 +296,10 @@ public class PaperEndpoint {
     @PutMapping("/{id}/items/{number}/question-type")
     @Transactional
     public ItemView setQuestionType(@PathVariable UUID id, @PathVariable int number,
-                                    @RequestBody @Valid SetQuestionType body) {
-        Paper p = load(id);
-        requireEditable(p);
+                                    @RequestBody @Valid SetQuestionType body,
+                                    @RequestParam(defaultValue = "false") boolean confirm,
+                                    @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = editable(id, confirm, me, "change_question_type");
         ObjectiveItem item = items.findByPaperIdAndNumber(id, number)
                 .orElseThrow(() -> ApiException.notFound("题号 " + number + " 不存在"));
         applyType(item, body.questionType());
@@ -301,9 +310,10 @@ public class PaperEndpoint {
     @PostMapping("/{id}/items/question-type/batch")
     @Transactional
     public BatchResult batchQuestionType(@PathVariable UUID id,
-                                         @RequestBody @Valid BatchQuestionType body) {
-        Paper p = load(id);
-        requireEditable(p);
+                                         @RequestBody @Valid BatchQuestionType body,
+                                         @RequestParam(defaultValue = "false") boolean confirm,
+                                         @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = editable(id, confirm, me, "batch_question_type");
         if (body.fromNumber() > body.toNumber()) {
             throw ApiException.badRequest("起始题号不能大于结束题号");
         }
@@ -324,9 +334,10 @@ public class PaperEndpoint {
     @PutMapping("/{id}/items/{number}/scoring-strategy")
     @Transactional
     public ItemView setScoringStrategy(@PathVariable UUID id, @PathVariable int number,
-                                       @RequestBody @Valid SetScoringStrategy body) {
-        Paper p = load(id);
-        requireEditable(p);
+                                       @RequestBody @Valid SetScoringStrategy body,
+                                       @RequestParam(defaultValue = "false") boolean confirm,
+                                       @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = editable(id, confirm, me, "scoring_strategy");
         ObjectiveItem item = items.findByPaperIdAndNumber(id, number)
                 .orElseThrow(() -> ApiException.notFound("题号 " + number + " 不存在"));
         if (item.getQuestionType() != QuestionType.MULTIPLE_CHOICE) {
@@ -336,10 +347,17 @@ public class PaperEndpoint {
         return itemView(item);
     }
 
-    private void requireEditable(Paper p) {
+    /** T054：发布后改结构必须显式 confirm，并写一条审计；普通编辑在发布前不受影响。 */
+    private Paper editable(UUID id, boolean confirm, CurrentUser me, String action) {
+        Paper p = load(id);
         if (p.getStatus() == PaperStatus.PUBLISHED) {
-            throw ApiException.conflict("已发布的试卷内容已锁定，请复制为新版本再改");
+            if (!confirm) {
+                throw ApiException.conflict("已发布的试卷内容已锁定；确认修改请带 confirm=true");
+            }
+            audit.record(new AuditEvent(me.id(), "paper:edited_after_publish", "paper", id.toString(),
+                    java.util.Map.of("action", action, "rubricVersion", p.getRubricVersion())));
         }
+        return p;
     }
 
     private void applyType(ObjectiveItem item, QuestionType type) {
@@ -393,6 +411,6 @@ public class PaperEndpoint {
 
     private PaperView view(Paper p) {
         return new PaperView(p.getId().toString(), p.getTitle(), p.getTotalPoints().intValue(),
-                p.getVersion(), p.getStatus().name(), p.getDefaultDurationMinutes());
+                p.getVersion(), p.getRubricVersion(), p.getStatus().name(), p.getDefaultDurationMinutes());
     }
 }

@@ -396,6 +396,9 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T172 安全自查 | 完成 | `.docs/security-self-check.md` 逐项映射：未登录 401、缺 CSRF 403、越权 403/404、上传白名单、富文本消毒、限流 429、停用下线、资料补全、prod 禁开发登录；目标测试组合 exit 0 |
 | 2026-10-19 | T020 迁移集成测试 | 完成 | `MigrationTest`：空库迁移全部 applied、无 pending；断言 18 张关键表与 `submissions_active_uk` 索引；重复 `migrate()` 执行 0 条且数量不变 |
 | 2026-10-19 | T042 成员列表（含提交数） | 完成 | `GET /api/classes/{id}/members` 改为 `{studentId, displayName, submissionCount}`；sitting 新增 `ClassSubmissionStats` 端口按班聚合提交数；学生访问 403；`ClassAccessTest` 覆盖 |
+| 2026-10-19 | T053 匹配策略注册表 | 完成 | `MatchStrategy` + `MatchStrategies`：exact / normalized（大小写/空白/标点）/ choice（字母集合无序）/ set（多写法分隔符）；`ObjectiveScoring` 改用注册表；`MatchStrategyTest` 覆盖四类边界 |
+| 2026-10-19 | T054 发布锁定与 rubric_version | 完成 | V023 `papers.rubric_version`；每次发布递增 version 与 rubricVersion；发布后改结构需 `confirm=true` 并写审计 `paper:edited_after_publish`（含 action/rubricVersion）；`PaperPublishLockTest` 覆盖 409/放行/审计/版本递增 |
+
 | 2026-10-19 | T043 班级访问控制 | 完成 | 教师 `/api/classes` 只返回自己的班；学生只返回已加入的班；跨教师成员列表 404；学生不能用邀请码再生成（404）；`ClassAccessTest` 覆盖 |
 
 | 2026-10-19 | T021 可重复 seed | 完成 | `DemoSeedRunner`（`teachloop.seed.demo=true`）：1 班 + 30 学生 + 1 份 4 题带答案试卷，固定 UUID/邀请码；重复执行只补缺；`DemoSeedTest` 连跑两次断言用户/班级/成员/试卷/题项数量不变；`make seed` 目标 |

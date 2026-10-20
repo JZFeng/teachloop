@@ -1,11 +1,11 @@
 # TeachLoop 进度仪表盘
 
 > 每个批次结束时由 Lead 更新；`make status` 会打印下面的「当前」与「剩余」。
-> 最近一次更新：2026-10-19（T042/T043 完成）
+> 最近一次更新：2026-10-19（T053/T054 完成）
 
 ## 当前
 
-- 正在做：T042/T043 已完成；下一批 T053–T056 试卷策略
+- 正在做：T053/T054 已完成；下一批 T055/T056 模板导入与整卷拆分
 - 分支 / HEAD：`main`，最后提交 `3271b01`
 - 未提交 WIP：无（本批即将提交）
 - 最近验证：`make build` / `make test` / `make web-build` / 两个守卫全部 exit 0（`.dsh/logs/verify-security.log`）；`IdentityAuthTest`、`ProdAuthTest`、`ProfileCompletionTest`、`WeChatAuthProviderTest`、`FlowIntegrationTest` 通过
@@ -20,7 +20,7 @@
 
 
 
-- 试卷：T053–T056、T062、T206
+- 试卷：T055、T056、T062、T206
 - 判分收尾：T071、T072、T102
 
 - 报表：T150、T151

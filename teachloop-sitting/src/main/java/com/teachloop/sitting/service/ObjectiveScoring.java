@@ -48,9 +48,9 @@ public final class ObjectiveScoring {
                         .divide(BigDecimal.valueOf(key.size()), 2, RoundingMode.HALF_UP)
                         .min(spec.points());
             }
-            return chosen.equals(key) ? spec.points() : BigDecimal.ZERO;
+            return MatchStrategies.CHOICE.matches(spec.answerKey(), given) ? spec.points() : BigDecimal.ZERO;
         }
-        return spec.answerKey().trim().equalsIgnoreCase(given) ? spec.points() : BigDecimal.ZERO;
+        return MatchStrategies.NORMALIZED.matches(spec.answerKey(), given) ? spec.points() : BigDecimal.ZERO;
     }
 
     public static boolean fullyCorrect(Ports.ItemSpec spec, String given) {
