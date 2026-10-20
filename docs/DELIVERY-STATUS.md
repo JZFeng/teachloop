@@ -42,13 +42,13 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 | 可观测 | 请求日志、前端事件、90 天清理、daily_stats | `ObservabilityTest` |
 | 部署 | 镜像（Noto CJK/ffprobe）、compose、深健康探针、阿里云文档 | `DeepHealthTest` + 镜像实跑 |
 | E2E | 旅程 A：3 班 + 77 题；旅程 B：富文本 + 3 次 attempt + 迟交/拒收 | `.docs/e2e-report-v2.md` |
-| 压测 | 50 份提交、并发 10，p95 45ms、批改 33.8s（1+1 拓扑） | `.docs/perf-report-v2.md` |
+| 压测 | 50 份提交、并发 10；1+1 p95 45ms/33.8s，2+2 p95 97ms/7.22s | `.docs/perf-report-v2.md` |
 | 质量基线 | v1 四模型段落计数移植，10 份 parity 全一致 | `TextLengthCounterFixtureTest` |
 
 ## 四、部分完成 / 已知偏差
 
 1. **T175 golden set**：人工基线均分 9.6/10 已记录；真实 AI 偏差未跑（缺 `DEEPSEEK_API_KEY`），执行器 `scripts/golden-set.py` 已就绪。
-2. **T174 拓扑**：压测为 1 app + 1 embedded worker，未编排 2 app + 2 worker。
+2. **T174 判分引擎**：1+1 与 2+2 拓扑都跑过（批改 33.8s → 7.22s），但压测用 stub 引擎，不代表真实 DeepSeek 吞吐与成本。
 3. **PDF 中文字体**：使用 OpenPDF 内置 STSong-Light，非嵌入；视觉正常，复制/检索中文受限。
 4. **OSS**：只有 `StorageBackend` 骨架，`STORAGE_BACKEND=oss` 当前运行期 503。
 5. **解析自动生成（AC-18.5）**：目前教师按需触发，不是提交后自动生成。
