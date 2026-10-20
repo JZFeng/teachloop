@@ -77,7 +77,7 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
         Submission s = submissions.findById(submissionId).orElseThrow();
         // 客观分在提交时由代码判定，模型不得覆盖；只有显式给出时才采用
         if (result.objectivePoints() != null) {
-            s.setObjectiveTotal(result.objectivePoints());
+            s.setObjectiveTotal(result.objectivePoints()); // T071：负分/空值在 setter 统一拒绝
         }
         s.setSubjectiveTotal(nz(result.subjectivePoints()));
         s.setGradingState(GradingState.DONE);

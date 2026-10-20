@@ -118,6 +118,11 @@ public class Submission {
     public boolean isUnreadable() { return unreadable; }
     public BigDecimal getObjectiveTotal() { return objectiveTotal; }
     public BigDecimal getSubjectiveTotal() { return subjectiveTotal; }
+
+    /** T071：最终分只由客观分 + 主观分派生，避免三个数各写一处而漂移。 */
+    public BigDecimal finalTotal() {
+        return objectiveTotal.add(subjectiveTotal);
+    }
     public Instant getStartedAt() { return startedAt; }
     public Instant getDeadlineAt() { return deadlineAt; }
     public boolean isAutoSubmitted() { return autoSubmitted; }
@@ -133,8 +138,23 @@ public class Submission {
     public void setInputKind(String kind) { this.inputKind = kind; }
     public void setSubmittedAt(Instant t) { this.submittedAt = t; }
     public void setAttemptNo(int n) { this.attemptNo = n; }
-    public void setObjectiveTotal(BigDecimal v) { this.objectiveTotal = v; }
-    public void setSubjectiveTotal(BigDecimal v) { this.subjectiveTotal = v; }
+    public void setObjectiveTotal(BigDecimal v) {
+        this.objectiveTotal = nonNegative(v, "objective_total");
+    }
+
+    public void setSubjectiveTotal(BigDecimal v) {
+        this.subjectiveTotal = nonNegative(v, "subjective_total");
+    }
+
+    private static BigDecimal nonNegative(BigDecimal v, String field) {
+        if (v == null) {
+            return BigDecimal.ZERO;
+        }
+        if (v.signum() < 0) {
+            throw new IllegalArgumentException(field + " 不能为负: " + v);
+        }
+        return v;
+    }
     public void setStartedAt(Instant t) { this.startedAt = t; }
     public void setDeadlineAt(Instant t) { this.deadlineAt = t; }
     public void setAutoSubmitted(boolean v) { this.autoSubmitted = v; }
