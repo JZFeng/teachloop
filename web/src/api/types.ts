@@ -39,6 +39,7 @@ export interface PaperItem {
   options: string | null
   answerKey: string | null
   points: number
+  scoringStrategy?: 'ALL_OR_NOTHING' | 'PARTIAL'
 }
 
 export interface PaperSection {

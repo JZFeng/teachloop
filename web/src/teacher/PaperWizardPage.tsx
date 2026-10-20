@@ -12,6 +12,7 @@ import {
 } from './common'
 
 type QType = 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'FILL_BLANK' | 'ESSAY'
+type ScoringStrategy = 'ALL_OR_NOTHING' | 'PARTIAL'
 
 const QUESTION_TYPES: QType[] = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'FILL_BLANK', 'ESSAY']
 
@@ -24,6 +25,7 @@ interface DraftItem {
   options: string
   answerKey: string
   points: number
+  scoringStrategy: ScoringStrategy
 }
 
 interface DraftCriterion {
@@ -117,6 +119,7 @@ function fromDetail(detail: PaperDetail): Draft {
         options: item.options ?? '',
         answerKey: item.answerKey ?? '',
         points: Number(item.points),
+        scoringStrategy: (item.scoringStrategy ?? 'ALL_OR_NOTHING') as ScoringStrategy,
       })),
       criteria: [],
     })),
@@ -148,6 +151,7 @@ function loadStoredDraft(): Draft | null {
           serverId: item.serverId,
           number: Number(item.number ?? 0),
           questionType: (item.questionType ?? 'SINGLE_CHOICE') as QType,
+          scoringStrategy: (item.scoringStrategy ?? 'ALL_OR_NOTHING') as ScoringStrategy,
           stem: item.stem ?? '',
           options: item.options ?? '',
           answerKey: item.answerKey ?? '',
@@ -258,6 +262,9 @@ export default function PaperWizardPage() {
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState<PaperImportResult | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  const [batchForm, setBatchForm] = useState({ from: '', to: '', type: 'SINGLE_CHOICE' as QType })
+  const [batchMessage, setBatchMessage] = useState<string | null>(null)
+  const [batchError, setBatchError] = useState<string | null>(null)
   const [resumed, setResumed] = useState(false)
 
   const [sectionForm, setSectionForm] = useState({ title: '', pointsPerItem: '' })
@@ -269,6 +276,7 @@ export default function PaperWizardPage() {
     options: '',
     answerKey: '',
     points: '',
+    scoringStrategy: 'ALL_OR_NOTHING' as ScoringStrategy,
   })
   const [criteriaSectionKey, setCriteriaSectionKey] = useState('')
   const [criteriaForm, setCriteriaForm] = useState({ name: '', maxPoints: '', description: '' })
@@ -442,6 +450,8 @@ export default function PaperWizardPage() {
       options: itemForm.options,
       answerKey: itemForm.questionType === 'ESSAY' ? '' : itemForm.answerKey,
       points,
+      scoringStrategy: itemForm.questionType === 'MULTIPLE_CHOICE'
+        ? itemForm.scoringStrategy : 'ALL_OR_NOTHING',
     }
     update((current) => ({
       ...current,
@@ -457,6 +467,7 @@ export default function PaperWizardPage() {
       options: '',
       answerKey: '',
       points: '',
+      scoringStrategy: itemForm.scoringStrategy,
     })
     setFormError(null)
   }
@@ -555,6 +566,7 @@ export default function PaperWizardPage() {
           answerKey: items[itemIndex].answerKey.trim() || null,
           points: items[itemIndex].points,
           sectionId,
+          scoringStrategy: items[itemIndex].scoringStrategy,
         })
         items = items.map((item, i) =>
           i === itemIndex ? { ...item, serverId: created.id } : item,
@@ -675,6 +687,42 @@ export default function PaperWizardPage() {
         <ErrorState error={loadError} onRetry={() => setReloadKey((n) => n + 1)} />
       </TeacherPage>
     )
+  }
+
+  const applyBatchType = async () => {
+    const from = Number(batchForm.from)
+    const to = Number(batchForm.to)
+    setBatchMessage(null)
+    setBatchError(null)
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from <= 0 || to < from) {
+      setBatchError(t('teacher.wizard.batchInvalid'))
+      return
+    }
+    const targets = draft?.sections.flatMap((s) => s.items).filter((i) => i.number >= from && i.number <= to) ?? []
+    if (targets.length === 0) {
+      setBatchError(t('teacher.wizard.batchEmpty'))
+      return
+    }
+    update((current) => ({
+      ...current,
+      sections: current.sections.map((section) => ({
+        ...section,
+        items: section.items.map((item) =>
+          item.number >= from && item.number <= to ? { ...item, questionType: batchForm.type } : item),
+      })),
+    }))
+    setBatchMessage(t('teacher.wizard.batchLocal', { n: targets.length }))
+    if (draft?.paperId && !draft.locked && targets.some((i) => i.serverId)) {
+      try {
+        const result = await api.post<{ updated: number }>(`/api/papers/${draft.paperId}/items/question-type/batch`, {
+          fromNumber: from, toNumber: to, questionType: batchForm.type,
+        })
+        setBatchMessage(t('teacher.wizard.batchApplied', { n: result.updated }))
+        setReloadKey((k) => k + 1)
+      } catch (err) {
+        setBatchError(errorMessage(err))
+      }
+    }
   }
 
   const runImport = async () => {
@@ -949,6 +997,30 @@ export default function PaperWizardPage() {
               </>
             )}
           </div>
+
+          <div className="card">
+            <h2>{t('teacher.wizard.batchTitle')}</h2>
+            <div className="hint" style={{ marginBottom: 10 }}>{t('teacher.wizard.batchHint')}</div>
+            <div className="row">
+              <label className="f" style={{ width: 110, margin: 0 }}>
+                <b>{t('teacher.wizard.batchFrom')}</b>
+                <input type="number" min={1} value={batchForm.from} onChange={(e) => setBatchForm({ ...batchForm, from: e.target.value })} />
+              </label>
+              <label className="f" style={{ width: 110, margin: 0 }}>
+                <b>{t('teacher.wizard.batchTo')}</b>
+                <input type="number" min={1} value={batchForm.to} onChange={(e) => setBatchForm({ ...batchForm, to: e.target.value })} />
+              </label>
+              <label className="f" style={{ minWidth: 170, margin: 0 }}>
+                <b>{t('teacher.wizard.questionType')}</b>
+                <select value={batchForm.type} onChange={(e) => setBatchForm({ ...batchForm, type: e.target.value as QType })}>
+                  {QUESTION_TYPES.map((type) => <option key={type} value={type}>{t(`teacher.questionType.${type}`)}</option>)}
+                </select>
+              </label>
+              <button type="button" className="btn" onClick={() => void applyBatchType()}>{t('teacher.wizard.batchApply')}</button>
+            </div>
+            {batchMessage && <div className="hint">{batchMessage}</div>}
+            {batchError && <div className="hint" style={{ color: 'var(--red)' }}>{batchError}</div>}
+          </div>
         </>
       )}
 
@@ -1007,6 +1079,18 @@ export default function PaperWizardPage() {
                       ))}
                     </select>
                   </label>
+                  {itemForm.questionType === 'MULTIPLE_CHOICE' && (
+                    <label className="f" style={{ minWidth: 170 }}>
+                      <b>{t('teacher.wizard.scoringStrategy')}</b>
+                      <select
+                        value={itemForm.scoringStrategy}
+                        onChange={(e) => setItemForm({ ...itemForm, scoringStrategy: e.target.value as ScoringStrategy })}
+                      >
+                        <option value="ALL_OR_NOTHING">{t('teacher.wizard.strategyAllOrNothing')}</option>
+                        <option value="PARTIAL">{t('teacher.wizard.strategyPartial')}</option>
+                      </select>
+                    </label>
+                  )}
                   <label className="f" style={{ width: 96 }}>
                     <b>{t('teacher.wizard.itemPoints')}</b>
                     <input

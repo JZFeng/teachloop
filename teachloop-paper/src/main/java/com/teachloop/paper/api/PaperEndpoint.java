@@ -58,7 +58,21 @@ public class PaperEndpoint {
     }
 
     public record CreateItem(@NotNull Integer number, @NotNull QuestionType questionType, String stem,
-                             String options, String answerKey, @NotNull BigDecimal points, UUID sectionId) {
+                             String options, String answerKey, @NotNull BigDecimal points, UUID sectionId,
+                             String scoringStrategy) {
+    }
+
+    public record SetQuestionType(@NotNull QuestionType questionType) {
+    }
+
+    public record BatchQuestionType(@NotNull Integer fromNumber, @NotNull Integer toNumber,
+                                    @NotNull QuestionType questionType) {
+    }
+
+    public record BatchResult(int updated, String questionType) {
+    }
+
+    public record SetScoringStrategy(@NotBlank String scoringStrategy) {
     }
 
     public record CreateCriteria(@NotBlank String name, @NotNull BigDecimal maxPoints, String description,
@@ -73,7 +87,7 @@ public class PaperEndpoint {
     }
 
     public record ItemView(String id, int number, String questionType, String stem, String options,
-                           String answerKey, int points) {
+                           String answerKey, int points, String scoringStrategy) {
     }
 
     public record SectionView(String id, String title, int position, int pointsPerItem, List<ItemView> items) {
@@ -109,8 +123,7 @@ public class PaperEndpoint {
                 .map(s -> new SectionView(s.getId().toString(), s.getTitle(), s.getPosition(),
                         s.getPointsPerItem() == null ? 0 : s.getPointsPerItem().intValue(),
                         items.findByPaperSectionIdOrderByPosition(s.getId()).stream()
-                                .map(i -> new ItemView(i.getId().toString(), i.getNumber(), i.getQuestionType().name(),
-                                        i.getStem(), i.getOptions(), i.getAnswerKey(), i.getPoints().intValue()))
+                                .map(i -> itemView(i))
                                 .toList()))
                 .toList();
         List<String> crit = criteria.findByPaperIdOrderByPosition(id).stream().map(SectionCriteria::getName).toList();
@@ -143,10 +156,10 @@ public class PaperEndpoint {
         int pos = items.findByPaperSectionIdOrderByPosition(sectionId).size() + 1;
         var item = new ObjectiveItem(UUID.randomUUID(), id, sectionId, body.number(), pos,
                 body.questionType(), body.stem(), body.options(), body.answerKey(), body.points());
+        item.setScoringStrategy(parseStrategy(body.scoringStrategy()));
         items.save(item);
         recalcTotal(p);
-        return new ItemView(item.getId().toString(), item.getNumber(), item.getQuestionType().name(),
-                item.getStem(), item.getOptions(), item.getAnswerKey(), item.getPoints().intValue());
+        return itemView(item);
     }
 
     /**
@@ -269,6 +282,101 @@ public class PaperEndpoint {
         p.publish();
         audit.record(AuditEvent.of(me.id(), "paper:publish", "paper", id.toString()));
         return view(p);
+    }
+
+    /** T196：逐题改题型。单选 ↔ 多选互转只规范标准答案，不触碰已存在的学生作答。 */
+    @PutMapping("/{id}/items/{number}/question-type")
+    @Transactional
+    public ItemView setQuestionType(@PathVariable UUID id, @PathVariable int number,
+                                    @RequestBody @Valid SetQuestionType body) {
+        Paper p = load(id);
+        requireEditable(p);
+        ObjectiveItem item = items.findByPaperIdAndNumber(id, number)
+                .orElseThrow(() -> ApiException.notFound("题号 " + number + " 不存在"));
+        applyType(item, body.questionType());
+        return itemView(item);
+    }
+
+    /** T196：按题号区间批量设定题型。 */
+    @PostMapping("/{id}/items/question-type/batch")
+    @Transactional
+    public BatchResult batchQuestionType(@PathVariable UUID id,
+                                         @RequestBody @Valid BatchQuestionType body) {
+        Paper p = load(id);
+        requireEditable(p);
+        if (body.fromNumber() > body.toNumber()) {
+            throw ApiException.badRequest("起始题号不能大于结束题号");
+        }
+        int updated = 0;
+        for (ObjectiveItem item : items.findByPaperIdOrderByNumber(id)) {
+            if (item.getNumber() >= body.fromNumber() && item.getNumber() <= body.toNumber()) {
+                applyType(item, body.questionType());
+                updated++;
+            }
+        }
+        if (updated == 0) {
+            throw ApiException.badRequest("该区间内没有题目");
+        }
+        return new BatchResult(updated, body.questionType().name());
+    }
+
+    /** T196：设置多选题计分策略（仅 MULTIPLE_CHOICE 有意义）。 */
+    @PutMapping("/{id}/items/{number}/scoring-strategy")
+    @Transactional
+    public ItemView setScoringStrategy(@PathVariable UUID id, @PathVariable int number,
+                                       @RequestBody @Valid SetScoringStrategy body) {
+        Paper p = load(id);
+        requireEditable(p);
+        ObjectiveItem item = items.findByPaperIdAndNumber(id, number)
+                .orElseThrow(() -> ApiException.notFound("题号 " + number + " 不存在"));
+        if (item.getQuestionType() != QuestionType.MULTIPLE_CHOICE) {
+            throw ApiException.badRequest("计分策略只对多选题有效");
+        }
+        item.setScoringStrategy(parseStrategy(body.scoringStrategy()));
+        return itemView(item);
+    }
+
+    private void requireEditable(Paper p) {
+        if (p.getStatus() == PaperStatus.PUBLISHED) {
+            throw ApiException.conflict("已发布的试卷内容已锁定，请复制为新版本再改");
+        }
+    }
+
+    private void applyType(ObjectiveItem item, QuestionType type) {
+        item.setQuestionType(type);
+        String key = item.getAnswerKey();
+        if (key == null) {
+            return;
+        }
+        String letters = key.toUpperCase().replaceAll("[^A-Z]", "");
+        if (type == QuestionType.MULTIPLE_CHOICE) {
+            item.setAnswerKey(letters.isEmpty() ? key : sortedLetters(letters));
+        } else if (type == QuestionType.SINGLE_CHOICE && !letters.isEmpty()) {
+            item.setAnswerKey(letters.substring(0, 1));
+        }
+    }
+
+    private static String sortedLetters(String letters) {
+        char[] chars = letters.toCharArray();
+        java.util.Arrays.sort(chars);
+        return new String(chars).replaceAll("(.)(?=.*\\1)", "");
+    }
+
+    private static ScoringStrategy parseStrategy(String value) {
+        if (value == null || value.isBlank()) {
+            return ScoringStrategy.ALL_OR_NOTHING;
+        }
+        try {
+            return ScoringStrategy.valueOf(value.toUpperCase(java.util.Locale.ROOT));
+        } catch (RuntimeException ex) {
+            throw ApiException.badRequest("不支持的多选计分策略：" + value);
+        }
+    }
+
+    private static ItemView itemView(ObjectiveItem i) {
+        return new ItemView(i.getId().toString(), i.getNumber(), i.getQuestionType().name(),
+                i.getStem(), i.getOptions(), i.getAnswerKey(), i.getPoints().intValue(),
+                i.getScoringStrategy().name());
     }
 
     private void recalcTotal(Paper p) {

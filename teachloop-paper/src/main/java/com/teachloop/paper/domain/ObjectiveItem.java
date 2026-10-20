@@ -42,6 +42,11 @@ public class ObjectiveItem {
     @Column(name = "explanation_state", nullable = false)
     private String explanationState = "none";
 
+    /** T196：仅 MULTIPLE_CHOICE 生效；默认 ALL_OR_NOTHING。 */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scoring_strategy", nullable = false)
+    private ScoringStrategy scoringStrategy = ScoringStrategy.ALL_OR_NOTHING;
+
     protected ObjectiveItem() {
     }
 
@@ -72,4 +77,8 @@ public class ObjectiveItem {
     public String getExplanationState() { return explanationState; }
 
     public void setExplanationState(String state) { this.explanationState = state; }
+    public ScoringStrategy getScoringStrategy() { return scoringStrategy; }
+    public void setScoringStrategy(ScoringStrategy strategy) { this.scoringStrategy = strategy; }
+    public void setQuestionType(QuestionType type) { this.questionType = type; }
+    public void setAnswerKey(String key) { this.answerKey = key; }
 }

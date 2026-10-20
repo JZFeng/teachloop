@@ -286,12 +286,11 @@ public class ExamSessionService {
                 }
                 String given = a.answer() == null ? "" : a.answer().trim();
                 var row = new ObjectiveAnswer(UUID.randomUUID(), s.getId(), spec.itemId(), a.number(), given);
-                boolean ok = !"ESSAY".equals(spec.questionType()) && correct(spec, given);
-                row.setCorrect(ok);
+                java.math.BigDecimal awarded = ObjectiveScoring.award(spec, given);
+                row.setCorrect(awarded.compareTo(spec.points()) == 0
+                        && !"ESSAY".equals(spec.questionType()));
                 answers.save(row);
-                if (ok) {
-                    objective = objective.add(spec.points());
-                }
+                objective = objective.add(awarded);
             }
         }
         s.setObjectiveTotal(objective);
@@ -325,26 +324,5 @@ public class ExamSessionService {
         return codec.read(offering.getPaperSnapshot()).totalPoints();
     }
 
-    private static boolean correct(Ports.ItemSpec spec, String given) {
-        if (spec.answerKey() == null) {
-            return false;
-        }
-        String key = spec.answerKey().trim();
-        if ("MULTIPLE_CHOICE".equals(spec.questionType())) {
-            Set<String> a = tokens(given);
-            Set<String> b = tokens(key);
-            return !a.isEmpty() && a.equals(b);
-        }
-        return key.equalsIgnoreCase(given);
-    }
 
-    private static Set<String> tokens(String s) {
-        Set<String> out = new TreeSet<>();
-        for (String t : s.toUpperCase().split("[^A-Z]")) {
-            if (!t.isBlank()) {
-                out.add(t);
-            }
-        }
-        return out;
-    }
 }

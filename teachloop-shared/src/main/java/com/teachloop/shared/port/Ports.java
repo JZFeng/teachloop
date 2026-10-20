@@ -18,12 +18,19 @@ public final class Ports {
      */
     public record ItemSpec(UUID itemId, int number, String questionType, String answerKey,
                            BigDecimal points, String stem, String options,
-                           int sectionPosition, String sectionTitle) {
+                           int sectionPosition, String sectionTitle, String scoringStrategy) {
 
         /** 兼容既有测试与调用方：结构字段缺省。 */
         public ItemSpec(UUID itemId, int number, String questionType, String answerKey,
                         BigDecimal points, String stem) {
-            this(itemId, number, questionType, answerKey, points, stem, null, 0, null);
+            this(itemId, number, questionType, answerKey, points, stem, null, 0, null, "ALL_OR_NOTHING");
+        }
+
+        public ItemSpec(UUID itemId, int number, String questionType, String answerKey,
+                        BigDecimal points, String stem, String options,
+                        int sectionPosition, String sectionTitle) {
+            this(itemId, number, questionType, answerKey, points, stem, options,
+                    sectionPosition, sectionTitle, "ALL_OR_NOTHING");
         }
     }
 

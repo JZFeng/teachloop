@@ -35,7 +35,8 @@ public class PaperCatalogImpl implements Ports.PaperCatalog {
                     return new Ports.ItemSpec(i.getId(), i.getNumber(), i.getQuestionType().name(),
                             i.getAnswerKey(), i.getPoints(), i.getStem(), i.getOptions(),
                             section == null ? 0 : section.getPosition(),
-                            section == null ? null : section.getTitle());
+                            section == null ? null : section.getTitle(),
+                            i.getScoringStrategy().name());
                 })
                 .toList();
         String rubric = p.getRubricMarkdown() == null ? defaultRubric() : p.getRubricMarkdown();
