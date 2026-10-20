@@ -8,7 +8,7 @@
 - 正在做：T072/T173 完成；T175 执行器就绪，AI 偏差待 `DEEPSEEK_API_KEY`
 - 分支 / HEAD：`main`，最近提交见 `git log`
 - 未提交 WIP：本批剩余改动（提交后以 `git status` 为准）
-- 最近验证：`make build` / `make test` / `make web-build` / 两个守卫全部 exit 0（`.dsh/logs/verify-final.log`）；T175 deepseek-flash 10 份偏差 0.0；`make test-ai` Skipped 0
+- 最近验证：`make test` / `make build` / `make web-build` / 边界守卫 exit 0（`.dsh/logs/verify-ai-setup2.log`）；AI 设置页已浏览器实测；`make test-ai` 此前 Skipped 0
 
 ## 下一步
 

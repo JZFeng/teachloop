@@ -78,7 +78,11 @@ public class AiGradingConfig {
     }
 
     private static Ports.AiSettings configured(ObjectProvider<Ports.AiSettingsLookup> lookup) {
-        Optional<Ports.AiSettings> settings = lookup.getIfAvailable().current();
+        Ports.AiSettingsLookup provider = lookup.getIfAvailable();
+        if (provider == null) {
+            return null; // 单元测试/无 identity 装配时回落环境变量
+        }
+        Optional<Ports.AiSettings> settings = provider.current();
         return settings.filter(Ports.AiSettings::configured).orElse(null);
     }
 
