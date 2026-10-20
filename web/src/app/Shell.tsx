@@ -20,6 +20,7 @@ export function Shell({ children }: { children: ReactNode }) {
     { to: '/grading', label: t('nav.grading') },
     { to: '/review', label: t('nav.review') },
     { to: '/reports', label: t('nav.reports') },
+    ...(me?.role === 'ADMIN' ? [{ to: '/admin/ai', label: t('nav.aiSettings') }] : []),
   ]
   const studentNav: NavItem[] = [
     { to: '/', label: t('nav.home'), end: true },

@@ -6,6 +6,8 @@ import com.teachloop.grading.ai.LlmClient;
 import com.teachloop.grading.ai.SpringAiLlmClient;
 import com.teachloop.grading.domain.AiCallRepository;
 import com.teachloop.grading.prompt.PromptBuilder;
+import com.teachloop.shared.port.Ports;
+import java.util.Optional;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
@@ -13,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.beans.factory.ObjectProvider;
 
 /**
  * 只在 {@code teachloop.grading.engine=ai} 时装配；默认 {@code stub} 的行为保持不变。
@@ -43,7 +46,15 @@ public class AiGradingConfig {
             @Value("${teachloop.ai.base-url:https://api.deepseek.com}") String baseUrl,
             @Value("${teachloop.ai.model:deepseek-flash}") String model,
             @Value("${teachloop.ai.temperature:0.2}") BigDecimal temperature,
-            @Value("${teachloop.ai.timeout-seconds:180}") int timeoutSeconds) {
+            @Value("${teachloop.ai.timeout-seconds:180}") int timeoutSeconds,
+            ObjectProvider<Ports.AiSettingsLookup> lookup) {
+        Ports.AiSettings db = configured(lookup);
+        if (db != null) {
+            apiKey = db.apiKey();
+            baseUrl = db.baseUrl();
+            model = db.model();
+            temperature = db.temperature();
+        }
         return new SpringAiLlmClient(apiKey, baseUrl, model, temperature, Duration.ofSeconds(timeoutSeconds));
     }
 
@@ -54,8 +65,21 @@ public class AiGradingConfig {
             @Value("${teachloop.ai.base-url:https://api.deepseek.com}") String baseUrl,
             @Value("${teachloop.ai.model:deepseek-flash}") String model,
             @Value("${teachloop.ai.temperature:0.2}") BigDecimal temperature,
-            @Value("${teachloop.ai.timeout-seconds:180}") int timeoutSeconds) {
+            @Value("${teachloop.ai.timeout-seconds:180}") int timeoutSeconds,
+            ObjectProvider<Ports.AiSettingsLookup> lookup) {
+        Ports.AiSettings db = configured(lookup);
+        if (db != null) {
+            apiKey = db.apiKey();
+            baseUrl = db.baseUrl();
+            model = db.model();
+            temperature = db.temperature();
+        }
         return new DeepSeekLlmClient(apiKey, baseUrl, model, temperature, Duration.ofSeconds(timeoutSeconds));
+    }
+
+    private static Ports.AiSettings configured(ObjectProvider<Ports.AiSettingsLookup> lookup) {
+        Optional<Ports.AiSettings> settings = lookup.getIfAvailable().current();
+        return settings.filter(Ports.AiSettings::configured).orElse(null);
     }
 
     @Bean

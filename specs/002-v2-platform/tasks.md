@@ -437,3 +437,5 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-20 | T173 四模型 parity | 完成 | 10 份 v1 作文复制到 `teachloop-grading/src/test/resources/fixtures/submissions/`，`expected-paragraphs.json` 由 v1 Python 生成；`TextLengthCounterFixtureTest` 逐份逐模型一致（含 Genesis 24→3、Maria 8→4、Mark 6→4） |
 | 2026-10-20 | T175 golden set | 完成 | `docs/reports/golden-set-baseline.md`：10 份人工均分 9.6；deepseek-flash 实测平均偏差 0.0、最大绝对偏差 0、方向持平；`make test-ai` 两个真机测试 Skipped 0 |
 | 2026-10-20 | T175 golden set 执行器 | 完成（待 Key 运行） | `scripts/golden-set.py` 读取 10 份 v1 样本与人工总分，同一 rubric 调 DeepSeek，输出每份偏差与平均/最大偏差/方向；无 Key 明确退出码 2，不写假数字 |
+
+| 2026-10-20 | 管理员初始设置（用户新增） | 完成 | `/setup` 首次创建管理员（无 ADMIN 时开放）+ `/admin/ai` AI 配置：provider/baseUrl/model/temperature/API Key；Key AES-GCM 加密存库、接口只回掩码；保存后重启生效；测试连接；`AiSetupTest` 覆盖首个管理员、二次 409、加密、掩码、403 |

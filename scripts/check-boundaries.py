@@ -28,6 +28,7 @@ TABLE_OWNER: dict[str, str] = {
     "teacher_invites": "identity",
     "rate_limits": "identity",
     "notifications": "identity",
+    "ai_settings": "identity",
 
     "classes": "classroom",
     "class_members": "classroom",

@@ -45,6 +45,7 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 | 压测 | 50 份提交、并发 10；1+1 p95 45ms/33.8s，2+2 p95 97ms/7.22s | `.docs/perf-report-v2.md` |
 | 质量基线 | v1 四模型段落计数移植，10 份 parity 全一致 | `TextLengthCounterFixtureTest` |
 | Golden set | 10 份人工均分 9.6；deepseek-flash 平均偏差 0.0、最大 0、方向持平 | `docs/reports/golden-set-baseline.md`、`make test-ai` |
+| 管理员初始设置 | `/setup` 创建首个管理员；`/admin/ai` 配置 AI（Key AES-GCM 加密、只回掩码、测试连接、保存后重启生效） | `AiSetupTest` + 浏览器截图 `setup-admin.png`、`admin-ai-settings.png` |
 
 ## 四、部分完成 / 已知偏差
 

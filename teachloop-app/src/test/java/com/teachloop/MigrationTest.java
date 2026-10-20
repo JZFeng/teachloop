@@ -54,7 +54,7 @@ class MigrationTest {
         assertThat(tables).contains("users", "classes", "class_members", "papers", "paper_sections",
                 "objective_items", "offerings", "submissions", "objective_answers", "grading_runs",
                 "reviews", "item_explanations", "ai_calls", "audit_logs", "notifications",
-                "rate_limits", "teacher_invites", "daily_stats");
+                "rate_limits", "teacher_invites", "daily_stats", "ai_settings");
 
         Integer activeIndex = jdbc.queryForObject(
                 "select count(*) from pg_indexes where tablename = 'submissions' and indexname = 'submissions_active_uk'",

@@ -7,5 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByEmail(String email);
 
+    long countByRole(UserRole role);
+
     Optional<User> findByWechatOpenId(String openId);
 }

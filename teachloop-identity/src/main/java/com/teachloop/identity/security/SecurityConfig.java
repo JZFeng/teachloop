@@ -59,6 +59,7 @@ public class SecurityConfig {
                 .sessionFixation(f -> f.none()))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/healthz", "/actuator/health", "/actuator/health/**", "/api/csrf",
+                        "/api/setup/**",
                         "/api/auth/login", "/api/auth/wechat", "/api/auth/teacher-invite").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/papers/**").hasAnyRole("TEACHER", "ADMIN")

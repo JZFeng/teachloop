@@ -8,6 +8,8 @@ import { ExamFocusLayout, Shell } from './app/Shell'
 import LoginPage from './app/LoginPage'
 import NotificationsPage from './app/NotificationsPage'
 import ProfilePage from './app/ProfilePage'
+import SetupPage from './app/SetupPage'
+import AdminAiPage from './app/AdminAiPage'
 import TeacherHomePage from './teacher/HomePage'
 import ClassesPage from './teacher/ClassesPage'
 import PapersPage from './teacher/PapersPage'
@@ -60,6 +62,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={me ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/setup" element={<SetupPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<ShellLayout />}>
           <Route index element={<HomeRouter />} />
@@ -77,6 +80,7 @@ export default function App() {
           <Route path="feedback" element={<FeedbackListPage />} />
           <Route path="feedback/:offeringId" element={<FeedbackDetailPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="admin/ai" element={<AdminAiPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
         <Route path="/exams/:offeringId" element={<Shell><ExamEntryPage /></Shell>} />

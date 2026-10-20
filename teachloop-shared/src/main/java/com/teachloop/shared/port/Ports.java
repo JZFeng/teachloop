@@ -119,6 +119,15 @@ public final class Ports {
         List<UUID> membersOf(UUID classId);
     }
 
+    /** 管理员在初始设置里保存的 AI 配置；key 不随端口返回给业务方以外的接口。 */
+    public record AiSettings(String provider, String baseUrl, String model, String apiKey,
+                             BigDecimal temperature, boolean configured) {
+    }
+
+    public interface AiSettingsLookup {
+        java.util.Optional<AiSettings> current();
+    }
+
     /** T102：改标准答案后重算客观分。 */
     public record AnswerKey(UUID paperId, int number, String answerKey) {
     }

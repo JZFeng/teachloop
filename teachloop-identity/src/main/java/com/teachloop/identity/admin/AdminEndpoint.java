@@ -1,5 +1,6 @@
 package com.teachloop.identity.admin;
 
+import com.teachloop.identity.ai.AiSettingsEndpoint;
 import com.teachloop.identity.domain.TeacherInvite;
 import com.teachloop.identity.domain.User;
 import com.teachloop.shared.security.CurrentUser;

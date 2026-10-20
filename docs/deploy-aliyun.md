@@ -8,6 +8,17 @@
 - 安全组：只开 22（限办公 IP）、80、443；8010 不直接对公网。
 - 安装 Docker 24+ 与 compose v2；ECS 建议 4C8G 起（AI 调用是外网等待，CPU 压力不高；内存要容纳 100MB 上传峰值）。
 
+## 1.5 首次初始化（管理员 + AI）
+
+第一次打开 `https://teachloop.example.com/setup`：
+
+1. 创建第一个管理员（没有 ADMIN 时此页可用；创建后自动关闭）。
+2. 用管理员登录 → 左侧「AI 设置」→ 填 Provider / Base URL / 模型 / API Key → 保存。
+3. 保存后需重启 `app`（与 worker）让新配置生效；密钥以 AES-GCM 加密存库，API 只返回掩码。
+4. 点「测试连接」可先验证 Key 与端点（不会落库）。
+
+`TEACHLOOP_SECURITY_SECRET` 必须设置为长随机串；它是 AI Key 的加密密钥，丢失后需要重新填写 AI Key。
+
 ## 2. 配置
 
 ```bash
