@@ -26,13 +26,13 @@
 | 1 | 建作业型（仅主观、无倒计时）→ 发布 | 已实测：E2E 纯写作作业（1 道 20 分写作），发布到 E2E-B 作业班 |
 | 2 | 富文本提交 → 新 attempt | 浏览器实测：切到「Rich text」，输入粗体 + 列表（`<strong>` + `<ul><li>`）并提交；页面出现「Start another attempt」，点击后第二次提交成功。API 显示 `attemptsUsed=2`，第 1 次 `active=false`、第 2 次 `active=true`，历史保留。截图 `e2e-journey-b-attempts.png` |
 | 3 | 过 due 后仍可交、标 late、教师拒收 | 已实测：另建 due=2026-10-01 的作业，提交返回 `lateBySeconds=1662389`；教师拒收理由「迟交且内容不完整」，学生 `my-submissions` 可见 `rejectedAt` 与理由 |
-| 4 | 派发→复核→发布 | 派发后 progress `{total:2,done:2}`；但第 2 次提交未生成复核记录（`my-feedback.review=null`，最新 attempt 分数 0），与「富文本提交应进入批改/复核」预期不符，**T171 仍为部分完成** |
-| 5 | 批改最新 attempt、历史保留 | 学生 `my-feedback.latestAttempt.attemptNo=2`，第 1 次 attempt 仍在 `attempts` 列表中（active=false） |
+| 4 | 派发→复核→发布 | 第 3 次富文本提交（浏览器等编辑器渲染后再输入）成功排队；派发后 stub 给写作 15 分，复核 APPROVED 并发布，学生反馈 `review` 可见 |
+| 5 | 批改最新 attempt、历史保留 | `attemptsUsed=3`；`latestAttempt.attemptNo=3` 为 15 分，1/2 次 attempt 仍在列表（active=false）。**T171 通过** |
 
 ## 结论与偏差（不隐瞒）
 
 - 旅程 A 已按「3 个班 + 77 题」在本地完整重放（新增班级 E2E-A/B/C、77 题整卷、按班时长覆盖、提交、派发、复核发布、反馈、四类导出）。**T170 可宣称通过**。
-- 旅程 B 已用浏览器重放富文本提交与新 attempt，并实测迟交/拒收；但第 2 次提交后未生成复核记录（最新 attempt 0 分），这是待查缺陷，**T171 不宣称完整通过**。
+- 旅程 B 已用浏览器完整重放：富文本（粗体/列表）、new attempt（3 次，历史保留、最新 attempt 被批改）、迟交、拒收、复核发布。先前第 2 次 0 分是测试脚本在编辑器渲染前取 DOM 导致空内容，不是产品缺陷。**T171 通过**。
 - T173（四模型段落计数 parity）依赖 T072，目前 T072 未实现，**阻塞**。
 - T174（50 份 / 2 app + 2 worker 压测）未执行；当前 compose 是 1 app + 1 worker，尚无 2+2 编排与压测脚本。
 - T175（golden set 人工基线）需要 10 份已人工评分的作文；仓库内没有该语料，**未开始**。
