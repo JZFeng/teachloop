@@ -26,6 +26,11 @@ public final class Ports {
             this(itemId, number, questionType, answerKey, points, stem, null, 0, null, "ALL_OR_NOTHING");
         }
 
+        public ItemSpec withAnswerKey(String key) {
+            return new ItemSpec(itemId, number, questionType, key, points, stem, options,
+                    sectionPosition, sectionTitle, scoringStrategy);
+        }
+
         public ItemSpec(UUID itemId, int number, String questionType, String answerKey,
                         BigDecimal points, String stem, String options,
                         int sectionPosition, String sectionTitle) {
@@ -41,6 +46,11 @@ public final class Ports {
     /** 试卷只读快照（布置时固化，不回查活表）；paperVersion 随快照一起落库，便于追溯。 */
     public record PaperSnapshot(UUID paperId, int paperVersion, String title, int totalPoints,
                                 int durationMinutes, List<ItemSpec> items, String rubricMarkdown) {
+
+        public PaperSnapshot withItems(List<ItemSpec> newItems) {
+            return new PaperSnapshot(paperId, paperVersion, title, totalPoints, durationMinutes,
+                    newItems, rubricMarkdown);
+        }
     }
 
     /** 阅卷需要的一切，一次取齐（胖消息、瘦 Worker）。 */
@@ -107,6 +117,14 @@ public final class Ports {
         List<UUID> classIdsOf(UUID studentId);
 
         List<UUID> membersOf(UUID classId);
+    }
+
+    /** T102：改标准答案后重算客观分。 */
+    public record AnswerKey(UUID paperId, int number, String answerKey) {
+    }
+
+    public interface ObjectiveRecompute {
+        int recomputePaper(UUID paperId, List<AnswerKey> keys);
     }
 
     /** 试卷被布置次数（T206）：sitting 只读聚合。 */

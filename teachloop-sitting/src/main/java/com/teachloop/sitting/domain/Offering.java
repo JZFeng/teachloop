@@ -106,6 +106,8 @@ public class Offering {
     public boolean isPublishScores() { return publishScores; }
     public OfferingStatus getStatus() { return status; }
     public String getPaperSnapshot() { return paperSnapshot; }
+
+    public void setPaperSnapshot(String paperSnapshot) { this.paperSnapshot = paperSnapshot; }
     public int getPaperVersion() { return paperVersion; }
     public String getRubricMarkdown() { return rubricMarkdown; }
     public String getGradingPromptTemplate() { return gradingPromptTemplate; }

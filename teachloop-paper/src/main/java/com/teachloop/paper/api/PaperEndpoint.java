@@ -40,6 +40,7 @@ public class PaperEndpoint {
     private final SectionCriteriaRepository criteria;
     private final Clock clock;
     private final Ports.PaperUsage usage;
+    private final Ports.ObjectiveRecompute recompute;
 
     private final AuditPort audit;
 
@@ -47,13 +48,14 @@ public class PaperEndpoint {
     public PaperEndpoint(PaperRepository papers, PaperSectionRepository sections,
                          ObjectiveItemRepository items, SectionCriteriaRepository criteria,
                          AuditPort audit, Clock clock) {
-        this(papers, sections, items, criteria, audit, clock, id -> 0);
+        this(papers, sections, items, criteria, audit, clock, id -> 0, (paperId, keys) -> 0);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public PaperEndpoint(PaperRepository papers, PaperSectionRepository sections,
                          ObjectiveItemRepository items, SectionCriteriaRepository criteria,
-                         AuditPort audit, Clock clock, Ports.PaperUsage usage) {
+                         AuditPort audit, Clock clock, Ports.PaperUsage usage,
+                         Ports.ObjectiveRecompute recompute) {
         this.papers = papers;
         this.sections = sections;
         this.items = items;
@@ -61,6 +63,7 @@ public class PaperEndpoint {
         this.audit = audit;
         this.clock = clock;
         this.usage = usage;
+        this.recompute = recompute;
     }
 
     public record CreatePaper(@NotBlank String title, Integer defaultDurationMinutes) {
@@ -258,6 +261,9 @@ public class PaperEndpoint {
             recalcTotal(p);
         }
         items.save(item);
+        if (body.answerKey() != null) {
+            recompute.recomputePaper(id, List.of(new Ports.AnswerKey(id, number, item.getAnswerKey())));
+        }
         audit.record(AuditEvent.of(me.id(), "paper:item_updated", "paper", id.toString()));
         return itemView(item);
     }
@@ -288,6 +294,11 @@ public class PaperEndpoint {
             updated++;
         }
         audit.record(AuditEvent.of(me.id(), "paper:answers_filled", "paper", id.toString()));
+        if (updated > 0) {
+            List<Ports.AnswerKey> keys = parsed.entries().stream()
+                    .map(e -> new Ports.AnswerKey(id, e.number(), e.answer())).toList();
+            recompute.recomputePaper(id, keys);
+        }
         return new AnswerTableResult(updated, unknown, parsed.warnings());
     }
 

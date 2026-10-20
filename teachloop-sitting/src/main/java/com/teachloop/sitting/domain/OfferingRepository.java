@@ -11,6 +11,8 @@ public interface OfferingRepository extends JpaRepository<Offering, UUID> {
 
     List<Offering> findByStatusOrderByDueAtDesc(OfferingStatus status);
 
+    List<Offering> findByPaperId(UUID paperId);
+
     /**
      * T092 到期扫描：已发布、未派发、且过了「截止 + 宽限期」的场次。
      * 宽限期是小时（grace_hours），用 make_interval 让边界判断留在数据库，避免应用层时区误差。
