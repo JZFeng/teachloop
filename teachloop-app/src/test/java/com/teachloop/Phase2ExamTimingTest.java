@@ -183,6 +183,15 @@ class Phase2ExamTimingTest {
         assertThat(other.get("dueAt").toString())
                 .isEqualTo(BASE.plus(Duration.ofDays(10)).toString());
 
+        // 学生端试卷内容来自快照：有 section 结构，但没有标准答案（AC-21.9）
+        Map<String, Object> paperView = get(base, student, "/api/offerings/" + offeringId + "/paper");
+        List<?> paperItems = (List<?>) paperView.get("items");
+        assertThat(paperItems).hasSize(2);
+        Map<?, ?> firstItem = (Map<?, ?>) paperItems.get(0);
+        assertThat(firstItem.get("sectionTitle").toString()).isEqualTo("单项选择");
+        assertThat(firstItem.containsKey("answerKey")).isFalse();
+        assertThat(firstItem.containsKey("answer_key")).isFalse();
+
         // T199：点「开始答题」才起算；剩余时间由服务端算
         Map<String, Object> started = send(base, student, "POST",
                 "/api/offerings/" + offeringId + "/start", Map.of());
@@ -199,6 +208,12 @@ class Phase2ExamTimingTest {
         Map<String, Object> reconnect = get(base, secondDevice, "/api/offerings/" + offeringId + "/session");
         assertThat(reconnect.get("remainingSeconds")).isEqualTo(session.get("remainingSeconds"));
         assertThat(reconnect.get("deadlineAt")).isEqualTo(session.get("deadlineAt"));
+
+        // 教师端逐份提交表带显示名（经 StudentDirectory 端口，不跨模块查 users）
+        List<?> table = Json.parseList(raw(base, teacher, "GET",
+                "/api/offerings/" + offeringId + "/submissions", null).body());
+        assertThat(table).hasSize(1);
+        assertThat(((Map<?, ?>) table.get(0)).get("studentName").toString()).isEqualTo("示例学生");
 
         // T198：布置后改标准答案，已布置场次仍按快照判分
         jdbc.update("update objective_items set answer_key = 'C' where paper_id = ?", UUID.fromString(paperId));

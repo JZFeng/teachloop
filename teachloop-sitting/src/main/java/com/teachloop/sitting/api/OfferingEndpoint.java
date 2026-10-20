@@ -33,6 +33,7 @@ public class OfferingEndpoint {
     private final Ports.PaperCatalog paperCatalog;
     private final Ports.ClassMembership membership;
     private final Ports.NotificationPort notifications;
+    private final Ports.StudentDirectory directory;
     private final SnapshotCodec codec;
     private final OfferingWindows windows;
     private final OfferingGradingDispatcher dispatcher;
@@ -42,6 +43,7 @@ public class OfferingEndpoint {
     public OfferingEndpoint(OfferingRepository offerings, OfferingClassRepository offeringClasses,
                             SubmissionRepository submissions, Ports.PaperCatalog paperCatalog,
                             Ports.ClassMembership membership, Ports.NotificationPort notifications,
+                            Ports.StudentDirectory directory,
                             SnapshotCodec codec, OfferingWindows windows,
                             OfferingGradingDispatcher dispatcher, AuditPort audit, Clock clock) {
         this.offerings = offerings;
@@ -50,6 +52,7 @@ public class OfferingEndpoint {
         this.paperCatalog = paperCatalog;
         this.membership = membership;
         this.notifications = notifications;
+        this.directory = directory;
         this.codec = codec;
         this.windows = windows;
         this.dispatcher = dispatcher;
@@ -182,6 +185,27 @@ public class OfferingEndpoint {
         notifications.notifyScoresPublished(o.getId());
         audit.record(AuditEvent.of(me.id(), "offering:scores_publish", "offering", id.toString()));
         return view(o);
+    }
+
+    /**
+     * 教师端逐份提交表（T182 / T183）：默认按提交时间倒序，未交学生不在本列表内。
+     */
+    @GetMapping("/{id}/submissions")
+    public List<SittingDtos.OfferingSubmissionView> submissions(@PathVariable UUID id,
+                                                               @RequestAttribute("currentUser") CurrentUser me) {
+        if (me.is("STUDENT")) {
+            throw ApiException.forbidden("学生不能查看全班提交表");
+        }
+        Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
+        List<Submission> all = submissions.findByOfferingIdOrderByCreatedAtDesc(o.getId());
+        Set<UUID> ids = all.stream().map(Submission::getStudentId).collect(java.util.stream.Collectors.toSet());
+        var names = directory.displayNames(ids);
+        return all.stream().map(s -> new SittingDtos.OfferingSubmissionView(s.getId().toString(),
+                s.getStudentId().toString(), names.getOrDefault(s.getStudentId(), s.getStudentId().toString()),
+                s.getAttemptNo(), str(s.getSubmittedAt()), s.isAutoSubmitted(), s.getLateBySeconds(),
+                str(s.getRejectedAt()), s.getRejectReason(), s.getGradingState().name(),
+                s.getObjectiveTotal(), s.getSubjectiveTotal(),
+                s.getObjectiveTotal().add(s.getSubjectiveTotal()), s.isActive())).toList();
     }
 
     /**

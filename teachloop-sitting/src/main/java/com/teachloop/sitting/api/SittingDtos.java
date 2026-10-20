@@ -81,6 +81,23 @@ public final class SittingDtos {
     public record ProgressView(int total, long done, long running, long pending, long failed) {
     }
 
+    /** 学生端试卷内容（T198 快照）：绝不包含标准答案与解析（AC-21.9）。 */
+    public record ExamPaperView(String offeringId, String title, int totalPoints, int durationMinutes,
+                                List<ExamPaperItemView> items) {
+    }
+
+    public record ExamPaperItemView(int number, String questionType, BigDecimal points, String stem,
+                                    String options, int sectionPosition, String sectionTitle) {
+    }
+
+    /** 教师端逐份提交表（T182）：姓名经 StudentDirectory 端口取，不跨模块查 users。 */
+    public record OfferingSubmissionView(String submissionId, String studentId, String studentName,
+                                         int attemptNo, String submittedAt, boolean autoSubmitted,
+                                         long lateBySeconds, String rejectedAt, String rejectReason,
+                                         String gradingState, BigDecimal objectiveScore,
+                                         BigDecimal subjectiveScore, BigDecimal totalScore, boolean active) {
+    }
+
     /** 手动派发结果（T092）：runId 幂等，firstDispatch 区分「刚创建 run」与「本来就派过」。 */
     public record GradingDispatchView(String offeringId, String runId, boolean firstDispatch, int enqueued) {
     }

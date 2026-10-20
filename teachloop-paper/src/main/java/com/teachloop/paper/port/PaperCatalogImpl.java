@@ -12,11 +12,14 @@ import org.springframework.stereotype.Component;
 public class PaperCatalogImpl implements Ports.PaperCatalog {
 
     private final PaperRepository papers;
+    private final PaperSectionRepository sections;
     private final ObjectiveItemRepository items;
     private final SectionCriteriaRepository criteria;
 
-    public PaperCatalogImpl(PaperRepository papers, ObjectiveItemRepository items, SectionCriteriaRepository criteria) {
+    public PaperCatalogImpl(PaperRepository papers, PaperSectionRepository sections,
+                            ObjectiveItemRepository items, SectionCriteriaRepository criteria) {
         this.papers = papers;
+        this.sections = sections;
         this.items = items;
         this.criteria = criteria;
     }
@@ -24,9 +27,16 @@ public class PaperCatalogImpl implements Ports.PaperCatalog {
     @Override
     public Ports.PaperSnapshot load(UUID paperId) {
         Paper p = papers.findById(paperId).orElseThrow(() -> ApiException.notFound("试卷不存在"));
+        var sectionById = sections.findByPaperIdOrderByPosition(paperId).stream()
+                .collect(java.util.stream.Collectors.toMap(PaperSection::getId, s -> s));
         List<Ports.ItemSpec> specs = items.findByPaperIdOrderByNumber(paperId).stream()
-                .map(i -> new Ports.ItemSpec(i.getId(), i.getNumber(), i.getQuestionType().name(),
-                        i.getAnswerKey(), i.getPoints(), i.getStem()))
+                .map(i -> {
+                    PaperSection section = sectionById.get(i.getPaperSectionId());
+                    return new Ports.ItemSpec(i.getId(), i.getNumber(), i.getQuestionType().name(),
+                            i.getAnswerKey(), i.getPoints(), i.getStem(), i.getOptions(),
+                            section == null ? 0 : section.getPosition(),
+                            section == null ? null : section.getTitle());
+                })
                 .toList();
         String rubric = p.getRubricMarkdown() == null ? defaultRubric() : p.getRubricMarkdown();
         return new Ports.PaperSnapshot(paperId, p.getVersion(), p.getTitle(), p.getTotalPoints().intValue(),

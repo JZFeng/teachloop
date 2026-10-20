@@ -84,7 +84,7 @@ PORT_RECORDS = {
 # 端口签名里允许出现的 JDK 类型（基类名）。
 PORT_JDK_TYPES = {
     "void", "boolean", "int", "long", "String", "UUID", "BigDecimal",
-    "List", "Set", "Map", "Optional", "Object",
+    "List", "Set", "Map", "Collection", "Optional", "Object",
 }
 
 COMMENT_RE = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)

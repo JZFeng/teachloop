@@ -84,6 +84,25 @@ public class ExamSessionEndpoint {
                 str(s.deadlineAt()), s.submitted(), s.autoSubmitted(), s.locked(), notice, NOTES);
     }
 
+    /**
+     * 学生端试卷内容：结构一律来自布置时的快照，**不返回标准答案与解析**（AC-21.9 / T198）。
+     */
+    @GetMapping("/paper")
+    public SittingDtos.ExamPaperView paper(@PathVariable UUID offeringId,
+                                           @RequestAttribute("currentUser") CurrentUser me) {
+        Offering o = published(offeringId);
+        requireStudent(me);
+        requireParticipant(o, me);
+        Ports.PaperSnapshot snap = codec.read(o.getPaperSnapshot());
+        OfferingWindows.Window window = windows.forStudent(o, me.id());
+        List<SittingDtos.ExamPaperItemView> items = snap.items().stream()
+                .map(i -> new SittingDtos.ExamPaperItemView(i.number(), i.questionType(), i.points(),
+                        i.stem(), i.options(), i.sectionPosition(), i.sectionTitle()))
+                .toList();
+        return new SittingDtos.ExamPaperView(o.getId().toString(), snap.title(), snap.totalPoints(),
+                window.durationMinutes(), items);
+    }
+
     /** 开始答题：起算点落库，返回服务端剩余秒数。 */
     @PostMapping("/start")
     public SittingDtos.SessionView start(@PathVariable UUID offeringId,

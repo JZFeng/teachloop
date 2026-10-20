@@ -10,9 +10,21 @@ public final class Ports {
     private Ports() {
     }
 
-    /** 一道客观题或一道主观题的评分契约。 */
+    /**
+     * 一道客观题或一道主观题的评分契约。
+     *
+     * <p><code>options</code> / <code>sectionPosition</code> / <code>sectionTitle</code> 是 T198 快照里
+     * 供学生端渲染试卷用的结构字段；判分逻辑只关心 answerKey / points / questionType。
+     */
     public record ItemSpec(UUID itemId, int number, String questionType, String answerKey,
-                           BigDecimal points, String stem) {
+                           BigDecimal points, String stem, String options,
+                           int sectionPosition, String sectionTitle) {
+
+        /** 兼容既有测试与调用方：结构字段缺省。 */
+        public ItemSpec(UUID itemId, int number, String questionType, String answerKey,
+                        BigDecimal points, String stem) {
+            this(itemId, number, questionType, answerKey, points, stem, null, 0, null);
+        }
     }
 
     /** 学生的某一道题的作答。 */
@@ -88,6 +100,11 @@ public final class Ports {
         List<UUID> classIdsOf(UUID studentId);
 
         List<UUID> membersOf(UUID classId);
+    }
+
+    /** identity 暴露：只读显示名，用于教师端提交表；不暴露联系方式。 */
+    public interface StudentDirectory {
+        java.util.Map<UUID, String> displayNames(java.util.Collection<UUID> userIds);
     }
 
     /** identity 暴露；接收方与联系方式不外出。 */
