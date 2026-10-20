@@ -436,3 +436,4 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-20 | T072 四模型段落计数 | 完成 | `TextLengthCounter` 逐条移植 v1 Python `collect_submissions.py` 的 strict_blocks / wraps_merged / policy_default / lenient，含问候语合并、软换行、列表块、孤立空行规则 |
 | 2026-10-20 | T173 四模型 parity | 完成 | 10 份 v1 作文复制到 `teachloop-grading/src/test/resources/fixtures/submissions/`，`expected-paragraphs.json` 由 v1 Python 生成；`TextLengthCounterFixtureTest` 逐份逐模型一致（含 Genesis 24→3、Maria 8→4、Mark 6→4） |
 | 2026-10-20 | T175 golden set | 部分 | `docs/reports/golden-set-baseline.md` 记录 10 份人工基线（均分 9.6，2 份 8 分）；无 `DEEPSEEK_API_KEY`，AI 偏差未跑，不填造数字 |
+| 2026-10-20 | T175 golden set 执行器 | 完成（待 Key 运行） | `scripts/golden-set.py` 读取 10 份 v1 样本与人工总分，同一 rubric 调 DeepSeek，输出每份偏差与平均/最大偏差/方向；无 Key 明确退出码 2，不写假数字 |

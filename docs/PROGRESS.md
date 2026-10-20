@@ -5,7 +5,7 @@
 
 ## 当前
 
-- 正在做：T072/T173 完成；T175 人工基线就绪，AI 偏差待 `DEEPSEEK_API_KEY`
+- 正在做：T072/T173 完成；T175 执行器就绪，AI 偏差待 `DEEPSEEK_API_KEY`
 - 分支 / HEAD：`main`，最近提交见 `git log`
 - 未提交 WIP：本批剩余改动（提交后以 `git status` 为准）
 - 最近验证：`make build` / `make test` / `make web-build` / 两个守卫全部 exit 0（`.dsh/logs/verify-parity.log`）
@@ -13,7 +13,7 @@
 ## 下一步
 
 1. 提交 T072/T173/T175 基线
-2. 有 Key 时跑 T175 的 10 份真实评分，记录平均/最大偏差
+2. 有 Key 时跑 `python3 scripts/golden-set.py`，记录平均/最大偏差
 3. 无 Key 时保持 T175 部分完成，不宣称 golden set 已校准
 
 ## 剩余
