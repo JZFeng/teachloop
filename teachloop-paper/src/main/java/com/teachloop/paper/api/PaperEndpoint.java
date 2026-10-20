@@ -123,6 +123,9 @@ public class PaperEndpoint {
     public record AnswerTableResult(int updated, List<Integer> unknownNumbers, List<String> warnings) {
     }
 
+    public record ImportTextRequest(String text, UUID sectionId) {
+    }
+
     public record ImportResult(int imported, List<Integer> missingAnswers, List<ImportedItem> items,
                                List<String> warnings) {
     }
@@ -337,13 +340,44 @@ public class PaperEndpoint {
                             "读取上传文件失败：" + ex.getMessage()));
         }
 
+        return ResponseEntity.ok(createItems(id, section, parsed));
+    }
+
+    /** 粘贴整卷文本导入（与文件导入同一解析器与创建逻辑）。 */
+    @PostMapping("/{id}/import/text")
+    @Transactional
+    public ResponseEntity<?> importText(@PathVariable UUID id, @RequestBody ImportTextRequest body,
+                                        @RequestAttribute("currentUser") CurrentUser me) {
+        if (me != null && me.is("STUDENT")) {
+            throw ApiException.forbidden("学生不能导入试卷");
+        }
+        Paper p = editable(id, false, me, "import_text");
+        PaperSection section = resolveSection(id, body.sectionId());
+        if (body.text() == null || body.text().isBlank()) {
+            throw ApiException.badRequest("请粘贴试卷文字");
+        }
+        List<DocumentTextExtractor.SourceLine> lines = new ArrayList<>();
+        String[] rows = body.text().replace("\r\n", "\n").split("\n", -1);
+        for (int i = 0; i < rows.length; i++) {
+            lines.add(new DocumentTextExtractor.SourceLine(i + 1, rows[i]));
+        }
+        PaperTextParser.Result parsed;
+        try {
+            parsed = PaperTextParser.parse(lines);
+        } catch (ImportException ex) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiError(ErrorCode.BAD_REQUEST.name(), "导入失败", ex.getMessage()));
+        }
+        return ResponseEntity.ok(createItems(id, section, parsed));
+    }
+
+    private ImportResult createItems(UUID paperId, PaperSection section, PaperTextParser.Result parsed) {
         Set<Integer> existingNumbers = new HashSet<>();
-        for (ObjectiveItem existing : items.findByPaperIdOrderByNumber(id)) {
+        for (ObjectiveItem existing : items.findByPaperIdOrderByNumber(paperId)) {
             existingNumbers.add(existing.getNumber());
         }
         BigDecimal points = section.getPointsPerItem() == null ? BigDecimal.ONE : section.getPointsPerItem();
         int position = items.findByPaperSectionIdOrderByPosition(section.getId()).size();
-
         List<String> warnings = new ArrayList<>(parsed.warnings());
         List<ImportedItem> imported = new ArrayList<>();
         List<Integer> missingAnswers = new ArrayList<>();
@@ -356,7 +390,7 @@ public class PaperEndpoint {
                     ? QuestionType.FILL_BLANK
                     : (parsedItem.answerKey() != null && parsedItem.answerKey().length() > 1
                             ? QuestionType.MULTIPLE_CHOICE : QuestionType.SINGLE_CHOICE);
-            var item = new ObjectiveItem(UUID.randomUUID(), id, section.getId(), parsedItem.number(),
+            var item = new ObjectiveItem(UUID.randomUUID(), paperId, section.getId(), parsedItem.number(),
                     ++position, type, parsedItem.stem(), parsedItem.options(),
                     parsedItem.answerKey(), points);
             items.save(item);
@@ -367,8 +401,8 @@ public class PaperEndpoint {
             imported.add(new ImportedItem(parsedItem.number(), parsedItem.stem(), parsedItem.options(),
                     parsedItem.answerKey()));
         }
-        recalcTotal(p);
-        return ResponseEntity.ok(new ImportResult(imported.size(), missingAnswers, imported, warnings));
+        recalcTotal(load(paperId));
+        return new ImportResult(imported.size(), missingAnswers, imported, warnings);
     }
 
     private PaperSection resolveSection(UUID paperId, UUID sectionId) {

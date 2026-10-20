@@ -106,9 +106,12 @@ export default function PapersPage() {
         title={t('teacher.papers.title')}
         sub={t('teacher.papers.sub')}
         actions={
-          <Link className="btn pri" to="/papers/new">
-            {t('teacher.papers.new')}
-          </Link>
+          <div className="row">
+            <Link className="btn" to="/papers/import">导入考卷</Link>
+            <Link className="btn pri" to="/papers/new">
+              {t('teacher.papers.new')}
+            </Link>
+          </div>
         }
       />
 

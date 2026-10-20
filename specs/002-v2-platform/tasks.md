@@ -439,3 +439,4 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-20 | T175 golden set 执行器 | 完成（待 Key 运行） | `scripts/golden-set.py` 读取 10 份 v1 样本与人工总分，同一 rubric 调 DeepSeek，输出每份偏差与平均/最大偏差/方向；无 Key 明确退出码 2，不写假数字 |
 
 | 2026-10-20 | 管理员初始设置（用户新增） | 完成 | `/setup` 首次创建管理员（无 ADMIN 时开放）+ `/admin/ai` AI 配置：provider/baseUrl/model/temperature/API Key；Key AES-GCM 加密存库、接口只回掩码；保存后重启生效；测试连接；`AiSetupTest` 覆盖首个管理员、二次 409、加密、掩码、403 |
+| 2026-10-20 | 导入考卷入口与粘贴导入（用户反馈） | 完成 | 试卷库新增「导入考卷」；独立 `/papers/import`：建卷+建部分+上传/粘贴→解析→逐题改题干/选项/答案；后端 `POST /api/papers/{id}/import/text`；`ImportTextTest` 覆盖 2 题粘贴导入 |

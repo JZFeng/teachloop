@@ -14,6 +14,7 @@ import TeacherHomePage from './teacher/HomePage'
 import ClassesPage from './teacher/ClassesPage'
 import PapersPage from './teacher/PapersPage'
 import PaperWizardPage from './teacher/PaperWizardPage'
+import ImportPaperPage from './teacher/ImportPaperPage'
 import OfferingCreatePage from './teacher/OfferingCreatePage'
 import GradingOverviewPage from './teacher/GradingOverviewPage'
 import GradingDetailPage from './teacher/GradingDetailPage'
@@ -69,6 +70,7 @@ export default function App() {
           <Route path="classes" element={<ClassesPage />} />
           <Route path="papers" element={<PapersPage />} />
           <Route path="papers/new" element={<PaperWizardPage />} />
+          <Route path="papers/import" element={<ImportPaperPage />} />
           <Route path="papers/:paperId" element={<PaperWizardPage />} />
           <Route path="offerings/new" element={<OfferingCreatePage />} />
           <Route path="grading" element={<GradingOverviewPage />} />
