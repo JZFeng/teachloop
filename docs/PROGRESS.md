@@ -1,29 +1,22 @@
 # TeachLoop 进度仪表盘
 
 > 每个批次结束时由 Lead 更新；`make status` 会打印下面的「当前」与「剩余」。
-> 最近一次更新：2026-10-19（补资料补全前端页；剩余 T072/T173/T175）
+> 最近一次更新：2026-10-20（T072/T173 完成；T175 人工基线就绪，AI 偏差待 Key）
 
 ## 当前
 
-- 正在做：T171 完成；T072/T173/T175 缺 v1 语料
-- 分支 / HEAD：`main`，最后提交 `3271b01`
-- 未提交 WIP：无（本批即将提交）
-- 最近验证：`make test` exit 0（`.dsh/logs/verify-recompute.log`）；T174 压测 50/50 成功、p95 45ms、批改 33.8s（`scripts/load-test.py`、`.docs/perf-report-v2.md`）；`make seed` 实测 exit 0
+- 正在做：T072/T173 完成；T175 人工基线就绪，AI 偏差待 `DEEPSEEK_API_KEY`
+- 分支 / HEAD：`main`，最近提交见 `git log`
+- 未提交 WIP：本批剩余改动（提交后以 `git status` 为准）
+- 最近验证：`make build` / `make test` / `make web-build` / 两个守卫全部 exit 0（`.dsh/logs/verify-parity.log`）
 
 ## 下一步
 
-1. 提交 T130（已验证）
-2. 续完 T037 限流、T140–T144 可观测（WIP 已存在）
-3. 再进入部署/硬化/身份等剩余任务
+1. 提交 T072/T173/T175 基线
+2. 有 Key 时跑 T175 的 10 份真实评分，记录平均/最大偏差
+3. 无 Key 时保持 T175 部分完成，不宣称 golden set 已校准
 
 ## 剩余
 
-
-
-
-- 判分收尾：T072（缺语料）
-
-
-- 部署与硬化：T173（阻塞 T072）、T175（缺语料）
-
-- 已知偏差：PDF 中文非嵌入字体；OSS 仅骨架；解析自动生成（AC-18.5）未做；E2E 未按 3 班 77 题重放；无 2+2 压测；无 golden set 语料
+- T175（部分：人工基线已就绪，AI 偏差待 Key）
+- 已知偏差：PDF 中文非嵌入字体；OSS 仅骨架；解析自动生成（AC-18.5）未做；T174 仅 1+1 拓扑

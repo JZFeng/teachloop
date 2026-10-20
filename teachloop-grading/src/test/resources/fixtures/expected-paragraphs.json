@@ -1,0 +1,62 @@
+{
+  "Akshay.txt": {
+    "strict_blocks": 4,
+    "wraps_merged": 4,
+    "policy_default": 3,
+    "lenient": 3
+  },
+  "Alejandro.txt": {
+    "strict_blocks": 4,
+    "wraps_merged": 4,
+    "policy_default": 4,
+    "lenient": 4
+  },
+  "Genesis.txt": {
+    "strict_blocks": 24,
+    "wraps_merged": 3,
+    "policy_default": 3,
+    "lenient": 3
+  },
+  "Iam.txt": {
+    "strict_blocks": 2,
+    "wraps_merged": 2,
+    "policy_default": 2,
+    "lenient": 2
+  },
+  "JZ.txt": {
+    "strict_blocks": 5,
+    "wraps_merged": 5,
+    "policy_default": 4,
+    "lenient": 4
+  },
+  "Maria.txt": {
+    "strict_blocks": 8,
+    "wraps_merged": 8,
+    "policy_default": 4,
+    "lenient": 4
+  },
+  "Mark.txt": {
+    "strict_blocks": 6,
+    "wraps_merged": 6,
+    "policy_default": 5,
+    "lenient": 4
+  },
+  "Regan.txt": {
+    "strict_blocks": 2,
+    "wraps_merged": 2,
+    "policy_default": 2,
+    "lenient": 2
+  },
+  "Sana.txt": {
+    "strict_blocks": 3,
+    "wraps_merged": 3,
+    "policy_default": 3,
+    "lenient": 3
+  },
+  "Zhangguan.txt": {
+    "strict_blocks": 3,
+    "wraps_merged": 3,
+    "policy_default": 3,
+    "lenient": 3
+  }
+}
