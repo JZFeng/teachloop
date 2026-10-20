@@ -7,6 +7,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
+import com.teachloop.identity.admin.AdminService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,18 +44,70 @@ class ProdAuthTest {
     @Autowired
     Environment env;
 
+    @Autowired
+    AdminService adminService;
+
     private final HttpClient client = HttpClient.newHttpClient();
 
     @Test
     @DisplayName("T030：prod profile 下教师/学生密码登录返回 503，而不是签发会话")
     void devLoginDisabledInProd() throws Exception {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
-        HttpResponse<String> res = client.send(HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+        Map<String, Object> csrf = csrf(base);
+        HttpClient noRedirect = client;
+        HttpResponse<String> res = noRedirect.send(HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
                         .header("Content-Type", "application/json")
+                        .header("Cookie", csrf.get("cookie").toString())
+                        .header("X-XSRF-TOKEN", csrf.get("token").toString())
                         .POST(HttpRequest.BodyPublishers.ofString("{\"email\":\"teacher@teachloop.local\",\"password\":\"teachloop123\"}"))
                         .build(), HttpResponse.BodyHandlers.ofString());
         assertThat(res.statusCode()).isEqualTo(503);
         assertThat(Json.parse(res.body()).get("code")).isEqualTo("UNAVAILABLE");
+    }
+
+    @Test
+    @DisplayName("T033：已登录写操作缺 CSRF 返回 403；带 token 可通过")
+    void csrfDoubleSubmit() throws Exception {
+        String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
+        adminService.createAdmin("csrf-admin@teachloop.local", "csrf-pass-123");
+        Map<String, Object> csrf = csrf(base);
+        HttpResponse<String> login = client.send(HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                .header("Content-Type", "application/json")
+                .header("Cookie", csrf.get("cookie").toString())
+                .header("X-XSRF-TOKEN", csrf.get("token").toString())
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"email\":\"csrf-admin@teachloop.local\",\"password\":\"csrf-pass-123\"}"))
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(login.statusCode()).isEqualTo(200);
+        String session = login.headers().allValues("set-cookie").stream().map(c -> c.split(";", 2)[0])
+                .filter(c -> c.startsWith("SESSION=") || c.startsWith("JSESSIONID="))
+                .reduce((a, b) -> b).orElseThrow();
+
+        HttpResponse<String> missing = client.send(HttpRequest.newBuilder(URI.create(base + "/api/admin/teacher-invites"))
+                .header("Cookie", session)
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(missing.statusCode()).isEqualTo(403);
+
+        HttpResponse<String> withToken = client.send(HttpRequest.newBuilder(URI.create(base + "/api/admin/teacher-invites"))
+                .header("Cookie", session + "; " + csrf.get("cookie"))
+                .header("X-XSRF-TOKEN", csrf.get("token").toString())
+                .POST(HttpRequest.BodyPublishers.noBody())
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(withToken.statusCode()).isEqualTo(200);
+    }
+
+    private Map<String, Object> csrf(String base) throws Exception {
+        HttpResponse<String> tokenRes = client.send(HttpRequest.newBuilder(URI.create(base + "/api/csrf"))
+                .GET().build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(tokenRes.statusCode()).isEqualTo(200);
+        Map<String, Object> body = Json.parse(tokenRes.body());
+        String cookie = tokenRes.headers().allValues("set-cookie").stream()
+                .map(c -> c.split(";", 2)[0])
+                .filter(c -> c.startsWith("XSRF-TOKEN="))
+                .findFirst().orElseThrow();
+        body.put("cookie", cookie);
+        return body;
     }
 
     static final class Json {

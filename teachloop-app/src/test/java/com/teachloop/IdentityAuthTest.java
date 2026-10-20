@@ -65,6 +65,10 @@ class IdentityAuthTest {
 
         HttpResponse<String> forbidden = request(base, teacher, "POST", "/api/admin/teacher-invites", Map.of());
         assertThat(forbidden.statusCode()).isEqualTo(403);
+        HttpResponse<String> student = request(base, login(base, "student@teachloop.local", "teachloop123"),
+                "POST", "/api/papers", Map.of("title", "越权"));
+        assertThat(student.statusCode()).isEqualTo(403);
+        assertThat(request(base, null, "GET", "/api/papers", null).statusCode()).isEqualTo(401);
 
         Map<String, Object> redeem = Json.parse(request(base, null, "POST", "/api/auth/teacher-invite",
                 Map.of("code", code, "email", "newteacher@teachloop.local",
@@ -80,6 +84,7 @@ class IdentityAuthTest {
 
         String disablePath = "/api/admin/users/" + redeem.get("id") + "/disable";
         assertThat(request(base, admin, "POST", disablePath, Map.of()).statusCode()).isEqualTo(200);
+        // 停用后旧会话立即失效：未认证请求返回 401，不会拿到 200。
         assertThat(request(base, newTeacher, "GET", "/api/auth/me", null).statusCode()).isEqualTo(401);
     }
 

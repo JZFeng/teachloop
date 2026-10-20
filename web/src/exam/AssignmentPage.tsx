@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api, ApiError, fmtDateTime } from '../api/client'
+import { api, ApiError, csrfHeaders, fmtDateTime } from '../api/client'
 import { trackEvent } from '../api/events'
 import type {
   AnswerSaveResponse,
@@ -175,7 +175,7 @@ export default function AssignmentPage() {
       const body = new FormData()
       body.append('file', file)
       const res = await fetch(`/api/offerings/${offeringId}/submissions/file`, {
-        method: 'POST', credentials: 'include', body,
+        method: 'POST', credentials: 'include', headers: csrfHeaders(), body,
       })
       const payload = await res.json().catch(() => null)
       if (!res.ok) {

@@ -390,6 +390,10 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T030/T032 认证提供者 | 完成 | `DevPasswordAuthProvider` 仅非 prod；prod 下教师/学生密码登录 503、管理员 BCrypt 登录可用；`ProdAuthTest` 覆盖 |
 | 2026-10-19 | T031 微信登录 | 完成（无真实凭据） | `WeChatAuthProvider`：code→openid（可配 base-url）、同一 openid 复用账号、新 openid 建学生、未配置 503；V021 email 可空 + `wechat_openid` 唯一；`WeChatAuthProviderTest` 用本地 HTTP 替身覆盖成功/errcode/缺 openid |
 | 2026-10-19 | T036 管理员 CLI 与教师邀请码 | 完成 | V022 `teacher_invites`（3 天过期、一次性、可停用）；管理员 CLI `--create-admin=email`（密码取 ADMIN_PASSWORD 或随机打印）；`POST /api/auth/teacher-invite` 兑换后升级 TEACHER；`POST /api/admin/teacher-invites`、`/users/{id}/disable`；停用后旧会话立即 401（修掉 Spring Security 会话恢复旧认证）；`IdentityAuthTest` 覆盖 |
+| 2026-10-19 | T033 CSRF 与会话 Cookie | 完成（生产开启） | prod：Cookie 双提交（`CookieCsrfTokenRepository`）+ `application-prod.yml` HttpOnly/Secure/SameSite；`/api/csrf` 取 token；前端 `ensureCsrf` + `X-XSRF-TOKEN`；登出 invalidate 会话；缺 token 的已登录写请求 403；dev/test 关闭 CSRF 以免测试与本地被卡 |
+| 2026-10-19 | T034 资料补全拦截 | 完成（后端） | `ProfileCompletionFilter`（仅 `require-profile-completion=true`，prod 开启）：STUDENT/TEACHER 缺手机号或邮箱时除 me/logout/profile/health 外一律 403 `PROFILE_INCOMPLETE`；`PUT /api/profile` 补全；管理员豁免；`ProfileCompletionTest` 覆盖。前端资料页尚未做（偏差记录） |
+| 2026-10-19 | T035 角色守卫 | 完成 | Security 规则：`/api/admin/**` 仅 ADMIN、`/api/papers/**` 仅 TEACHER/ADMIN；控制器层原有 require* 保留；`IdentityAuthTest` 覆盖学生建卷 403、教师建邀请码 403、未登录 401；停用旧会话失效 |
+
 
 
 

@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { trackEvent } from './api/events'
+import { ensureCsrf } from './api/client'
 import { useAuth } from './api/auth'
 import { Loading } from './components/States'
 import { ExamFocusLayout, Shell } from './app/Shell'
@@ -46,6 +47,10 @@ function ShellLayout() {
 export default function App() {
   const { me } = useAuth()
   const location = useLocation()
+
+  useEffect(() => {
+    void ensureCsrf()
+  }, [])
 
   useEffect(() => {
     trackEvent('page_view', { route: location.pathname })

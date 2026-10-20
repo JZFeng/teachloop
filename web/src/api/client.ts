@@ -13,11 +13,28 @@ export class ApiError extends Error {
   }
 }
 
+/** T033：生产环境双提交 CSRF；开发环境没有 cookie 时自然不带。 */
+export function csrfHeaders(): Record<string, string> {
+  const match = document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))
+  if (!match) return {}
+  return { 'X-XSRF-TOKEN': decodeURIComponent(match.slice('XSRF-TOKEN='.length)) }
+}
+
+export async function ensureCsrf(): Promise<void> {
+  try {
+    await fetch('/api/csrf', { credentials: 'include' })
+  } catch {
+    // 后端未启用 CSRF 或离线时不影响主流程
+  }
+}
+
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
+  const headers: Record<string, string> = { ...csrfHeaders() }
+  if (body !== undefined) headers['Content-Type'] = 'application/json'
   const res = await fetch(path, {
     method,
     credentials: 'include',
-    headers: body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers,
     body: body === undefined ? undefined : JSON.stringify(body),
   })
   if (!res.ok) {
