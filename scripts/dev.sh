@@ -116,6 +116,9 @@ for _ in $(seq 1 40); do
 done
 [ "$ready" = "1" ] || die "Postgres 40 秒内未就绪，见 docker logs $DB_CONTAINER"
 
+# 无论容器是本次新建还是复用，退出时默认都停掉；--keep-db 可保留。
+STARTED_DB=1
+
 # ---------- 构建 ----------
 if [ "$BUILD" = "1" ]; then
   say "构建（make build）…"
