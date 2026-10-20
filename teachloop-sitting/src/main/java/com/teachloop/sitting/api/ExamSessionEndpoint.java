@@ -7,6 +7,8 @@ import com.teachloop.shared.port.Ports;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.sitting.domain.*;
 import com.teachloop.sitting.service.ExamSessionService;
+import com.teachloop.sitting.service.VideoProbe;
+import com.teachloop.sitting.service.VideoRules;
 import com.teachloop.sitting.service.OfferingWindows;
 import com.teachloop.sitting.service.SnapshotCodec;
 import com.teachloop.sitting.service.SubmissionAttachments;
@@ -48,6 +50,7 @@ public class ExamSessionEndpoint {
     private final OfferingWindows windows;
     private final ExamSessionService sessions;
     private final SubmissionAttachments attachments;
+    private final VideoProbe videoProbe;
     private final AuditPort audit;
     private final Clock clock;
 
@@ -58,7 +61,7 @@ public class ExamSessionEndpoint {
                                Ports.ClassMembership membership,
                                SnapshotCodec codec, OfferingWindows windows,
                                ExamSessionService sessions, SubmissionAttachments attachments,
-                               AuditPort audit, Clock clock) {
+                               VideoProbe videoProbe, AuditPort audit, Clock clock) {
         this.offerings = offerings;
         this.offeringClasses = offeringClasses;
         this.submissions = submissions;
@@ -70,6 +73,7 @@ public class ExamSessionEndpoint {
         this.windows = windows;
         this.sessions = sessions;
         this.attachments = attachments;
+        this.videoProbe = videoProbe;
         this.audit = audit;
         this.clock = clock;
     }
@@ -289,6 +293,56 @@ public class ExamSessionEndpoint {
                 new ExamSessionService.FileAttachment(prepared.storagePath(), prepared.fileName(),
                         prepared.mime(), prepared.text(), prepared.unreadable()));
         return submitResponse(f);
+    }
+
+    /** T062：视频上传；ffprobe 校验时长/宽高，超限指出具体项。 */
+    @PostMapping(value = "/submissions/video", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public SittingDtos.SubmitResponse submitVideo(@PathVariable UUID offeringId,
+                                                  @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+                                                  @RequestAttribute("currentUser") CurrentUser me) {
+        Offering o = published(offeringId);
+        requireStudent(me);
+        requireParticipant(o, me);
+        if (file == null || file.isEmpty()) {
+            throw ApiException.badRequest("请选择要提交的视频");
+        }
+        if (file.getSize() > 100L * 1024 * 1024) {
+            throw ApiException.badRequest("视频不能超过 100 MB");
+        }
+        String name = file.getOriginalFilename() == null ? "video" : file.getOriginalFilename();
+        int dot = name.lastIndexOf('.');
+        String ext = dot < 0 ? "" : name.substring(dot + 1).toLowerCase();
+        if (!java.util.Set.of("mp4", "mov", "webm").contains(ext)) {
+            throw ApiException.badRequest("只支持 mp4 / mov / webm 视频");
+        }
+        java.nio.file.Path temp = null;
+        try {
+            temp = java.nio.file.Files.createTempFile("teachloop-video-", "." + ext);
+            java.nio.file.Files.write(temp, file.getBytes());
+            VideoProbe.VideoInfo info = videoProbe.probe(temp);
+            var violations = VideoRules.violations(info);
+            if (!violations.isEmpty()) {
+                throw ApiException.badRequest(String.join("；", violations));
+            }
+            byte[] bytes = java.nio.file.Files.readAllBytes(temp);
+            String mime = file.getContentType() == null ? "video/" + ext : file.getContentType();
+            String key = attachments.storeVideo(o.getId(), bytes, ext, mime);
+            ExamSessionService.Finalized f = sessions.submitVideo(o, me.id(),
+                    new ExamSessionService.FileAttachment(key, name, mime, null, false));
+            return submitResponse(f);
+        } catch (java.io.IOException ex) {
+            throw ApiException.badRequest("视频读取失败，请重试");
+        } catch (VideoProbe.ProbeException ex) {
+            throw ApiException.badRequest(ex.getMessage());
+        } finally {
+            if (temp != null) {
+                try {
+                    java.nio.file.Files.deleteIfExists(temp);
+                } catch (java.io.IOException ignored) {
+                    // 临时文件清理失败不影响提交结果
+                }
+            }
+        }
     }
 
     private SittingDtos.SubmitResponse submitResponse(ExamSessionService.Finalized f) {

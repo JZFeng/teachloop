@@ -258,6 +258,24 @@ public class ExamSessionService {
         return finalized;
     }
 
+    /** T062：视频提交只记附件，不做文本提取；是否可评分由判分队列决定。 */
+    @Transactional(noRollbackFor = ApiException.class)
+    public Finalized submitVideo(Offering offering, UUID studentId, FileAttachment attachment) {
+        Submission s = activeOrStart(offering, studentId);
+        Instant now = prepareSubmit(s);
+        s.setInputKind("VIDEO");
+        s.setAttachmentPath(attachment.storagePath());
+        s.setAttachmentName(attachment.fileName());
+        s.setAttachmentMime(attachment.mime());
+        s.setContentText(null);
+        s.setUnreadable(false);
+        submissions.save(s);
+        Finalized finalized = finalizeSubmission(offering, s, now, false);
+        audit.record(new AuditEvent(studentId, "submission:video_submit", "submission", s.getId().toString(),
+                Map.of("attempt", s.getAttemptNo(), "mime", String.valueOf(attachment.mime()))));
+        return finalized;
+    }
+
     /** 交卷前的公共校验：可能顺带触发到点自动交卷，返回本次交卷时间。 */
     private Instant prepareSubmit(Submission s) {
         if (s.getSubmittedAt() != null) {

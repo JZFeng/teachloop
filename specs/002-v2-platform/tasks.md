@@ -402,6 +402,8 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T150 聚合查询 | 完成 | `/api/reports/offerings|classes|students`：按作业/班级/学生三视角；平均分只算 active 且已提交，未交单列；`AggregateReportTest` 断言 2 人班级 1 人提交时 expected=2、submitted=1、unsubmitted=1、均分=10.0 |
 | 2026-10-19 | T151 报表导出 | 完成 | 按作业报表复用 XLSX（POI）与 PDF（OpenPDF + 内置 CJK 字体）：`/api/reports/offerings.xlsx`、`/api/reports/offerings.pdf`；字体不可用 503；`AggregateReportTest` 断言 XLSX 非空、PDF 以 `%PDF` 开头 |
 | 2026-10-19 | T206 试卷库统计/复制/归档 | 完成 | `Ports.PaperUsage` 由 sitting 统计布置次数；列表返回 `assignmentCount`；`POST /copy` 深复制部分/题项/评分项为 DRAFT，复制件与原卷互不影响；`POST /archive` 置 ARCHIVED 并审计；前端试卷库显示「已布置 N 次」+ 复制/归档按钮；`PaperLibraryTest` 覆盖 |
+| 2026-10-19 | T062 视频提交 | 完成 | `POST /api/offerings/{id}/submissions/video`（mp4/mov/webm，≤100MB）；`VideoProbe` 调 ffprobe 读取时长/宽高，`VideoRules` 限时长≤360s、宽≤1920、高≤1080 并指出具体超限项；视频存 StorageBackend，提交走同一会话/定稿路径；`VideoRulesTest` 覆盖 359/360/361、1920/1921、1080/1081；`VideoSubmitTest` 用 ffmpeg 生成 1s mp4 实测上传成功、.avi 拒绝 |
+
 
 
 

@@ -45,6 +45,13 @@ public class SubmissionAttachments {
                 extraction.text(), extraction.unreadable());
     }
 
+    /** T062：视频不提取文本，只校验后落存储；能力与文件附件同一个 StorageBackend。 */
+    public String storeVideo(UUID offeringId, byte[] bytes, String extension, String mime) {
+        String key = "submissions/" + offeringId + "/" + UUID.randomUUID() + "." + extension;
+        storage.store(key, bytes, mime);
+        return key;
+    }
+
     public Optional<byte[]> load(String storagePath) {
         return storage.load(storagePath);
     }
