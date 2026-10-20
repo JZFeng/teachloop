@@ -394,6 +394,9 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T034 资料补全拦截 | 完成（后端） | `ProfileCompletionFilter`（仅 `require-profile-completion=true`，prod 开启）：STUDENT/TEACHER 缺手机号或邮箱时除 me/logout/profile/health 外一律 403 `PROFILE_INCOMPLETE`；`PUT /api/profile` 补全；管理员豁免；`ProfileCompletionTest` 覆盖。前端资料页尚未做（偏差记录） |
 | 2026-10-19 | T035 角色守卫 | 完成 | Security 规则：`/api/admin/**` 仅 ADMIN、`/api/papers/**` 仅 TEACHER/ADMIN；控制器层原有 require* 保留；`IdentityAuthTest` 覆盖学生建卷 403、教师建邀请码 403、未登录 401；停用旧会话失效 |
 | 2026-10-19 | T172 安全自查 | 完成 | `.docs/security-self-check.md` 逐项映射：未登录 401、缺 CSRF 403、越权 403/404、上传白名单、富文本消毒、限流 429、停用下线、资料补全、prod 禁开发登录；目标测试组合 exit 0 |
+| 2026-10-19 | T020 迁移集成测试 | 完成 | `MigrationTest`：空库迁移全部 applied、无 pending；断言 18 张关键表与 `submissions_active_uk` 索引；重复 `migrate()` 执行 0 条且数量不变 |
+| 2026-10-19 | T021 可重复 seed | 完成 | `DemoSeedRunner`（`teachloop.seed.demo=true`）：1 班 + 30 学生 + 1 份 4 题带答案试卷，固定 UUID/邀请码；重复执行只补缺；`DemoSeedTest` 连跑两次断言用户/班级/成员/试卷/题项数量不变；`make seed` 目标 |
+
 | 2026-10-19 | T170/T171 E2E 记录 | 部分完成 | `.docs/e2e-report-v2.md` 记录实际执行与偏差：旅程 A 用 1 班 3 题跑主链路（3 班/77 题未逐项重放）；旅程 B 富文本/文件/new attempt/迟交/拒收/复核由自动化测试覆盖。**不宣称完整通过** |
 | 2026-10-19 | T173/T174/T175 | 阻塞/未开始 | T173 依赖 T072（未实现）；T174 缺 2 app + 2 worker 编排与压测脚本；T175 缺 10 份人工评分语料 |
 

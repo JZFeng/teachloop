@@ -5,7 +5,7 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help status build test test-ai run start-db stop-db clean check-deps check-boundaries web-install web-build web-dev docker-build compose-up compose-down
+.PHONY: help status build test test-ai run start-db stop-db clean check-deps check-boundaries web-install web-build web-dev docker-build compose-up compose-down seed
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -21,6 +21,7 @@ help:
 	@echo "make status     一眼看清：提交/工作区/测试/进度"
 	@echo "make docker-build 构建生产镜像（含 Noto CJK/ffprobe）"
 	@echo "make compose-up   起 app + worker + postgres（需 .env）"
+	@echo "make seed         可重复演示数据（1 班 + 30 学生 + 1 试卷）"
 
 start-db:
 	@docker start teachloop-pg 2>/dev/null || docker run -d --name teachloop-pg \
@@ -72,3 +73,8 @@ run: build
 
 clean:
 	@$(MVN) -q clean
+
+seed: start-db
+	@JAVA_HOME=$${JAVA_HOME:-/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home} \
+		SPRING_MAIN_WEB_APPLICATION_TYPE=none ./mvnw -q -pl teachloop-app -am spring-boot:run \
+		-Dspring-boot.run.arguments="--teachloop.seed.demo=true --seed-exit"
