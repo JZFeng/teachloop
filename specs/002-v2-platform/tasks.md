@@ -359,5 +359,7 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | 全量回归 | 完成 | `make build` / `make test`（85 个测试通过，1 个真机 AI 跳过）/ `make web-build` / `make check-boundaries` / `make check-deps` 全绿 |
 | 2026-10-19 | T196 题型模型完整版 | 完成 | V015 `objective_items.scoring_strategy`；新增批量设题型 `POST /{id}/items/question-type/batch`、单题改题型 `PUT /{id}/items/{number}/question-type`、多选计分策略 `PUT …/scoring-strategy`；单选→多选规范标准答案字母、多选→单选取首字母，**不触碰学生已有作答**；判分改为 `ObjectiveScoring`：单选/填空大小写不敏感、多选 `ALL_OR_NOTHING` 默认 / `PARTIAL` 按（对选−错选）/应选数扣至 0 不为负。修复旧多选 token 化 bug（AB 被当成一个 token）。`ObjectiveScoringTest` 5 例 + `T196QuestionTypeTest` 集成 1 例全绿 |
 | 2026-10-19 | T196 前端 | 完成 | 出卷向导题项表单增加多选计分策略；第 2 步增加「按题号区间批量设定题型」（本地草稿 + 已保存题项同步后端），题项同步 payload 带 strategy；`make web-build` 通过 |
+| 2026-10-19 | T191 班级汇总补全 | 完成（PDF/XLSX 受限） | `GET /api/offerings/{id}/class-summary` 增加：未交名单（经 identity 端口取姓名）、分数分布（按满分百分比 5 桶，便于跨卷比较）、逐题正确率（只统计客观题，未答不拉低分母）。班级汇总页展示三块并保留按班分列；`Phase2ExamTimingTest` 新增断言。md/zip 已可导出；PDF/XLSX 需新增依赖 |
+| 2026-10-19 | 全量回归（本轮） | 完成 | `make build` / `make test`（93 个测试：92 通过 + 1 真机 AI 跳过）/ `make web-build` / 两个守卫全绿 |
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。

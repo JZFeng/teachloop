@@ -111,6 +111,23 @@ export interface ProgressView {
   failed: number
 }
 
+export interface UnsubmittedStudent {
+  studentId: string
+  studentName: string
+}
+
+export interface ScoreBucket {
+  label: string
+  count: number
+}
+
+export interface ItemAccuracy {
+  number: number
+  answered: number
+  correct: number
+  correctRate: number | null
+}
+
 export interface ClassSummaryView {
   classId: string
   expected: number
@@ -120,6 +137,9 @@ export interface ClassSummaryView {
   rejected: number
   onTimeRate: number | null
   averageScore: number | null
+  unsubmitted: UnsubmittedStudent[]
+  distribution: ScoreBucket[]
+  itemAccuracy: ItemAccuracy[]
 }
 
 export interface OfferingSubmissionView {

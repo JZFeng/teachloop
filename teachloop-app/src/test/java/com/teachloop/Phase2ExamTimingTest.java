@@ -391,6 +391,16 @@ class Phase2ExamTimingTest {
         assertThat(((Number) cls.get("late")).longValue()).isEqualTo(1);
         assertThat(new BigDecimal(cls.get("onTimeRate").toString())).isEqualByComparingTo("0.00");
         assertThat(cls.get("averageScore")).isNull();
+        // T191：未交名单 / 分数分布 / 逐题正确率
+        assertThat((List<?>) cls.get("unsubmitted")).isEmpty();
+        List<?> dist = (List<?>) cls.get("distribution");
+        assertThat(dist).hasSize(5);
+        long distTotal = dist.stream().mapToLong(b -> ((Number) ((Map<?, ?>) b).get("count")).longValue()).sum();
+        assertThat(distTotal).isEqualTo(1);
+        List<?> accuracy = (List<?>) cls.get("itemAccuracy");
+        assertThat(accuracy).hasSize(2);
+        assertThat(((Number) ((Map<?, ?>) accuracy.get(0)).get("answered")).longValue()).isZero();
+        assertThat(((Map<?, ?>) accuracy.get(0)).get("correctRate")).isNull();
 
         String submissionIdFromDb = jdbc.queryForObject(
                 "select id::text from submissions where offering_id = ? order by attempt_no limit 1",

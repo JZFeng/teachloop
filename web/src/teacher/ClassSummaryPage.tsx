@@ -170,6 +170,85 @@ export default function ClassSummaryPage() {
           )}
 
           <div className="card">
+            <h2>{t('teacher.summary.distributionTitle')}</h2>
+            <div className="hint" style={{ marginBottom: 10 }}>{t('teacher.summary.distributionHint')}</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('teacher.summary.colClass')}</th>
+                  {['0–59', '60–69', '70–79', '80–89', '90–100'].map((label) => (
+                    <th key={label}>{label}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={`dist-${row.classId}`}>
+                    <td><b>{row.className}</b></td>
+                    {row.distribution.map((bucket) => (
+                      <td key={bucket.label} className="mono">{bucket.count}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="card">
+            <h2>{t('teacher.summary.accuracyTitle')}</h2>
+            <div className="hint" style={{ marginBottom: 10 }}>{t('teacher.summary.accuracyHint')}</div>
+            {rows.every((row) => row.itemAccuracy.length === 0) ? (
+              <p className="muted">{t('teacher.summary.accuracyEmpty')}</p>
+            ) : (
+              <div style={{ maxHeight: 360, overflow: 'auto' }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <th>{t('teacher.summary.colClass')}</th>
+                      <th>{t('teacher.summary.accuracyNumber')}</th>
+                      <th>{t('teacher.summary.accuracyAnswered')}</th>
+                      <th>{t('teacher.summary.accuracyCorrect')}</th>
+                      <th>{t('teacher.summary.accuracyRate')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.flatMap((row) => row.itemAccuracy.map((item) => (
+                      <tr key={`acc-${row.classId}-${item.number}`}>
+                        <td>{row.className}</td>
+                        <td className="mono">{item.number}</td>
+                        <td className="mono">{item.answered}</td>
+                        <td className="mono">{item.correct}</td>
+                        <td className="mono">{item.correctRate == null ? '—' : `${fmtRate(Number(item.correctRate))}`}</td>
+                      </tr>
+                    )))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="card">
+            <h2>{t('teacher.summary.unsubmittedTitle')}</h2>
+            {rows.every((row) => row.unsubmitted.length === 0) ? (
+              <p className="muted">{t('teacher.summary.unsubmittedNone')}</p>
+            ) : (
+              <div className="wizard-list">
+                {rows.map((row) => (
+                  <div key={`miss-${row.classId}`} style={{ marginBottom: 10 }}>
+                    <b>{row.className}</b>
+                    <span className="muted small" style={{ marginLeft: 8 }}>
+                      {t('teacher.summary.unsubmittedCount', { n: row.unsubmitted.length })}
+                    </span>
+                    <div className="small" style={{ marginTop: 4 }}>
+                      {row.unsubmitted.map((stu) => stu.studentName).join('、')}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="card">
             <h2>{t('teacher.summary.exportTitle')}</h2>
             <div className="row">
               <a className="btn" href={`/api/offerings/${offeringId}/export/summary.md`}>

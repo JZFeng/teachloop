@@ -30,6 +30,7 @@ public class OfferingEndpoint {
     private final OfferingRepository offerings;
     private final OfferingClassRepository offeringClasses;
     private final SubmissionRepository submissions;
+    private final ObjectiveAnswerRepository answers;
     private final Ports.PaperCatalog paperCatalog;
     private final Ports.ClassMembership membership;
     private final Ports.NotificationPort notifications;
@@ -41,7 +42,8 @@ public class OfferingEndpoint {
     private final Clock clock;
 
     public OfferingEndpoint(OfferingRepository offerings, OfferingClassRepository offeringClasses,
-                            SubmissionRepository submissions, Ports.PaperCatalog paperCatalog,
+                            SubmissionRepository submissions, ObjectiveAnswerRepository answers,
+                            Ports.PaperCatalog paperCatalog,
                             Ports.ClassMembership membership, Ports.NotificationPort notifications,
                             Ports.StudentDirectory directory,
                             SnapshotCodec codec, OfferingWindows windows,
@@ -49,6 +51,7 @@ public class OfferingEndpoint {
         this.offerings = offerings;
         this.offeringClasses = offeringClasses;
         this.submissions = submissions;
+        this.answers = answers;
         this.paperCatalog = paperCatalog;
         this.membership = membership;
         this.notifications = notifications;
@@ -265,6 +268,7 @@ public class OfferingEndpoint {
         }
         Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
         List<Submission> all = submissions.findByOfferingIdOrderByCreatedAtDesc(id);
+        Ports.PaperSnapshot snap = codec.read(o.getPaperSnapshot());
         List<SittingDtos.ClassSummaryView> out = new ArrayList<>();
         for (OfferingClass oc : offeringClasses.findByOfferingId(o.getId())) {
             List<UUID> memberIds = membership.membersOf(oc.getClassId());
@@ -299,8 +303,73 @@ public class OfferingEndpoint {
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
                 avg = sum.divide(BigDecimal.valueOf(submitted), 2, RoundingMode.HALF_UP);
             }
+            // T191：未交名单（姓名经 identity 端口取，不跨模块查 users）
+            Set<UUID> submittedIds = latest.values().stream()
+                    .filter(s -> s.getSubmittedAt() != null && s.getRejectedAt() == null)
+                    .map(Submission::getStudentId)
+                    .collect(java.util.stream.Collectors.toSet());
+            List<UUID> missingIds = memberIds.stream().filter(x -> !submittedIds.contains(x)).toList();
+            Map<UUID, String> names = directory.displayNames(missingIds);
+            List<SittingDtos.UnsubmittedView> unsubmitted = missingIds.stream()
+                    .map(x -> new SittingDtos.UnsubmittedView(x.toString(),
+                            names.getOrDefault(x, x.toString())))
+                    .toList();
+
+            // 分数分布：按占满分的百分比分桶（跨卷可比）
+            long[] buckets = new long[5];
+            for (Submission s : latest.values()) {
+                if (s.getSubmittedAt() == null || s.getRejectedAt() != null || snap.totalPoints() <= 0) {
+                    continue;
+                }
+                BigDecimal total = s.getObjectiveTotal().add(s.getSubjectiveTotal());
+                int percent = total.multiply(BigDecimal.valueOf(100))
+                        .divide(BigDecimal.valueOf(snap.totalPoints()), 0, RoundingMode.HALF_UP).intValue();
+                int idx = percent < 60 ? 0 : percent < 70 ? 1 : percent < 80 ? 2 : percent < 90 ? 3 : 4;
+                buckets[Math.max(0, Math.min(4, idx))]++;
+            }
+            List<SittingDtos.ScoreBucketView> distribution = List.of(
+                    new SittingDtos.ScoreBucketView("0–59", buckets[0]),
+                    new SittingDtos.ScoreBucketView("60–69", buckets[1]),
+                    new SittingDtos.ScoreBucketView("70–79", buckets[2]),
+                    new SittingDtos.ScoreBucketView("80–89", buckets[3]),
+                    new SittingDtos.ScoreBucketView("90–100", buckets[4]));
+
+            // 逐题正确率：只统计客观题；未答的题本场计 0 作答
+            Map<Integer, long[]> itemStats = new LinkedHashMap<>();
+            for (Ports.ItemSpec spec : snap.items()) {
+                if ("ESSAY".equals(spec.questionType())) {
+                    continue;
+                }
+                itemStats.put(spec.number(), new long[]{0, 0});
+            }
+            for (Submission s : latest.values()) {
+                if (s.getSubmittedAt() == null || s.getRejectedAt() != null) {
+                    continue;
+                }
+                for (ObjectiveAnswer a : answers.findBySubmissionId(s.getId())) {
+                    long[] stat = itemStats.get(a.getNumber());
+                    if (stat == null) {
+                        continue;
+                    }
+                    stat[0]++;
+                    if (a.isCorrect()) {
+                        stat[1]++;
+                    }
+                }
+            }
+            List<SittingDtos.ItemAccuracyView> itemAccuracy = itemStats.entrySet().stream()
+                    .map(e -> {
+                        long answered = e.getValue()[0];
+                        long correct = e.getValue()[1];
+                        BigDecimal itemRate = answered == 0 ? null
+                                : BigDecimal.valueOf(correct).multiply(BigDecimal.valueOf(100))
+                                        .divide(BigDecimal.valueOf(answered), 2, RoundingMode.HALF_UP);
+                        return new SittingDtos.ItemAccuracyView(e.getKey(), answered, correct, itemRate);
+                    })
+                    .toList();
+
             out.add(new SittingDtos.ClassSummaryView(oc.getClassId().toString(), memberIds.size(), submitted,
-                    onTime, late, rejected, rate, avg));
+                    onTime, late, rejected, rate, avg, unsubmitted, distribution, itemAccuracy));
         }
         return out;
     }

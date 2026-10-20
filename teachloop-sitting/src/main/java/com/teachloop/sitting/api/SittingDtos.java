@@ -74,8 +74,21 @@ public final class SittingDtos {
     }
 
     /** 按班统计：按时提交率必须与迟交份数分开（AC-8.2 / AC-26.10）。 */
+    public record UnsubmittedView(String studentId, String studentName) {
+    }
+
+    /** 分数分布（T191）：按「得分 / 满分」的百分比分桶，便于跨卷比较。 */
+    public record ScoreBucketView(String label, long count) {
+    }
+
+    /** 逐题正确率（T191）：只统计客观题，按题号升序。 */
+    public record ItemAccuracyView(int number, long answered, long correct, BigDecimal correctRate) {
+    }
+
     public record ClassSummaryView(String classId, long expected, long submitted, long onTime, long late,
-                                   long rejected, BigDecimal onTimeRate, BigDecimal averageScore) {
+                                   long rejected, BigDecimal onTimeRate, BigDecimal averageScore,
+                                   List<UnsubmittedView> unsubmitted, List<ScoreBucketView> distribution,
+                                   List<ItemAccuracyView> itemAccuracy) {
     }
 
     public record ProgressView(int total, long done, long running, long pending, long failed) {
