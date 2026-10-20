@@ -405,6 +405,8 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T062 视频提交 | 完成 | `POST /api/offerings/{id}/submissions/video`（mp4/mov/webm，≤100MB）；`VideoProbe` 调 ffprobe 读取时长/宽高，`VideoRules` 限时长≤360s、宽≤1920、高≤1080 并指出具体超限项；视频存 StorageBackend，提交走同一会话/定稿路径；`VideoRulesTest` 覆盖 359/360/361、1920/1921、1080/1081；`VideoSubmitTest` 用 ffmpeg 生成 1s mp4 实测上传成功、.avi 拒绝 |
 | 2026-10-19 | T102 改答案重算 | 完成 | `Ports.ObjectiveRecompute`：改标准答案（逐题 PUT 或答案表）后更新该试卷所有场次快照，重算 `objective_answers.correct` 与 submission 客观总分，写 `offering:objective_recomputed` 审计；复核侧读同一 objective_total 自然同步；`ObjectiveRecomputeTest` 覆盖 A→B 后 10 分变 0 |
 | 2026-10-19 | T174 并发压测 | 完成（1+1 拓扑） | `scripts/load-test.py`：25 学生 × 2 场 = 50 份提交、并发 10；50/50 成功，p95 45ms，批改 33.8s 全部 done；记录 `.docs/perf-report-v2.md`。**偏差**：未编排 2 app + 2 worker，判分为 stub，非真实 AI 吞吐 |
+| 2026-10-19 | T007 中文字面量静态检查 | 完成（基线 + 新增即失败） | `scripts/check-i18n.py` 扫 `api/`、`service/` 的 Java 字符串字面量；`scripts/i18n-baseline.txt` 记录现有 275 处（全量迁移前不阻塞）；新增中文字面量 → 退出码 1，实测插入「新增中文文案必须失败」被拦下；接入 `make test` 依赖。范围决定：先挡住新增，存量迁移到 T130 消息 key 时逐步清零 |
+
 
 
 

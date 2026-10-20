@@ -5,7 +5,7 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help status build test test-ai run start-db stop-db clean check-deps check-boundaries web-install web-build web-dev docker-build compose-up compose-down seed
+.PHONY: help status build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n web-install web-build web-dev docker-build compose-up compose-down seed
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -40,10 +40,13 @@ check-deps:
 check-boundaries:
 	@python3 scripts/check-boundaries.py
 
+check-i18n:
+	@python3 scripts/check-i18n.py
+
 build:
 	@$(MVN) -q -DskipTests package
 
-test: check-deps check-boundaries
+test: check-deps check-boundaries check-i18n
 	@$(MVN) -q test
 
 test-ai:
