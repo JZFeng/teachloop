@@ -463,6 +463,8 @@
     <div class="group">通用</div>
     <button data-s="login" class="on">登录</button>
     <button data-s="profile">资料补全</button>
+    <div class="group">管理员</div>
+    <button data-s="admin-ai">初始化 / AI 设置</button>
     <div class="group">教师</div>
     <button data-s="home">首页</button>
     <button data-s="class">班级与作业</button>
@@ -518,7 +520,7 @@
         <label class="f"><b>邮箱</b><input type="email" value="admin@example.com"></label>
         <label class="f"><b>密码</b><input type="password" value="········"></label>
         <button class="btn pri" style="width:100%">登录</button>
-        <div class="hint">管理员由命令行创建，不能自助注册</div>
+        <div class="hint">首次部署从「初始化 / AI 设置」创建管理员；之后只能登录，不能自助注册</div>
       </div>
     </div>
   </div>
@@ -534,6 +536,56 @@
       <div class="hint">用于成绩发布通知，v1 不发送验证码</div></label>
     <label class="f"><b>邮箱 <i>*</i></b><input type="email" value="teacher@school.edu"></label>
     <div class="row"><button class="btn pri">保存并进入</button><button class="btn">退出登录</button></div>
+  </div>
+</section>
+
+
+<!-- 管理员初始化与 AI 设置 -->
+<section class="screen" id="admin-ai">
+  <h1>初始化与 AI 设置</h1>
+  <div class="sub">首次部署：创建管理员 → 配好大模型；之后可在这里换模型与 Key</div>
+
+  <div class="card" style="max-width:760px">
+    <div class="inline-note">当前状态：还没有管理员（首次部署）。创建后此入口自动关闭，只保留登录。</div>
+    <h2 style="font-size:15px;margin-bottom:8px">① 创建首个管理员</h2>
+    <div class="row" style="align-items:flex-start">
+      <label class="f" style="flex:1"><b>管理员姓名</b><input type="text" value="教务管理员"></label>
+      <label class="f" style="flex:1"><b>邮箱 <i>*</i></b><input type="email" value="admin@school.edu"></label>
+    </div>
+    <label class="f"><b>密码 <i>*</i></b><input type="password" value="········">
+      <div class="hint">至少 8 位；服务端只存密码哈希，不存明文</div></label>
+    <div class="row"><button class="btn pri">创建管理员</button></div>
+  </div>
+
+  <div class="card" style="max-width:760px">
+    <h2 style="font-size:15px;margin-bottom:8px">② AI 大模型</h2>
+    <div class="inline-note" style="border-left-color:var(--ready-line)">
+      当前：DeepSeek / deepseek-flash · API Key 已配置 <b>sk-****1234</b> · 保存后需重启 app 与 worker 生效
+    </div>
+    <p class="small muted">支持 DeepSeek 与 OpenAI 兼容端点。Key 使用 AES-GCM 加密存库，页面永远只显示掩码。</p>
+    <div class="row" style="align-items:flex-start">
+      <label class="f" style="flex:1"><b>Provider</b>
+        <select><option>DeepSeek</option><option>OpenAI 兼容</option></select></label>
+      <label class="f" style="flex:1"><b>Base URL</b><input type="text" value="https://api.deepseek.com"></label>
+    </div>
+    <div class="row" style="align-items:flex-start">
+      <label class="f" style="flex:1"><b>模型</b><input type="text" value="deepseek-flash"></label>
+      <label class="f" style="width:140px"><b>Temperature</b><input type="text" value="0.2"></label>
+    </div>
+    <label class="f"><b>API Key <i>*</i></b><input type="password" value="········">
+      <div class="hint">留空表示不修改；保存后只回掩码，不回明文。加密密钥来自 TEACHLOOP_SECURITY_SECRET。</div></label>
+    <div class="hint">未配置 Key 时真实判分会明确失败，不会给学生假分数；本地演示可用 stub 引擎。</div>
+    <div class="row"><button class="btn pri">保存</button><button class="btn">测试连接</button>
+      <span class="small muted">测试：通过 · 312ms（示例）</span></div>
+  </div>
+
+  <div class="card" style="max-width:760px">
+    <h2 style="font-size:15px;margin-bottom:8px">保存之后</h2>
+    <ul class="small muted" style="padding-left:20px;line-height:1.9;margin:0">
+      <li>重启 app 与 worker，新的 Provider/模型/Key 才会生效。</li>
+      <li>`TEACHLOOP_SECURITY_SECRET` 丢失后，已保存的 Key 无法解密，需要重新填写。</li>
+      <li>管理员仍可从左侧「教师」入口查看班级、复核与报表；AI 设置不改变评分决定权。</li>
+    </ul>
   </div>
 </section>
 
