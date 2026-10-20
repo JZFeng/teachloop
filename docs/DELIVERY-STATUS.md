@@ -44,20 +44,18 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 | E2E | 旅程 A：3 班 + 77 题；旅程 B：富文本 + 3 次 attempt + 迟交/拒收 | `.docs/e2e-report-v2.md` |
 | 压测 | 50 份提交、并发 10；1+1 p95 45ms/33.8s，2+2 p95 97ms/7.22s | `.docs/perf-report-v2.md` |
 | 质量基线 | v1 四模型段落计数移植，10 份 parity 全一致 | `TextLengthCounterFixtureTest` |
+| Golden set | 10 份人工均分 9.6；deepseek-flash 平均偏差 0.0、最大 0、方向持平 | `docs/reports/golden-set-baseline.md`、`make test-ai` |
 
 ## 四、部分完成 / 已知偏差
 
-1. **T175 golden set**：人工基线均分 9.6/10 已记录；真实 AI 偏差未跑（缺 `DEEPSEEK_API_KEY`），执行器 `scripts/golden-set.py` 已就绪。
-2. **T174 判分引擎**：1+1 与 2+2 拓扑都跑过（批改 33.8s → 7.22s），但压测用 stub 引擎，不代表真实 DeepSeek 吞吐与成本。
-3. **PDF 中文字体**：使用 OpenPDF 内置 STSong-Light，非嵌入；视觉正常，复制/检索中文受限。
-4. **OSS**：只有 `StorageBackend` 骨架，`STORAGE_BACKEND=oss` 当前运行期 503。
-5. **解析自动生成（AC-18.5）**：目前教师按需触发，不是提交后自动生成。
-6. **CSRF/资料补全**：只在 `prod` profile 强制；开发/测试关闭。
-7. **管理员豁免资料补全**：CLI 创建的管理员无手机号，避免锁死；与「所有角色」字面要求有偏差。
-8. **T007**：中文字面量检查采用「基线 + 新增即失败」，存量 275 处未迁移到消息 key。
+1. **T174 判分引擎**：1+1 与 2+2 拓扑都跑过（批改 33.8s → 7.22s），但压测用 stub 引擎，不代表真实 DeepSeek 吞吐与成本。
+2. **PDF 中文字体**：使用 OpenPDF 内置 STSong-Light，非嵌入；视觉正常，复制/检索中文受限。
+3. **OSS**：只有 `StorageBackend` 骨架，`STORAGE_BACKEND=oss` 当前运行期 503。
+4. **解析自动生成（AC-18.5）**：目前教师按需触发，不是提交后自动生成。
+5. **CSRF/资料补全**：只在 `prod` profile 强制；开发/测试关闭。
+6. **管理员豁免资料补全**：CLI 创建的管理员无手机号，避免锁死；与「所有角色」字面要求有偏差。
+7. **T007**：中文字面量检查采用「基线 + 新增即失败」，存量 275 处未迁移到消息 key。
 
-## 五、仍待用户输入
+## 五、结论
 
-- `DEEPSEEK_API_KEY`：用于 T175 真实 AI 偏差与 `make test-ai` 真机复验。
-
-除此之外，`specs/002-v2-platform/tasks.md` 中的实现任务均已完成或明确标注为上述偏差。
+`specs/002-v2-platform/tasks.md` 中的实现任务均已完成；剩余为上述已知偏差（OSS/PDF/AC-18.5 等），不是未做任务。

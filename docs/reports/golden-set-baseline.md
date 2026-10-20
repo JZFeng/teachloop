@@ -23,19 +23,31 @@
 - 分布：2 份 8 分，8 份 10 分
 - 每份的评分理由与评语见 `docs/rubrics/samples/reviews/*_review.txt`
 
-## AI 偏差
 
-**未跑**。当前环境没有 `DEEPSEEK_API_KEY`，无法调用真实模型；用 stub 结果算偏差没有意义，因此本文件只记录人工基线，不填造 AI 数字。
+## AI 实测（2026-10-20，deepseek-flash，temperature 0.2）
 
-真机跑法（有 Key 时）：
+执行：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`（同一 rubric，10 次真实调用）
 
-```bash
-DEEPSEEK_API_KEY=... make test-ai
-# 或按 specs/002-v2-platform/plan.md §18.5 用同一 rubric 对 10 份样本逐份评分，
-# 记录平均偏差、最大偏差、偏差方向（系统性偏高/偏低）
-```
+| 学生 | 人工 | AI | 偏差 |
+| :--- | ---: | ---: | ---: |
+| Akshay | 10 | 10 | 0 |
+| Alejandro | 10 | 10 | 0 |
+| Genesis | 10 | 10 | 0 |
+| Iam | 10 | 10 | 0 |
+| JZ | 8 | 8 | 0 |
+| Maria | 10 | 10 | 0 |
+| Mark | 8 | 8 | 0 |
+| Regan | 10 | 10 | 0 |
+| Sana | 10 | 10 | 0 |
+| Zhangguan | 10 | 10 | 0 |
 
-## 结论
+- 平均偏差：**0.0**
+- 最大绝对偏差：**0**
+- 方向：**持平**（无系统性偏高/偏低）
 
-- T175 的人工基线已就绪；AI 偏差待 Key 后补。
-- 没有 Key 之前，T175 保持「部分完成」，不宣称 golden set 已校准。
+样本量只有 10，且评分标准是 2+4+4 的离散三档；0 偏差说明当前 prompt 与 rubric 在这批样本上对齐，但不能外推到其他题型/分数段。
+
+## 真机回归
+
+`DEEPSEEK_API_KEY=... make test-ai` → exit 0；`AiGradingRealCallTest` 与 `SpringAiLlmRealCallTest` 均 1/1、Skipped 0。
+
