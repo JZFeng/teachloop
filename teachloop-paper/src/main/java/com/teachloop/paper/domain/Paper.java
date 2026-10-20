@@ -72,6 +72,11 @@ public class Paper {
     public void setRubricMarkdown(String md) { this.rubricMarkdown = md; }
     public void setGradingPromptTemplate(String p) { this.gradingPromptTemplate = p; }
 
+    /** T206：归档后不再出现在默认列表的可用项里。 */
+    public void archive() {
+        this.status = PaperStatus.ARCHIVED;
+    }
+
     public void publish() {
         // T054：首次发布保持 v1；之后每次重新发布递增内容版本与评分标准版本。
         if (status == PaperStatus.PUBLISHED) {

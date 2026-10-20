@@ -70,6 +70,13 @@ export default function PapersPage() {
       ),
     },
     {
+      key: 'assignmentCount',
+      title: t('teacher.papers.colAssigned'),
+      value: (row) => row.assignmentCount ?? 0,
+      sortable: true,
+      render: (row) => <span className="mono">{t('teacher.papers.assignedTimes', { n: row.assignmentCount ?? 0 })}</span>,
+    },
+    {
       key: 'actions',
       title: t('teacher.common.actions'),
       value: () => '',
@@ -81,6 +88,13 @@ export default function PapersPage() {
           <Link className="btn sm" to={`/offerings/new?paperId=${row.id}`}>
             {t('teacher.papers.assign')}
           </Link>
+          <button type="button" className="btn sm" onClick={() => void api.post(`/api/papers/${row.id}/copy`).then(reload)}>
+            {t('teacher.papers.copy')}
+          </button>
+          <button type="button" className="btn sm" disabled={row.status === 'ARCHIVED'}
+            onClick={() => void api.post(`/api/papers/${row.id}/archive`).then(reload)}>
+            {t('teacher.papers.archive')}
+          </button>
         </div>
       ),
     },

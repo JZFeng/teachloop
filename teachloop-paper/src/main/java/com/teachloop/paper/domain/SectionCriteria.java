@@ -45,6 +45,7 @@ public class SectionCriteria {
     }
 
     public UUID getId() { return id; }
+    public UUID getPaperSectionId() { return paperSectionId; }
     public String getName() { return name; }
     public BigDecimal getMaxPoints() { return maxPoints; }
     public String getDescription() { return description; }

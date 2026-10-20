@@ -27,8 +27,10 @@ export interface PaperView {
   title: string
   totalPoints: number
   version: number
-  status: 'DRAFT' | 'PUBLISHED'
+  rubricVersion?: number
+  status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
   defaultDurationMinutes: number | null
+  assignmentCount?: number
 }
 
 export interface PaperItem {

@@ -109,6 +109,11 @@ public final class Ports {
         List<UUID> membersOf(UUID classId);
     }
 
+    /** 试卷被布置次数（T206）：sitting 只读聚合。 */
+    public interface PaperUsage {
+        int assignmentCount(UUID paperId);
+    }
+
     /** 班级成员提交数（T042）：sitting 只读聚合，classroom 负责展示。 */
     public record ClassSubmissionCount(UUID studentId, int count) {
     }

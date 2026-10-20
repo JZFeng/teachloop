@@ -1,5 +1,6 @@
 package com.teachloop.paper.api;
 
+import com.teachloop.shared.port.Ports;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.paper.domain.*;
 import com.teachloop.paper.importing.AnswerTableParser;
@@ -38,18 +39,28 @@ public class PaperEndpoint {
     private final ObjectiveItemRepository items;
     private final SectionCriteriaRepository criteria;
     private final Clock clock;
+    private final Ports.PaperUsage usage;
 
     private final AuditPort audit;
 
+    /** 旧测试/内部构造兼容：没有布置统计时按 0 处理。 */
     public PaperEndpoint(PaperRepository papers, PaperSectionRepository sections,
                          ObjectiveItemRepository items, SectionCriteriaRepository criteria,
                          AuditPort audit, Clock clock) {
+        this(papers, sections, items, criteria, audit, clock, id -> 0);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public PaperEndpoint(PaperRepository papers, PaperSectionRepository sections,
+                         ObjectiveItemRepository items, SectionCriteriaRepository criteria,
+                         AuditPort audit, Clock clock, Ports.PaperUsage usage) {
         this.papers = papers;
         this.sections = sections;
         this.items = items;
         this.criteria = criteria;
         this.audit = audit;
         this.clock = clock;
+        this.usage = usage;
     }
 
     public record CreatePaper(@NotBlank String title, Integer defaultDurationMinutes) {
@@ -84,7 +95,7 @@ public class PaperEndpoint {
     }
 
     public record PaperView(String id, String title, int totalPoints, int version, int rubricVersion,
-                            String status, Integer defaultDurationMinutes) {
+                            String status, Integer defaultDurationMinutes, int assignmentCount) {
     }
 
     public record ItemView(String id, int number, String questionType, String stem, String options,
@@ -124,6 +135,51 @@ public class PaperEndpoint {
     @GetMapping
     public List<PaperView> mine(@RequestAttribute("currentUser") CurrentUser me) {
         return papers.findByAuthorIdOrderByCreatedAtDesc(me.id()).stream().map(this::view).toList();
+    }
+
+    /** T206：复制为新卷（互不影响，新卷为 DRAFT）。 */
+    @PostMapping("/{id}/copy")
+    @Transactional
+    public PaperView copy(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
+        Paper source = load(id);
+        Paper copy = papers.save(new Paper(UUID.randomUUID(), source.getTitle() + "（副本）",
+                source.getDefaultDurationMinutes(), me.id(), Instant.now(clock)));
+        copy.setRubricMarkdown(source.getRubricMarkdown());
+        copy.setGradingPromptTemplate(source.getGradingPromptTemplate());
+        copy.setTotalPoints(source.getTotalPoints());
+        papers.save(copy);
+        java.util.Map<UUID, UUID> sectionMap = new java.util.HashMap<>();
+        for (PaperSection section : sections.findByPaperIdOrderByPosition(id)) {
+            UUID newId = UUID.randomUUID();
+            sectionMap.put(section.getId(), newId);
+            sections.save(new PaperSection(newId, copy.getId(), section.getTitle(),
+                    section.getPosition(), section.getPointsPerItem()));
+        }
+        for (ObjectiveItem item : items.findByPaperIdOrderByNumber(id)) {
+            ObjectiveItem clone = new ObjectiveItem(UUID.randomUUID(), copy.getId(),
+                    sectionMap.getOrDefault(item.getPaperSectionId(), item.getPaperSectionId()),
+                    item.getNumber(), item.getPosition(), item.getQuestionType(), item.getStem(),
+                    item.getOptions(), item.getAnswerKey(), item.getPoints());
+            clone.setScoringStrategy(item.getScoringStrategy());
+            items.save(clone);
+        }
+        for (SectionCriteria c : criteria.findByPaperIdOrderByPosition(id)) {
+            criteria.save(new SectionCriteria(UUID.randomUUID(), copy.getId(),
+                    sectionMap.getOrDefault(c.getPaperSectionId(), c.getPaperSectionId()),
+                    c.getName(), c.getMaxPoints(), c.getDescription(), c.getPosition()));
+        }
+        audit.record(AuditEvent.of(me.id(), "paper:copied", "paper", copy.getId().toString()));
+        return view(copy);
+    }
+
+    /** T206：归档（不改内容，仅状态）。 */
+    @PostMapping("/{id}/archive")
+    @Transactional
+    public PaperView archive(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = load(id);
+        p.archive();
+        audit.record(AuditEvent.of(me.id(), "paper:archived", "paper", id.toString()));
+        return view(p);
     }
 
     @GetMapping("/{id}")
@@ -474,6 +530,7 @@ public class PaperEndpoint {
 
     private PaperView view(Paper p) {
         return new PaperView(p.getId().toString(), p.getTitle(), p.getTotalPoints().intValue(),
-                p.getVersion(), p.getRubricVersion(), p.getStatus().name(), p.getDefaultDurationMinutes());
+                p.getVersion(), p.getRubricVersion(), p.getStatus().name(), p.getDefaultDurationMinutes(),
+                usage.assignmentCount(p.getId()));
     }
 }
