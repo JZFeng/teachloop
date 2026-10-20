@@ -1,5 +1,6 @@
 package com.teachloop.report.api;
 
+import com.teachloop.report.service.AggregateReportService;
 import com.teachloop.report.service.WrongItemsReportService;
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.security.CurrentUser;
@@ -30,9 +31,49 @@ public class ReportEndpoint {
     private static final int MAX_LIMIT = 100;
 
     private final WrongItemsReportService wrongItems;
+    private final AggregateReportService aggregate;
 
-    public ReportEndpoint(WrongItemsReportService wrongItems) {
+    public ReportEndpoint(WrongItemsReportService wrongItems, AggregateReportService aggregate) {
         this.wrongItems = wrongItems;
+        this.aggregate = aggregate;
+    }
+
+    /** T150：按作业聚合；平均分只算已提交，未交单列。 */
+    @GetMapping("/offerings")
+    public List<AggregateReportService.OfferingRow> byOffering(
+            @RequestParam String offeringIds, @RequestAttribute("currentUser") CurrentUser me) {
+        requireStaff(me);
+        return aggregate.byOffering(requiredIds(offeringIds));
+    }
+
+    /** T150：按班级聚合。 */
+    @GetMapping("/classes")
+    public List<AggregateReportService.ClassRow> byClass(
+            @RequestParam String classIds, @RequestAttribute("currentUser") CurrentUser me) {
+        requireStaff(me);
+        return aggregate.byClass(requiredIds(classIds));
+    }
+
+    /** T150：按学生聚合；分母是该生参与的场次。 */
+    @GetMapping("/students")
+    public List<AggregateReportService.StudentRow> byStudent(
+            @RequestParam String offeringIds, @RequestAttribute("currentUser") CurrentUser me) {
+        requireStaff(me);
+        return aggregate.byStudent(requiredIds(offeringIds));
+    }
+
+    private static void requireStaff(CurrentUser me) {
+        if (me.is("STUDENT")) {
+            throw ApiException.forbidden("学生不能查看报表");
+        }
+    }
+
+    private static List<UUID> requiredIds(String raw) {
+        List<UUID> ids = uuidList(raw);
+        if (ids.isEmpty()) {
+            throw ApiException.badRequest("id 列表必填，逗号分隔的 UUID");
+        }
+        return ids;
     }
 
     /**

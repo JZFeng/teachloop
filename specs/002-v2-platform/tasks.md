@@ -399,6 +399,8 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T053 匹配策略注册表 | 完成 | `MatchStrategy` + `MatchStrategies`：exact / normalized（大小写/空白/标点）/ choice（字母集合无序）/ set（多写法分隔符）；`ObjectiveScoring` 改用注册表；`MatchStrategyTest` 覆盖四类边界 |
 | 2026-10-19 | T055 答案表导入 | 完成 | `AnswerTableParser` 支持「1 A」「1-5 ABCDA」「1 A 2 B」、注释行、重复题号警告；`POST /api/papers/{id}/answers` 补齐已有题项答案，未知题号返回 `unknownNumbers`，错误带行号 400（`第 N 行`） |
 | 2026-10-19 | T071 总分合成 | 完成 | `Submission.finalTotal() = objectiveTotal + subjectiveTotal`；两列 setter 拒绝负数/空值归零；`GradingOutcome.apply` 走同一条路径；`SubmissionTotalsTest` 覆盖派生与负数拒绝 |
+| 2026-10-19 | T150 聚合查询 | 完成 | `/api/reports/offerings|classes|students`：按作业/班级/学生三视角；平均分只算 active 且已提交，未交单列；`AggregateReportTest` 断言 2 人班级 1 人提交时 expected=2、submitted=1、unsubmitted=1、均分=10.0 |
+
 | 2026-10-19 | T072 四模型段落计数 | 阻塞 | 需要 v1 的 10 份真实作文做 parity；仓库内没有 `docs/rubrics/samples/` 语料，无法在不臆造算法的前提下移植/断言。保留为阻塞项，等语料 |
 
 | 2026-10-19 | T056 整卷拆分与单题修正 | 完成（合成样卷） | `PUT /api/papers/{id}/items/{number}` 可改题干/选项/答案/分值（发布后需 confirm + 审计）；`WholePaperSplitTest` 用 75 题合成文本断言题干/选项/答案全部拆出；`AnswerTableTest` 覆盖单题修正。真实 75 题样卷未在仓库内，拆分正确率只对合成样本断言 |
