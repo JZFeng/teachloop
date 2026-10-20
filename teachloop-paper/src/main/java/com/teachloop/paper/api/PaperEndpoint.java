@@ -2,6 +2,7 @@ package com.teachloop.paper.api;
 
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.paper.domain.*;
+import com.teachloop.paper.importing.AnswerTableParser;
 import com.teachloop.paper.importing.DocumentTextExtractor;
 import com.teachloop.paper.importing.ImportException;
 import com.teachloop.paper.importing.PaperTextParser;
@@ -99,6 +100,15 @@ public class PaperEndpoint {
     public record ImportedItem(int number, String stem, String options, String answerKey) {
     }
 
+    public record UpdateItem(String stem, String options, String answerKey, BigDecimal points) {
+    }
+
+    public record AnswerTableRequest(@jakarta.validation.constraints.NotBlank String text) {
+    }
+
+    public record AnswerTableResult(int updated, List<Integer> unknownNumbers, List<String> warnings) {
+    }
+
     public record ImportResult(int imported, List<Integer> missingAnswers, List<ImportedItem> items,
                                List<String> warnings) {
     }
@@ -172,6 +182,59 @@ public class PaperEndpoint {
      * <p>只新增 {@code objective_items}：已存在的题号跳过（进 warnings，不覆盖）；
      * 不触碰已有题项。</p>
      */
+    /** T056：逐题修正题干/选项/答案，教师改拆错的那一道。 */
+    @PutMapping("/{id}/items/{number}")
+    @Transactional
+    public ItemView updateItem(@PathVariable UUID id, @PathVariable int number,
+                               @RequestBody UpdateItem body,
+                               @RequestParam(defaultValue = "false") boolean confirm,
+                               @RequestAttribute("currentUser") CurrentUser me) {
+        editable(id, confirm, me, "update_item");
+        ObjectiveItem item = items.findByPaperIdAndNumber(id, number)
+                .orElseThrow(() -> ApiException.notFound("题号 " + number + " 不存在"));
+        if (body.stem() != null) item.setStem(body.stem());
+        if (body.options() != null) item.setOptions(body.options());
+        if (body.answerKey() != null) item.setAnswerKey(body.answerKey().trim());
+        if (body.points() != null) {
+            item.setPoints(body.points());
+            items.save(item);
+            Paper p = load(id);
+            recalcTotal(p);
+        }
+        items.save(item);
+        audit.record(AuditEvent.of(me.id(), "paper:item_updated", "paper", id.toString()));
+        return itemView(item);
+    }
+
+    /** T055：粘贴答案表补齐已有题项的标准答案。 */
+    @PostMapping("/{id}/answers")
+    @Transactional
+    public AnswerTableResult fillAnswers(@PathVariable UUID id, @RequestBody @jakarta.validation.Valid AnswerTableRequest body,
+                                         @RequestParam(defaultValue = "false") boolean confirm,
+                                         @RequestAttribute("currentUser") CurrentUser me) {
+        editable(id, confirm, me, "fill_answers");
+        AnswerTableParser.Result parsed;
+        try {
+            parsed = AnswerTableParser.parse(body.text());
+        } catch (ImportException ex) {
+            throw ApiException.badRequest(ex.getMessage());
+        }
+        List<Integer> unknown = new ArrayList<>();
+        int updated = 0;
+        for (AnswerTableParser.Entry entry : parsed.entries()) {
+            var item = items.findByPaperIdAndNumber(id, entry.number());
+            if (item.isEmpty()) {
+                unknown.add(entry.number());
+                continue;
+            }
+            item.get().setAnswerKey(entry.answer());
+            items.save(item.get());
+            updated++;
+        }
+        audit.record(AuditEvent.of(me.id(), "paper:answers_filled", "paper", id.toString()));
+        return new AnswerTableResult(updated, unknown, parsed.warnings());
+    }
+
     /** 兼容旧测试/内部调用的重载（不注册为端点）。 */
     public ResponseEntity<?> importFile(UUID id, MultipartFile file, UUID sectionId, CurrentUser me) {
         return importFile(id, file, sectionId, false, me);

@@ -397,6 +397,9 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T020 迁移集成测试 | 完成 | `MigrationTest`：空库迁移全部 applied、无 pending；断言 18 张关键表与 `submissions_active_uk` 索引；重复 `migrate()` 执行 0 条且数量不变 |
 | 2026-10-19 | T042 成员列表（含提交数） | 完成 | `GET /api/classes/{id}/members` 改为 `{studentId, displayName, submissionCount}`；sitting 新增 `ClassSubmissionStats` 端口按班聚合提交数；学生访问 403；`ClassAccessTest` 覆盖 |
 | 2026-10-19 | T053 匹配策略注册表 | 完成 | `MatchStrategy` + `MatchStrategies`：exact / normalized（大小写/空白/标点）/ choice（字母集合无序）/ set（多写法分隔符）；`ObjectiveScoring` 改用注册表；`MatchStrategyTest` 覆盖四类边界 |
+| 2026-10-19 | T055 答案表导入 | 完成 | `AnswerTableParser` 支持「1 A」「1-5 ABCDA」「1 A 2 B」、注释行、重复题号警告；`POST /api/papers/{id}/answers` 补齐已有题项答案，未知题号返回 `unknownNumbers`，错误带行号 400（`第 N 行`） |
+| 2026-10-19 | T056 整卷拆分与单题修正 | 完成（合成样卷） | `PUT /api/papers/{id}/items/{number}` 可改题干/选项/答案/分值（发布后需 confirm + 审计）；`WholePaperSplitTest` 用 75 题合成文本断言题干/选项/答案全部拆出；`AnswerTableTest` 覆盖单题修正。真实 75 题样卷未在仓库内，拆分正确率只对合成样本断言 |
+
 | 2026-10-19 | T054 发布锁定与 rubric_version | 完成 | V023 `papers.rubric_version`；每次发布递增 version 与 rubricVersion；发布后改结构需 `confirm=true` 并写审计 `paper:edited_after_publish`（含 action/rubricVersion）；`PaperPublishLockTest` 覆盖 409/放行/审计/版本递增 |
 
 | 2026-10-19 | T043 班级访问控制 | 完成 | 教师 `/api/classes` 只返回自己的班；学生只返回已加入的班；跨教师成员列表 404；学生不能用邀请码再生成（404）；`ClassAccessTest` 覆盖 |

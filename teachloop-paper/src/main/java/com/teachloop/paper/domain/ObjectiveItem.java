@@ -81,4 +81,7 @@ public class ObjectiveItem {
     public void setScoringStrategy(ScoringStrategy strategy) { this.scoringStrategy = strategy; }
     public void setQuestionType(QuestionType type) { this.questionType = type; }
     public void setAnswerKey(String key) { this.answerKey = key; }
+    public void setStem(String stem) { this.stem = stem; }
+    public void setOptions(String options) { this.options = options; }
+    public void setPoints(BigDecimal points) { this.points = points; }
 }
