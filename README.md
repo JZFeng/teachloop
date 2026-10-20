@@ -56,6 +56,8 @@ teachloop/
 ## 快速开始
 
 ```bash
+./scripts/dev.sh     # 一键：DB + 后端 + 前端，Ctrl-C 自动清理
+# 或分步：
 make start-db        # 本地 Postgres（55432）
 make build           # 后端编译打包（make test 会先跑两个边界守卫）
 make test            # 全部测试（Testcontainers，需要 Docker）

@@ -5,7 +5,7 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help status build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n web-install web-build web-dev docker-build compose-up compose-down seed
+.PHONY: help status dev build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n web-install web-build web-dev docker-build compose-up compose-down seed
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -22,6 +22,7 @@ help:
 	@echo "make docker-build 构建生产镜像（含 Noto CJK/ffprobe）"
 	@echo "make compose-up   起 app + worker + postgres（需 .env）"
 	@echo "make seed         可重复演示数据（1 班 + 30 学生 + 1 试卷）"
+	@echo "make dev          一键启动后端+前端，Ctrl-C 自动清理"
 
 start-db:
 	@docker start teachloop-pg 2>/dev/null || docker run -d --name teachloop-pg \
@@ -33,6 +34,9 @@ stop-db:
 
 status:
 	@bash scripts/status.sh
+
+dev:
+	@bash scripts/dev.sh $(ARGS)
 
 check-deps:
 	@python3 scripts/check-deps.py
