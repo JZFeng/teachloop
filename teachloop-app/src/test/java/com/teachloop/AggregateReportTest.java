@@ -109,6 +109,13 @@ class AggregateReportTest {
         long submittedRows = students.stream()
                 .filter(o -> ((Number) ((Map<?, ?>) o).get("submitted")).longValue() == 1).count();
         assertThat(submittedRows).isEqualTo(1);
+
+        HttpResponse<byte[]> xlsx = bytes(base, teacher, "/api/reports/offerings.xlsx?offeringIds=" + offeringId);
+        assertThat(xlsx.statusCode()).isEqualTo(200);
+        assertThat(xlsx.body().length).isGreaterThan(100);
+        HttpResponse<byte[]> pdf = bytes(base, teacher, "/api/reports/offerings.pdf?offeringIds=" + offeringId);
+        assertThat(pdf.statusCode()).isEqualTo(200);
+        assertThat(new String(pdf.body(), 0, 4)).isEqualTo("%PDF");
     }
 
     private String login(String base, String email) throws Exception {
@@ -123,6 +130,12 @@ class AggregateReportTest {
     private String post(String base, String cookie, String path, Object body, String field) throws Exception {
         Map<String, Object> parsed = Json.parse(request(base, cookie, "POST", path, body).body());
         return parsed.get(field).toString();
+    }
+
+    private HttpResponse<byte[]> bytes(String base, String cookie, String path) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base + path)).GET();
+        if (cookie != null) b.header("Cookie", cookie);
+        return client.send(b.build(), HttpResponse.BodyHandlers.ofByteArray());
     }
 
     private HttpResponse<String> request(String base, String cookie, String method, String path, Object body)

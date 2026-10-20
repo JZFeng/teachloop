@@ -2,6 +2,8 @@ package com.teachloop.report.api;
 
 import com.teachloop.report.service.AggregateReportService;
 import com.teachloop.report.service.WrongItemsReportService;
+import com.teachloop.report.service.export.AggregateExportWriter;
+import com.teachloop.report.service.export.PdfFontProbe;
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.security.CurrentUser;
 import java.time.Instant;
@@ -32,10 +34,41 @@ public class ReportEndpoint {
 
     private final WrongItemsReportService wrongItems;
     private final AggregateReportService aggregate;
+    private final PdfFontProbe pdfFont;
 
-    public ReportEndpoint(WrongItemsReportService wrongItems, AggregateReportService aggregate) {
+    public ReportEndpoint(WrongItemsReportService wrongItems, AggregateReportService aggregate,
+                          PdfFontProbe pdfFont) {
         this.wrongItems = wrongItems;
         this.aggregate = aggregate;
+        this.pdfFont = pdfFont;
+    }
+
+    /** T151：按作业报表 XLSX。 */
+    @org.springframework.web.bind.annotation.GetMapping("/offerings.xlsx")
+    public org.springframework.http.ResponseEntity<byte[]> offeringsXlsx(
+            @RequestParam String offeringIds, @RequestAttribute("currentUser") CurrentUser me) {
+        requireStaff(me);
+        byte[] body = AggregateExportWriter.offeringsXlsx(aggregate.byOffering(requiredIds(offeringIds)));
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+                .header("Content-Disposition", "attachment; filename=report-offerings.xlsx")
+                .body(body);
+    }
+
+    /** T151：按作业报表 PDF；字体不可用时 503。 */
+    @org.springframework.web.bind.annotation.GetMapping("/offerings.pdf")
+    public org.springframework.http.ResponseEntity<byte[]> offeringsPdf(
+            @RequestParam String offeringIds, @RequestAttribute("currentUser") CurrentUser me) {
+        requireStaff(me);
+        if (!pdfFont.available()) {
+            throw new ApiException(com.teachloop.shared.error.ErrorCode.UNAVAILABLE, "PDF 中文字体不可用");
+        }
+        byte[] body = AggregateExportWriter.offeringsPdf(
+                aggregate.byOffering(requiredIds(offeringIds)), pdfFont.font());
+        return org.springframework.http.ResponseEntity.ok()
+                .header("Content-Type", "application/pdf")
+                .header("Content-Disposition", "attachment; filename=report-offerings.pdf")
+                .body(body);
     }
 
     /** T150：按作业聚合；平均分只算已提交，未交单列。 */
