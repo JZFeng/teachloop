@@ -404,6 +404,8 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T206 试卷库统计/复制/归档 | 完成 | `Ports.PaperUsage` 由 sitting 统计布置次数；列表返回 `assignmentCount`；`POST /copy` 深复制部分/题项/评分项为 DRAFT，复制件与原卷互不影响；`POST /archive` 置 ARCHIVED 并审计；前端试卷库显示「已布置 N 次」+ 复制/归档按钮；`PaperLibraryTest` 覆盖 |
 | 2026-10-19 | T062 视频提交 | 完成 | `POST /api/offerings/{id}/submissions/video`（mp4/mov/webm，≤100MB）；`VideoProbe` 调 ffprobe 读取时长/宽高，`VideoRules` 限时长≤360s、宽≤1920、高≤1080 并指出具体超限项；视频存 StorageBackend，提交走同一会话/定稿路径；`VideoRulesTest` 覆盖 359/360/361、1920/1921、1080/1081；`VideoSubmitTest` 用 ffmpeg 生成 1s mp4 实测上传成功、.avi 拒绝 |
 | 2026-10-19 | T102 改答案重算 | 完成 | `Ports.ObjectiveRecompute`：改标准答案（逐题 PUT 或答案表）后更新该试卷所有场次快照，重算 `objective_answers.correct` 与 submission 客观总分，写 `offering:objective_recomputed` 审计；复核侧读同一 objective_total 自然同步；`ObjectiveRecomputeTest` 覆盖 A→B 后 10 分变 0 |
+| 2026-10-19 | T174 并发压测 | 完成（1+1 拓扑） | `scripts/load-test.py`：25 学生 × 2 场 = 50 份提交、并发 10；50/50 成功，p95 45ms，批改 33.8s 全部 done；记录 `.docs/perf-report-v2.md`。**偏差**：未编排 2 app + 2 worker，判分为 stub，非真实 AI 吞吐 |
+
 
 
 

@@ -74,7 +74,7 @@ run: build
 clean:
 	@$(MVN) -q clean
 
-seed: start-db
-	@JAVA_HOME=$${JAVA_HOME:-/opt/homebrew/opt/openjdk@21/libexec/openjdk.jdk/Contents/Home} \
-		SPRING_MAIN_WEB_APPLICATION_TYPE=none ./mvnw -q -pl teachloop-app -am spring-boot:run \
-		-Dspring-boot.run.arguments="--teachloop.seed.demo=true --seed-exit"
+seed: build start-db
+	@DB_URL=$(DB_URL) DB_USER=$(DB_USER) DB_PASSWORD=$(DB_PASSWORD) \
+		JAVA_HOME=$(JAVA_HOME) java -jar teachloop-app/target/teachloop-app-0.1.0-SNAPSHOT.jar \
+		--teachloop.seed.demo=true --seed-exit --server.port=0
