@@ -343,7 +343,52 @@ export interface ReviewView {
   status: 'PENDING' | 'APPROVED' | 'EDITED' | 'REJECTED'
   teacherId: string | null
   comment: string | null
+  strengths: string | null
+  suggestions: string | null
+  originalSubjective: number | null
+  published: boolean
+  publishedAt: string | null
   createdAt: string
+}
+
+export interface ReviewAnswer {
+  itemId: string
+  number: number
+  answer: string
+}
+
+export interface ReviewItem {
+  number: number
+  questionType: string
+  stem: string | null
+  options: string | null
+  answerKey: string | null
+  points: number
+  scoringStrategy: string | null
+  sectionPosition: number
+  sectionTitle: string | null
+}
+
+export interface ReviewDetail {
+  submissionId: string
+  studentId: string
+  studentName: string
+  inputKind: string
+  contentText: string | null
+  answers: ReviewAnswer[]
+  items: ReviewItem[]
+  rubricMarkdown: string | null
+  feedbackLanguage: string
+  objectivePoints: number | null
+  subjectivePoints: number | null
+  aiSubjectiveDraft: number | null
+  review: ReviewView
+}
+
+export interface BulkApproveResult {
+  approved: number
+  skipped: number
+  total: number
 }
 
 export interface AuditView {
@@ -352,4 +397,15 @@ export interface AuditView {
   actorId: string | null
   createdAt: string
   detail: string | null
+}
+
+export interface NotificationView {
+  id: string
+  kind: string
+  targetType: string | null
+  targetId: string | null
+  title: string
+  body: string | null
+  readAt: string | null
+  createdAt: string
 }

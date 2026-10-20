@@ -1,9 +1,17 @@
 package com.teachloop.grading.domain;
 
 import jakarta.persistence.*;
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
+/**
+ * 复核结论（US-11 / T100–T104）。
+ *
+ * <p>状态三态加待办：{@code PENDING → APPROVED | EDITED | REJECTED}。
+ * {@code original_subjective} 是批改完成时捕获的 AI 主观草稿，教师改分时保留原值，
+ * 审计用「AI 草稿 → 最终分」的前后对比，不要求教师自己判断改动大小。
+ */
 @Entity
 @Table(name = "reviews")
 public class Review {
@@ -24,18 +32,39 @@ public class Review {
     @Column(columnDefinition = "text")
     private String comment;
 
+    @Column(columnDefinition = "text")
+    private String strengths;
+
+    @Column(columnDefinition = "text")
+    private String suggestions;
+
+    /** 批改完成时的 AI 主观分；之后教师改分不改这一列。 */
+    @Column(name = "original_subjective", precision = 8, scale = 2)
+    private BigDecimal originalSubjective;
+
+    /** 非空即已发布；撤回时置回 null。 */
+    @Column(name = "published_at")
+    private Instant publishedAt;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
     protected Review() {
     }
 
-    public Review(UUID id, UUID submissionId, UUID teacherId, ReviewStatus status, String comment, Instant createdAt) {
+    public Review(UUID id, UUID submissionId, UUID teacherId, ReviewStatus status, String comment,
+                  Instant createdAt) {
+        this(id, submissionId, teacherId, status, comment, null, createdAt);
+    }
+
+    public Review(UUID id, UUID submissionId, UUID teacherId, ReviewStatus status, String comment,
+                  BigDecimal originalSubjective, Instant createdAt) {
         this.id = id;
         this.submissionId = submissionId;
         this.teacherId = teacherId;
         this.status = status;
         this.comment = comment;
+        this.originalSubjective = originalSubjective;
         this.createdAt = createdAt;
     }
 
@@ -44,11 +73,39 @@ public class Review {
     public ReviewStatus getStatus() { return status; }
     public UUID getTeacherId() { return teacherId; }
     public String getComment() { return comment; }
+    public String getStrengths() { return strengths; }
+    public String getSuggestions() { return suggestions; }
+    public BigDecimal getOriginalSubjective() { return originalSubjective; }
+    public Instant getPublishedAt() { return publishedAt; }
     public Instant getCreatedAt() { return createdAt; }
 
+    public boolean isPublished() {
+        return publishedAt != null;
+    }
+
+    /** T100：三态结论（原样通过 / 改后通过 / 弃用重批）。 */
     public void decide(ReviewStatus status, UUID teacherId, String comment) {
         this.status = status;
         this.teacherId = teacherId;
         this.comment = comment;
+    }
+
+    /** T101：只改主观分与文本；状态置 edited，original_subjective 保留 AI 草稿。 */
+    public void edit(UUID teacherId, String comment, String strengths, String suggestions) {
+        this.teacherId = teacherId;
+        this.comment = comment;
+        this.strengths = strengths;
+        this.suggestions = suggestions;
+        this.status = ReviewStatus.EDITED;
+    }
+
+    /** T103：发布（仅 approved / edited 由接口校验）。 */
+    public void publish(Instant at) {
+        this.publishedAt = at;
+    }
+
+    /** T103：撤回；清 published_at，内容与状态保留以便修改后重新发布。 */
+    public void withdraw() {
+        this.publishedAt = null;
     }
 }

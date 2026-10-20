@@ -139,7 +139,11 @@ public class ExamSessionEndpoint {
                 .findFirst().orElse(null);
         Submission base = graded != null ? graded : latest;
 
-        boolean published = o.isPublishScores();
+        // 反馈可见性：教师逐份复核发布（reviews.published_at）或整场发布成绩，二者任一即可。
+        var note = base == null ? java.util.Optional.<Ports.ReviewNote>empty()
+                : reviewFeedback.noteOf(base.getId());
+        boolean published = o.isPublishScores()
+                || note.map(n -> n.publishedAt() != null).orElse(false);
         List<SittingDtos.FeedbackWrongItem> wrong = List.of();
         SittingDtos.FeedbackReviewNote review = null;
         if (published && base != null && base.getSubmittedAt() != null) {
@@ -160,7 +164,7 @@ public class ExamSessionEndpoint {
                                 spec.points(), spec.stem(), a.getAnswer(), spec.answerKey(), explanation);
                     })
                     .toList();
-            review = reviewFeedback.noteOf(base.getId())
+            review = note
                     .map(n -> new SittingDtos.FeedbackReviewNote(n.status(), n.comment(), n.strengths(),
                             n.suggestions(), n.createdAt()))
                     .orElse(null);

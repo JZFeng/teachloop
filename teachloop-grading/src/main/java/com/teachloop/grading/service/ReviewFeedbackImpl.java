@@ -22,8 +22,9 @@ public class ReviewFeedbackImpl implements Ports.ReviewFeedback {
     }
 
     private static Ports.ReviewNote note(Review review) {
-        // T101 之后评论会拆成 strengths / suggestions；当前表只有 comment。
-        return new Ports.ReviewNote(review.getStatus().name(), review.getComment(), null, null,
-                review.getCreatedAt().toString());
+        // T101：评论、优点、建议是三个独立字段；学生反馈分别展示，不暴露教师 id。
+        String publishedAt = review.getPublishedAt() == null ? null : review.getPublishedAt().toString();
+        return new Ports.ReviewNote(review.getStatus().name(), review.getComment(),
+                review.getStrengths(), review.getSuggestions(), review.getCreatedAt().toString(), publishedAt);
     }
 }

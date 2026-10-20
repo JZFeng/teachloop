@@ -111,7 +111,7 @@ public final class Ports {
 
     /** 复核结论的只读投影：学生反馈用，不暴露教师身份。 */
     public record ReviewNote(String status, String comment, String strengths, String suggestions,
-                             String createdAt) {
+                             String createdAt, String publishedAt) {
     }
 
     /** 生成解析所需的一道错题（题目级，不含学生身份）。 */
@@ -139,10 +139,19 @@ public final class Ports {
         java.util.Map<UUID, String> displayNames(java.util.Collection<UUID> userIds);
     }
 
+    /** 一条站内通知：接收方与标题正文由调用方给出，identity 只负责存储与投递。 */
+    public record NotificationMessage(UUID recipientId, String kind, String targetType, String targetId,
+                                      String title, String body) {
+    }
+
     /** identity 暴露；接收方与联系方式不外出。 */
     public interface NotificationPort {
         void notifyOfferingPublished(UUID offeringId);
 
         void notifyScoresPublished(UUID offeringId);
+
+        /** 批量写入站内通知；重复调用不保证去重（由调用方保证语义）。 */
+        default void notify(java.util.List<NotificationMessage> messages) {
+        }
     }
 }

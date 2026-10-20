@@ -186,6 +186,11 @@ public class OfferingEndpoint {
         Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
         o.setPublishScores(true);
         notifications.notifyScoresPublished(o.getId());
+        notifyStudents(o, "scores_published",
+                "成绩已发布：" + codec.read(o.getPaperSnapshot()).title(),
+                "Scores published: " + codec.read(o.getPaperSnapshot()).title(),
+                "老师已发布本次成绩，可查看自己的得分与反馈。",
+                "Your teacher published the scores for this sitting. Open it to see your result and feedback.");
         audit.record(AuditEvent.of(me.id(), "offering:scores_publish", "offering", id.toString()));
         return view(o);
     }
@@ -389,7 +394,31 @@ public class OfferingEndpoint {
         }
         o.setStatus(OfferingStatus.PUBLISHED);
         notifications.notifyOfferingPublished(o.getId());
+        String paperTitle = codec.read(o.getPaperSnapshot()).title();
+        notifyStudents(o, "offering_published",
+                "新" + (o.getKind() == OfferingKind.EXAM ? "考试" : "作业") + "：" + paperTitle,
+                "New " + (o.getKind() == OfferingKind.EXAM ? "exam" : "assignment") + ": " + paperTitle,
+                "老师已布置新的" + (o.getKind() == OfferingKind.EXAM ? "考试" : "作业") + "，请按时完成。",
+                "Your teacher published a new " + (o.getKind() == OfferingKind.EXAM ? "exam" : "assignment") + ". Please complete it on time.");
         audit.record(AuditEvent.of(me.id(), "offering:publish", "offering", o.getId().toString()));
+    }
+
+    /** 发布类动作给参与班的学生生成站内通知（T114）；接收者由 sitting 解析，不泄漏给其他模块。 */
+    private void notifyStudents(Offering o, String kind, String zhTitle, String enTitle,
+                                String zhBody, String enBody) {
+        Set<UUID> recipients = new java.util.LinkedHashSet<>();
+        for (OfferingClass oc : offeringClasses.findByOfferingId(o.getId())) {
+            recipients.addAll(membership.membersOf(oc.getClassId()));
+        }
+        if (recipients.isEmpty()) {
+            return;
+        }
+        boolean en = "en".equalsIgnoreCase(o.getFeedbackLanguage());
+        List<Ports.NotificationMessage> messages = recipients.stream()
+                .map(id -> new Ports.NotificationMessage(id, kind, "offering", o.getId().toString(),
+                        en ? enTitle : zhTitle, en ? enBody : zhBody))
+                .toList();
+        notifications.notify(messages);
     }
 
     private SittingDtos.OfferingView view(Offering o) {

@@ -57,8 +57,11 @@ public class GradingWorker {
                 queue.markRunning(id);
                 Ports.GradingResult result = engine.grade(item);
                 queue.markDone(id, result);
+                // T101：建复核行时捕获 AI 主观草稿。教师改分后的前后对比以这一列为基准；
+                // 当前端口没有「读 submission 分数」的方法，所以在这里落库而不是在编辑时再查。
                 reviews.findBySubmissionId(id).orElseGet(() -> reviews.save(
-                        new Review(UUID.randomUUID(), id, null, ReviewStatus.PENDING, null, Instant.now(clock))));
+                        new Review(UUID.randomUUID(), id, null, ReviewStatus.PENDING, null,
+                                result.subjectivePoints(), Instant.now(clock))));
                 done++;
             } catch (Exception ex) {
                 log.warn("grading failed for {}", id, ex);

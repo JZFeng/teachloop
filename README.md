@@ -15,7 +15,7 @@
 | Mock | 完成 | [`specs/002-v2-platform/mockups/interface.html`](specs/002-v2-platform/mockups/interface.html) — 20 个界面、四套主题、可点击 |
 | Plan | 完成（已确认） | [`specs/002-v2-platform/plan.md`](specs/002-v2-platform/plan.md) |
 | Tasks | 完成 | [`specs/002-v2-platform/tasks.md`](specs/002-v2-platform/tasks.md) — 133 个任务 |
-| Implement | **进行中** | 后端纵切 + T198–T202 + T204/T205 + T091–T094 + T080–T083 + T186 导入 + T192 错题报表 + Markdown/ZIP 导出 + 错题解析；前端 `web/` 覆盖 T180–T197；导出支持 Markdown / XLSX / DOCX / 反馈 ZIP / 反馈 PDF；真实 DeepSeek 调用已验证 |
+| Implement | **进行中** | 后端纵切 + T198–T202 + T204/T205 + T091–T094 + T080–T083 + T186 导入 + T192 错题报表 + Markdown/ZIP 导出 + 错题解析；前端 `web/` 覆盖 T180–T197；导出支持 Markdown / XLSX / DOCX / ZIP / PDF；复核工作台（改分/发布/撤回/批量）与站内通知已接入；真实 DeepSeek 调用已验证 |
 
 ## 文档怎么读
 

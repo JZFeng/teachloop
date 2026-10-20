@@ -254,6 +254,8 @@ def check_port_signatures(root: Path, problems: list[str]) -> None:
             if "(" not in signature or ")" not in signature:
                 continue
             signature = re.sub(r"^\s*(?:@\w+(?:\([^)]*\))?\s*)*", "", signature)
+            # default / public / static 等修饰符不是返回类型
+            signature = re.sub(r"^(?:(?:default|public|private|protected|static|final)\s+)+", "", signature)
             for token in _port_signature_types(signature):
                 if token in PORT_JDK_TYPES or token in PORT_RECORDS or token in found_records \
                         or token in found_interfaces:

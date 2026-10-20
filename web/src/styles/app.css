@@ -88,3 +88,4 @@ body { display: block; }
 .remaining { font-variant-numeric: tabular-nums; font-weight: 700; }
 .remaining.warn { color: var(--red); }
 .part-done { color: var(--text); }
+.notice-unread { border-left: 3px solid var(--accent); }

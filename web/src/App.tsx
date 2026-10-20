@@ -3,6 +3,7 @@ import { useAuth } from './api/auth'
 import { Loading } from './components/States'
 import { ExamFocusLayout, Shell } from './app/Shell'
 import LoginPage from './app/LoginPage'
+import NotificationsPage from './app/NotificationsPage'
 import TeacherHomePage from './teacher/HomePage'
 import ClassesPage from './teacher/ClassesPage'
 import PapersPage from './teacher/PapersPage'
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="assignments/:offeringId" element={<AssignmentPage />} />
           <Route path="feedback" element={<FeedbackListPage />} />
           <Route path="feedback/:offeringId" element={<FeedbackDetailPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
         </Route>
         <Route path="/exams/:offeringId" element={<Shell><ExamEntryPage /></Shell>} />
         <Route path="/exams/:offeringId/live" element={<ExamFocusLayout><ExamLivePage /></ExamFocusLayout>} />

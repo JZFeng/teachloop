@@ -366,5 +366,10 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | 2026-10-19 | T123 XLSX / DOCX 导出 | 完成 | POI 5.5.1：`summary.xlsx`（3 个工作表）与 `summary.docx`，表头随 `lang=zh-CN|en`；中文姓名/班级/题干读回正常；未发布时平均分写「未发布」 |
 | 2026-10-19 | 导出前端 | 完成 | 班级汇总页接入 Markdown / XLSX / DOCX / 反馈 ZIP / 反馈 PDF 下载（带当前语言），未发布时 ZIP/PDF 置灰并提示；PDF 503 按字体不可用提示 |
 | 2026-10-19 | 依赖与真机授权 | 完成 | 用户授权后以放宽权限预下载 POI 5.5.1、OpenPDF 3.0.5、Spring AI 2.0.1 及其传递依赖；用户提供 `DEEPSEEK_API_KEY` 完成两次真实调用验证（Key 未写入仓库） |
+| 2026-10-19 | T101–T104 复核编辑/发布/撤回/批量通过 | 完成 | V016：`reviews` 增加 strengths/suggestions/original_subjective/published_at；新增复核详情（正文/作答/题项/AI 草稿）、`PUT /review`（只改主观分与文本，经 GradingOutcome 回写总分，审计含 before/after 与逐行 diff）、`publish`/`withdraw`、`bulk-approve`；发布后学生 `/my-feedback` 可见、未发布不可见；`ReviewWorkflowTest` 2 例全绿 |
+| 2026-10-19 | T208/T114 站内通知 | 完成 | V017 `notifications` 表（identity）；`Ports.NotificationPort.notify` 落库；四个 API（列表/unread-count/read/read-all，他人 404）；场次发布、成绩发布、复核发布都生成通知；`NotificationTest` 3 例全绿。前端顶部铃铛 + `/notifications` 页（未读过滤/标记已读/轮询） |
+| 2026-10-19 | 复核工作台前端 | 完成 | 队列 + 详情两栏：正文、客观/主观/AI 草稿、题项作答与标准答案、评语/优点/建议编辑、通过/弃用/发布/撤回、批量通过、审计抽屉；`make web-build` 通过 |
+| 2026-10-19 | 回归（复核+通知批次） | 完成 | `make build` / `make test`（105 个常规测试全绿）/ `make web-build` / 两个守卫全绿 |
+
 
 **说明**：用户于 2026-10-19 明确批准开始实现。每完成一个任务在此追加一行。
