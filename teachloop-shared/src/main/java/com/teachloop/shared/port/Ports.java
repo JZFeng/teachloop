@@ -102,6 +102,16 @@ public final class Ports {
         List<UUID> membersOf(UUID classId);
     }
 
+    /** 复核结论的只读投影：学生反馈用，不暴露教师身份。 */
+    public record ReviewNote(String status, String comment, String strengths, String suggestions,
+                             String createdAt) {
+    }
+
+    /** grading 暴露：学生反馈读复核结论（只读）。 */
+    public interface ReviewFeedback {
+        java.util.Optional<ReviewNote> noteOf(UUID submissionId);
+    }
+
     /** identity 暴露：只读显示名，用于教师端提交表；不暴露联系方式。 */
     public interface StudentDirectory {
         java.util.Map<UUID, String> displayNames(java.util.Collection<UUID> userIds);

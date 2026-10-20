@@ -285,8 +285,11 @@ public class ExamSessionService {
                     continue;
                 }
                 String given = a.answer() == null ? "" : a.answer().trim();
-                answers.save(new ObjectiveAnswer(UUID.randomUUID(), s.getId(), spec.itemId(), a.number(), given));
-                if (!"ESSAY".equals(spec.questionType()) && correct(spec, given)) {
+                var row = new ObjectiveAnswer(UUID.randomUUID(), s.getId(), spec.itemId(), a.number(), given);
+                boolean ok = !"ESSAY".equals(spec.questionType()) && correct(spec, given);
+                row.setCorrect(ok);
+                answers.save(row);
+                if (ok) {
                     objective = objective.add(spec.points());
                 }
             }

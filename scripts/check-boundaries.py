@@ -236,6 +236,7 @@ def check_port_signatures(root: Path, problems: list[str]) -> None:
     if re.search(r"import\s+com\.teachloop\.[a-z0-9]+\.domain", text):
         problems.append("Ports.java 引用了业务模块的 domain 类型（端口只能收发 record）")
 
+    found_records = set(re.findall(r"public\s+record\s+(\w+)\s*\(", text))
     found_interfaces: set[str] = set()
     for match in re.finditer(r"public\s+interface\s+(\w+)\s*\{", text):
         name = match.group(1)
@@ -254,7 +255,8 @@ def check_port_signatures(root: Path, problems: list[str]) -> None:
                 continue
             signature = re.sub(r"^\s*(?:@\w+(?:\([^)]*\))?\s*)*", "", signature)
             for token in _port_signature_types(signature):
-                if token in PORT_JDK_TYPES or token in PORT_RECORDS or token in found_interfaces:
+                if token in PORT_JDK_TYPES or token in PORT_RECORDS or token in found_records \
+                        or token in found_interfaces:
                     continue
                 problems.append(
                     f"端口签名不合规：{name} 里出现类型 {token}；"

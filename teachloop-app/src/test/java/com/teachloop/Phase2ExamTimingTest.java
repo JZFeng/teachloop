@@ -215,18 +215,39 @@ class Phase2ExamTimingTest {
         assertThat(table).hasSize(1);
         assertThat(((Map<?, ?>) table.get(0)).get("studentName").toString()).isEqualTo("示例学生");
 
+        // T111/T194：反馈发布前，学生只看到自己的分，不返回标准答案
+        Map<String, Object> unpublished = get(base, student,
+                "/api/offerings/" + offeringId + "/my-feedback");
+        assertThat(unpublished.get("feedbackPublished")).isEqualTo(false);
+        assertThat((List<?>) unpublished.get("wrongItems")).isEmpty();
+        assertThat(unpublished.get("feedbackMessage").toString()).contains("尚未发布");
+
         // T198：布置后改标准答案，已布置场次仍按快照判分
         jdbc.update("update objective_items set answer_key = 'C' where paper_id = ?", UUID.fromString(paperId));
         Map<String, Object> submitted = send(base, student, "POST",
                 "/api/offerings/" + offeringId + "/submissions",
                 Map.of("answers", List.of(Map.of("number", 1, "answer", "A"),
-                        Map.of("number", 2, "answer", "B"))));
+                        Map.of("number", 2, "answer", "C"))));
+        // 快照里题 2 的答案是 B；库里已被改成 C。学生选 C，按快照必须判错（10 分而不是 20）
         assertThat(new BigDecimal(submitted.get("objectiveScore").toString()))
-                .isEqualByComparingTo(new BigDecimal("20"));
+                .isEqualByComparingTo(new BigDecimal("10"));
+        send(base, teacher, "POST", "/api/offerings/" + offeringId + "/scores/publish", Map.of());
+        Map<String, Object> feedback = get(base, student, "/api/offerings/" + offeringId + "/my-feedback");
+        assertThat(feedback.get("feedbackPublished")).isEqualTo(true);
+        List<?> wrongItems = (List<?>) feedback.get("wrongItems");
+        assertThat(wrongItems).hasSize(1); // 题 2 选错；题 1 答对
+        Map<?, ?> wrong2 = (Map<?, ?>) wrongItems.get(0);
+        assertThat(((Number) wrong2.get("number")).intValue()).isEqualTo(2);
+        assertThat(wrong2.get("correctAnswer").toString()).isEqualTo("B"); // 仍是快照里的答案
+        Map<?, ?> overview = (Map<?, ?>) feedback.get("overview");
+        assertThat(((Number) overview.get("expected")).longValue()).isEqualTo(2);
+        assertThat(new BigDecimal(overview.get("myScore").toString())).isEqualByComparingTo("10");
+        assertThat(overview.get("classAverage")).isNotNull();
+
         Map<String, Object> attempts = get(base, student, "/api/offerings/" + offeringId + "/my-submissions");
         List<?> attemptRows = (List<?>) attempts.get("attempts");
         assertThat(new BigDecimal(((Map<?, ?>) attemptRows.get(0)).get("objectiveScore").toString()))
-                .isEqualByComparingTo(new BigDecimal("20"));
+                .isEqualByComparingTo(new BigDecimal("10"));
 
         // T199 + T200：统一开考（fixed_window）——没有开始按钮，全班同一 deadline
         String student2 = createStudent(base, "student2@teachloop.local", "示例学生二");

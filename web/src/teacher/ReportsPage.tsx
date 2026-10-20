@@ -1,7 +1,8 @@
+import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
-import type { ClassView, OfferingView } from '../api/types'
+import type { ClassView, OfferingView, ReportWrongItem, WrongItemsReport } from '../api/types'
 import { DataTable } from '../components/DataTable'
 import type { Column } from '../components/DataTable'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
@@ -60,6 +61,11 @@ export default function ReportsPage() {
     return { offerings, classes, aggregates: await loadAggregates(offerings) }
   }, [])
 
+  const [wrongReport, setWrongReport] = useState<WrongItemsReport | null>(null)
+  const [wrongLoading, setWrongLoading] = useState(false)
+  const [wrongError, setWrongError] = useState<Error | null>(null)
+  const [wrongLimit, setWrongLimit] = useState(10)
+
   const offerings = data?.offerings ?? []
   const classes = data?.classes ?? []
   const aggregates = data?.aggregates ?? {}
@@ -114,6 +120,31 @@ export default function ReportsPage() {
       return next
     })
   }
+
+  const queryWrongItems = async () => {
+    const offeringIds = chosenOffering === 'all' ? offerings.map((o) => o.id) : [chosenOffering]
+    if (offeringIds.length === 0) return
+    setWrongLoading(true)
+    setWrongError(null)
+    try {
+      const query = new URLSearchParams({ offeringIds: offeringIds.join(','), limit: String(wrongLimit) })
+      if (chosenClasses.size > 0) query.set('classIds', [...chosenClasses].join(','))
+      setWrongReport(await api.get<WrongItemsReport>(`/api/reports/wrong-items?${query.toString()}`))
+    } catch (e) {
+      setWrongError(e as Error)
+    } finally {
+      setWrongLoading(false)
+    }
+  }
+
+  const wrongColumns: Column<ReportWrongItem>[] = [
+    { key: 'number', title: t('teacher.reports.wrongNumber'), value: (r) => r.number, sortable: true, render: (r) => <span className="mono">{r.number}</span> },
+    { key: 'stem', title: t('teacher.reports.wrongStem'), value: (r) => r.stem ?? '', sortable: true, render: (r) => <span className="small">{r.stem ?? '—'}</span> },
+    { key: 'points', title: t('teacher.reports.wrongPoints'), value: (r) => r.points, sortable: true, render: (r) => <span className="mono">{fmtNum(r.points)}</span> },
+    { key: 'correctRate', title: t('teacher.reports.wrongRate'), value: (r) => r.correctRate, sortable: true, render: (r) => <span className="mono">{fmtRate(r.correctRate)}</span> },
+    { key: 'wrong', title: t('teacher.reports.wrongCount'), value: (r) => r.wrong, sortable: true, render: (r) => <span className="mono">{r.wrong} / {r.answered}</span> },
+    { key: 'topWrongAnswer', title: t('teacher.reports.wrongTop'), value: (r) => r.topWrongAnswer ?? '', sortable: true, render: (r) => r.topWrongAnswer ? <span className="mono">{r.topWrongAnswer} × {r.topWrongCount}</span> : <span className="muted">—</span> },
+  ]
 
   const columns: Column<ReportRow>[] = [
     {
@@ -257,19 +288,43 @@ export default function ReportsPage() {
             <h2>
               {t('teacher.reports.topTitle')} <small>{t('teacher.reports.topSub')}</small>
             </h2>
-            <div className="inline-note">{t('teacher.reports.topNotConnected')}</div>
-            <div className="row">
-              <button type="button" className="btn" disabled title={t('teacher.common.notConnected')}>
+            <div className="row" style={{ marginBottom: 10 }}>
+              <button type="button" className="btn pri" onClick={() => void queryWrongItems()} disabled={wrongLoading || offerings.length === 0}>
                 {t('teacher.reports.topQuery')}
               </button>
-              <Tag tone="amber">{t('teacher.common.notConnected')}</Tag>
+              <label className="f" style={{ margin: 0, width: 130 }}>
+                <b>{t('teacher.reports.wrongLimit')}</b>
+                <select value={wrongLimit} onChange={(e) => setWrongLimit(Number(e.target.value))}>
+                  {[5, 10, 20, 50].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select>
+              </label>
+              <span className="hint" style={{ margin: 0 }}>
+                {t('teacher.reports.filterHint')}
+              </span>
             </div>
+            {wrongLoading && <Loading label={t('teacher.common.loading')} />}
+            {wrongError && <ErrorState error={wrongError} onRetry={() => void queryWrongItems()} />}
+            {wrongReport && (
+              <>
+                <p className="small muted">{t('teacher.reports.wrongTotal', { n: wrongReport.totalItems })}</p>
+                {wrongReport.items.length === 0 ? (
+                  <Empty>{t('teacher.reports.wrongEmpty')}</Empty>
+                ) : (
+                  <DataTable
+                    rows={wrongReport.items}
+                    columns={wrongColumns}
+                    rowKey={(r) => r.itemId}
+                    pageSize={wrongLimit}
+                    empty={t('teacher.reports.wrongEmpty')}
+                  />
+                )}
+              </>
+            )}
           </div>
 
           <div className="card">
             <h2>{t('teacher.reports.moreTitle')}</h2>
             <ul style={{ margin: '0 0 10px', paddingLeft: 20, color: 'var(--muted)' }}>
-              <li>{t('teacher.reports.moreAccuracy')}</li>
               <li>{t('teacher.reports.moreDistribution')}</li>
               <li>{t('teacher.reports.moreTrend')}</li>
               <li>{t('teacher.reports.moreExport')}</li>

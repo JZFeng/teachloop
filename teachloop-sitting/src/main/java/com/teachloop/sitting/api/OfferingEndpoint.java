@@ -236,6 +236,26 @@ public class OfferingEndpoint {
                 result.runId().toString(), result.firstDispatch(), result.enqueued());
     }
 
+    /**
+     * 重试失败项（T182）：只把 FAILED 的提交退回 PENDING，正在跑/已完成的不动。
+     * 返回本次重试份数；重复点击幂等。
+     */
+    @PostMapping("/{id}/grading/retry-failed")
+    @Transactional
+    public Map<String, Object> retryFailed(@PathVariable UUID id,
+                                           @RequestAttribute("currentUser") CurrentUser me) {
+        if (me.is("STUDENT")) {
+            throw ApiException.forbidden("学生不能重试批改");
+        }
+        Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
+        int retried = submissions.retryFailed(o.getId());
+        if (retried > 0) {
+            audit.record(new AuditEvent(me.id(), "grading:retry_failed", "offering", id.toString(),
+                    Map.of("count", retried)));
+        }
+        return Map.of("offeringId", id.toString(), "retried", retried);
+    }
+
     /** 按班统计（T202 / T191 的最小可用面）：按时提交率与迟交份数分开。 */
     @GetMapping("/{id}/class-summary")
     public List<SittingDtos.ClassSummaryView> classSummary(@PathVariable UUID id,

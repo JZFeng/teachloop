@@ -38,7 +38,7 @@ const FILTERS: FilterKey[] = ['all', 'done', 'running', 'pending', 'failed', 're
 /**
  * T182 / AC-20.5–AC-20.7：逐份提交表。
  * 派发回执直接显示在页面；拒收走行内表单（不使用 prompt/confirm）；
- * 单份重试后端未提供接口，按钮禁用并明示「未接入」。
+ * 「重试失败项」只把 FAILED 退回队列，运行中与已完成的不动。
  */
 export default function GradingDetailPage() {
   const { t } = useTranslation('translation')
@@ -62,6 +62,7 @@ export default function GradingDetailPage() {
   const [dispatchReceipt, setDispatchReceipt] = useState<GradingDispatchView | null>(null)
   const [dispatchError, setDispatchError] = useState<string | null>(null)
   const [dispatching, setDispatching] = useState(false)
+  const [retrying, setRetrying] = useState(false)
   const [rejectingId, setRejectingId] = useState<string | null>(null)
   const [rejectReason, setRejectReason] = useState('')
   const [rejectError, setRejectError] = useState<string | null>(null)
@@ -108,6 +109,19 @@ export default function GradingDetailPage() {
       setDispatchError(errorMessage(err))
     } finally {
       setDispatching(false)
+    }
+  }
+
+  const retryFailed = async () => {
+    setRetrying(true)
+    setDispatchError(null)
+    try {
+      await api.post(`/api/offerings/${offeringId}/grading/retry-failed`)
+      reload()
+    } catch (err) {
+      setDispatchError(errorMessage(err))
+    } finally {
+      setRetrying(false)
     }
   }
 
@@ -371,10 +385,11 @@ export default function GradingDetailPage() {
                 <button
                   type="button"
                   className="btn sm"
-                  disabled
-                  title={t('teacher.detail.retryNotConnectedHint')}
+                  disabled={retrying || progress.failed === 0}
+                  title={t('teacher.detail.retryHint')}
+                  onClick={() => void retryFailed()}
                 >
-                  {t('teacher.detail.retryFailed')}
+                  {retrying ? t('teacher.common.loading') : t('teacher.detail.retryFailed')}
                 </button>
                 <button
                   type="button"
@@ -393,9 +408,6 @@ export default function GradingDetailPage() {
               </div>
             </div>
 
-            <div className="hint" style={{ marginTop: 10 }}>
-              {t('teacher.detail.retryNotConnected')}
-            </div>
 
             {dispatchError && (
               <div className="hint" style={{ color: 'var(--red)' }}>

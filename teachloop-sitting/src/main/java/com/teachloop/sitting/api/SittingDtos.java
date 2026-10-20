@@ -98,6 +98,26 @@ public final class SittingDtos {
                                          BigDecimal subjectiveScore, BigDecimal totalScore, boolean active) {
     }
 
+    /** 学生反馈里的错题（T111 / T194）：已发布反馈才返回标准答案。 */
+    public record FeedbackWrongItem(int number, String questionType, BigDecimal points, String stem,
+                                    String given, String correctAnswer) {
+    }
+
+    public record FeedbackReviewNote(String status, String comment, String strengths, String suggestions,
+                                     String createdAt) {
+    }
+
+    /** 班级概览（T112 / T113）：他人分数仅在发布且允许同学概览时可见；自己的分始终可见。 */
+    public record FeedbackOverview(long expected, long submitted, BigDecimal myScore,
+                                   BigDecimal classAverage, boolean peersVisible) {
+    }
+
+    public record MyFeedbackView(String offeringId, String paperTitle, BigDecimal totalPoints,
+                                 boolean feedbackPublished, String feedbackMessage,
+                                 AttemptView latestAttempt, List<FeedbackWrongItem> wrongItems,
+                                 FeedbackReviewNote review, FeedbackOverview overview) {
+    }
+
     /** 手动派发结果（T092）：runId 幂等，firstDispatch 区分「刚创建 run」与「本来就派过」。 */
     public record GradingDispatchView(String offeringId, String runId, boolean firstDispatch, int enqueued) {
     }

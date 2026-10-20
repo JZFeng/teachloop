@@ -43,6 +43,13 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
             + "where id = :id and grading_state = 'PENDING'", nativeQuery = true)
     int claim(UUID id, Instant now);
 
+    /** T182：把这一场 FAILED 的提交退回 PENDING 重批；只动失败项，幂等。 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "update submissions set grading_state = 'PENDING', grading_error = null "
+            + "where offering_id = :offeringId and grading_state = 'FAILED' "
+            + "and submitted_at is not null and rejected_at is null", nativeQuery = true)
+    int retryFailed(UUID offeringId);
+
     /** T092：派发时把这一场 QUEUED 的行批量放进队列；重复执行无副作用。 */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "update submissions set grading_state = 'PENDING' "

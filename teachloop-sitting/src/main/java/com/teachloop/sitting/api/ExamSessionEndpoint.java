@@ -9,6 +9,8 @@ import com.teachloop.sitting.domain.*;
 import com.teachloop.sitting.service.ExamSessionService;
 import com.teachloop.sitting.service.OfferingWindows;
 import com.teachloop.sitting.service.SnapshotCodec;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneId;
@@ -35,18 +37,28 @@ public class ExamSessionEndpoint {
             "考试进行中不显示标准答案与解析。");
 
     private final OfferingRepository offerings;
+    private final OfferingClassRepository offeringClasses;
     private final SubmissionRepository submissions;
+    private final ObjectiveAnswerRepository answers;
+    private final Ports.ReviewFeedback reviewFeedback;
+    private final Ports.ClassMembership membership;
     private final SnapshotCodec codec;
     private final OfferingWindows windows;
     private final ExamSessionService sessions;
     private final AuditPort audit;
     private final Clock clock;
 
-    public ExamSessionEndpoint(OfferingRepository offerings, SubmissionRepository submissions,
+    public ExamSessionEndpoint(OfferingRepository offerings, OfferingClassRepository offeringClasses,
+                               SubmissionRepository submissions, ObjectiveAnswerRepository answers,
+                               Ports.ReviewFeedback reviewFeedback, Ports.ClassMembership membership,
                                SnapshotCodec codec, OfferingWindows windows,
                                ExamSessionService sessions, AuditPort audit, Clock clock) {
         this.offerings = offerings;
+        this.offeringClasses = offeringClasses;
         this.submissions = submissions;
+        this.answers = answers;
+        this.reviewFeedback = reviewFeedback;
+        this.membership = membership;
         this.codec = codec;
         this.windows = windows;
         this.sessions = sessions;
@@ -101,6 +113,89 @@ public class ExamSessionEndpoint {
                 .toList();
         return new SittingDtos.ExamPaperView(o.getId().toString(), snap.title(), snap.totalPoints(),
                 window.durationMinutes(), items);
+    }
+
+    /**
+     * 学生反馈详情（T111 / T112 / T113 / T194）：
+     * 自己的分始终可见；错题标准答案、复核评语与班级均分只在反馈发布后返回。
+     */
+    @GetMapping("/my-feedback")
+    public SittingDtos.MyFeedbackView myFeedback(@PathVariable UUID offeringId,
+                                                 @RequestAttribute("currentUser") CurrentUser me) {
+        Offering o = published(offeringId);
+        requireStudent(me);
+        requireParticipant(o, me);
+        Ports.PaperSnapshot snap = codec.read(o.getPaperSnapshot());
+        List<Submission> attempts = submissions.findByOfferingIdAndStudentIdOrderByAttemptNoDesc(
+                o.getId(), me.id());
+        Submission latest = attempts.stream().filter(Submission::isActive).findFirst()
+                .orElse(attempts.isEmpty() ? null : attempts.get(0));
+        Submission graded = attempts.stream()
+                .filter(x -> x.getSubmittedAt() != null && x.getRejectedAt() == null)
+                .findFirst().orElse(null);
+        Submission base = graded != null ? graded : latest;
+
+        boolean published = o.isPublishScores();
+        List<SittingDtos.FeedbackWrongItem> wrong = List.of();
+        SittingDtos.FeedbackReviewNote review = null;
+        if (published && base != null && base.getSubmittedAt() != null) {
+            Map<Integer, Ports.ItemSpec> specByNumber = new HashMap<>();
+            snap.items().forEach(i -> specByNumber.put(i.number(), i));
+            wrong = answers.findBySubmissionId(base.getId()).stream()
+                    .filter(a -> !a.isCorrect())
+                    .filter(a -> {
+                        Ports.ItemSpec spec = specByNumber.get(a.getNumber());
+                        return spec != null && !"ESSAY".equals(spec.questionType());
+                    })
+                    .map(a -> {
+                        Ports.ItemSpec spec = specByNumber.get(a.getNumber());
+                        return new SittingDtos.FeedbackWrongItem(a.getNumber(), spec.questionType(),
+                                spec.points(), spec.stem(), a.getAnswer(), spec.answerKey());
+                    })
+                    .toList();
+            review = reviewFeedback.noteOf(base.getId())
+                    .map(n -> new SittingDtos.FeedbackReviewNote(n.status(), n.comment(), n.strengths(),
+                            n.suggestions(), n.createdAt()))
+                    .orElse(null);
+        }
+
+        List<UUID> offeringClassIds = offeringClasses.findByOfferingId(o.getId()).stream()
+                .map(OfferingClass::getClassId).toList();
+        List<UUID> myClassIds = membership.classIdsOf(me.id()).stream()
+                .filter(offeringClassIds::contains).toList();
+        Set<UUID> expected = new HashSet<>();
+        for (UUID classId : myClassIds) {
+            expected.addAll(membership.membersOf(classId));
+        }
+        Map<UUID, Submission> bestByStudent = new LinkedHashMap<>();
+        for (Submission s : submissions.findByOfferingIdOrderByCreatedAtDesc(o.getId())) {
+            if (s.getSubmittedAt() == null || s.getRejectedAt() != null) {
+                continue;
+            }
+            Submission current = bestByStudent.get(s.getStudentId());
+            if (current == null || s.getAttemptNo() > current.getAttemptNo()) {
+                bestByStudent.put(s.getStudentId(), s);
+            }
+        }
+        BigDecimal myScore = base == null ? null
+                : base.getObjectiveTotal().add(base.getSubjectiveTotal());
+        BigDecimal average = null;
+        boolean peersVisible = o.isPublishScores() && o.isShowPeerOverview();
+        if (peersVisible && !bestByStudent.isEmpty()) {
+            BigDecimal sum = bestByStudent.values().stream()
+                    .map(s2 -> s2.getObjectiveTotal().add(s2.getSubjectiveTotal()))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            average = sum.divide(BigDecimal.valueOf(bestByStudent.size()), 2, RoundingMode.HALF_UP);
+        }
+        SittingDtos.FeedbackOverview overview = new SittingDtos.FeedbackOverview(expected.size(),
+                bestByStudent.size(), myScore, average, peersVisible);
+
+        String message = !published ? "反馈尚未发布"
+                : base == null ? "还没有提交记录" : "反馈已发布";
+
+        return new SittingDtos.MyFeedbackView(o.getId().toString(), snap.title(),
+                BigDecimal.valueOf(snap.totalPoints()), published, message,
+                base == null ? null : attemptView(base), wrong, review, overview);
     }
 
     /** 开始答题：起算点落库，返回服务端剩余秒数。 */

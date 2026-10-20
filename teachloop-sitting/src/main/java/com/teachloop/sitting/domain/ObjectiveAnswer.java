@@ -22,6 +22,10 @@ public class ObjectiveAnswer {
     @Column(nullable = false, columnDefinition = "text")
     private String answer;
 
+    /** 提交时按标准答案判定；反馈详情与报表都读这一列。 */
+    @Column(nullable = false)
+    private boolean correct = false;
+
     protected ObjectiveAnswer() {
     }
 
@@ -38,4 +42,6 @@ public class ObjectiveAnswer {
     public UUID getItemId() { return itemId; }
     public int getNumber() { return number; }
     public String getAnswer() { return answer; }
+    public boolean isCorrect() { return correct; }
+    public void setCorrect(boolean correct) { this.correct = correct; }
 }

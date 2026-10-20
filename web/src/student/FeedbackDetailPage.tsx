@@ -1,35 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api, ApiError, fmtDateTime } from '../api/client'
-import type {
-  AttemptView,
-  EntryView,
-  MyAttemptsView,
-  OfferingView,
-  ReviewView,
-  SessionView,
-} from '../api/types'
+import { api, fmtDateTime } from '../api/client'
+import type { MyFeedback } from '../api/types'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
 import { fmtScore } from '../exam/examUtils'
-import { latestOf } from './studentUtils'
-
-type ReviewState = 'loading' | 'none' | 'ready' | 'error'
 
 /**
  * T194 / AC-12.7：信息顺序固定为 ① 总分 ② 错题与解析 ③ 主观评语 ④ 全班概览。
- * 后端未提供错题/解析接口，明确标「未接入」，不编造答案与解析。
+ * 错题与标准答案来自 /my-feedback（发布后才返回）；逐题 AI 解析属于 T115，尚未生成。
  */
 export default function FeedbackDetailPage() {
   const { offeringId = '' } = useParams<{ offeringId: string }>()
   const navigate = useNavigate()
   const { t } = useTranslation()
 
-  const [entry, setEntry] = useState<EntryView | null>(null)
-  const [offering, setOffering] = useState<OfferingView | null>(null)
-  const [attempts, setAttempts] = useState<MyAttemptsView | null>(null)
-  const [review, setReview] = useState<ReviewView | null>(null)
-  const [reviewState, setReviewState] = useState<ReviewState>('loading')
+  const [feedback, setFeedback] = useState<MyFeedback | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
 
@@ -37,31 +23,8 @@ export default function FeedbackDetailPage() {
     if (!offeringId) return
     setLoading(true)
     setError(null)
-    setReviewState('loading')
     try {
-      const [loadedEntry, loadedAttempts, loadedOffering, loadedSession] = await Promise.all([
-        api.get<EntryView>(`/api/offerings/${offeringId}/entry`),
-        api.get<MyAttemptsView>(`/api/offerings/${offeringId}/my-submissions`),
-        api.get<OfferingView>(`/api/offerings/${offeringId}`),
-        api.get<SessionView>(`/api/offerings/${offeringId}/session`).catch(() => null),
-      ])
-      setEntry(loadedEntry)
-      setAttempts(loadedAttempts)
-      setOffering(loadedOffering)
-
-      const submissionId = loadedSession?.submissionId ?? null
-      if (!submissionId) {
-        setReviewState('none')
-      } else {
-        try {
-          const loadedReview = await api.get<ReviewView>(`/api/submissions/${submissionId}/review`)
-          setReview(loadedReview)
-          setReviewState('ready')
-        } catch (reviewFailure) {
-          if (reviewFailure instanceof ApiError && reviewFailure.status === 404) setReviewState('none')
-          else setReviewState('error')
-        }
-      }
+      setFeedback(await api.get<MyFeedback>(`/api/offerings/${offeringId}/my-feedback`))
     } catch (loadError) {
       setError(loadError as Error)
     } finally {
@@ -75,15 +38,14 @@ export default function FeedbackDetailPage() {
 
   if (loading) return <Loading label={t('student.loadingDetail')} />
   if (error) return <ErrorState error={error} onRetry={() => void load()} />
-  if (!entry) return null
+  if (!feedback) return null
 
-  const attempt: AttemptView | null = latestOf(attempts)
-  const submitted = !!attempt?.submittedAt
+  const attempt = feedback.latestAttempt
 
   return (
     <>
       <PageHeader
-        title={entry.paperTitle}
+        title={feedback.paperTitle}
         sub={attempt
           ? `${t('student.attemptNo', { no: attempt.attemptNo })} · ${t('student.submittedAt')} ${fmtDateTime(attempt.submittedAt)}`
           : t('student.detailSub')}
@@ -97,7 +59,7 @@ export default function FeedbackDetailPage() {
         )}
       />
 
-      {!attempt || !submitted ? (
+      {!attempt ? (
         <Empty>{t('student.noSubmission')}</Empty>
       ) : (
         <>
@@ -107,7 +69,7 @@ export default function FeedbackDetailPage() {
             <div className="exam-result-score">
               <div className="score-big">
                 {fmtScore(attempt.totalScore)}
-                <small> / {fmtScore(entry.totalPoints)}</small>
+                <small> / {fmtScore(feedback.totalPoints)}</small>
               </div>
               <div className="result-facts">
                 <div className="kv">
@@ -131,6 +93,7 @@ export default function FeedbackDetailPage() {
               {attempt.autoSubmitted && <span className="tag gray">{t('student.autoSubmitted')}</span>}
               {attempt.lateBySeconds > 0 && <span className="tag amber">{t('student.lateTag')}</span>}
               {attempt.rejectedAt && <span className="tag red">{t('student.status_rejected')}</span>}
+              {!feedback.feedbackPublished && <span className="tag gray">{feedback.feedbackMessage}</span>}
             </div>
             {attempt.rejectedAt && (
               <div className="exam-banner danger" style={{ marginTop: 12 }}>
@@ -142,36 +105,63 @@ export default function FeedbackDetailPage() {
           {/* ② 错题与解析 */}
           <div className="card">
             <h2>② {t('student.wrongTitle')}</h2>
-            <div className="inline-note">{t('student.wrongMissing')}</div>
-            <p className="small muted" style={{ marginBottom: 0 }}>{t('student.wrongMissingHint')}</p>
+            {!feedback.feedbackPublished ? (
+              <div className="inline-note">{feedback.feedbackMessage}</div>
+            ) : feedback.wrongItems.length === 0 ? (
+              <div className="inline-note">{t('student.wrongNone')}</div>
+            ) : (
+              <>
+                <ol style={{ paddingLeft: 20, marginTop: 0 }}>
+                  {feedback.wrongItems.map((item) => (
+                    <li key={item.number} style={{ marginBottom: 14 }}>
+                      <div className="exam-stem" style={{ margin: '2px 0 6px' }}>
+                        第 {item.number} 题 · {item.points} 分{item.stem ? ` · ${item.stem}` : ''}
+                      </div>
+                      <div className="small">
+                        <span className="muted">{t('student.wrongGiven')}：</span>
+                        <span className="mono">{item.given || '—'}</span>
+                        <span className="muted" style={{ marginLeft: 16 }}>{t('student.wrongCorrect')}：</span>
+                        <span className="mono">{item.correctAnswer || '—'}</span>
+                      </div>
+                      <div className="small muted" style={{ marginTop: 4 }}>{t('student.explanationMissing')}</div>
+                    </li>
+                  ))}
+                </ol>
+                <p className="small muted" style={{ marginBottom: 0 }}>{t('student.explanationMissingHint')}</p>
+              </>
+            )}
           </div>
 
           {/* ③ 主观评语 */}
           <div className="card">
             <h2>③ {t('student.commentTitle')}</h2>
-            {reviewState === 'loading' && <span className="muted">{t('student.loadingComment')}</span>}
-            {reviewState !== 'loading' && review?.comment && (
+            {!feedback.feedbackPublished && <div className="inline-note">{feedback.feedbackMessage}</div>}
+            {feedback.feedbackPublished && feedback.review?.comment && (
               <>
-                <p style={{ marginTop: 0, whiteSpace: 'pre-wrap' }}>{review.comment}</p>
+                <p style={{ marginTop: 0, whiteSpace: 'pre-wrap' }}>{feedback.review.comment}</p>
                 <div className="small muted">
-                  {t('student.commentFrom', { date: fmtDateTime(review.createdAt) })}
+                  {t('student.commentFrom', { date: fmtDateTime(feedback.review.createdAt) })}
                 </div>
               </>
             )}
-            {reviewState !== 'loading' && !review?.comment && (
-              <div className="inline-note">
-                {reviewState === 'error' ? t('student.commentError') : t('student.commentMissing')}
-              </div>
+            {feedback.feedbackPublished && !feedback.review?.comment && (
+              <div className="inline-note">{t('student.commentMissing')}</div>
             )}
           </div>
 
           {/* ④ 全班概览 */}
           <div className="card">
             <h2>④ {t('student.peerTitle')}</h2>
-            {offering?.showPeerOverview === false ? (
-              <div className="inline-note">{t('student.peerClosed')}</div>
-            ) : (
-              <div className="inline-note">{t('student.peerMissing')}</div>
+            <div className="row" style={{ gap: 28 }}>
+              <div><div className="small muted">{t('student.peerExpected')}</div><b>{feedback.overview.expected}</b></div>
+              <div><div className="small muted">{t('student.peerSubmitted')}</div><b>{feedback.overview.submitted}</b></div>
+              <div>
+                <div className="small muted">{t('student.peerAverage')}</div>
+                <b>{feedback.overview.classAverage == null ? '—' : fmtScore(feedback.overview.classAverage)}</b>
+              </div>
+            </div>
+            {!feedback.overview.peersVisible && (
+              <div className="inline-note" style={{ marginTop: 12 }}>{t('student.peerClosed')}</div>
             )}
             <p className="small muted" style={{ marginBottom: 0 }}>{t('student.peerPrivacy')}</p>
           </div>

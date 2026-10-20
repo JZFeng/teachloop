@@ -237,6 +237,62 @@ export interface MyAttemptsView {
   attempts: AttemptView[]
 }
 
+export interface ReportWrongItem {
+  itemId: string
+  number: number
+  stem: string | null
+  questionType: string
+  points: number
+  answered: number
+  wrong: number
+  correctRate: number
+  topWrongAnswer: string | null
+  topWrongCount: number
+}
+
+export interface WrongItemsReport {
+  items: ReportWrongItem[]
+  totalItems: number
+  offeringCount: number
+}
+
+export interface FeedbackWrongItem {
+  number: number
+  questionType: string
+  points: number
+  stem: string | null
+  given: string
+  correctAnswer: string | null
+}
+
+export interface FeedbackReviewNote {
+  status: string
+  comment: string | null
+  strengths: string | null
+  suggestions: string | null
+  createdAt: string
+}
+
+export interface FeedbackOverview {
+  expected: number
+  submitted: number
+  myScore: number | null
+  classAverage: number | null
+  peersVisible: boolean
+}
+
+export interface MyFeedback {
+  offeringId: string
+  paperTitle: string
+  totalPoints: number
+  feedbackPublished: boolean
+  feedbackMessage: string
+  latestAttempt: AttemptView | null
+  wrongItems: FeedbackWrongItem[]
+  review: FeedbackReviewNote | null
+  overview: FeedbackOverview
+}
+
 export interface ReviewView {
   id: string
   submissionId: string
