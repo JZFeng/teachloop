@@ -21,5 +21,19 @@ export default defineConfig({
   server: { port: webPort, proxy },
   // 测试台用 `vite preview` 服务构建好的 dist：它不监听源码，所以开发时改代码不会漏进测试台。
   preview: { port: webPort, proxy },
-  build: { outDir: 'dist', sourcemap: true },
+  build: {
+    outDir: 'dist',
+    sourcemap: true,
+    // antd 与图标是体积大头，单独成 chunk：业务代码改动不会让用户重下整个包。
+    rolldownOptions: {
+      output: {
+        advancedChunks: {
+          groups: [
+            { name: 'antd', test: /[\\/]node_modules[\\/](antd|@ant-design|rc-[^\\/]+|@rc-component)[\\/]/ },
+            { name: 'react', test: /[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|scheduler)[\\/]/ },
+          ],
+        },
+      },
+    },
+  },
 })

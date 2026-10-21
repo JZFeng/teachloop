@@ -1,0 +1,217 @@
+/*
+ * 组件层自己的样式。只允许用 `styles/tokens.css` 里的变量（check-ui 会拦硬编码色值）。
+ * 这里不碰颜色，只碰布局与间距——颜色由令牌决定。
+ */
+
+/* 页面标题区 */
+.tl-page-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+}
+.tl-page-title {
+  font-family: var(--font-head);
+  font-size: 20px;
+  line-height: 1.4;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 0;
+  color: var(--text);
+}
+.tl-page-sub {
+  margin: 4px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--muted);
+}
+.tl-page-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+/* 表单字段 */
+.tl-field {
+  display: block;
+  margin-bottom: 14px;
+}
+.tl-field-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+.tl-field-required {
+  color: var(--red);
+  margin-left: 3px;
+}
+.tl-field-hint {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted-2);
+}
+.tl-field-error {
+  margin-top: 5px;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--red);
+}
+
+/* 统计卡 */
+.tl-stat {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: var(--shadow);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+.tl-stat.is-clickable {
+  cursor: pointer;
+}
+.tl-stat.is-clickable:hover {
+  border-color: var(--accent);
+}
+.tl-stat:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tl-stat.is-active {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-weak);
+}
+.tl-stat-value {
+  font-family: var(--font-head);
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--text);
+}
+.tl-stat-label {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.tl-stat-sub {
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted-2);
+}
+
+/* 表格卡片：antd Table 外面那层容器，和旧 `.card` 视觉一致 */
+.tl-table-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.tl-table-card .ant-table {
+  background: transparent;
+}
+
+/* 状态块 */
+.tl-state-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 18px;
+  box-shadow: var(--shadow);
+}
+
+/* 主题开关 */
+.tl-theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tl-theme-toggle-label {
+  font-size: 12px;
+  color: var(--muted-2);
+}
+
+/* ---- /ui-kit 展示页用到的排版（只做布局，颜色全部走变量） ---- */
+.tl-kit-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 12px 18px;
+}
+.tl-kit-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+}
+.tl-kit-states {
+  display: grid;
+  gap: 12px;
+}
+.tl-kit-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 7px 0;
+  border-bottom: 1px dashed var(--line-2);
+}
+.tl-kit-row:last-child {
+  border-bottom: 0;
+}
+.tl-kit-row-label {
+  flex: 0 0 72px;
+  font-size: 12px;
+  color: var(--muted-2);
+}
+.tl-demo-note {
+  font-size: 12px;
+  color: var(--muted-2);
+}
+.tl-demo-focus {
+  display: inline-flex;
+  border-radius: var(--radius-sm);
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.tl-kit-type h1,
+.tl-kit-type h2,
+.tl-kit-type h3 {
+  margin: 0 0 8px;
+  font-family: var(--font-head);
+  font-weight: 650;
+}
+.tl-kit-type h1 { font-size: 24px; }
+.tl-kit-type h2 { font-size: 20px; }
+.tl-kit-type h3 { font-size: 16px; }
+.tl-kit-type p { margin: 0 0 8px; }
+.tl-kit-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.tl-kit-swatch {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.tl-kit-swatch-color {
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  flex: 0 0 26px;
+}
+
+/* 表格里的小字与按钮不换行：antd 默认会按内容折行，把「25 / 30」拆成两行反而难读。 */
+.tl-table-card .ant-table-cell .mono {
+  white-space: nowrap;
+}
+.tl-table-card .ant-table-cell .row {
+  flex-wrap: nowrap;
+}

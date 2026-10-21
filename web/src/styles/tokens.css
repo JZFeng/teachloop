@@ -1,0 +1,90 @@
+/*
+ * 旧版 CSS 变量层（mockup.css 起于原型阶段，21 屏里有 16 屏仍在用）。
+ *
+ * 为什么这里写的是具体色值，而不是 `var(--ant-color-primary)`：
+ * antd 的 CSS 变量是**按组件元素**注入的（`token2CSSVar` 把变量挂在每个 antd
+ * 组件的 hash class 上，不在 `:root`），所以在 `:root` 里写
+ * `--panel: var(--ant-color-*)` 会在计算时报「guaranteed-invalid」，
+ * 16 个未迁移的屏会直接掉色。
+ *
+ * 因此这一层与 `web/src/ui/tokens.ts` 是**同一份值，两个出口**：
+ *   - tokens.ts 给 antd 组件；
+ *   - 本文件给未迁移页面的 `.card` / `.btn` / `table` 等手写样式。
+ * `scripts/ui/contrast.py` 会解析两边的值并断言一致、且对比度达标，改一边不改另一边会红。
+ */
+
+:root {
+  color-scheme: light;
+
+  --bg: #f5f6f8;
+  --panel: #ffffff;
+  --panel-2: #f5f7fa;
+  --line: #e4e7ec;
+  --line-2: #eef0f4;
+  --line-strong: #8c8c8c;
+
+  --text: #141414;
+  --muted: #595959;
+  --muted-2: #6b6b6b;
+
+  --accent: #1d5fbf;
+  --accent-2: #1554ad;
+  --accent-weak: #eaf1fb;
+  --on-accent: #ffffff;
+
+  --green: #237804;
+  --green-weak: #edf7ea;
+  --amber: #a35c00;
+  --amber-weak: #fbf1e2;
+  --red: #cf1322;
+  --red-weak: #fbeaea;
+
+  --done: #1d5fbf;
+  --done-bg: #eaf1fb;
+  --on-done: #ffffff;
+  --done-line: #a8c4e8;
+
+  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
+  --shadow-lg: 0 4px 16px rgba(16, 24, 40, 0.08);
+
+  --radius: 8px;
+  --radius-sm: 6px;
+
+  --font-head: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --bg: #141414;
+  --panel: #1f1f1f;
+  --panel-2: #1a1a1a;
+  --line: #303030;
+  --line-2: #262626;
+  --line-strong: #6b6b6b;
+
+  --text: #d9d9d9;
+  --muted: #a6a6a6;
+  --muted-2: #8c8c8c;
+
+  --accent: #2a6fd6;
+  --accent-2: #3a7bd5;
+  --accent-weak: #16233a;
+  --on-accent: #ffffff;
+
+  --green: #73d13d;
+  --green-weak: #12261d;
+  --amber: #ffc53d;
+  --amber-weak: #2a2114;
+  --red: #ff7875;
+  --red-weak: #2b161a;
+
+  --done: #2a6fd6;
+  --done-bg: #16233a;
+  --on-done: #ffffff;
+  --done-line: #2a4a78;
+
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 6px 24px rgba(0, 0, 0, 0.5);
+}
