@@ -42,6 +42,14 @@ public class Review {
     @Column(name = "original_subjective", precision = 8, scale = 2)
     private BigDecimal originalSubjective;
 
+    /** T253：AI 的逐项意见（JSON 数组：[{name, points, maxPoints, comment}]）。 */
+    @Column(name = "ai_criteria", columnDefinition = "text")
+    private String aiCriteria;
+
+    /** T253：AI 的「优点 / 建议」文本。 */
+    @Column(name = "ai_feedback", columnDefinition = "text")
+    private String aiFeedback;
+
     /** 非空即已发布；撤回时置回 null。 */
     @Column(name = "published_at")
     private Instant publishedAt;
@@ -76,6 +84,8 @@ public class Review {
     public String getStrengths() { return strengths; }
     public String getSuggestions() { return suggestions; }
     public BigDecimal getOriginalSubjective() { return originalSubjective; }
+    public String getAiCriteria() { return aiCriteria; }
+    public String getAiFeedback() { return aiFeedback; }
     public Instant getPublishedAt() { return publishedAt; }
     public Instant getCreatedAt() { return createdAt; }
 
@@ -110,8 +120,27 @@ public class Review {
      * <p>只在没有草稿、老师还没改过分时写入；人工分或已决策的复核不接受 AI 回填。
      */
     public void captureAiDraft(BigDecimal points) {
-        if (points != null && this.originalSubjective == null && this.teacherId == null) {
+        captureAiDraft(points, null, null);
+    }
+
+    /**
+     * T253：把 AI 草稿（分数 + 逐项意见 + 评语）一起捕获。
+     *
+     * <p>老师一旦人工改过分或已发布，AI 的任何结果都不许覆盖；同一份提交重跑 AI 时，
+     * 只要老师还没动过，就更新成最新一次的结果。
+     */
+    public void captureAiDraft(BigDecimal points, String criteriaJson, String feedback) {
+        if (this.teacherId != null || isPublished()) {
+            return;
+        }
+        if (points != null) {
             this.originalSubjective = points;
+        }
+        if (criteriaJson != null) {
+            this.aiCriteria = criteriaJson;
+        }
+        if (feedback != null) {
+            this.aiFeedback = feedback;
         }
     }
 

@@ -85,6 +85,8 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 
 20. **富文本与 AI 绿色通道（T252，2026-10-20 完成）**：① 富文本编辑器补 Cmd/Ctrl + B/I/U 快捷键；粘贴按后端同一份白名单清洗（外部灰底、字号、颜色、span/div 壳子都丢掉，b→strong、i→em）；编辑区固定白底、聚焦不再加阴影。② 草稿恢复改为「本机优先，本机没有就用服务端 `contentHtml`/`contentText`」，换浏览器/换端口/清 localStorage 都不丢格式。③ 批改详情逐份行新增「让 AI 先批」：`POST /api/offerings/{id}/submissions/{submissionId}/grading/dispatch` 只把这一份推进 AI 队列，同场其他提交不动，run 按场次幂等，写 `submission:ai_dispatch` 审计；整场按钮改名「全部交给 AI 批改」。验证：`GradingDispatchTest` 10/10、`pnpm typecheck` / `pnpm build` / `check-i18n` 通过；浏览器实测快捷键、粘贴清洗、清 localStorage 后格式恢复、行内派发→stub 判完→复核页出现 AI 草稿。截图 `docs/reports/t252-ux-fixes/`。
 
+21. **AI 结果可见与复核页收敛（T253，2026-10-20 完成）**：AI 判分不再只有一个分数——`reviews.ai_criteria` / `ai_feedback` 落库，复核页新增「AI 评估」区（建议分、逐项得分与意见、优点/建议、「采用 AI 建议分」）；复核页标题去重、题项与评分标准折叠；审计「复核改分」改写成「主观分 7.5 → 8 · 评语：… · 优点：… · 建议：…」（去尾零、null 不显示）；顶栏右侧用户信息可点击进 `/profile`。验证：`GradingDispatchTest` 10/10（含 AI 逐项意见断言）、`make test` 209/0/0/0、`pnpm typecheck` / `pnpm build` / `check-i18n`（1029 键）通过；用用户提供的 `Rubric.md` + `Maria.txt` / `Mark.txt` 跑通「建作业 → 两人提交 → AI 先批 → 教师复核发布 → 学生反馈」。**注意**：当前 dev 用 stub 引擎、未配置 DEEPSEEK_API_KEY，AI 分数与意见不是真实评分。
+
 ## 五、结论
 
 `specs/002-v2-platform/tasks.md` 中原有的实现任务均已完成；剩余为上述已知偏差（OSS/PDF/AC-18.5 等）。
@@ -94,4 +96,5 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 用户实测反馈（T248）新增阶段 21，**已完成**（见第 18 条）。
 第二轮实测反馈（T250）新增阶段 22，**已完成**（见第 19 条）。
 第三轮实测反馈（T252）新增阶段 23，**已完成**（见第 20 条）。
+第四轮实测反馈（T253）新增阶段 24，**已完成**（见第 21 条）。
 阶段 18 仍不在「已完成」范围内。

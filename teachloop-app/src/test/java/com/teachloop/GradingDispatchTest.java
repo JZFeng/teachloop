@@ -253,6 +253,12 @@ class GradingDispatchTest {
 
         assertThat(raw(teacher, "POST", path, Map.of()).statusCode())
                 .as("已派发的再派发应 409").isEqualTo(409);
+
+        // T253：AI 跑完后复核详情要带逐项意见与评语，老师才能看到「AI 为什么给这个分」。
+        worker.processBatch(10); // 同一测试类共享数据库，可能还有别的 PENDING，别断言份数
+        Map<String, Object> detail = get(teacher, "/api/submissions/" + target + "/review");
+        assertThat((List<?>) detail.get("aiCriteria")).as("AI 逐项意见").hasSize(2);
+        assertThat((String) detail.get("aiFeedback")).as("AI 评语").contains("stub");
     }
 
     // ================= T092：并发两次派发只产生一条 run =================

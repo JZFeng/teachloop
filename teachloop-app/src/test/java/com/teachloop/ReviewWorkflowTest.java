@@ -192,6 +192,45 @@ class ReviewWorkflowTest {
     }
 
     @Test
+    @DisplayName("T250：通知带可跳转目标——布置通知是 exam+布置 id，反馈通知是 offering+布置 id")
+    void notificationsCarryNavigableTarget() throws Exception {
+        Fixture f = fixture();
+        String studentCookie = f.studentA().cookie();
+
+        // ① 布置发布：考试的通知要指向 /exams/{offeringId}
+        Map<?, ?> published = notificationOfKind(studentCookie, "offering_published");
+        assertThat(published.get("targetType")).isEqualTo("exam");
+        assertThat(published.get("targetId")).isEqualTo(f.offeringId());
+
+        // ② 交卷 → 批改 → 复核通过 → 发布反馈
+        Map<String, Object> submitted = submit(f.studentA(), f.offeringId(),
+                answers(1, "A", 2, "B"), "我的作文内容。");
+        UUID submissionId = UUID.fromString(submitted.get("submissionId").toString());
+        dispatchAndGrade(f.offeringId());
+        String path = "/api/submissions/" + submissionId + "/review";
+        assertThat(raw(teacher, "PUT", path, Map.of(
+                "subjectivePoints", new BigDecimal("8"), "comment", "发布用评语")).statusCode()).isEqualTo(200);
+        assertThat(post(teacher, path + "/publish", Map.of()).get("published")).isEqualTo(true);
+
+        // ③ 反馈通知要指向 /feedback/{offeringId}；存 submissionId 会跳错页
+        Map<?, ?> feedback = notificationOfKind(studentCookie, "feedback_published");
+        assertThat(feedback.get("targetType")).isEqualTo("offering");
+        assertThat(feedback.get("targetId"))
+                .as("反馈页的参数是布置 id，不是提交 id")
+                .isEqualTo(f.offeringId())
+                .isNotEqualTo(submissionId.toString());
+    }
+
+    private Map<?, ?> notificationOfKind(String cookie, String kind) throws Exception {
+        List<?> all = Json.parseList(raw(cookie, "GET", "/api/notifications", null).body());
+        return all.stream()
+                .map(o -> (Map<?, ?>) o)
+                .filter(m -> kind.equals(m.get("kind")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("没有 kind=" + kind + " 的通知：" + all));
+    }
+
+    @Test
     @DisplayName("T104：批量通过逐份审计，无复核/已决策的提交计入 skipped")
     void bulkApproveCounts() throws Exception {
         Fixture f = fixture();

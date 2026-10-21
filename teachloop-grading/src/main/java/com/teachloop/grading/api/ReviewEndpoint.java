@@ -1,5 +1,8 @@
 package com.teachloop.grading.api;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teachloop.grading.domain.Review;
 import com.teachloop.grading.domain.ReviewRepository;
 import com.teachloop.grading.domain.ReviewStatus;
@@ -49,6 +52,9 @@ public class ReviewEndpoint {
     private final Ports.SittingLedger ledger;
     private final Ports.GradingOutcome outcome;
     private final Ports.NotificationPort notifications;
+    /** 只解析 ai_criteria JSON，不参与 Spring 的 JSON 配置。 */
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private final AuditPort audit;
     private final Clock clock;
 
@@ -96,18 +102,25 @@ public class ReviewEndpoint {
                            int sectionPosition, String sectionTitle) {
     }
 
+    /** T253：AI 的逐项意见（评分项名称、得分、满分、评语）。 */
+    public record CriterionView(String name, BigDecimal points, BigDecimal maxPoints, String comment) {
+    }
+
     /**
-     * 复核详情：正文、题项与作答、AI 主观草稿、复核字段。
+     * 复核详情：正文、题项与作答、AI 主观草稿与逐项意见、复核字段。
      *
      * @param objectivePoints  提交当前的客观分（sitting 判定，不可手改）
      * @param subjectivePoints 提交当前的主观分（AI 草稿或老师已填的人工分）
+     * @param aiCriteria       AI 逐项意见；AI 未参与时为空
+     * @param aiFeedback       AI 的「优点 / 建议」文本
      */
     public record ReviewDetail(String submissionId, String studentId, String studentName,
                                String inputKind, String contentText, String contentHtml,
                                List<AnswerView> answers, List<ItemView> items,
                                String rubricMarkdown, String feedbackLanguage,
                                BigDecimal objectivePoints, BigDecimal subjectivePoints,
-                               BigDecimal aiSubjectiveDraft, ReviewView review) {
+                               BigDecimal aiSubjectiveDraft, List<CriterionView> aiCriteria,
+                               String aiFeedback, ReviewView review) {
     }
 
     /**
@@ -162,7 +175,7 @@ public class ReviewEndpoint {
                 item.studentName(), item.inputKind(), item.contentText(), item.contentHtml(), answers, items,
                 item.rubricMarkdown(), item.feedbackLanguage(),
                 scores.objectiveTotal(), scores.subjectiveTotal(),
-                review.getOriginalSubjective(), view(review));
+                review.getOriginalSubjective(), criteriaOf(review), review.getAiFeedback(), view(review));
     }
 
     /** 兼容旧调用：三态结论。REJECTED 的原因写 comment；已发布必须先撤回。 */
@@ -258,8 +271,10 @@ public class ReviewEndpoint {
         try {
             Ports.WorkItem item = ledger.load(submissionId);
             boolean en = "en".equalsIgnoreCase(item.feedbackLanguage());
+            // 学生要看的是「这次布置的反馈」页，路由参数是 offeringId 而不是 submissionId，
+            // 所以 target 存 offeringId，才能点通知直接跳过去（T250）。
             notifications.notify(List.of(new Ports.NotificationMessage(item.studentId(),
-                    "feedback_published", "submission", submissionId.toString(),
+                    "feedback_published", "offering", item.offeringId().toString(),
                     en ? "Feedback published" : "反馈已发布",
                     en ? "Your teacher published the feedback for this submission."
                         : "老师已发布这份提交的反馈，可以查看得分与评语。")));
@@ -330,6 +345,19 @@ public class ReviewEndpoint {
         }
         if (!me.is("TEACHER") && !me.is("ADMIN")) {
             throw ApiException.forbidden("只有教师或管理员可以复核");
+        }
+    }
+
+    private List<CriterionView> criteriaOf(Review review) {
+        String raw = review.getAiCriteria();
+        if (raw == null || raw.isBlank()) {
+            return List.of();
+        }
+        try {
+            return JSON.readValue(raw, new TypeReference<List<CriterionView>>() { });
+        } catch (JsonProcessingException ex) {
+            log.warn("cannot parse ai_criteria for review {}: {}", review.getId(), ex.getMessage());
+            return List.of();
         }
     }
 

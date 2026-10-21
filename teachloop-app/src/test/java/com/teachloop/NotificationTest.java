@@ -189,6 +189,30 @@ class NotificationTest {
 
     // ---------- helpers ----------
 
+    @Test
+    @DisplayName("T250：作业发布的通知 target_type=assignment，前端才能跳到 /assignments/{id}")
+    void assignmentNotificationTargetsAssignmentPage() throws Exception {
+        String teacher = login("teacher@teachloop.local");
+        Map<String, Object> cls = send(teacher, "POST", "/api/classes",
+                Map.of("name", "通知作业班 " + UUID.randomUUID()));
+        String classId = cls.get("id").toString();
+        String invite = cls.get("inviteCode").toString();
+        send(studentA, "POST", "/api/classes/join", Map.of("inviteCode", invite));
+
+        String offeringId = send(teacher, "POST", "/api/offerings", Map.of(
+                "title", "通知作业",
+                "instructions", "写一段话。",
+                "totalPoints", 10,
+                "rubricMarkdown", "# 评分标准\n- 内容要点",
+                "classes", List.of(Map.of("classId", classId)),
+                "publish", true)).get("id").toString();
+
+        String targetType = jdbc.queryForObject(
+                "select target_type from notifications where recipient_id = ? and kind = 'offering_published'"
+                        + " and target_id = ?", String.class, studentAId, offeringId);
+        assertThat(targetType).as("作业通知要能跳到作业页").isEqualTo("assignment");
+    }
+
     private Ports.NotificationMessage message(UUID recipientId, String kind, String targetId,
                                               String title, String body) {
         return new Ports.NotificationMessage(recipientId, kind, "offering", targetId, title, body);

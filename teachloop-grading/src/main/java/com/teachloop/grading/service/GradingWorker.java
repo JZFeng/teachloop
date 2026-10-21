@@ -3,6 +3,8 @@ package com.teachloop.grading.service;
 import com.teachloop.grading.domain.Review;
 import com.teachloop.grading.domain.ReviewRepository;
 import com.teachloop.grading.domain.ReviewStatus;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teachloop.grading.engine.GradingEngine;
 import com.teachloop.shared.port.Ports;
 import java.time.Clock;
@@ -33,6 +35,9 @@ public class GradingWorker {
 
     private final Ports.SittingLedger ledger;
     private final Ports.GradingWorkQueue queue;
+    /** 只用来把逐项意见序列化成 JSON，不参与 Spring 的 JSON 配置。 */
+    private static final ObjectMapper JSON = new ObjectMapper();
+
     private final GradingEngine engine;
     private final ReviewRepository reviews;
     private final Clock clock;
@@ -78,12 +83,16 @@ public class GradingWorker {
                 // 当前端口没有「读 submission 分数」的方法，所以在这里落库而不是在编辑时再查。
                 // D-15：老师可能先打开过详情（懒建 PENDING、无草稿），AI 完成后补记草稿；
                 // 已有教师改分或已发布时 captureAiDraft 不会覆盖。
+                // T253：AI 的逐项意见与评语也要落库，老师才能看到「AI 为什么给这个分」。
+                String criteriaJson = criteriaJson(result.criteria());
                 Review review = reviews.findBySubmissionId(id).orElse(null);
                 if (review == null) {
-                    reviews.save(new Review(UUID.randomUUID(), id, null, ReviewStatus.PENDING, null,
-                            result.subjectivePoints(), Instant.now(clock)));
+                    Review created = new Review(UUID.randomUUID(), id, null, ReviewStatus.PENDING, null,
+                            null, Instant.now(clock));
+                    created.captureAiDraft(result.subjectivePoints(), criteriaJson, result.feedback());
+                    reviews.save(created);
                 } else if (!review.isPublished()) {
-                    review.captureAiDraft(result.subjectivePoints());
+                    review.captureAiDraft(result.subjectivePoints(), criteriaJson, result.feedback());
                     reviews.save(review);
                 }
                 done++;
@@ -104,6 +113,19 @@ public class GradingWorker {
             }
         }
         return done;
+    }
+
+    /** 把逐项意见序列化成 JSON；序列化失败不影响判分本身。 */
+    private String criteriaJson(List<Ports.CriterionScore> criteria) {
+        if (criteria == null || criteria.isEmpty()) {
+            return null;
+        }
+        try {
+            return JSON.writeValueAsString(criteria);
+        } catch (JsonProcessingException ex) {
+            log.warn("grading criteria serialization failed: {}", ex.getMessage());
+            return null;
+        }
     }
 
     /**
