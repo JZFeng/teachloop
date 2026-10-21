@@ -67,6 +67,7 @@
       "review_rejected": "Review sent back",
       "review_withdraw": "Scores withdrawn",
       "security_rich_text_stripped": "Rich text cleaned for safety",
+      "submission_ai_dispatch": "AI grading dispatched for one submission",
       "submission_auto_submit": "Auto-submitted at deadline",
       "submission_file_submit": "File submitted",
       "submission_reject": "Submission rejected",
@@ -325,6 +326,7 @@
     "empty": "No notifications",
     "markAll": "Mark all read",
     "markRead": "Mark read",
+    "open": "Open",
     "read": "Read",
     "sub": "Publishing, scores and review results appear here",
     "title": "Notifications",
@@ -377,6 +379,7 @@
     "publishFeedback": "Save and publish feedback",
     "publishHint": "Saving and publishing stores the score and comment and shows them to the student right away.",
     "published": "Published",
+    "publishedHint": "Published: the student can see the score and comment. Withdraw first to make changes.",
     "publishedOk": "Published: the student can now see the score and comment.",
     "queue": "Review queue",
     "queuedAt": "Queued at",
@@ -402,8 +405,7 @@
     "title": "Review workbench",
     "unpublished": "Not published",
     "withdraw": "Withdraw",
-    "withdrawnOk": "Publishing withdrawn; the student cannot see this feedback for now.",
-    "publishedHint": "Published: the student can see the score and comment. Withdraw first to make changes."
+    "withdrawnOk": "Publishing withdrawn; the student cannot see this feedback for now."
   },
   "student": {
     "assignment": "Assignment",
@@ -593,6 +595,11 @@
       "yes": "Yes"
     },
     "detail": {
+      "aiDispatch": "AI grade now",
+      "aiDispatchDisabled": "Already dispatched, running, done, not submitted or rejected submissions cannot be dispatched this way",
+      "aiDispatchDone": "Sent {{student}} to AI grading; once it finishes the AI draft shows up under Grade / Review.",
+      "aiDispatchFailed": "Single dispatch failed: {{message}}",
+      "aiDispatchHint": "Send only this submission to AI grading; other submissions in this offering are untouched",
       "colAttempt": "Attempt",
       "colLate": "Late",
       "colObjective": "Objective",
@@ -602,8 +609,9 @@
       "colSubjective": "Subjective",
       "colSubmittedAt": "Submitted at",
       "colTotal": "Total",
-      "dispatch": "Dispatch now",
+      "dispatch": "Send all to AI grading",
       "dispatchFailed": "Dispatch failed: {{message}}",
+      "dispatchHint": "Sending the whole offering handles every undispatched submission; to run AI for just one, use \"AI grade now\" on that row.",
       "dispatchReceipt": "Dispatch receipt",
       "draftNote": "This assignment is still a draft: students cannot see it and it does not enter the grading queue.",
       "duration": "Duration {{minutes}} min",

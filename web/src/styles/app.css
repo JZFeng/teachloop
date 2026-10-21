@@ -89,6 +89,10 @@ body { display: block; }
 .remaining.warn { color: var(--red); }
 .part-done { color: var(--text); }
 .notice-unread { border-left: 3px solid var(--accent); }
+/* 可点跳转的通知：整行可点，鼠标与键盘都要能看出来（T250）。 */
+.notice-link { cursor: pointer; }
+.notice-link:hover { border-color: var(--accent); }
+.notice-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* 审计时间线（T248）：事件名翻成中文、参数按字段展示，倒序从上到下。 */
 .audit-timeline { list-style: none; margin: 14px 0 0; padding: 0; }
@@ -126,7 +130,7 @@ input.invalid, input.invalid:focus {
 
 /* 富文本编辑器（T250）：工具条 + 可编辑区 + 空态占位。 */
 .rich-editor { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
-.rich-editor:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.rich-editor:focus-within { border-color: var(--accent); }
 .rich-toolbar {
   display: flex; flex-wrap: wrap; gap: 2px; align-items: center;
   padding: 6px 8px; border-bottom: 1px solid var(--line-2); background: var(--panel-2);
@@ -143,6 +147,8 @@ input.invalid, input.invalid:focus {
 .rich-body {
   position: relative; min-height: 220px; padding: 12px; line-height: 1.85; font-size: 14px;
   outline: none; overflow-wrap: anywhere;
+  background: var(--panel);
+  border-radius: 0 0 var(--radius-sm) var(--radius-sm);
 }
 .rich-body h3 { margin: 10px 0 6px; font-size: 16px; }
 .rich-body p { margin: 0 0 8px; }

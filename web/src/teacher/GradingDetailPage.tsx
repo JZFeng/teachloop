@@ -65,6 +65,9 @@ export default function GradingDetailPage() {
   const [dispatching, setDispatching] = useState(false)
   const [retrying, setRetrying] = useState(false)
   const [retryNote, setRetryNote] = useState<{ retried: number; reclaimed: number } | null>(null)
+  const [aiDispatchingId, setAiDispatchingId] = useState<string | null>(null)
+  const [aiDispatchNote, setAiDispatchNote] = useState<string | null>(null)
+  const [aiDispatchError, setAiDispatchError] = useState<string | null>(null)
   const [explaining, setExplaining] = useState(false)
   const [explainResult, setExplainResult] = useState<ExplanationGenerateResult | null>(null)
   const [explainError, setExplainError] = useState<string | null>(null)
@@ -114,6 +117,22 @@ export default function GradingDetailPage() {
       setDispatchError(errorMessage(err))
     } finally {
       setDispatching(false)
+    }
+  }
+
+  /** T252：单份「让 AI 先批」——只把这一份推进 AI 队列，不动同一场的其他提交。 */
+  const dispatchOneSubmission = async (row: OfferingSubmissionView) => {
+    setAiDispatchingId(row.submissionId)
+    setAiDispatchError(null)
+    setAiDispatchNote(null)
+    try {
+      await api.post(`/api/offerings/${offeringId}/submissions/${row.submissionId}/grading/dispatch`)
+      setAiDispatchNote(t('teacher.detail.aiDispatchDone', { student: row.studentName }))
+      reload()
+    } catch (err) {
+      setAiDispatchError(t('teacher.detail.aiDispatchFailed', { message: errorMessage(err) }))
+    } finally {
+      setAiDispatchingId(null)
     }
   }
 
@@ -305,6 +324,15 @@ export default function GradingDetailPage() {
               <button
                 type="button"
                 className="btn sm"
+                disabled={!canAiDispatch(row) || aiDispatchingId === row.submissionId}
+                title={canAiDispatch(row) ? t('teacher.detail.aiDispatchHint') : t('teacher.detail.aiDispatchDisabled')}
+                onClick={() => void dispatchOneSubmission(row)}
+              >
+                {aiDispatchingId === row.submissionId ? t('teacher.common.loading') : t('teacher.detail.aiDispatch')}
+              </button>
+              <button
+                type="button"
+                className="btn sm"
                 onClick={() => setAuditTarget(row)}
               >
                 {t('teacher.common.audit')}
@@ -428,6 +456,7 @@ export default function GradingDetailPage() {
                   type="button"
                   className="btn sm"
                   disabled={dispatching}
+                  title={t('teacher.detail.dispatchHint')}
                   onClick={() => void dispatch()}
                 >
                   {dispatching ? t('teacher.common.loading') : t('teacher.detail.dispatch')}
@@ -473,6 +502,12 @@ export default function GradingDetailPage() {
               <div className="inline-note" style={{ marginTop: 8 }}>
                 {t('teacher.detail.retryDone', { retried: retryNote.retried, reclaimed: retryNote.reclaimed })}
               </div>
+            )}
+            {aiDispatchNote && (
+              <div className="inline-note" style={{ marginTop: 10 }}>{aiDispatchNote}</div>
+            )}
+            {aiDispatchError && (
+              <div className="hint" style={{ color: 'var(--red)' }}>{aiDispatchError}</div>
             )}
             {dispatchError && (
               <div className="hint" style={{ color: 'var(--red)' }}>
@@ -563,6 +598,12 @@ function normalizeFilter(raw: string | null): FilterKey {
     return raw
   }
   return 'all'
+}
+
+/** T252：只有「待派发（QUEUED）/ 上次失败（FAILED）」且已交卷未拒收的提交可以先跑 AI。 */
+function canAiDispatch(row: OfferingSubmissionView): boolean {
+  if (!row.submittedAt || row.rejectedAt) return false
+  return row.gradingState === 'QUEUED' || row.gradingState === 'FAILED'
 }
 
 function matchesFilter(row: OfferingSubmissionView, filter: FilterKey): boolean {

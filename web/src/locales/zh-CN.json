@@ -67,6 +67,7 @@
       "review_rejected": "复核退回",
       "review_withdraw": "撤回成绩",
       "security_rich_text_stripped": "富文本安全过滤",
+      "submission_ai_dispatch": "单份派发 AI 批改",
       "submission_auto_submit": "到点自动交卷",
       "submission_file_submit": "提交文件",
       "submission_reject": "拒收提交",
@@ -325,6 +326,7 @@
     "empty": "没有通知",
     "markAll": "全部已读",
     "markRead": "标为已读",
+    "open": "查看",
     "read": "已读",
     "sub": "发布、成绩与复核结果都会在这里出现",
     "title": "通知",
@@ -377,6 +379,7 @@
     "publishFeedback": "保存并发布反馈",
     "publishHint": "「保存并发布反馈」会保存主观分与评语，并立即让学生看到。",
     "published": "已发布",
+    "publishedHint": "已发布：学生现在能看到分数与评语。要修改请先撤回。",
     "publishedOk": "已发布：学生现在能看到分数与评语。",
     "queue": "待复核队列",
     "queuedAt": "入队时间",
@@ -402,8 +405,7 @@
     "title": "复核工作台",
     "unpublished": "未发布",
     "withdraw": "撤回",
-    "withdrawnOk": "已撤回发布，学生暂时看不到本次反馈。",
-    "publishedHint": "已发布：学生现在能看到分数与评语。要修改请先撤回。"
+    "withdrawnOk": "已撤回发布，学生暂时看不到本次反馈。"
   },
   "student": {
     "assignment": "作业",
@@ -593,6 +595,11 @@
       "yes": "是"
     },
     "detail": {
+      "aiDispatch": "让 AI 先批",
+      "aiDispatchDisabled": "已派发、批改中、已完成、未交卷或已拒收的提交不能这样派发",
+      "aiDispatchDone": "已把 {{student}} 的提交交给 AI；批改完成后在「判分 / 复核」里能看到 AI 草稿。",
+      "aiDispatchFailed": "单份派发失败：{{message}}",
+      "aiDispatchHint": "只把这一份交给 AI 批改，不影响同一场的其他提交",
       "colAttempt": "尝试",
       "colLate": "迟交",
       "colObjective": "客观",
@@ -602,8 +609,9 @@
       "colSubjective": "主观",
       "colSubmittedAt": "提交时间",
       "colTotal": "总分",
-      "dispatch": "立即派发",
+      "dispatch": "全部交给 AI 批改",
       "dispatchFailed": "派发失败：{{message}}",
+      "dispatchHint": "整场派发会处理所有未派发的提交；只想让某一份先跑 AI，用行内的「让 AI 先批」。",
       "dispatchReceipt": "派发回执",
       "draftNote": "这份布置还是草稿：学生看不到，也还不会进入批改队列。",
       "duration": "时长 {{minutes}} 分钟",

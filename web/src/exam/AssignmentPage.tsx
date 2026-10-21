@@ -101,10 +101,21 @@ export default function AssignmentPage() {
       setOffering(loadedOffering)
       const latest = latestOf(loadedAttempts)
       const hasDraft = !!latest && latest.active && !latest.submittedAt && !latest.rejectedAt
-      const draft = hasDraft ? readLocalDraft(offeringId) : null
-      setContent(draft?.text ?? '')
-      setRichHtml(draft?.html ?? '')
-      setMode(draft?.mode ?? 'text')
+      // 草稿正文优先用本机（可能比服务端新，且离线也丢不了）；本机没有时用服务端已保存的那份
+      // （换浏览器 / 换端口 / 换设备时不至于格式全丢）。
+      const local = hasDraft ? readLocalDraft(offeringId) : null
+      const hasLocal = Boolean(local && (local.text.trim() || local.html.trim()))
+      const serverHtml = latest?.contentHtml ?? ''
+      const serverText = latest?.contentText ?? ''
+      if (hasLocal) {
+        setContent(local!.text)
+        setRichHtml(local!.html)
+        setMode(local!.mode)
+      } else {
+        setContent(serverText)
+        setRichHtml(serverHtml)
+        setMode(serverHtml ? 'rich' : 'text')
+      }
     } catch (loadError) {
       setError(loadError as Error)
     } finally {

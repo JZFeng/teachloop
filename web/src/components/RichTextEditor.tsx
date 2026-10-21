@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { MouseEvent } from 'react'
+import type { ClipboardEvent, KeyboardEvent, MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
 
 interface RichTextEditorProps {
@@ -12,11 +12,60 @@ interface RichTextEditorProps {
 }
 
 /**
- * T250：作业页的富文本输入。
+ * 与后端 {@code RichTextSanitizer} 同一份白名单：提交时服务端也只留这些标签、不留任何属性。
+ * 编辑时就按同一份规则清理，保证「屏幕上看到的」＝「存进库里的」。
+ */
+const ALLOWED_TAGS = new Set(['P', 'BR', 'STRONG', 'EM', 'U', 'OL', 'UL', 'LI', 'BLOCKQUOTE', 'H1', 'H2', 'H3'])
+
+/** 富文本编辑内容 → 白名单 HTML：b→strong、i→em、div→p，其余标签只保留文字，属性全丢。 */
+export function sanitizeHtml(raw: string): string {
+  if (!raw) return ''
+  const doc = new DOMParser().parseFromString(raw, 'text/html')
+  const out = doc.createElement('div')
+  copyAllowed(doc.body, out, doc)
+  return out.innerHTML
+}
+
+function copyAllowed(source: Node, target: Element, doc: Document): void {
+  for (const child of Array.from(source.childNodes)) {
+    if (child.nodeType === Node.TEXT_NODE) {
+      target.appendChild(doc.createTextNode(child.textContent ?? ''))
+      continue
+    }
+    if (!(child instanceof Element)) continue
+    const tag = child.tagName
+    if (tag === 'BR') {
+      target.appendChild(doc.createElement('br'))
+      continue
+    }
+    if (tag === 'DIV') {
+      const p = doc.createElement('p')
+      copyAllowed(child, p, doc)
+      target.appendChild(p)
+      continue
+    }
+    const normalized = tag === 'B' ? 'STRONG' : tag === 'I' ? 'EM' : tag
+    if (ALLOWED_TAGS.has(normalized)) {
+      const el = doc.createElement(normalized.toLowerCase())
+      copyAllowed(child, el, doc)
+      target.appendChild(el)
+    } else {
+      // 未知标签（span/font/table/…）：丢掉壳子，保留里面允许的内容与文字
+      copyAllowed(child, target, doc)
+    }
+  }
+}
+
+/**
+ * T250/T252：作业页的富文本输入。
  *
- * <p>之前只有一个空白 contenteditable，没有任何按钮、也没有占位提示，学生根本看不出能输入。
- * 现在按 mockup 给工具条（粗体 / 斜体 / 下划线 / 有序列表 / 无序列表 / 小标题 / 正文）：
- * 用 document.execCommand 作用于可编辑区，提交时仍由后端做白名单消毒。
+ * <p>没有引入第三方编辑器：Quill/TipTap 会带 ~40–150KB 依赖，且 Quill 2 的列表输出是
+ * {@code <li data-list="bullet">}，会被后端白名单消毒成纯文本。这里用浏览器原生
+ * contentEditable + execCommand，输出就是后端允许的 strong/em/u/ol/ul/h3，粘贴和提交
+ * 都按同一份白名单清理，看到什么就存什么。
+ *
+ * <p>T252：补上 Cmd/Ctrl + B / I / U 快捷键；粘贴自动清掉外部样式（灰底、字号、颜色）；
+ * 编辑器底色固定白色、聚焦不再有阴影。
  */
 export function RichTextEditor({ initialHtml, disabled, placeholder, onChange }: RichTextEditorProps) {
   const { t } = useTranslation('translation')
@@ -27,7 +76,9 @@ export function RichTextEditor({ initialHtml, disabled, placeholder, onChange }:
   useEffect(() => {
     const el = bodyRef.current
     if (!el) return
-    if (initialHtml && el.innerHTML !== initialHtml) el.innerHTML = initialHtml
+    // execCommand 默认可能产出 <b>/<i> 或带 style 的 <span>；先关掉「用 CSS 表达格式」。
+    document.execCommand('styleWithCSS', false, 'false')
+    if (initialHtml) el.innerHTML = sanitizeHtml(initialHtml)
     setEmpty(!el.innerText.trim())
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
@@ -37,13 +88,41 @@ export function RichTextEditor({ initialHtml, disabled, placeholder, onChange }:
     if (!el) return
     const text = el.innerText
     setEmpty(!text.trim())
-    onChange(el.innerHTML, text)
+    onChange(sanitizeHtml(el.innerHTML), text)
   }
 
   const exec = (command: string, value?: string) => {
     if (disabled) return
     bodyRef.current?.focus()
     document.execCommand(command, false, value)
+    sync()
+  }
+
+  /** Cmd/Ctrl + B/I/U：浏览器原生也会处理，这里显式兜住，避免不同浏览器/输入法下失效。 */
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return
+    const mod = event.metaKey || event.ctrlKey
+    if (!mod || event.altKey) return
+    const key = event.key.toLowerCase()
+    const command = key === 'b' ? 'bold' : key === 'i' ? 'italic' : key === 'u' ? 'underline' : null
+    if (!command) return
+    event.preventDefault()
+    exec(command)
+  }
+
+  /** 粘贴：把外部 HTML 按白名单洗一遍再插入；没有 HTML 就插纯文本。 */
+  const onPaste = (event: ClipboardEvent<HTMLDivElement>) => {
+    if (disabled) return
+    const html = event.clipboardData.getData('text/html')
+    const text = event.clipboardData.getData('text/plain')
+    if (!html && !text) return
+    event.preventDefault()
+    const clean = sanitizeHtml(html)
+    if (clean.trim()) {
+      document.execCommand('insertHTML', false, clean)
+    } else if (text) {
+      document.execCommand('insertText', false, text)
+    }
     sync()
   }
 
@@ -77,6 +156,8 @@ export function RichTextEditor({ initialHtml, disabled, placeholder, onChange }:
           suppressContentEditableWarning
           onInput={sync}
           onBlur={sync}
+          onKeyDown={onKeyDown}
+          onPaste={onPaste}
           role="textbox"
           aria-multiline="true"
           aria-label={placeholder ?? t('editor.placeholder')}
