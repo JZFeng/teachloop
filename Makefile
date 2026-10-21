@@ -5,7 +5,7 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help status dev build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status
+.PHONY: help status dev build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -52,10 +52,15 @@ check-boundaries:
 check-i18n:
 	@python3 scripts/check-i18n.py
 
+# UI 标准守卫：样式只能从令牌来，颜色对比度与两套令牌一致性也在这里核。
+check-ui:
+	@python3 scripts/check-ui.py
+	@python3 scripts/ui/contrast.py
+
 build:
 	@$(MVN) -q -DskipTests package
 
-test: check-deps check-boundaries check-i18n
+test: check-deps check-boundaries check-i18n check-ui
 	@$(MVN) -q test
 
 test-ai:
