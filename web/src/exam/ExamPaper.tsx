@@ -29,13 +29,14 @@ interface ExamPaperProps {
 export function ExamPaper({
   parts, answers, marked, current, disabled, onChange, onToggleMark, onFocusQuestion, registerNode,
 }: ExamPaperProps) {
+  const { t } = useTranslation('translation')
   return (
     <div className="exam-paper">
       {parts.map((part) => (
         <section className="exam-part" key={part.key} aria-label={part.title}>
           <h2 className="exam-part-title">
             {part.title}
-            <span className="part-points">{part.items.reduce((sum, item) => sum + item.points, 0)} 分</span>
+            <span className="part-points">{t('exam.partPoints', { points: part.items.reduce((sum, item) => sum + item.points, 0) })}</span>
           </h2>
           {part.items.map((item) => (
             <QuestionCard

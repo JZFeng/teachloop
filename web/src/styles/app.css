@@ -89,3 +89,76 @@ body { display: block; }
 .remaining.warn { color: var(--red); }
 .part-done { color: var(--text); }
 .notice-unread { border-left: 3px solid var(--accent); }
+
+/* 审计时间线（T248）：事件名翻成中文、参数按字段展示，倒序从上到下。 */
+.audit-timeline { list-style: none; margin: 14px 0 0; padding: 0; }
+.audit-timeline > li { position: relative; padding: 0 0 14px 22px; }
+.audit-timeline > li::before {
+  content: ""; position: absolute; left: 5px; top: 16px; bottom: -2px; width: 1px;
+  background: var(--line);
+}
+.audit-timeline > li:last-child::before { display: none; }
+.audit-dot {
+  position: absolute; left: 0; top: 6px; width: 11px; height: 11px;
+  border-radius: 50%; background: var(--panel); border: 2px solid var(--accent);
+}
+.audit-event {
+  border: 1px solid var(--line); background: var(--panel-2);
+  border-radius: var(--radius-sm); padding: 8px 12px;
+}
+.audit-event-head { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; }
+.audit-event-detail { color: var(--muted); font-size: 13px; margin-top: 2px; }
+
+/* 资料页：必填项没填就用红色标出来（T250）。 */
+.required-mark { color: var(--red); font-weight: 700; }
+input.invalid, input.invalid:focus {
+  border-color: var(--red);
+  box-shadow: 0 0 0 3px var(--red-weak);
+}
+.field-error { display: block; margin-top: 4px; font-size: 12px; color: var(--red); }
+
+/* 侧栏底部的资料入口：顶部「补全资料」提示消失后仍能进 /profile。 */
+.sidebar-user {
+  color: var(--muted); text-decoration: none; font-size: 12px; padding: 2px 4px;
+  border-radius: var(--radius-sm);
+}
+.sidebar-user:hover { color: var(--accent); background: var(--accent-weak); }
+
+/* 富文本编辑器（T250）：工具条 + 可编辑区 + 空态占位。 */
+.rich-editor { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
+.rich-editor:focus-within { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-weak); }
+.rich-toolbar {
+  display: flex; flex-wrap: wrap; gap: 2px; align-items: center;
+  padding: 6px 8px; border-bottom: 1px solid var(--line-2); background: var(--panel-2);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+}
+.rich-toolbar button {
+  min-width: 30px; height: 28px; padding: 0 7px; border: 1px solid transparent;
+  background: none; border-radius: 6px; cursor: pointer; color: var(--text);
+  font-size: 13px; line-height: 1; display: inline-flex; align-items: center; justify-content: center;
+}
+.rich-toolbar button:hover { background: var(--panel); border-color: var(--line); }
+.rich-toolbar .sep { width: 1px; height: 18px; background: var(--line); margin: 0 4px; }
+.rich-body-wrap { position: relative; }
+.rich-body {
+  position: relative; min-height: 220px; padding: 12px; line-height: 1.85; font-size: 14px;
+  outline: none; overflow-wrap: anywhere;
+}
+.rich-body h3 { margin: 10px 0 6px; font-size: 16px; }
+.rich-body p { margin: 0 0 8px; }
+.rich-body ul, .rich-body ol { padding-left: 24px; margin: 6px 0; }
+.rich-placeholder {
+  position: absolute; top: 12px; left: 12px; color: var(--muted);
+  pointer-events: none; user-select: none;
+}
+
+/* 学生正文按原格式回显（复核页）：与编辑器同一套排版。 */
+.rich-content { line-height: 1.75; overflow-wrap: anywhere; }
+.rich-content h1, .rich-content h2, .rich-content h3 { margin: 10px 0 6px; }
+.rich-content p { margin: 0 0 8px; }
+.rich-content ul, .rich-content ol { padding-left: 24px; margin: 6px 0; }
+.rich-content img { max-width: 100%; height: auto; }
+
+/* 禁用态必须看得出来：之前按钮 disabled 了外观还像能点，老师会反复点「发布」。 */
+.btn:disabled, .btn[disabled] { opacity: .45; cursor: not-allowed; }
+.btn:disabled:hover, .btn[disabled]:hover { filter: none; }

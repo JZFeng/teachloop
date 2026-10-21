@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
 export type SortDir = 'asc' | 'desc'
 export interface SortState { key: string; dir: SortDir }
@@ -44,8 +45,9 @@ function compare(a: string | number, b: string | number, dir: SortDir): number {
  */
 export function DataTable<T>({
   rows, columns, rowKey, sort, page = 1, pageSize = 10,
-  onSortChange, onPageChange, onRowClick, empty = '暂无数据',
+  onSortChange, onPageChange, onRowClick, empty,
 }: DataTableProps<T>) {
+  const { t } = useTranslation('translation')
   const sorted = useMemo(() => {
     if (!sort) return rows
     const col = columns.find((c) => c.key === sort.key)
@@ -64,7 +66,7 @@ export function DataTable<T>({
   }
 
   if (rows.length === 0) {
-    return <div className="card"><span className="muted">{empty}</span></div>
+    return <div className="card"><span className="muted">{empty ?? t('common.empty')}</span></div>
   }
 
   return (
@@ -78,7 +80,7 @@ export function DataTable<T>({
                 style={{ width: c.width, textAlign: 'left', padding: '10px 12px', cursor: c.sortable ? 'pointer' : undefined }}
                 className={sort?.key === c.key ? sort.dir : undefined}
                 onClick={() => clickSort(c)}
-                title={c.sortable ? '点击排序' : undefined}
+                title={c.sortable ? t('common.sortHint') : undefined}
               >
                 {c.title}{c.sortable ? (sort?.key === c.key ? (sort.dir === 'asc' ? ' ⇅' : ' ⇅') : ' ⇅') : ''}
               </th>
@@ -102,10 +104,10 @@ export function DataTable<T>({
         </tbody>
       </table>
       <div className="row" style={{ justifyContent: 'space-between', padding: '10px 12px', borderTop: '1px solid var(--line-2)' }}>
-        <span className="small muted">共 {rows.length} 条 · 第 {current}/{totalPages} 页</span>
+        <span className="small muted">{t('common.pageInfo', { total: rows.length, page: current, pages: totalPages })}</span>
         <div className="row">
-          <button className="btn" disabled={current <= 1} onClick={() => onPageChange?.(current - 1)}>上一页</button>
-          <button className="btn" disabled={current >= totalPages} onClick={() => onPageChange?.(current + 1)}>下一页</button>
+          <button className="btn" disabled={current <= 1} onClick={() => onPageChange?.(current - 1)}>{t('common.prevPage')}</button>
+          <button className="btn" disabled={current >= totalPages} onClick={() => onPageChange?.(current + 1)}>{t('common.nextPage')}</button>
         </div>
       </div>
     </div>

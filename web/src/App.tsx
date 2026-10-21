@@ -16,6 +16,8 @@ import PapersPage from './teacher/PapersPage'
 import PaperWizardPage from './teacher/PaperWizardPage'
 import ImportPaperPage from './teacher/ImportPaperPage'
 import OfferingCreatePage from './teacher/OfferingCreatePage'
+import AssignmentsPage from './teacher/AssignmentsPage'
+import AssignmentCreatePage from './teacher/AssignmentCreatePage'
 import GradingOverviewPage from './teacher/GradingOverviewPage'
 import GradingDetailPage from './teacher/GradingDetailPage'
 import ReviewPage from './teacher/ReviewPage'
@@ -73,6 +75,9 @@ export default function App() {
           <Route path="papers/import" element={<ImportPaperPage />} />
           <Route path="papers/:paperId" element={<PaperWizardPage />} />
           <Route path="offerings/new" element={<OfferingCreatePage />} />
+          <Route path="assignments" element={<AssignmentsPage />} />
+          {/* 静态段在前：/assignments/new 是教师建作业，/assignments/:offeringId 是学生作业页 */}
+          <Route path="assignments/new" element={<AssignmentCreatePage />} />
           <Route path="grading" element={<GradingOverviewPage />} />
           <Route path="grading/:offeringId" element={<GradingDetailPage />} />
           <Route path="review" element={<ReviewPage />} />

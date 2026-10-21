@@ -115,7 +115,7 @@ export default function FeedbackDetailPage() {
                   {feedback.wrongItems.map((item) => (
                     <li key={item.number} style={{ marginBottom: 14 }}>
                       <div className="exam-stem" style={{ margin: '2px 0 6px' }}>
-                        第 {item.number} 题 · {item.points} 分{item.stem ? ` · ${item.stem}` : ''}
+                        {t('student.questionMeta', { number: item.number, points: item.points })}{item.stem ? ` · ${item.stem}` : ''}
                       </div>
                       <div className="small">
                         <span className="muted">{t('student.wrongGiven')}：</span>
@@ -143,6 +143,18 @@ export default function FeedbackDetailPage() {
             {feedback.feedbackPublished && feedback.review?.comment && (
               <>
                 <p style={{ marginTop: 0, whiteSpace: 'pre-wrap' }}>{feedback.review.comment}</p>
+                {feedback.review.strengths && (
+                  <p style={{ whiteSpace: 'pre-wrap' }}>
+                    <b>{t('student.strengthsLabel')}</b>
+                    {feedback.review.strengths}
+                  </p>
+                )}
+                {feedback.review.suggestions && (
+                  <p style={{ whiteSpace: 'pre-wrap' }}>
+                    <b>{t('student.suggestionsLabel')}</b>
+                    {feedback.review.suggestions}
+                  </p>
+                )}
                 <div className="small muted">
                   {t('student.commentFrom', { date: fmtDateTime(feedback.review.createdAt) })}
                 </div>

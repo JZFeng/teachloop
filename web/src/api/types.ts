@@ -57,12 +57,22 @@ export interface PaperImportItem {
   stem: string
   options: string | null
   answerKey: string | null
+  points?: number | string | null
+  questionType?: string
+}
+
+/** 导入时按文档里的「第X部分」落成的部分（单部分文档沿用选中的目标部分）。 */
+export interface PaperImportSection {
+  title: string
+  itemCount: number
+  pointsPerItem: number | string | null
 }
 
 export interface PaperImportResult {
   imported: number
   missingAnswers: number[]
   items: PaperImportItem[]
+  sections?: PaperImportSection[]
   warnings: string[]
 }
 
@@ -85,7 +95,8 @@ export interface OfferingClassView {
 
 export interface OfferingView {
   id: string
-  paperId: string
+  /** 作业不引用试卷（D-14）：作业的 paperId 为 null，标题回退到作业自身的标题。 */
+  paperId: string | null
   paperTitle: string
   paperVersion: number
   kind: OfferingKind
@@ -208,6 +219,8 @@ export interface EntryView {
   locked: boolean
   notice: string
   notes: string[]
+  /** 教师写在这份布置上的评分标准（Markdown）；没写则为 null。 */
+  rubric?: string | null
 }
 
 export interface SessionView {
@@ -275,6 +288,9 @@ export interface AttemptView {
   active: boolean
   submissionId: string | null
   attachmentName: string | null
+  /** 学生自己提交的正文：contentHtml 已在后端消毒，可直接回显；没有富文本时为 null。 */
+  contentHtml: string | null
+  contentText: string | null
 }
 
 export interface MyAttemptsView {
@@ -381,6 +397,8 @@ export interface ReviewDetail {
   studentName: string
   inputKind: string
   contentText: string | null
+  /** 写入时已消毒的富文本；非空时复核页按原格式回显。 */
+  contentHtml: string | null
   answers: ReviewAnswer[]
   items: ReviewItem[]
   rubricMarkdown: string | null

@@ -64,6 +64,7 @@ export default function GradingDetailPage() {
   const [dispatchError, setDispatchError] = useState<string | null>(null)
   const [dispatching, setDispatching] = useState(false)
   const [retrying, setRetrying] = useState(false)
+  const [retryNote, setRetryNote] = useState<{ retried: number; reclaimed: number } | null>(null)
   const [explaining, setExplaining] = useState(false)
   const [explainResult, setExplainResult] = useState<ExplanationGenerateResult | null>(null)
   const [explainError, setExplainError] = useState<string | null>(null)
@@ -120,7 +121,10 @@ export default function GradingDetailPage() {
     setRetrying(true)
     setDispatchError(null)
     try {
-      await api.post(`/api/offerings/${offeringId}/grading/retry-failed`)
+      const res = await api.post<{ retried: number; reclaimed: number }>(
+        `/api/offerings/${offeringId}/grading/retry-failed`,
+      )
+      setRetryNote(res)
       reload()
     } catch (err) {
       setDispatchError(errorMessage(err))
@@ -283,9 +287,11 @@ export default function GradingDetailPage() {
       title: t('teacher.common.actions'),
       value: () => '',
       render: (row) => {
+        // D-15：已交卷且未拒收的提交（无论 AI 有没有派发/失败）都能直接进复核页人工判分。
         const canReject = Boolean(row.submittedAt) && !row.rejectedAt
+        const canGrade = canReject
         return (
-          <div style={{ minWidth: 190 }}>
+          <div style={{ minWidth: 280 }}>
             <div className="row" style={{ gap: 6 }}>
               <button
                 type="button"
@@ -303,6 +309,11 @@ export default function GradingDetailPage() {
               >
                 {t('teacher.common.audit')}
               </button>
+              {canGrade && (
+                <Link className="btn sm" to={`/review?submissionId=${row.submissionId}`}>
+                  {t('teacher.detail.grade')}
+                </Link>
+              )}
             </div>
             {rejectingId === row.submissionId && (
               <div style={{ marginTop: 8 }}>
@@ -395,15 +406,19 @@ export default function GradingDetailPage() {
                     submitted: submittedStudents,
                     expected,
                   })}
-                  {' · '}
-                  {t('teacher.detail.duration', { minutes: offering.effectiveDurationMinutes })}
+                  {offering.kind === 'EXAM' && (
+                    <>
+                      {' · '}
+                      {t('teacher.detail.duration', { minutes: offering.effectiveDurationMinutes })}
+                    </>
+                  )}
                 </div>
               </div>
               <div className="row" style={{ gap: 6 }}>
                 <button
                   type="button"
                   className="btn sm"
-                  disabled={retrying || progress.failed === 0}
+                  disabled={retrying || (progress.failed === 0 && progress.running === 0)}
                   title={t('teacher.detail.retryHint')}
                   onClick={() => void retryFailed()}
                 >
@@ -452,6 +467,11 @@ export default function GradingDetailPage() {
                 {explainResult.failed > 0 && (
                   <div className="small muted">{t('teacher.detail.explanationFailedHint')}</div>
                 )}
+              </div>
+            )}
+            {retryNote && (
+              <div className="inline-note" style={{ marginTop: 8 }}>
+                {t('teacher.detail.retryDone', { retried: retryNote.retried, reclaimed: retryNote.reclaimed })}
               </div>
             )}
             {dispatchError && (

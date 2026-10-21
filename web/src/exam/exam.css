@@ -210,3 +210,14 @@
   .qopts { flex-direction: column; align-items: stretch; }
   .tree-kids { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
+
+/* 已提交正文回显（T248）：作业页交完直接看到自己交了什么，纯文本保留换行。 */
+.submitted-body {
+  line-height: 1.75;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+.submitted-body.rich { white-space: normal; }
+.submitted-body.rich img { max-width: 100%; height: auto; }
+.submitted-body.rich p { margin: 0 0 8px; }

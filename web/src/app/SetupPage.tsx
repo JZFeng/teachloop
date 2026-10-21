@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 
@@ -6,11 +7,12 @@ interface Status { needsAdmin: boolean; aiConfigured: boolean; aiModel: string }
 
 /** 首次管理员初始化（对齐 DSH initial setup）：没有 ADMIN 时允许创建，之后到 AI 设置填模型。 */
 export default function SetupPage() {
+  const { t } = useTranslation('translation')
   const navigate = useNavigate()
   const [status, setStatus] = useState<Status | null>(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [displayName, setDisplayName] = useState('管理员')
+  const [displayName, setDisplayName] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
 
@@ -29,31 +31,33 @@ export default function SetupPage() {
   }
 
   if (!status) {
-    return <div className="card"><h2>初始化</h2>{error ? <div className="inline-note danger">{error}</div> : <p className="muted">加载中…</p>}</div>
+    return <div className="card"><h2>{t('app.setup.title')}</h2>{error ? <div className="inline-note danger">{error}</div> : <p className="muted">{t('app.setup.loading')}</p>}</div>
   }
 
   return (
     <div className="card" style={{ maxWidth: 560, margin: '48px auto' }}>
-      <h1>TeachLoop 初始设置</h1>
-      <p className="small muted">第一次部署：先创建管理员，再配置 AI 大模型。管理员密码不会明文保存。</p>
+      <h1>{t('app.setup.pageTitle')}</h1>
+      <p className="small muted">{t('app.setup.sub')}</p>
       {error && <div className="inline-note danger">{error}</div>}
       {done ? (
         <>
-          <div className="inline-note">管理员已创建。</div>
-          <button className="btn pri" onClick={() => navigate('/login')}>去登录</button>
+          <div className="inline-note">{t('app.setup.adminDone')}</div>
+          <button className="btn pri" onClick={() => navigate('/login')}>{t('app.setup.goLogin')}</button>
         </>
       ) : status.needsAdmin ? (
         <>
-          <label className="f"><b>管理员姓名</b><input value={displayName} onChange={(e) => setDisplayName(e.target.value)} /></label>
-          <label className="f"><b>邮箱</b><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
-          <label className="f"><b>密码（至少 8 位）</b><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-          <button className="btn pri" disabled={!email || password.length < 8} onClick={() => void createAdmin()}>创建管理员</button>
+          <label className="f"><b>{t('app.setup.adminName')}</b><input value={displayName} placeholder={t('app.setup.defaultAdminName')} onChange={(e) => setDisplayName(e.target.value)} /></label>
+          <label className="f"><b>{t('app.setup.email')}</b><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
+          <label className="f"><b>{t('app.setup.password')}</b><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
+          <button className="btn pri" disabled={!email || password.length < 8} onClick={() => void createAdmin()}>{t('app.setup.createAdmin')}</button>
         </>
       ) : (
         <>
-          <div className="inline-note">系统已有管理员{status.aiConfigured ? `，AI 已配置（${status.aiModel}）` : '，但 AI 尚未配置'}。</div>
-          <button className="btn pri" onClick={() => navigate('/login')}>去登录</button>
-          <p className="small muted">登录后从左侧「AI 设置」进入模型配置。</p>
+          <div className="inline-note">{t('app.setup.exists')}{status.aiConfigured
+            ? t('app.setup.aiConfigured', { model: status.aiModel })
+            : t('app.setup.aiMissing')}。</div>
+          <button className="btn pri" onClick={() => navigate('/login')}>{t('app.setup.goLogin')}</button>
+          <p className="small muted">{t('app.setup.afterLogin')}</p>
         </>
       )}
     </div>

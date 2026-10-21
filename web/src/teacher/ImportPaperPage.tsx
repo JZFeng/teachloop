@@ -1,19 +1,27 @@
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import type { PaperImportItem, PaperImportResult, PaperView } from '../api/types'
-import { ErrorState, PageHeader } from '../components/States'
+import type { PaperDetail, PaperImportItem, PaperImportResult, PaperView } from '../api/types'
+import { PageHeader } from '../components/States'
 
 interface EditableItem extends PaperImportItem {
   saving?: boolean
   saved?: boolean
 }
 
+interface AnswerTableResult {
+  updated: number
+  unknownNumbers: number[]
+  warnings: string[]
+}
+
 /** 导入考卷：建卷 + 建部分 + 上传/粘贴整卷，解析后可逐题修正。 */
 export default function ImportPaperPage() {
+  const { t } = useTranslation('translation')
   const navigate = useNavigate()
   const [title, setTitle] = useState('')
-  const [sectionTitle, setSectionTitle] = useState('综合')
+  const [sectionTitle, setSectionTitle] = useState('')
   const [pointsPerItem, setPointsPerItem] = useState('5')
   const [mode, setMode] = useState<'file' | 'text'>('file')
   const [file, setFile] = useState<File | null>(null)
@@ -23,18 +31,26 @@ export default function ImportPaperPage() {
   const [rows, setRows] = useState<EditableItem[]>([])
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [answerText, setAnswerText] = useState('')
+  const [answerBusy, setAnswerBusy] = useState(false)
+  const [answerNote, setAnswerNote] = useState<string | null>(null)
+  const [answerWarnings, setAnswerWarnings] = useState<string[]>([])
+
+  /** 缺答案一律从当前行数据现算，补完答案后提示会自己消失。 */
+  const missingNumbers = rows.filter((row) => !(row.answerKey ?? '').trim()).map((row) => row.number)
 
   const runImport = async () => {
-    if (!title.trim()) { setError('先填试卷标题'); return }
-    if (mode === 'file' && !file) { setError('选择 docx / md / txt / xlsx 文件'); return }
-    if (mode === 'text' && !text.trim()) { setError('粘贴整卷文字'); return }
+    if (!title.trim()) { setError(t('teacher.import.errTitle')); return }
+    if (mode === 'file' && !file) { setError(t('teacher.import.errFile')); return }
+    if (mode === 'text' && !text.trim()) { setError(t('teacher.import.errText')); return }
     setBusy(true); setError(null); setResult(null)
     try {
       const paper = await api.post<PaperView>('/api/papers', {
         title: title.trim(), defaultDurationMinutes: 90,
       })
       const section = await api.post<{ id: string }>(`/api/papers/${paper.id}/sections`, {
-        title: sectionTitle.trim() || '综合', pointsPerItem: Number(pointsPerItem) || 1,
+        title: sectionTitle.trim() || t('teacher.import.defaultSection'),
+        pointsPerItem: Number(pointsPerItem) || 1,
       })
       let imported: PaperImportResult
       if (mode === 'file' && file) {
@@ -79,51 +95,91 @@ export default function ImportPaperPage() {
     }
   }
 
+  /**
+   * 粘贴答案表：走独立端点补齐已有题项，不动卷面（Gradescope 的 Answer Key 独立页形态）。
+   * 补完重拉一次题项，缺答案提示按真实数据重算。
+   */
+  const fillAnswers = async () => {
+    if (!paperId || !answerText.trim()) return
+    setAnswerBusy(true)
+    setAnswerNote(null)
+    setAnswerWarnings([])
+    try {
+      const res = await api.post<AnswerTableResult>(`/api/papers/${paperId}/answers`, {
+        text: answerText,
+      })
+      const detail = await api.get<PaperDetail>(`/api/papers/${paperId}`)
+      setRows(detail.sections.flatMap((section) => section.items.map((item) => ({
+        number: item.number,
+        stem: item.stem ?? '',
+        options: item.options,
+        answerKey: item.answerKey,
+        points: item.points,
+        questionType: item.questionType,
+      }))))
+      setAnswerWarnings(res.warnings ?? [])
+      const unknown = res.unknownNumbers?.length
+        ? t('teacher.import.unknownNumbers', { numbers: res.unknownNumbers.join(', ') })
+        : ''
+      setAnswerNote(t('teacher.import.filled', { n: res.updated }) + unknown)
+    } catch (e) {
+      setAnswerNote((e as Error).message)
+    } finally {
+      setAnswerBusy(false)
+    }
+  }
+
   return (
     <>
       <PageHeader
-        title="导入考卷"
-        sub="上传 docx/md/txt/xlsx，或直接粘贴整卷文字；解析后逐题校对，再进向导补评分项与发布"
-        actions={<Link className="btn" to="/papers">返回试卷库</Link>}
+        title={t('teacher.import.title')}
+        sub={t('teacher.import.sub')}
+        actions={<Link className="btn" to="/papers">{t('teacher.import.backToLibrary')}</Link>}
       />
 
       <div className="card">
         <div className="row" style={{ alignItems: 'flex-start' }}>
-          <label className="f" style={{ flex: 2 }}><b>试卷标题 <i>*</i></b>
-            <input value={title} placeholder="例如：高一英语期中卷" onChange={(e) => setTitle(e.target.value)} />
-            <div className="hint">先填标题才能创建草稿试卷；解析后仍可改标题。</div>
+          <label className="f" style={{ flex: 2 }}><b>{t('teacher.import.paperTitle')} <i>*</i></b>
+            <input value={title} placeholder={t('teacher.import.titlePlaceholder')}
+              onChange={(e) => setTitle(e.target.value)} />
+            <div className="hint">{t('teacher.import.titleHint')}</div>
           </label>
-          <label className="f" style={{ flex: 1 }}><b>部分名称</b>
-            <input value={sectionTitle} onChange={(e) => setSectionTitle(e.target.value)} />
+          <label className="f" style={{ flex: 1 }}><b>{t('teacher.import.sectionName')}</b>
+            <input value={sectionTitle} placeholder={t('teacher.import.defaultSection')}
+              onChange={(e) => setSectionTitle(e.target.value)} />
           </label>
-          <label className="f" style={{ width: 130 }}><b>每题默认分</b>
+          <label className="f" style={{ width: 130 }}><b>{t('teacher.import.pointsPerItem')}</b>
             <input type="number" min={1} value={pointsPerItem} onChange={(e) => setPointsPerItem(e.target.value)} />
           </label>
         </div>
 
         <div className="row" style={{ marginTop: 8 }}>
-          <button className={`chip${mode === 'file' ? ' on' : ''}`} onClick={() => setMode('file')}>上传文件</button>
-          <button className={`chip${mode === 'text' ? ' on' : ''}`} onClick={() => setMode('text')}>粘贴文字</button>
+          <button className={`chip${mode === 'file' ? ' on' : ''}`} onClick={() => setMode('file')}>
+            {t('teacher.import.tabFile')}
+          </button>
+          <button className={`chip${mode === 'text' ? ' on' : ''}`} onClick={() => setMode('text')}>
+            {t('teacher.import.tabText')}
+          </button>
         </div>
 
         {mode === 'file' ? (
           <div style={{ marginTop: 10 }}>
             <input type="file" accept=".docx,.md,.txt,.xlsx"
               onChange={(e) => { setFile(e.target.files?.[0] ?? null); setResult(null) }} />
-            <div className="hint">支持 .docx / .md / .txt / .xlsx；.doc 请先另存为 .docx。题目和答案可以写在同一份文档里。</div>
+            <div className="hint">{t('teacher.import.fileHint')}</div>
           </div>
         ) : (
           <textarea style={{ width: '100%', minHeight: 180, marginTop: 10, fontFamily: 'monospace' }}
-            placeholder={'1. 题干...\nA. 选项\nB. 选项\n\n答案\n1-5 ABCDA'}
+            placeholder={t('teacher.import.textPlaceholder')}
             value={text} onChange={(e) => setText(e.target.value)} />
         )}
 
         <div className="row" style={{ marginTop: 10 }}>
           <button className="btn pri" disabled={busy || !title.trim() || (mode === 'file' ? !file : !text.trim())}
             onClick={() => void runImport()}>
-            {busy ? '解析中…' : '创建试卷并解析'}
+            {busy ? t('teacher.import.running') : t('teacher.import.run')}
           </button>
-          <span className="small muted">会先创建一份草稿试卷和一个部分，解析结果可逐题修正。</span>
+          <span className="small muted">{t('teacher.import.runHint')}</span>
         </div>
         {error && <div className="inline-note danger">{error}</div>}
       </div>
@@ -131,13 +187,19 @@ export default function ImportPaperPage() {
       {result && (
         <div className="card">
           <div className="row" style={{ justifyContent: 'space-between' }}>
-            <h2 style={{ margin: 0 }}>校对导入结果</h2>
+            <h2 style={{ margin: 0 }}>{t('teacher.import.reviewTitle')}</h2>
             <div className="row">
-              <span className="tag green">已导入 {result.imported} 题</span>
-              {result.missingAnswers.length > 0 && (
-                <span className="tag amber">缺答案：{result.missingAnswers.join(', ')}</span>
+              <span className="tag green">{t('teacher.import.imported', { n: result.imported })}</span>
+              {missingNumbers.length > 0 && (
+                <span className="tag amber">
+                  {t('teacher.import.missing', { numbers: missingNumbers.join(', ') })}
+                </span>
               )}
-              {paperId && <button className="btn" onClick={() => navigate(`/papers/${paperId}`)}>去向导补评分项</button>}
+              {paperId && (
+                <button className="btn" onClick={() => navigate(`/papers/${paperId}`)}>
+                  {t('teacher.import.gotoWizard')}
+                </button>
+              )}
             </div>
           </div>
           {result.warnings.length > 0 && (
@@ -145,9 +207,51 @@ export default function ImportPaperPage() {
               {result.warnings.map((w, i) => <li key={i}>{w}</li>)}
             </ul>
           )}
+
+          {paperId && (
+            <div className="inline-note" style={{ marginTop: 10 }}>
+              <b>{t('teacher.import.answerPanel')}</b>
+              <div className="hint" style={{ marginBottom: 6 }}>
+                {t('teacher.import.answerIntro')}
+                <br />
+                {t('teacher.import.answerChoice')}
+                {t('teacher.import.answerRange')}
+                {t('teacher.import.answerMulti')}
+                <br />
+                {t('teacher.import.answerFill')}
+                <br />
+                {t('teacher.import.answerNoBlank')}
+              </div>
+              <textarea
+                style={{ width: '100%', minHeight: 110, fontFamily: 'monospace' }}
+                placeholder={'1 A\n2 B\n3 B\n4 C'}
+                value={answerText}
+                onChange={(e) => setAnswerText(e.target.value)}
+              />
+              <div className="row" style={{ marginTop: 8 }}>
+                <button className="btn pri" disabled={answerBusy || !answerText.trim()}
+                  onClick={() => void fillAnswers()}>
+                  {answerBusy ? t('teacher.import.filling') : t('teacher.import.fill')}
+                </button>
+                {answerNote && <span className="small muted">{answerNote}</span>}
+              </div>
+              {answerWarnings.length > 0 && (
+                <ul className="small muted" style={{ paddingLeft: 20 }}>
+                  {answerWarnings.map((w, i) => <li key={i}>{w}</li>)}
+                </ul>
+              )}
+            </div>
+          )}
+
           <table style={{ marginTop: 10 }}>
             <thead>
-              <tr><th>#</th><th>题干</th><th>选项</th><th>答案</th><th>操作</th></tr>
+              <tr>
+                <th>{t('teacher.import.colNumber')}</th>
+                <th>{t('teacher.import.colStem')}</th>
+                <th>{t('teacher.import.colOptions')}</th>
+                <th>{t('teacher.import.colAnswer')}</th>
+                <th>{t('teacher.import.colActions')}</th>
+              </tr>
             </thead>
             <tbody>
               {rows.map((row) => (
@@ -158,7 +262,9 @@ export default function ImportPaperPage() {
                   <td><input style={{ width: 90 }} value={row.answerKey ?? ''} onChange={(e) => updateRow(row.number, { answerKey: e.target.value })} /></td>
                   <td>
                     <button className="btn sm" disabled={row.saving} onClick={() => void saveRow(row)}>
-                      {row.saving ? '保存中' : row.saved ? '已保存' : '保存'}
+                      {row.saving
+                        ? t('teacher.import.saving')
+                        : row.saved ? t('teacher.import.saved') : t('teacher.import.save')}
                     </button>
                   </td>
                 </tr>
@@ -167,7 +273,7 @@ export default function ImportPaperPage() {
           </table>
         </div>
       )}
-      {!result && paperId && <p className="muted">已创建试卷草稿，但没有解析出题目。</p>}
+      {!result && paperId && <p className="muted">{t('teacher.import.emptyDraft')}</p>}
     </>
   )
 }

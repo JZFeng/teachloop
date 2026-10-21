@@ -12,7 +12,6 @@ import {
   useApiData,
 } from './common'
 
-type Kind = 'EXAM' | 'ASSIGNMENT'
 type Timing = 'INDIVIDUAL' | 'FIXED_WINDOW'
 
 interface Override {
@@ -21,8 +20,9 @@ interface Override {
 }
 
 /**
- * T201 布置页：试卷 + 类型 + 参与班级（多选）+ 时间窗口 + 按班覆盖 + 发布。
- * 试卷本身不含班级，班级关系只存在于这一次布置里。
+ * T201 / D-14 严格版布置页：这份页面只布置**基于试卷的考试**。
+ * 试卷 + 参与班级（多选）+ 时间窗口 + 按班覆盖 + 发布。
+ * 作业自带内容、不引用试卷，入口在「作业」页（AssignmentCreatePage），这里不出现类型选择。
  */
 export default function OfferingCreatePage() {
   const { t } = useTranslation('translation')
@@ -42,7 +42,6 @@ export default function OfferingCreatePage() {
   )
 
   const [paperId, setPaperId] = useState(presetPaperId)
-  const [kind, setKind] = useState<Kind>('EXAM')
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([])
   const [startAt, setStartAt] = useState('')
   const [dueAt, setDueAt] = useState('')
@@ -104,11 +103,11 @@ export default function OfferingCreatePage() {
       setFormError(t('teacher.offering.errors.duration'))
       return
     }
-    if (kind === 'EXAM' && (durationValue === null || durationValue <= 0)) {
+    if (durationValue === null || durationValue <= 0) {
       setFormError(t('teacher.offering.errors.examDuration'))
       return
     }
-    if (kind === 'EXAM' && timingMode === 'FIXED_WINDOW' && !startIso) {
+    if (timingMode === 'FIXED_WINDOW' && !startIso) {
       setFormError(t('teacher.offering.errors.fixedWindowStart'))
       return
     }
@@ -145,7 +144,6 @@ export default function OfferingCreatePage() {
     try {
       const created = await api.post<OfferingView>('/api/offerings', {
         paperId: paper.id,
-        kind,
         startAt: startIso,
         dueAt: dueIso,
         durationMinutes: durationValue,
@@ -215,15 +213,6 @@ export default function OfferingCreatePage() {
                   ))}
                 </select>
                 <div className="hint">{t('teacher.offering.paperHint')}</div>
-              </label>
-
-              <label className="f">
-                <b>{t('teacher.offering.kind')}</b>
-                <select value={kind} onChange={(e) => setKind(e.target.value as Kind)}>
-                  <option value="EXAM">{t('teacher.kind.EXAM')}</option>
-                  <option value="ASSIGNMENT">{t('teacher.kind.ASSIGNMENT')}</option>
-                </select>
-                <div className="hint">{t('teacher.offering.kindHint')}</div>
               </label>
 
               <div className="f">

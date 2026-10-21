@@ -34,9 +34,9 @@ export default function LoginPage() {
         <h1>{t('app.name')}</h1>
         <p className="sub">{t('app.tagline')}</p>
         <ul>
-          <li>客观题当场判分，主观题 AI 给草稿，教师做最终决定。</li>
-          <li>标准答案是数据，AI 判分时看不到。</li>
-          <li>每份评语都能追溯到是谁批准的。</li>
+          <li>{t('login.bullet1')}</li>
+          <li>{t('login.bullet2')}</li>
+          <li>{t('login.bullet3')}</li>
         </ul>
       </div>
       <form className="card login-card" onSubmit={submit}>

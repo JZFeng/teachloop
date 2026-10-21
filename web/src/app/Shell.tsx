@@ -8,14 +8,15 @@ import { api } from '../api/client'
 interface NavItem { to: string; label: string; end?: boolean }
 
 export function Shell({ children }: { children: ReactNode }) {
-  const { me, logout } = useAuth()
-  const { t, i18n } = useTranslation()
+  const { me, logout, profileComplete } = useAuth()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [unread, setUnread] = useState(0)
 
   const teacherNav: NavItem[] = [
     { to: '/', label: t('nav.home'), end: true },
     { to: '/classes', label: t('nav.classes') },
+    { to: '/assignments', label: t('nav.assignments') },
     { to: '/papers', label: t('nav.papers') },
     { to: '/grading', label: t('nav.grading') },
     { to: '/review', label: t('nav.review') },
@@ -41,11 +42,6 @@ export function Shell({ children }: { children: ReactNode }) {
     return () => { alive = false; clearInterval(timer) }
   }, [])
 
-  const switchLang = async (lang: string) => {
-    await i18n.changeLanguage(lang)
-    document.documentElement.lang = lang
-  }
-
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
@@ -63,7 +59,10 @@ export function Shell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-foot">
-          <div className="small muted">{me?.displayName} · {me?.role}</div>
+          {/* 资料页入口常驻在这里：顶部「资料」button 只负责提醒补全，补全后消失。 */}
+          <NavLink to="/profile" className="sidebar-user" title={t('nav.profile')}>
+            {me?.displayName} · {me?.role}
+          </NavLink>
           <button className="btn" onClick={() => void logout().then(() => navigate('/login'))}>
             {t('common.logout')}
           </button>
@@ -72,12 +71,12 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className="app-main-wrap">
         <header className="app-topbar">
           <div className="row" style={{ gap: 8 }}>
-            <button className="btn sm" onClick={() => navigate('/profile')}>{t('nav.profile', { defaultValue: '资料' })}</button>
+            {profileComplete === false && (
+              <button className="btn sm" onClick={() => navigate('/profile')}>{t('profile.completeAction')}</button>
+            )}
             <button className="btn sm" onClick={() => navigate('/notifications')} title={t('nav.notifications')}>
               🔔 {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
             </button>
-            <button className={`chip${i18n.language.startsWith('zh') ? ' on' : ''}`} onClick={() => void switchLang('zh-CN')}>中文</button>
-            <button className={`chip${i18n.language.startsWith('en') ? ' on' : ''}`} onClick={() => void switchLang('en')}>EN</button>
           </div>
           <div className="small muted">{me?.email}</div>
         </header>

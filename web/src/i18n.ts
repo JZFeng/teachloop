@@ -1,74 +1,64 @@
 import i18n from 'i18next'
 import { initReactI18next } from 'react-i18next'
 import LanguageDetector from 'i18next-browser-languagedetector'
-import { teacherZh, teacherEn } from './teacher/locales'
-import { examZh, examEn } from './exam/locales'
-import { studentZh, studentEn } from './student/locales'
 
-const baseZh = {
-  app: { name: 'AI 批改平台', tagline: '让批改回到教学' },
-  nav: {
-    home: '首页', classes: '班级', papers: '试卷', grading: '批改', review: '复核',
-    reports: '报表', settings: '设置', exams: '考试', assignments: '作业', feedback: '我的反馈',
-    notifications: '通知',
-    profile: '资料',
-    aiSettings: 'AI 设置',
-  },
-  common: {
-    save: '保存', cancel: '取消', confirm: '确定', back: '返回', next: '下一步', prev: '上一步',
-    loading: '加载中…', empty: '暂无数据', error: '出错了', retry: '重试', logout: '退出登录',
-    search: '搜索', all: '全部', page: '第 {{page}} 页', total: '共 {{total}} 条', exampleData: '示例数据',
-  },
-  notifications: {
-    title: '通知', sub: '发布、成绩与复核结果都会在这里出现',
-    unreadOnly: '只看未读', markRead: '标为已读', markAll: '全部已读', empty: '没有通知',
-    unreadCount: '{{n}} 条未读', read: '已读',
-  },
-  login: {
-    title: '登录', subtitle: '开发期用邮箱密码登录；微信扫码在接入后启用',
-    email: '邮箱', password: '密码', submit: '登录', hint: '开发账号：teacher@teachloop.local / student@teachloop.local，密码 teachloop123',
-  },
+// 文案集中在 locales/*.json：改一句界面文案只改那一个文件的一行。
+// key 路径（app / nav / common / audit / exam / student ...）是稳定的，
+// 组件里一律用 t('teacher.xxx') 这类路径访问，改文案不需要碰代码。
+//
+// 新增一门语言：在 locales/ 下放一份 <code>.json（键与 zh-CN.json 完全一致，
+// 并在 language.<短码> 里写这门语言的自称，例如 "fr": "Français"），
+// 语言下拉框会自动多出一项，不需要改任何组件代码。
+
+type LocaleTranslation = Record<string, unknown>
+
+const localeModules = import.meta.glob<{ default: LocaleTranslation }>('./locales/*.json', { eager: true })
+
+const resources: Record<string, { translation: LocaleTranslation }> = {}
+const labels: Record<string, string> = {}
+
+for (const [path, module] of Object.entries(localeModules)) {
+  const code = path.split('/').pop()?.replace(/\.json$/, '') ?? ''
+  if (!code) continue
+  const translation = module.default
+  resources[code] = { translation }
+  const short = code.split('-')[0]
+  const languageNames = translation.language as Record<string, string> | undefined
+  labels[code] = languageNames?.[short] ?? code
 }
 
-const baseEn = {
-  app: { name: 'TeachLoop', tagline: 'Grading that serves teaching' },
-  nav: {
-    home: 'Home', classes: 'Classes', papers: 'Papers', grading: 'Grading', review: 'Review',
-    reports: 'Reports', settings: 'Settings', exams: 'Exams', assignments: 'Assignments', feedback: 'My feedback',
-    notifications: 'Notifications',
-    profile: 'Profile',
-    aiSettings: 'AI settings',
-  },
-  common: {
-    save: 'Save', cancel: 'Cancel', confirm: 'Confirm', back: 'Back', next: 'Next', prev: 'Previous',
-    loading: 'Loading…', empty: 'Nothing here yet', error: 'Something went wrong', retry: 'Retry', logout: 'Sign out',
-    search: 'Search', all: 'All', page: 'Page {{page}}', total: '{{total}} in total', exampleData: 'Sample data',
-  },
-  notifications: {
-    title: 'Notifications', sub: 'Publishing, scores and review results appear here',
-    unreadOnly: 'Unread only', markRead: 'Mark read', markAll: 'Mark all read', empty: 'No notifications',
-    unreadCount: '{{n}} unread', read: 'Read',
-  },
-  login: {
-    title: 'Sign in', subtitle: 'Email and password for now; WeChat sign-in comes later',
-    email: 'Email', password: 'Password', submit: 'Sign in', hint: 'Dev accounts: teacher@teachloop.local / student@teachloop.local, password teachloop123',
-  },
-}
+/** 语言下拉框的选项：默认语言（zh-CN）在最前，其余按代码排序。 */
+export const LANGUAGES: { code: string; label: string }[] = Object.keys(resources)
+  .sort((a, b) => (a === 'zh-CN' ? -1 : b === 'zh-CN' ? 1 : a.localeCompare(b)))
+  .map((code) => ({ code, label: labels[code] }))
 
 i18n
   .use(LanguageDetector)
   .use(initReactI18next)
   .init({
-    resources: {
-      'zh-CN': { translation: { ...baseZh, teacher: teacherZh, exam: examZh, student: studentZh } },
-      en: { translation: { ...baseEn, teacher: teacherEn, exam: examEn, student: studentEn } },
-    },
+    resources,
+    // 缺省中文：只有用户显式切过语言（记在 localStorage）才沿用，否则一律 zh-CN。
+    // 不再读 navigator：英文系统浏览器第一次打开也应该是中文界面。
     fallbackLng: 'zh-CN',
-    supportedLngs: ['zh-CN', 'en'],
+    supportedLngs: Object.keys(resources),
     nonExplicitSupportedLngs: false,
     load: 'currentOnly',
-    detection: { order: ['localStorage', 'navigator'], lookupLocalStorage: 'teachloop.lang', caches: ['localStorage'] },
+    detection: { order: ['localStorage'], lookupLocalStorage: 'teachloop.lang', caches: ['localStorage'] },
     interpolation: { escapeValue: false },
   })
+
+/** <html lang> 跟着界面语言走：缺省 zh-CN，切换后同步。 */
+export function applyDocumentLang(lang: string) {
+  document.documentElement.lang = lang.startsWith('zh') ? 'zh-CN' : lang
+}
+
+/** 切换界面语言：生效到本机（localStorage 缓存由 detector 写入）并同步 <html lang>。 */
+export async function changeLanguage(code: string): Promise<void> {
+  await i18n.changeLanguage(code)
+  applyDocumentLang(code)
+}
+
+applyDocumentLang(i18n.language || 'zh-CN')
+i18n.on('languageChanged', applyDocumentLang)
 
 export default i18n

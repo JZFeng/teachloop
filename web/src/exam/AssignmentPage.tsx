@@ -7,27 +7,42 @@ import type {
   AnswerSaveResponse,
   AttemptView,
   EntryView,
+  ExamPaper,
   MyAttemptsView,
   OfferingView,
   SubmitResponse,
 } from '../api/types'
+import { RichTextEditor } from '../components/RichTextEditor'
 import { ErrorState, Loading, PageHeader } from '../components/States'
 import { countWrittenWords, fmtScore } from './examUtils'
 import './exam.css'
 
 const LOCAL_DRAFT_PREFIX = 'teachloop.assignment.'
 
-function readLocalDraft(offeringId: string): string {
+type SubmissionMode = 'text' | 'file' | 'rich'
+
+/** 本机草稿：纯文本、富文本 HTML 与当前输入形态一起存，刷新后能原样恢复。 */
+interface LocalDraft { text: string; html: string; mode: SubmissionMode }
+
+function readLocalDraft(offeringId: string): LocalDraft {
   try {
-    return window.localStorage.getItem(`${LOCAL_DRAFT_PREFIX}${offeringId}`) ?? ''
+    const raw = window.localStorage.getItem(`${LOCAL_DRAFT_PREFIX}${offeringId}`) ?? ''
+    if (!raw) return { text: '', html: '', mode: 'text' }
+    if (!raw.startsWith('{')) return { text: raw, html: '', mode: 'text' } // 旧版只存纯文本
+    const parsed = JSON.parse(raw) as Partial<LocalDraft>
+    return {
+      text: typeof parsed.text === 'string' ? parsed.text : '',
+      html: typeof parsed.html === 'string' ? parsed.html : '',
+      mode: parsed.mode === 'rich' || parsed.mode === 'file' ? parsed.mode : 'text',
+    }
   } catch {
-    return ''
+    return { text: '', html: '', mode: 'text' }
   }
 }
 
-function writeLocalDraft(offeringId: string, text: string): void {
+function writeLocalDraft(offeringId: string, draft: LocalDraft): void {
   try {
-    window.localStorage.setItem(`${LOCAL_DRAFT_PREFIX}${offeringId}`, text)
+    window.localStorage.setItem(`${LOCAL_DRAFT_PREFIX}${offeringId}`, JSON.stringify(draft))
   } catch {
     // 本地存储不可用时静默跳过
   }
@@ -51,6 +66,7 @@ export default function AssignmentPage() {
   const { t } = useTranslation()
 
   const [entry, setEntry] = useState<EntryView | null>(null)
+  const [paper, setPaper] = useState<ExamPaper | null>(null)
   const [offering, setOffering] = useState<OfferingView | null>(null)
   const [attempts, setAttempts] = useState<MyAttemptsView | null>(null)
   const [content, setContent] = useState('')
@@ -60,7 +76,9 @@ export default function AssignmentPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [lastSaved, setLastSaved] = useState<string | null>(null)
   const [submitResult, setSubmitResult] = useState<SubmitResponse | null>(null)
-  const [mode, setMode] = useState<'text' | 'file' | 'rich'>('text')
+  // 刚交完这一页的正文副本：提交后 load() 会清空草稿，回显先靠它，服务端字段回来后再以服务端为准。
+  const [submittedSnapshot, setSubmittedSnapshot] = useState<{ html: string | null; text: string } | null>(null)
+  const [mode, setMode] = useState<SubmissionMode>('text')
   const [richHtml, setRichHtml] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
@@ -70,17 +88,23 @@ export default function AssignmentPage() {
     setLoading(true)
     setError(null)
     try {
-      const [loadedEntry, loadedAttempts, loadedOffering] = await Promise.all([
+      const [loadedEntry, loadedAttempts, loadedOffering, loadedPaper] = await Promise.all([
         api.get<EntryView>(`/api/offerings/${offeringId}/entry`),
         api.get<MyAttemptsView>(`/api/offerings/${offeringId}/my-submissions`),
         api.get<OfferingView>(`/api/offerings/${offeringId}`),
+        // 学生这次作业的题目要求就写在试卷题项里（ESSAY 题的题干），不含标准答案
+        api.get<ExamPaper>(`/api/offerings/${offeringId}/paper`).catch(() => null),
       ])
+      setPaper(loadedPaper)
       setEntry(loadedEntry)
       setAttempts(loadedAttempts)
       setOffering(loadedOffering)
       const latest = latestOf(loadedAttempts)
       const hasDraft = !!latest && latest.active && !latest.submittedAt && !latest.rejectedAt
-      setContent(hasDraft ? readLocalDraft(offeringId) : '')
+      const draft = hasDraft ? readLocalDraft(offeringId) : null
+      setContent(draft?.text ?? '')
+      setRichHtml(draft?.html ?? '')
+      setMode(draft?.mode ?? 'text')
     } catch (loadError) {
       setError(loadError as Error)
     } finally {
@@ -99,11 +123,11 @@ export default function AssignmentPage() {
   const canStart = !!attempts?.canRetry && !hasDraft && !submitted
   const attemptsLeft = attempts ? Math.max(0, attempts.maxAttempts - attempts.attemptsUsed) : null
 
-  // 草稿正文只存本机：后端没有「读取草稿正文」的接口
+  // 草稿正文只存本机：后端没有「读取草稿正文」的接口；纯文本和富文本 HTML 都存。
   useEffect(() => {
     if (!hasDraft) return
-    writeLocalDraft(offeringId, content)
-  }, [content, hasDraft, offeringId])
+    writeLocalDraft(offeringId, { text: content, html: richHtml, mode })
+  }, [content, richHtml, mode, hasDraft, offeringId])
 
   const startAttempt = async () => {
     setBusy(true)
@@ -155,6 +179,7 @@ export default function AssignmentPage() {
         answers: [],
       })
       setSubmitResult(response)
+      setSubmittedSnapshot({ html: mode === 'rich' ? richHtml : null, text: content })
       trackEvent('submit', { offeringId, mode: 'text' })
       clearLocalDraft(offeringId)
       await load()
@@ -202,6 +227,14 @@ export default function AssignmentPage() {
   const words = countWrittenWords(content)
   const pastDue = Date.parse(entry.dueAt) < Date.now()
   const showResult = submitResult ?? null
+  // 已提交正文：后端 /my-submissions 回传（刷新后仍在）；本次刚交的这份先用提交时的正文副本兜底。
+  const submittedHtml = latest?.contentHtml ?? submittedSnapshot?.html ?? null
+  const submittedText = latest?.contentText ?? submittedSnapshot?.text ?? null
+  // 单 ESSAY 作业（新建作业只写一段题目要求）：不渲染 <ol> 序号，改成一段正文卡片。
+  const singleEssay =
+    paper && paper.items.length === 1 && paper.items[0].questionType === 'ESSAY'
+      ? paper.items[0]
+      : null
 
   return (
     <>
@@ -213,17 +246,42 @@ export default function AssignmentPage() {
         )}
       />
 
+      {paper && paper.items.length > 0 && (
+        <div className="card">
+          <h2>{t('exam.assignmentPrompts')}</h2>
+          {singleEssay ? (
+            <div>
+              <div className="small muted">
+                {t('exam.points', { points: singleEssay.points })}
+                {singleEssay.sectionTitle ? ` · ${singleEssay.sectionTitle}` : ''}
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.75, marginTop: 6 }}>
+                {singleEssay.stem?.trim() || t('exam.noStem')}
+              </div>
+            </div>
+          ) : (
+            <ol className="assign-prompts" style={{ paddingLeft: 20, margin: 0 }}>
+              {paper.items.map((item) => (
+                <li key={item.number} style={{ marginBottom: 14 }}>
+                  <div className="small muted">
+                    {t('exam.points', { points: item.points })}
+                    {item.sectionTitle ? ` · ${item.sectionTitle}` : ''}
+                  </div>
+                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.75 }}>
+                    {item.stem?.trim() || t('exam.noStem')}
+                  </div>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
+
       <div className="card">
         <h2>{t('exam.assignmentNotes')}</h2>
+        {/* notice 已包含「这是作业、无倒计时」的说明，别再重复一行 */}
         {entry.notice && <div className="inline-note">{entry.notice}</div>}
-        <p className="small muted">
-          {t('exam.assignmentNoCountdown')}
-        </p>
-        {entry.notes.length > 0 && (
-          <ul className="small muted" style={{ paddingLeft: 20, lineHeight: 1.9, margin: '8px 0 0' }}>
-            {entry.notes.map((note) => <li key={note}>{note}</li>)}
-          </ul>
-        )}
+        {/* entry.notes 是「考试计时」的通用说明，作业页不适用，这里不显示 */}
         <div className="assign-meta" style={{ marginTop: 12 }}>
           <span className="tag gray">{t('exam.assignmentKind')}</span>
           <span className="small muted">{t('exam.dueAtLabel')} {fmtDateTime(entry.dueAt)}</span>
@@ -243,7 +301,11 @@ export default function AssignmentPage() {
 
       <div className="card">
         <h2>{t('exam.assignmentRubric')}</h2>
-        <div className="inline-note">{t('exam.rubricMissing')}</div>
+        {entry.rubric && entry.rubric.trim() ? (
+          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.75 }}>{entry.rubric}</div>
+        ) : (
+          <div className="inline-note">{t('exam.rubricMissing')}</div>
+        )}
       </div>
 
       {rejected && latest && (
@@ -283,6 +345,12 @@ export default function AssignmentPage() {
               {t('exam.viewFeedback')}
             </button>
           </div>
+          <SubmittedContentSection
+            html={submittedHtml}
+            text={submittedText}
+            attachmentName={showResult.attachmentName ?? null}
+            attachmentHref={`/api/submissions/${showResult.submissionId}/attachment`}
+          />
         </div>
       )}
 
@@ -311,15 +379,16 @@ export default function AssignmentPage() {
                 {t('exam.newAttempt')}
               </button>
             )}
-            {latest.attachmentName && latest.submissionId && (
-              <a className="btn" href={`/api/submissions/${latest.submissionId}/attachment`}>
-                {t('exam.downloadAttachment')} · {latest.attachmentName}
-              </a>
-            )}
             <button type="button" className="btn" onClick={() => navigate(`/feedback/${offeringId}`)}>
               {t('exam.viewFeedback')}
             </button>
           </div>
+          <SubmittedContentSection
+            html={submittedHtml}
+            text={submittedText}
+            attachmentName={latest.attachmentName}
+            attachmentHref={latest.submissionId ? `/api/submissions/${latest.submissionId}/attachment` : null}
+          />
         </div>
       )}
 
@@ -341,15 +410,12 @@ export default function AssignmentPage() {
           {mode === 'rich' && (
             <>
               <p className="small muted" style={{ marginTop: 0 }}>{t('exam.richHint')}</p>
-              <div
-                contentEditable
-                suppressContentEditableWarning
-                className="writearea assignment-textarea"
-                style={{ minHeight: 180 }}
-                onInput={(e) => {
-                  const html = (e.currentTarget as HTMLDivElement).innerHTML
+              <RichTextEditor
+                initialHtml={richHtml}
+                placeholder={t('exam.richPlaceholder')}
+                onChange={(html, text) => {
                   setRichHtml(html)
-                  setContent((e.currentTarget as HTMLDivElement).innerText)
+                  setContent(text)
                 }}
               />
             </>
@@ -416,4 +482,32 @@ function latestOf(attempts: MyAttemptsView | null): AttemptView | null {
   const list = attempts?.attempts ?? []
   if (!list.length) return null
   return [...list].sort((a, b) => a.attemptNo - b.attemptNo)[list.length - 1]
+}
+
+/**
+ * 已提交正文直接回显（T248）：学生交完就在本页看到自己交了什么，不用再点按钮跳走。
+ * html 是后端写入时已消毒的 content_html，可直接渲染；纯文本按原样换行。
+ */
+function SubmittedContentSection({ html, text, attachmentName, attachmentHref }: {
+  html: string | null
+  text: string | null
+  attachmentName: string | null
+  attachmentHref: string | null
+}) {
+  const { t } = useTranslation()
+  const rich = html && html.trim() ? html : null
+  const plain = text && text.trim() ? text : null
+  if (!rich && !plain && !attachmentName) return null
+  return (
+    <div style={{ marginTop: 16 }}>
+      <h3 style={{ margin: '0 0 6px' }}>{t('exam.submittedContent')}</h3>
+      {rich && <div className="submitted-body rich" dangerouslySetInnerHTML={{ __html: rich }} />}
+      {!rich && plain && <div className="submitted-body">{plain}</div>}
+      {attachmentName && attachmentHref && (
+        <a className="btn" style={{ marginTop: 8 }} href={attachmentHref}>
+          {t('exam.downloadAttachment')} · {attachmentName}
+        </a>
+      )}
+    </div>
+  )
 }

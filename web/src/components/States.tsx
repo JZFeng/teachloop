@@ -1,20 +1,24 @@
 import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
 
-export function Loading({ label = '加载中…' }: { label?: string }) {
-  return <div className="card"><span className="muted">{label}</span></div>
+export function Loading({ label }: { label?: string }) {
+  const { t } = useTranslation('translation')
+  return <div className="card"><span className="muted">{label ?? t('common.loading')}</span></div>
 }
 
 export function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => void }) {
+  const { t } = useTranslation('translation')
   return (
     <div className="card">
-      <p className="inline-note">出错了：{error.message}</p>
-      {onRetry && <button className="btn" onClick={onRetry}>重试</button>}
+      <p className="inline-note">{t('common.errorWith')} {error.message}</p>
+      {onRetry && <button className="btn" onClick={onRetry}>{t('common.retry')}</button>}
     </div>
   )
 }
 
 export function Empty({ children }: { children?: ReactNode }) {
-  return <div className="card"><span className="muted">{children ?? '暂无数据'}</span></div>
+  const { t } = useTranslation('translation')
+  return <div className="card"><span className="muted">{children ?? t('common.empty')}</span></div>
 }
 
 export function PageHeader({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {

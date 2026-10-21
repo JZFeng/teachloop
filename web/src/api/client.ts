@@ -1,3 +1,4 @@
+import i18n from '../i18n'
 import type { ApiErrorBody } from './types'
 
 export class ApiError extends Error {
@@ -30,6 +31,8 @@ export async function ensureCsrf(): Promise<void> {
 
 async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
   const headers: Record<string, string> = { ...csrfHeaders() }
+  // 后端按 Accept-Language 决定 message 语言；跟着界面语言走，而不是浏览器的语言。
+  headers['Accept-Language'] = i18n.language || 'zh-CN'
   if (body !== undefined) headers['Content-Type'] = 'application/json'
   const res = await fetch(path, {
     method,
@@ -65,7 +68,8 @@ export function fmtDateTime(iso: string | null | undefined): string {
   if (!iso) return '—'
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return iso
-  return d.toLocaleString(undefined, {
+  // 跟随界面语言：中文界面显示 2026/10/20 22:18，而不是浏览器默认的 10/20/2026, 10:18 PM。
+  return d.toLocaleString(i18n.language || undefined, {
     year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
   })
 }

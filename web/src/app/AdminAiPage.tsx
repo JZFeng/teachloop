@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 
 interface AiSettingsView {
@@ -16,6 +17,7 @@ interface TestResult { ok: boolean; latencyMs: number; message: string; model: s
 
 /** 管理员 AI 设置：保存后需重启应用生效；Key 只显示掩码。 */
 export default function AdminAiPage() {
+  const { t } = useTranslation('translation')
   const [view, setView] = useState<AiSettingsView | null>(null)
   const [form, setForm] = useState({ provider: 'deepseek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-flash', apiKey: '', temperature: '0.2' })
   const [saved, setSaved] = useState(false)
@@ -52,32 +54,47 @@ export default function AdminAiPage() {
 
   return (
     <div className="card" style={{ maxWidth: 760 }}>
-      <h1>AI 大模型设置</h1>
-      <p className="small muted">支持 DeepSeek / OpenAI 兼容端点。保存后需要重启应用才生效；API Key 以加密形式存库，不会回显。</p>
+      <h1>{t('app.ai.title')}</h1>
+      <p className="small muted">{t('app.ai.sub')}</p>
       {error && <div className="inline-note danger">{error}</div>}
       {view && (
         <div className="inline-note">
-          当前：{view.provider} / {view.model} · Key {view.apiKeySet ? `已配置 ${view.apiKeyMasked}` : '未配置'} · 更新于 {new Date(view.updatedAt).toLocaleString()}
+          {t('app.ai.current', {
+            provider: view.provider,
+            model: view.model,
+            key: view.apiKeySet
+              ? t('app.ai.keySet', { mask: view.apiKeyMasked })
+              : t('app.ai.keyUnset'),
+            time: new Date(view.updatedAt).toLocaleString(),
+          })}
         </div>
       )}
       <label className="f"><b>Provider</b>
         <select value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}>
           <option value="deepseek">DeepSeek</option>
-          <option value="openai-compatible">OpenAI 兼容</option>
+          <option value="openai-compatible">{t('app.ai.providerOpenaiCompatible')}</option>
         </select>
       </label>
       <label className="f"><b>Base URL</b><input value={form.baseUrl} onChange={(e) => setForm({ ...form, baseUrl: e.target.value })} placeholder="https://api.deepseek.com" /></label>
-      <label className="f"><b>模型</b><input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="deepseek-flash" /></label>
+      <label className="f"><b>{t('app.ai.model')}</b><input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="deepseek-flash" /></label>
       <label className="f"><b>Temperature</b><input type="number" min={0} max={1} step={0.1} value={form.temperature} onChange={(e) => setForm({ ...form, temperature: e.target.value })} /></label>
-      <label className="f"><b>API Key（留空表示不修改）</b>
+      <label className="f"><b>{t('app.ai.apiKey')}</b>
         <input type="password" value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} placeholder="sk-..." autoComplete="off" />
       </label>
       <div className="row">
-        <button className="btn pri" disabled={busy} onClick={() => void save()}>保存</button>
-        <button className="btn" disabled={busy} onClick={() => void runTest()}>测试连接</button>
+        <button className="btn pri" disabled={busy} onClick={() => void save()}>{t('app.ai.save')}</button>
+        <button className="btn" disabled={busy} onClick={() => void runTest()}>{t('app.ai.test')}</button>
       </div>
-      {saved && <p className="small">已保存。重启应用后新的 AI 配置生效。</p>}
-      {test && <p className="small">测试：{test.ok ? '通过' : '失败'} · {test.message} · {test.latencyMs}ms</p>}
+      {saved && <p className="small">{t('app.ai.saved')}</p>}
+      {test && (
+        <p className="small">
+          {t('app.ai.testResult', {
+            result: test.ok ? t('app.ai.testOk') : t('app.ai.testFail'),
+            message: test.message,
+            ms: test.latencyMs,
+          })}
+        </p>
+      )}
     </div>
   )
 }
