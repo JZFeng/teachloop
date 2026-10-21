@@ -47,7 +47,7 @@ web/src/app/SetupPage.tsx|COLOR_LITERAL|0
 web/src/app/SetupPage.tsx|EMOJI_ICON|0
 web/src/app/SetupPage.tsx|INLINE_STYLE|0
 web/src/app/SetupPage.tsx|LEGACY_BTN_CLASS|3
-web/src/app/Shell.tsx|ANTD_DIRECT|1
+web/src/app/Shell.tsx|ANTD_DIRECT|0
 web/src/app/Shell.tsx|COLOR_LITERAL|0
 web/src/app/Shell.tsx|EMOJI_ICON|0
 web/src/app/Shell.tsx|INLINE_STYLE|0

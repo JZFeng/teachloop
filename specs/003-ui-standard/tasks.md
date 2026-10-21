@@ -14,7 +14,7 @@
 | T306 | `/ui-kit` 展示页 | T305 | 组件 × 状态矩阵可点开；无中文字面量（`check-i18n` 0 新增） | 完成 |
 | T307 | 5 屏迁移（登录/首页/试卷列表/新建作业/复核） | T305 | `npx tsc --noEmit` 0；5 屏不再出现手写 `btn` 主按钮（各自基线为 0 新增） | 完成 |
 | T308 | 截图基线：21 屏 × 亮/暗 | T307 | `docs/reports/ui-baseline/` 下有 42 张 PNG 与 `index.md` | **未完成**（未装 Playwright、夜间不起新服务） |
-| T309 | 剩余 16 屏组件化 | T307 | 每屏的 `LEGACY_BTN_CLASS` 与 `INLINE_STYLE` 基线降到 0 | 未开始 |
+| T309 | 剩余 13 屏组件化 | T307 | 每屏的 `LEGACY_BTN_CLASS` 与 `INLINE_STYLE` 基线降到 0 | 未开始 |
 | T310 | 删除 `components/States.tsx` 兼容层与 `components/DataTable.tsx` | T309 | 全仓无 `from '../components/States'` / `'../components/DataTable'` 引用 | 未开始 |
 | T311 | `check-ui` 守卫 + Makefile 接入 + 反证 | T305 | `make check-ui` 通过；插入 `#ff0000` 时退出码 1（已实测） | 完成 |
 | T312 | 对比度守卫 `scripts/ui/contrast.py` | T303 | 改任一处令牌不改另一处时该脚本失败 | 完成 |
@@ -24,6 +24,7 @@
 | T316 | 真改批改总览：4 张可点统计卡 + Segmented 过滤 + 进度条列 | T314 | 截图 `grading-overview.png`；行内 4 个状态标签收敛为「进度条 + 状态标签」 | 完成 |
 | T317 | 真改批改详情：统计卡替代 7 个标签、页头主次操作、Alert 回执、拒收表单用 Field、拒收理由并入状态 tooltip | T314 | 截图 `grading-detail.png`；表格一屏放下不再折行 | 完成 |
 | T318 | 资料页改用组件层 | T315 | 截图 `profile.png`；必填红框与字段错误由 Field 统一 | 完成 |
+| T319 | 侧栏导航图标（含 `/ui-kit` 图标清单、暗色当前项文字对比修正） | T305 | 截图 `nav-icons-{light,dark}.png`、`ui-kit-icons-{light,dark}.png`、`nav-focus-dark.png`；`check-ui` 125 处；`check-i18n` 1067 键；`contrast.py` 16 组；`tsc`/`build` 0；`make test` 209/0/0/0 | 完成 |
 
 ## 执行记录
 
@@ -39,11 +40,13 @@
 | 2026-10-21 | T311 | 完成 | 基线 145 处；插入 `#ff0000` 后退出码 1，撤回后 0 |
 | 2026-10-21 | T312 | 完成 | 见 T303 |
 | 2026-10-21 | T313 | 完成 | 计数自检见交付报告 |
+| 2026-10-21 | T318 | 完成 | `profile.png`；Field 统一必填红框 |
+| 2026-10-21 | T319 | 完成 | 侧栏 15 个图标经 `ui/icons.tsx` 唯一出口；`check-ui` 125、`check-i18n` 1067、`contrast.py` 16 组；截图见交付报告第 10 节 |
 
 ## 已知缺口
 
 - **T308 未完成**：没有截图基线，就没有「改造前后」的像素对比。任何「视觉已达标」的说法都只能靠
   人工看，不能靠脚本。报告里已明确写「视觉未验证」。
-- **T309/T310 未开始**：16 屏仍是手写类名，靠令牌层跟随新视觉；兼容转发层因此必须保留。
-- **`make test` 全量未跑**：本次零后端改动，只跑了 `check-deps/check-boundaries/check-i18n/check-ui`
-  与 `pnpm build`。若需要「后端没被碰坏」的硬证据，需用户在在场时跑一次。
+- **T309/T310 未开始**：13 屏仍是手写类名，靠令牌层跟随新视觉；兼容转发层因此必须保留。
+- **`make test` 全量已补跑（2026-10-21 第三轮）**：209 tests / 0 failures / 0 errors / 0 skipped，退出码 0。
+  此前「未跑」的缺口已关闭；后续零后端改动仍需重跑一次，别把这次的绿当永久。

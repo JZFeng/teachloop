@@ -126,3 +126,79 @@ cd web && pnpm dev          # http://localhost:5173
 
 仍未做：截图基线（T308）、剩余 13 屏组件化（T309）、删兼容层（T310）。
 
+---
+
+## 10. 第三轮（2026-10-21）：侧栏图标 + 暗色当前项对比
+
+你的反馈是侧栏「纯文字怪丑的」。这一轮只改这一件事，外加规划时发现的一个既有对比度问题。
+截图全部来自已在跑的 5173（真浏览器 1280×813），没有新起服务。
+
+### 10.1 改了什么
+
+| 入口 | 图标 | 入口 | 图标 |
+| :--- | :--- | :--- | :--- |
+| 首页 | `HomeOutlined` | 复核 | `AuditOutlined` |
+| 班级 | `TeamOutlined` | 报表 | `BarChartOutlined` |
+| 作业 | `BookOutlined` | 组件标准 | `AppstoreOutlined` |
+| 试卷 | `FileTextOutlined` | AI 设置（管理员） | `RobotOutlined` |
+| 批改 | `HighlightOutlined` | 我的反馈（学生） | `CommentOutlined` |
+| 通知（顶栏） | `BellOutlined` | 资料 / 退出登录（页脚） | `UserOutlined` / `LogoutOutlined` |
+| 主题亮/暗 | `SunOutlined` / `MoonOutlined` | | |
+
+- 新增 `web/src/ui/icons.tsx` 作为图标唯一出口；全仓只有它直接 `import '@ant-design/icons'`
+  （`grep` 命中 1 个文件：导入语句 + 注释里的说明）。页面与 `ThemeToggle` 都从 `../ui` / `./icons` 取。
+- 侧栏 `NavItem` 增加必填 `icon`，教师 8 项、学生 3 项、管理员额外 1 项；图标 16px、
+  与文字间距 10px，未选中 `--muted-2`、悬停 `--text`、当前项 `--accent`。
+- 页脚资料行与「退出登录」按钮补图标；顶栏「通知」沿用 Bell，但改从组件层引。
+- `/ui-kit` 新增「图标」区，15 个图标一页对照；这是宪法第十五条「样式改动附展示页」的落点。
+- 图标全部 `aria-hidden`（文字已经可读），键盘焦点补 `.nav-link:focus-visible` 环。
+
+### 10.2 顺手修掉的暗色对比度问题
+
+暗色下当前项文字原来是 `--accent` on `--accent-weak`，实测 **3.25:1**，正文要求 4.5:1，是既有违规。
+改法：` :root[data-theme='dark'] .nav-link.on { color: var(--text); }`，文字 **11.14:1**；
+强调色留在背景与图标上（图标 3.25:1 ≥ 3:1）。主按钮白字仍是 4.84:1，没有被牵连。
+`contrast.py` 从 11 组扩到 **16 组**，新增 5 组（亮/暗未选中图标、亮/暗当前项文字、暗当前项图标），
+以及 `--accent-weak ↔ colorPrimaryBg` 的同步断言。
+
+### 10.3 实际跑过的命令
+
+| 命令 | 结果 |
+| :--- | :--- |
+| `cd web && pnpm run typecheck` | 退出码 0 |
+| `cd web && pnpm run build` | 退出码 0；antd gzip **297.49 kB**（前 293.82，+3.67）、业务 chunk gzip 99.65 kB、CSS 7.19 kB |
+| `make check-ui` | 退出码 0；存量 **126 → 125**（Shell 的 `ANTD_DIRECT` 归零） |
+| `make check-i18n` | 退出码 0；zh/en 各 **1067 键**；新增中文字面量 0 |
+| `python3 scripts/ui/contrast.py` | 退出码 0；**16 组**全过 |
+| `make test` | 退出码 0；**209 tests / 0 failures / 0 errors / 0 skipped** |
+| `grep -rn "@ant-design/icons" web/src` | 只命中 `web/src/ui/icons.tsx`（导入 + 注释字样，1 个文件） |
+
+### 10.4 截图（`docs/reports/ui-standard-2026-10-21/`）
+
+| 文件 | 说明 |
+| :--- | :--- |
+| `nav-before-light.png` / `nav-before-dark.png` | 改前：纯文字侧栏（亮/暗） |
+| `nav-icons-light.png` / `nav-icons-dark.png` | 改后：教师 8 项带图标，当前项图标蓝色 |
+| `ui-kit-icons-light.png` / `ui-kit-icons-dark.png` | `/ui-kit` 新增的图标清单区 |
+| `nav-focus-dark.png` | 键盘 Tab 到「组件标准」，焦点环可见 |
+
+真浏览器另外还核过：英文界面下最长标签 `Assignments` 宽 83px、行高 23px，238px 侧栏不换行不截断；
+数了每个 `.nav-link` 正好 1 个 `.nav-ico`，`aria-hidden="true"` 生效，读屏树里只出现文字标签。
+
+### 10.5 未验证 / 已知限制
+
+1. **只在本机 Chromium 验过**，Safari/Firefox 未测（与第一轮同样的限制）。
+2. **字形选择是主观的**：作业用书本、试卷用文档、批改用记号笔、复核用审核清单。想换字形只改
+   `ui/icons.tsx` 的导出与 `Shell.tsx` 的映射，不动结构。
+3. **`contrast.py` 断言的是令牌组合**，它证明「暗色当前项文字用正文色」这组值达标，不能证明
+   CSS 规则本身没被改坏；后者靠代码 review 与 `nav-focus-dark.png` / `nav-icons-dark.png`。
+4. 英文宽度是 DOM 量出来的，没有单独提交英文截图。
+
+### 10.6 回滚
+
+一条 `git revert <commit>`；零数据库、零迁移、零配置。只想撤对比度部分时：删掉那条暗色覆盖规则
+与 5 组新检查、把 AC-27.6 的对应句去掉即可。
+
+仍未做：截图基线（T308）、剩余 13 屏组件化（T309）、删兼容层（T310）。
+
+

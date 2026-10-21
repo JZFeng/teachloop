@@ -2,13 +2,28 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BellOutlined } from '@ant-design/icons'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
-import { Button, ThemeToggle } from '../ui'
+import {
+  AppstoreOutlined,
+  AuditOutlined,
+  BarChartOutlined,
+  BellOutlined,
+  BookOutlined,
+  Button,
+  CommentOutlined,
+  FileTextOutlined,
+  HighlightOutlined,
+  HomeOutlined,
+  LogoutOutlined,
+  RobotOutlined,
+  TeamOutlined,
+  ThemeToggle,
+  UserOutlined,
+} from '../ui'
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
 
-interface NavItem { to: string; label: string; end?: boolean }
+interface NavItem { to: string; label: string; icon: ReactNode; end?: boolean }
 
 export function Shell({ children }: { children: ReactNode }) {
   const { me, logout, profileComplete } = useAuth()
@@ -17,21 +32,23 @@ export function Shell({ children }: { children: ReactNode }) {
   const [unread, setUnread] = useState(0)
 
   const teacherNav: NavItem[] = [
-    { to: '/', label: t('nav.home'), end: true },
-    { to: '/classes', label: t('nav.classes') },
-    { to: '/assignments', label: t('nav.assignments') },
-    { to: '/papers', label: t('nav.papers') },
-    { to: '/grading', label: t('nav.grading') },
-    { to: '/review', label: t('nav.review') },
-    { to: '/reports', label: t('nav.reports') },
+    { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true },
+    { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined /> },
+    { to: '/assignments', label: t('nav.assignments'), icon: <BookOutlined /> },
+    { to: '/papers', label: t('nav.papers'), icon: <FileTextOutlined /> },
+    { to: '/grading', label: t('nav.grading'), icon: <HighlightOutlined /> },
+    { to: '/review', label: t('nav.review'), icon: <AuditOutlined /> },
+    { to: '/reports', label: t('nav.reports'), icon: <BarChartOutlined /> },
     // UI 标准的展示页：只有教师与管理员看得到，学生端不需要。
-    { to: '/ui-kit', label: t('ui.navKit') },
-    ...(me?.role === 'ADMIN' ? [{ to: '/admin/ai', label: t('nav.aiSettings') }] : []),
+    { to: '/ui-kit', label: t('ui.navKit'), icon: <AppstoreOutlined /> },
+    ...(me?.role === 'ADMIN'
+      ? [{ to: '/admin/ai', label: t('nav.aiSettings'), icon: <RobotOutlined /> }]
+      : []),
   ]
   const studentNav: NavItem[] = [
-    { to: '/', label: t('nav.home'), end: true },
-    { to: '/classes', label: t('nav.classes') },
-    { to: '/feedback', label: t('nav.feedback') },
+    { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true },
+    { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined /> },
+    { to: '/feedback', label: t('nav.feedback'), icon: <CommentOutlined /> },
   ]
   const items = me?.role === 'STUDENT' ? studentNav : teacherNav
 
@@ -65,7 +82,8 @@ export function Shell({ children }: { children: ReactNode }) {
               end={item.end}
               className={({ isActive }) => `nav-link${isActive ? ' on' : ''}`}
             >
-              {item.label}
+              <span className="nav-ico" aria-hidden="true">{item.icon}</span>
+              <span>{item.label}</span>
             </NavLink>
           ))}
         </nav>
@@ -73,9 +91,14 @@ export function Shell({ children }: { children: ReactNode }) {
           <ThemeToggle />
           {/* 资料页入口常驻在这里：顶部「资料」button 只负责提醒补全，补全后消失。 */}
           <NavLink to="/profile" className="sidebar-user" title={t('nav.profile')}>
-            {me?.displayName} · {me?.role}
+            <span className="foot-ico" aria-hidden="true"><UserOutlined /></span>
+            <span>{me?.displayName} · {me?.role}</span>
           </NavLink>
-          <Button block onClick={() => void logout().then(() => navigate('/login'))}>
+          <Button
+            block
+            icon={<LogoutOutlined aria-hidden="true" />}
+            onClick={() => void logout().then(() => navigate('/login'))}
+          >
             {t('common.logout')}
           </Button>
         </div>
@@ -88,7 +111,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 {t('profile.completeAction')}
               </Button>
             )}
-            <Button size="small" icon={<BellOutlined />} onClick={() => navigate('/notifications')}>
+            <Button size="small" icon={<BellOutlined aria-hidden="true" />} onClick={() => navigate('/notifications')}>
               {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
             </Button>
           </div>

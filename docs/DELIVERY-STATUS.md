@@ -87,17 +87,19 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 
 21. **AI 结果可见与复核页收敛（T253，2026-10-20 完成）**：AI 判分不再只有一个分数——`reviews.ai_criteria` / `ai_feedback` 落库，复核页新增「AI 评估」区（建议分、逐项得分与意见、优点/建议、「采用 AI 建议分」）；复核页标题去重、题项与评分标准折叠；审计「复核改分」改写成「主观分 7.5 → 8 · 评语：… · 优点：… · 建议：…」（去尾零、null 不显示）；顶栏右侧用户信息可点击进 `/profile`。验证：`GradingDispatchTest` 10/10（含 AI 逐项意见断言）、`make test` 209/0/0/0、`pnpm typecheck` / `pnpm build` / `check-i18n`（1029 键）通过；用用户提供的 `Rubric.md` + `Maria.txt` / `Mark.txt` 跑通「建作业 → 两人提交 → AI 先批 → 教师复核发布 → 学生反馈」。**注意**：当前 dev 用 stub 引擎、未配置 DEEPSEEK_API_KEY，AI 分数与意见不是真实评分。
 
-18. **UI 标准（2026-10-21，`feat/ui-standard` 分支）**：令牌层 + 组件层 + 守卫三层落地。
+18. **UI 标准（2026-10-21，已合入 `main`）**：令牌层 + 组件层 + 守卫三层落地。
     视觉：蓝主色 `#1D5FBF`（白字 6.10:1）、实边框、圆角 12→6、中文行高 1.65、表头去 uppercase、
     主按钮去渐变与彩色投影；亮/暗两套主题，开关在侧栏底部，选择记在本机。
-    组件：`web/src/ui/` 14 个文件（Button/Field/Input/Alert/PageHeader/StatCard/Tag/DataTable/States/
-    ThemeProvider/ThemeToggle/tokens/ui.css/index），页面只从 `ui/` 引；`/ui-kit` 是唯一参考页。
-    守卫：`scripts/check-ui.py`（5 条规则 + 145 处基线）与 `scripts/ui/contrast.py`（11 组对比度 +
+    组件：`web/src/ui/` 16 个文件（Button/Field/Input/Alert/Segmented/PageHeader/StatCard/Tag/DataTable/
+    States/ThemeProvider/ThemeToggle/tokens/ui.css/index/icons），页面只从 `ui/` 引；`/ui-kit` 是唯一参考页。
+    侧栏导航：15 个图标统一经 `ui/icons.tsx` 出口（T319）；当前项暗色文字由 3.25:1 修到 11.14:1。
+    守卫：`scripts/check-ui.py`（5 条规则 + 125 处基线）与 `scripts/ui/contrast.py`（16 组对比度 +
     两处令牌一致）已进 `make test`。反证：插入 `#ff0000` 时退出码 1。
-    迁移：登录、教师首页、试卷列表、新建作业、复核 5 屏已改用组件层；其余 16 屏靠令牌层继承视觉。
-    验证：`make test` 退出码 0（54 类 / 206 tests / 0 failures）；`pnpm build` 0（antd chunk gzip 293.82 kB）；
-    `check-ui`/`check-i18n`（1060 键对齐）通过。截图 9 张见 `docs/reports/ui-standard-2026-10-21/`。
-    **未完成**：21 屏 × 亮暗截图基线（T308，需装 Playwright）；剩余 16 屏组件化（T309）；
+    迁移：登录、教师首页、试卷列表、新建作业、复核 5 屏已改用组件层；其余 13 屏靠令牌层继承视觉。
+    验证：`make test` 退出码 0（209 tests / 0 failures / 0 errors）；`pnpm build` 0（antd chunk gzip 297.49 kB）；
+    `check-ui` 125 处；`check-i18n`（1067 键对齐）；`contrast.py` 16 组。截图见
+    `docs/reports/ui-standard-2026-10-21/`（含 T319 的 before/after 7 张）。
+    **未完成**：21 屏 × 亮暗截图基线（T308，需装 Playwright）；剩余 13 屏组件化（T309）；
     跨浏览器未验；视觉「好不好看」待用户确认。
 
 

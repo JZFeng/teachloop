@@ -1,15 +1,30 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  AppstoreOutlined,
+  AuditOutlined,
+  BarChartOutlined,
+  BellOutlined,
+  BookOutlined,
   Button,
+  CommentOutlined,
   DataTable,
   Empty,
   ErrorState,
   Field,
+  FileTextOutlined,
+  HighlightOutlined,
+  HomeOutlined,
   Loading,
+  LogoutOutlined,
+  MoonOutlined,
   PageHeader,
+  RobotOutlined,
   StatCard,
+  SunOutlined,
   Tag,
+  TeamOutlined,
+  UserOutlined,
 } from '../ui'
 import type { Column } from '../ui'
 
@@ -24,6 +39,25 @@ const DEMO_ROWS: DemoRow[] = [
   { id: '1', name: 'demoRow1', state: 'grading', updated: '2026-10-20 09:24' },
   { id: '2', name: 'demoRow2', state: 'done', updated: '2026-10-19 21:10' },
   { id: '3', name: 'demoRow3', state: 'failed', updated: '2026-10-18 16:03' },
+]
+
+/** 图标清单：与 `ui/icons.tsx` 的导出一一对应，文案复用导航/通用 key。 */
+const ICON_DEMO: { key: string; icon: ReactNode }[] = [
+  { key: 'nav.home', icon: <HomeOutlined /> },
+  { key: 'nav.classes', icon: <TeamOutlined /> },
+  { key: 'nav.assignments', icon: <BookOutlined /> },
+  { key: 'nav.papers', icon: <FileTextOutlined /> },
+  { key: 'nav.grading', icon: <HighlightOutlined /> },
+  { key: 'nav.review', icon: <AuditOutlined /> },
+  { key: 'nav.reports', icon: <BarChartOutlined /> },
+  { key: 'ui.navKit', icon: <AppstoreOutlined /> },
+  { key: 'nav.aiSettings', icon: <RobotOutlined /> },
+  { key: 'nav.feedback', icon: <CommentOutlined /> },
+  { key: 'nav.notifications', icon: <BellOutlined /> },
+  { key: 'nav.profile', icon: <UserOutlined /> },
+  { key: 'common.logout', icon: <LogoutOutlined /> },
+  { key: 'ui.theme.light', icon: <SunOutlined /> },
+  { key: 'ui.theme.dark', icon: <MoonOutlined /> },
 ]
 
 /**
@@ -122,6 +156,18 @@ export default function UiKitPage() {
           <ErrorState error={new Error(t('ui.kit.demoError'))} onRetry={() => {}} />
           <Empty>{t('ui.kit.demoEmpty')}</Empty>
         </div>
+      </Section>
+
+      <Section title={t('ui.kit.sectionIcon')}>
+        <div className="tl-kit-icons">
+          {ICON_DEMO.map((item) => (
+            <div className="tl-kit-icon" key={item.key}>
+              <span className="tl-kit-icon-glyph" aria-hidden="true">{item.icon}</span>
+              <span>{t(item.key)}</span>
+            </div>
+          ))}
+        </div>
+        <p className="small muted">{t('ui.kit.noteIcon')}</p>
       </Section>
 
       <Section title={t('ui.kit.sectionType')}>

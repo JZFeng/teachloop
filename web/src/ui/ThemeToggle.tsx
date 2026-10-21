@@ -1,6 +1,6 @@
 import { Segmented } from 'antd'
-import { MoonOutlined, SunOutlined } from '@ant-design/icons'
 import { useTranslation } from 'react-i18next'
+import { MoonOutlined, SunOutlined } from './icons'
 import { useThemeMode } from './ThemeProvider'
 import type { ThemeMode } from './tokens'
 

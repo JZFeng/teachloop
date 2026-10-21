@@ -31,6 +31,7 @@ BORDER_MIN = 3.0
 # tokens.css 变量 → tokens.ts 令牌名（同一个值两个出口）
 CSS_TO_TS = {
     "accent": "colorPrimary",
+    "accent-weak": "colorPrimaryBg",
     "text": "colorText",
     "muted": "colorTextSecondary",
     "muted-2": "colorTextTertiary",
@@ -134,6 +135,12 @@ def main() -> int:
         ("dark", "colorTextSecondary", "#141414", "次级文字", TEXT_MIN),
         ("dark", "colorTextTertiary", "#141414", "辅助文字（小字）", TEXT_MIN),
         ("dark", "colorBorder", "#1f1f1f", "输入框边框", BORDER_MIN),
+        # 侧栏导航（T319）：未选中图标 3:1，当前项文字 4.5:1；暗色当前项文字改用正文色。
+        ("light", "colorTextTertiary", css["light"]["panel"], "侧栏图标（未选中）", BORDER_MIN),
+        ("dark", "colorTextTertiary", css["dark"]["panel"], "侧栏图标（未选中）", BORDER_MIN),
+        ("light", "colorPrimary", css["light"]["accent-weak"], "侧栏当前项文字", TEXT_MIN),
+        ("dark", "colorText", css["dark"]["accent-weak"], "侧栏当前项文字", TEXT_MIN),
+        ("dark", "colorPrimary", css["dark"]["accent-weak"], "侧栏当前项图标", BORDER_MIN),
     ]
 
     rows = []
