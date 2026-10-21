@@ -4,7 +4,7 @@
 
 本项目的推进顺序**不可跳步**。完整手册见 `.dsh/skills/spec-first-delivery/SKILL.md`。
 
-1. **Research** — 先看同行怎么做，写进 `.docs/research/`。
+1. **Research** — 先看同行怎么做，写进 `docs/research/`。
 2. **Constitution** — 不可协商的约束（隐私、可观测、i18n、模块边界…）。
 3. **Spec** — 用户故事 + 可验收的验收标准 + 功能需求。
 4. **Mock** — 可点击的界面原型；**与 Spec 循环**，画的时候发现的缺口回写 Spec。
