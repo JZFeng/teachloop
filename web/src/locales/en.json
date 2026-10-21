@@ -1121,5 +1121,42 @@
       "totalMismatch": "Totals differ: local {{local}}, server {{server}}. Fix it and sync again; publishing is blocked until they match.",
       "unsaved": "To sync"
     }
+  },
+  "ui": {
+    "theme": {
+      "label": "Theme",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "kit": {
+      "title": "Components & styles",
+      "sub": "The single reference page for the UI standard: every component state lives here.",
+      "sectionButton": "Buttons",
+      "sectionField": "Form fields",
+      "sectionStat": "Stat cards",
+      "sectionTag": "Status tags",
+      "sectionTable": "Tables",
+      "sectionState": "States",
+      "sectionType": "Type scale",
+      "sectionTokens": "Color tokens",
+      "stateDefault": "Default",
+      "stateHover": "Hover",
+      "stateFocus": "Focus",
+      "stateDisabled": "Disabled",
+      "stateLoading": "Loading",
+      "variantPrimary": "Primary",
+      "variantDefault": "Default",
+      "variantText": "Text",
+      "variantDanger": "Danger",
+      "demoError": "Loading failed, you can retry",
+      "demoRetry": "Retry",
+      "demoEmpty": "No data yet",
+      "note": "This page is display-only and never touches business data.",
+      "demoRow1": "Class 10-3 · Midterm mock",
+      "demoRow2": "Class 10-3 · Writing task",
+      "demoRow3": "Class 11-1 · Quick quiz",
+      "typeSample": "Body 14 / 1.65 — Chinese needs a looser line height than English."
+    },
+    "navKit": "UI kit"
   }
 }

@@ -1121,5 +1121,42 @@
       "totalMismatch": "总分不一致：本地 {{local}}，后端 {{server}}。请检查后重新同步；一致前不能发布。",
       "unsaved": "待同步"
     }
+  },
+  "ui": {
+    "theme": {
+      "label": "主题",
+      "light": "亮色",
+      "dark": "暗色"
+    },
+    "kit": {
+      "title": "组件与样式",
+      "sub": "UI 标准的唯一参考页：每个组件的每种状态都摆在这里，改样式先改这一页。",
+      "sectionButton": "按钮",
+      "sectionField": "表单字段",
+      "sectionStat": "统计卡",
+      "sectionTag": "状态标签",
+      "sectionTable": "表格",
+      "sectionState": "状态块",
+      "sectionType": "排版层级",
+      "sectionTokens": "颜色令牌",
+      "stateDefault": "默认",
+      "stateHover": "悬停",
+      "stateFocus": "焦点",
+      "stateDisabled": "禁用",
+      "stateLoading": "加载",
+      "variantPrimary": "主操作",
+      "variantDefault": "次要",
+      "variantText": "文字",
+      "variantDanger": "危险",
+      "demoError": "加载失败，可以重试",
+      "demoRetry": "重试",
+      "demoEmpty": "这里还没有数据",
+      "note": "这页只是展示，不改业务数据。",
+      "demoRow1": "高一（3）班 · 期中模拟卷",
+      "demoRow2": "高一（3）班 · 写作作业",
+      "demoRow3": "高二（1）班 · 随堂测",
+      "typeSample": "正文 14 / 1.65 —— 中文行高比英文松一档，长段正文才不挤。"
+    },
+    "navKit": "组件标准"
   }
 }

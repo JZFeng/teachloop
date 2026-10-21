@@ -1,0 +1,178 @@
+import type { ReactNode } from 'react'
+import { useTranslation } from 'react-i18next'
+import {
+  Button,
+  DataTable,
+  Empty,
+  ErrorState,
+  Field,
+  Loading,
+  PageHeader,
+  StatCard,
+  Tag,
+} from '../ui'
+import type { Column } from '../ui'
+
+interface DemoRow {
+  id: string
+  name: string
+  state: string
+  updated: string
+}
+
+const DEMO_ROWS: DemoRow[] = [
+  { id: '1', name: 'demoRow1', state: 'grading', updated: '2026-10-20 09:24' },
+  { id: '2', name: 'demoRow2', state: 'done', updated: '2026-10-19 21:10' },
+  { id: '3', name: 'demoRow3', state: 'failed', updated: '2026-10-18 16:03' },
+]
+
+/**
+ * UI 标准的展示页（`/ui-kit`）：一页看全组件的每种状态。
+ * 规矩：这一页不许写死颜色/字号，只能引用组件与令牌——它自己就是被检查的对象。
+ */
+export default function UiKitPage() {
+  const { t } = useTranslation('translation')
+
+  const columns: Column<DemoRow>[] = [
+    { key: 'name', title: t('ui.kit.sectionTable'), value: (row) => t(`ui.kit.${row.name}`), sortable: true },
+    {
+      key: 'state',
+      title: t('ui.kit.sectionTag'),
+      value: (row) => row.state,
+      render: (row) => (
+        <Tag tone={row.state === 'done' ? 'green' : row.state === 'failed' ? 'red' : 'amber'}>
+          {row.state}
+        </Tag>
+      ),
+    },
+    { key: 'updated', title: t('common.loading'), value: (row) => row.updated, sortable: true },
+  ]
+
+  return (
+    <div className="teacher-page">
+      <PageHeader title={t('ui.kit.title')} sub={t('ui.kit.sub')} />
+
+      <Section title={t('ui.kit.sectionButton')}>
+        <StateRow label={t('ui.kit.stateDefault')}>
+          <Button variant="primary">{t('ui.kit.variantPrimary')}</Button>
+          <Button>{t('ui.kit.variantDefault')}</Button>
+          <Button variant="text">{t('ui.kit.variantText')}</Button>
+          <Button variant="danger">{t('ui.kit.variantDanger')}</Button>
+        </StateRow>
+        <StateRow label={t('ui.kit.stateHover')}>
+          <span className="tl-demo-note">{t('ui.kit.stateHover')} · hover</span>
+        </StateRow>
+        <StateRow label={t('ui.kit.stateFocus')}>
+          <span className="tl-demo-focus">
+            <Button variant="primary">{t('ui.kit.stateFocus')}</Button>
+          </span>
+        </StateRow>
+        <StateRow label={t('ui.kit.stateDisabled')}>
+          <Button disabled>{t('ui.kit.variantDefault')}</Button>
+          <Button variant="primary" disabled>{t('ui.kit.variantPrimary')}</Button>
+        </StateRow>
+        <StateRow label={t('ui.kit.stateLoading')}>
+          <Button variant="primary" busy>{t('ui.kit.variantPrimary')}</Button>
+          <Button busy>{t('ui.kit.variantDefault')}</Button>
+        </StateRow>
+      </Section>
+
+      <Section title={t('ui.kit.sectionField')}>
+        <div className="tl-kit-grid">
+          <Field label={t('ui.kit.variantDefault')} htmlFor="kit-input">
+            <input id="kit-input" defaultValue="teacher@teachloop.local" />
+          </Field>
+          <Field label={t('ui.kit.variantPrimary')} required hint={t('ui.kit.note')}>
+            <input defaultValue="" placeholder="…" />
+          </Field>
+          <Field label={t('ui.kit.sectionState')} error={t('ui.kit.demoError')}>
+            <input defaultValue="abc" />
+          </Field>
+          <Field label={t('ui.kit.stateDisabled')}>
+            <input defaultValue="—" disabled />
+          </Field>
+        </div>
+      </Section>
+
+      <Section title={t('ui.kit.sectionStat')}>
+        <div className="tl-kit-stats">
+          <StatCard value={12} label={t('ui.kit.sectionStat')} sub={t('ui.kit.note')} />
+          <StatCard value={3} label={t('ui.kit.sectionTag')} sub={t('ui.kit.note')} onClick={() => {}} />
+          <StatCard value="—" label={t('ui.kit.demoEmpty')} />
+        </div>
+      </Section>
+
+      <Section title={t('ui.kit.sectionTag')}>
+        <div className="row">
+          <Tag tone="green">done</Tag>
+          <Tag tone="amber">grading</Tag>
+          <Tag tone="red">failed</Tag>
+          <Tag tone="blue">queued</Tag>
+          <Tag>draft</Tag>
+        </div>
+      </Section>
+
+      <Section title={t('ui.kit.sectionTable')}>
+        <DataTable rows={DEMO_ROWS} columns={columns} rowKey={(row) => row.id} pageSize={5} />
+      </Section>
+
+      <Section title={t('ui.kit.sectionState')}>
+        <div className="tl-kit-states">
+          <Loading />
+          <ErrorState error={new Error(t('ui.kit.demoError'))} onRetry={() => {}} />
+          <Empty>{t('ui.kit.demoEmpty')}</Empty>
+        </div>
+      </Section>
+
+      <Section title={t('ui.kit.sectionType')}>
+        <div className="tl-kit-type">
+          <h1>H1 · 24 / 1.4</h1>
+          <h2>H2 · 20 / 1.4</h2>
+          <h3>H3 · 16 / 1.5</h3>
+          <p>{t('ui.kit.typeSample')}</p>
+          <p className="small muted">辅助文字 13 / 1.55</p>
+        </div>
+      </Section>
+
+      <Section title={t('ui.kit.sectionTokens')}>
+        <div className="tl-kit-swatches">
+          <Swatch label="--accent" />
+          <Swatch label="--text" />
+          <Swatch label="--muted" />
+          <Swatch label="--line" />
+          <Swatch label="--green" />
+          <Swatch label="--amber" />
+          <Swatch label="--red" />
+        </div>
+        <p className="small muted">{t('ui.kit.note')}</p>
+      </Section>
+    </div>
+  )
+}
+
+function Section({ title, children }: { title: string; children: ReactNode }) {
+  return (
+    <section className="card">
+      <h2>{title}</h2>
+      {children}
+    </section>
+  )
+}
+
+function StateRow({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="tl-kit-row">
+      <span className="tl-kit-row-label">{label}</span>
+      <div className="row">{children}</div>
+    </div>
+  )
+}
+
+function Swatch({ label }: { label: string }) {
+  return (
+    <div className="tl-kit-swatch">
+      <span className="tl-kit-swatch-color" style={{ background: `var(${label})` }} />
+      <code className="mono small">{label}</code>
+    </div>
+  )
+}

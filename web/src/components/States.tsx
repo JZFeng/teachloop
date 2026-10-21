@@ -1,42 +1,37 @@
 import type { ReactNode } from 'react'
-import { useTranslation } from 'react-i18next'
+import {
+  Empty as UiEmpty,
+  ErrorState as UiErrorState,
+  Loading as UiLoading,
+  PageHeader as UiPageHeader,
+  StatCard as UiStatCard,
+} from '../ui'
+
+/**
+ * 兼容层：这五个状态组件现在由 `web/src/ui/` 提供。
+ *
+ * 保留这个文件是为了让还没迁移的 15 个页面继续 import '../components/States'，
+ * 不必在一夜之间改 20 个 import。迁完那批页面后删掉本文件即可。
+ * 新代码请直接从 `web/src/ui` 引。
+ */
 
 export function Loading({ label }: { label?: string }) {
-  const { t } = useTranslation('translation')
-  return <div className="card"><span className="muted">{label ?? t('common.loading')}</span></div>
+  return <UiLoading label={label} />
 }
 
 export function ErrorState({ error, onRetry }: { error: Error; onRetry?: () => void }) {
-  const { t } = useTranslation('translation')
-  return (
-    <div className="card">
-      <p className="inline-note">{t('common.errorWith')} {error.message}</p>
-      {onRetry && <button className="btn" onClick={onRetry}>{t('common.retry')}</button>}
-    </div>
-  )
+  return <UiErrorState error={error} onRetry={onRetry} />
 }
 
 export function Empty({ children }: { children?: ReactNode }) {
-  const { t } = useTranslation('translation')
-  return <div className="card"><span className="muted">{children ?? t('common.empty')}</span></div>
+  return <UiEmpty>{children}</UiEmpty>
 }
 
 export function PageHeader({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
-  return (
-    <>
-      <h1>{title}</h1>
-      {sub && <div className="sub">{sub}</div>}
-      {actions && <div className="row" style={{ marginBottom: 12 }}>{actions}</div>}
-    </>
-  )
+  return <UiPageHeader title={title} sub={sub} actions={actions} />
 }
 
+/** 旧签名是 `n`，新组件叫 `value`；这里做一次映射，调用点不用改。 */
 export function StatCard({ n, label, sub, onClick }: { n: ReactNode; label: string; sub?: string; onClick?: () => void }) {
-  return (
-    <div className="stat" onClick={onClick} role={onClick ? 'button' : undefined} tabIndex={onClick ? 0 : undefined}>
-      <div className="n">{n}</div>
-      <div className="l">{label}</div>
-      {sub && <div className="sub">{sub}</div>}
-    </div>
-  )
+  return <UiStatCard value={n} label={label} sub={sub} onClick={onClick} />
 }
