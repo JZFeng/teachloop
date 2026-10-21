@@ -224,6 +224,37 @@ class GradingDispatchTest {
         assertThat(((Number) progress.get("pending")).longValue()).isZero();
     }
 
+    // ================= T252：单份「让 AI 先批」=================
+
+    @Test
+    @DisplayName("T252：单份派发只推进这一份；学生不能派发；重复派发 409")
+    void dispatchSingleSubmissionOnly() throws Exception {
+        String classId = createClass("单份派发班");
+        String invite = classInvite(classId);
+        join(student, invite);
+        String other = createStudent("dispatch-one@teachloop.local", "另一位学生");
+        join(other, invite);
+        String offeringId = createOffering(classId,
+                BASE.plus(Duration.ofHours(1)).toString(), 3);
+        String target = submitAs(student, offeringId).get("submissionId").toString();
+        String untouched = submitAs(other, offeringId).get("submissionId").toString();
+        assertThat(gradingState(target)).isEqualTo("QUEUED");
+        assertThat(gradingState(untouched)).isEqualTo("QUEUED");
+
+        String path = "/api/offerings/" + offeringId + "/submissions/" + target
+                + "/grading/dispatch";
+        assertThat(raw(student, "POST", path, Map.of()).statusCode()).as("学生不能派发").isEqualTo(403);
+
+        HttpResponse<String> dispatched = raw(teacher, "POST", path, Map.of());
+        assertThat(dispatched.statusCode()).isEqualTo(200);
+        assertThat(gradingState(target)).as("目标提交进队列").isEqualTo("PENDING");
+        assertThat(gradingState(untouched)).as("同一场的其他提交不动").isEqualTo("QUEUED");
+        assertThat(runCount(offeringId)).as("仍然只有一条 run").isEqualTo(1);
+
+        assertThat(raw(teacher, "POST", path, Map.of()).statusCode())
+                .as("已派发的再派发应 409").isEqualTo(409);
+    }
+
     // ================= T092：并发两次派发只产生一条 run =================
 
     @Test

@@ -7,6 +7,7 @@ import com.teachloop.shared.port.Ports;
 import com.teachloop.sitting.domain.Offering;
 import com.teachloop.sitting.domain.OfferingRepository;
 import com.teachloop.sitting.domain.OfferingStatus;
+import com.teachloop.sitting.domain.Submission;
 import com.teachloop.sitting.domain.SubmissionRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -64,6 +65,10 @@ public class OfferingGradingDispatcher {
     private record FirstDispatch(UUID runId, int enqueued) {
     }
 
+    /** T252：单份派发结果（绿色通道：不等整场派发，先把这一份交给 AI）。 */
+    public record SubmissionDispatch(UUID offeringId, UUID submissionId, UUID runId) {
+    }
+
     /**
      * 自动派发（T092）：扫描到期的 PUBLISHED 场次，逐场走条件更新。
      *
@@ -112,6 +117,33 @@ public class OfferingGradingDispatcher {
         UUID runId = gradingDispatch.dispatch(offeringId);
         int enqueued = submissions.enqueueQueued(offeringId);
         return new DispatchResult(offeringId, runId, false, enqueued);
+    }
+
+    /**
+     * T252：单份「让 AI 先批」——老师可以在批改详情里直接把某一份提交交给 AI，
+     * 不必等整场派发，也不必先让别人批完。run 仍是按场次幂等创建，只有这一份被推进队列。
+     */
+    @Transactional
+    public SubmissionDispatch dispatchSubmission(UUID offeringId, UUID submissionId, UUID actorId) {
+        Offering offering = offerings.findById(offeringId)
+                .orElseThrow(() -> ApiException.notFound("布置不存在"));
+        if (offering.getStatus() != OfferingStatus.PUBLISHED) {
+            throw ApiException.conflict("只有已发布的布置才能派发批改");
+        }
+        Submission submission = submissions.findById(submissionId)
+                .orElseThrow(() -> ApiException.notFound("error.submission.notFound"));
+        if (!submission.getOfferingId().equals(offeringId)) {
+            throw ApiException.notFound("error.submission.notFound");
+        }
+        UUID runId = gradingDispatch.dispatch(offeringId);
+        if (submissions.enqueueOne(submissionId) == 0) {
+            throw ApiException.conflict("error.grading.dispatchState");
+        }
+        Map<String, Object> detail = new LinkedHashMap<>();
+        detail.put("runId", runId.toString());
+        audit.record(new AuditEvent(actorId, "submission:ai_dispatch", "submission",
+                submissionId.toString(), detail));
+        return new SubmissionDispatch(offeringId, submissionId, runId);
     }
 
     /**

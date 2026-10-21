@@ -63,6 +63,17 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     int enqueueQueued(UUID offeringId);
 
     /**
+     * T252：单份「让 AI 先批」——只把这一份从 QUEUED / FAILED 推进到 PENDING，不动同一场的其他提交。
+     * 已派发、批改中、已完成、未交卷、已拒收都返回 0（调用方据此报冲突）。
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "update submissions set grading_state = 'PENDING', grading_error = null, "
+            + "grading_started_at = null "
+            + "where id = :id and grading_state in ('QUEUED', 'FAILED') "
+            + "and submitted_at is not null and rejected_at is null", nativeQuery = true)
+    int enqueueOne(UUID id);
+
+    /**
      * 已派发场次的迟到提交继续入队：宽限期过后才交的作业也进同一个 run（plan §7.3）。
      * 同样可以重复执行，没有 QUEUED 行时更新 0 行。
      */

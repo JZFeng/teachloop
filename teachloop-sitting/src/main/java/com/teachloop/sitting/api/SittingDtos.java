@@ -152,4 +152,8 @@ public final class SittingDtos {
     /** 手动派发结果（T092）：runId 幂等，firstDispatch 区分「刚创建 run」与「本来就派过」。 */
     public record GradingDispatchView(String offeringId, String runId, boolean firstDispatch, int enqueued) {
     }
+
+    /** T252：单份「让 AI 先批」的回执。 */
+    public record SubmissionDispatchView(String offeringId, String submissionId, String runId) {
+    }
 }

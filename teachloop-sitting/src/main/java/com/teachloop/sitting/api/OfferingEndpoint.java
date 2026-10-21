@@ -283,6 +283,23 @@ public class OfferingEndpoint {
     }
 
     /**
+     * T252：单份「让 AI 先批」——批改详情逐份行的绿色通道。
+     * 只把这一份推进队列；同一场的其他提交不受影响。
+     */
+    @PostMapping("/{id}/submissions/{submissionId}/grading/dispatch")
+    public SittingDtos.SubmissionDispatchView dispatchSubmission(
+            @PathVariable UUID id, @PathVariable UUID submissionId,
+            @RequestAttribute("currentUser") CurrentUser me) {
+        if (me.is("STUDENT")) {
+            throw ApiException.forbidden("学生不能派发批改");
+        }
+        OfferingGradingDispatcher.SubmissionDispatch result =
+                dispatcher.dispatchSubmission(id, submissionId, me.id());
+        return new SittingDtos.SubmissionDispatchView(result.offeringId().toString(),
+                result.submissionId().toString(), result.runId().toString());
+    }
+
+    /**
      * 重试失败项（T182）：只把 FAILED 的提交退回 PENDING，正在跑/已完成的不动。
      * 返回本次重试份数；重复点击幂等。
      */
@@ -456,8 +473,10 @@ public class OfferingEndpoint {
             return;
         }
         boolean en = "en".equalsIgnoreCase(o.getFeedbackLanguage());
+        // target_type 要能让前端直接跳页：考试去 /exams/{id}，作业去 /assignments/{id}。
+        String targetType = o.getKind() == OfferingKind.EXAM ? "exam" : "assignment";
         List<Ports.NotificationMessage> messages = recipients.stream()
-                .map(id -> new Ports.NotificationMessage(id, kind, "offering", o.getId().toString(),
+                .map(id -> new Ports.NotificationMessage(id, kind, targetType, o.getId().toString(),
                         en ? enTitle : zhTitle, en ? enBody : zhBody))
                 .toList();
         notifications.notify(messages);

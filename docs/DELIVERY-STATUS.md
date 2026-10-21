@@ -83,6 +83,8 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 
 19. **第二轮实测反馈（T250，2026-10-20 完成）**：① 顶部「补全资料」只在手机号或邮箱为空时出现，保存后立即消失；侧栏用户名常驻 `/profile`，资料页随时可改；必填项用红色 `*`、红框、字段级红字和顶部红条提示，未填时禁止保存。② 作业页富文本换成带工具条的真编辑器（粗体 / 斜体 / 下划线 / 有序 / 无序列表 / 小标题 / 正文 + 占位提示），本机草稿同时保存纯文本、HTML 与输入形态，刷新可恢复。③ 复核页「学生正文」按写入时已消毒的 HTML 回显（`Ports.WorkItem` / `ReviewDetail` 增 `contentHtml`）；操作区收敛为「保存并发布反馈」主按钮 +「仅保存草稿」+「退回重批」+「撤回」+「审计」，发布后隐藏保存类按钮，禁用按钮统一半透明，队列列名与状态中文化。验证：`pnpm typecheck` / `pnpm build` / `check-i18n`（1009 键对齐）/ `make test` 均通过；浏览器实测资料红框→保存→顶部按钮消失、富文本输入加粗并刷新恢复、复核页富文本按段落回显、发布→撤回往返成功。截图：`docs/reports/t250-ux-fixes/`。**运维注意**：重建 jar 必须重启后端；本轮曾因 jar 被覆盖出现 `NoClassDefFoundError: ThrowableProxy`，重启后恢复。
 
+20. **富文本与 AI 绿色通道（T252，2026-10-20 完成）**：① 富文本编辑器补 Cmd/Ctrl + B/I/U 快捷键；粘贴按后端同一份白名单清洗（外部灰底、字号、颜色、span/div 壳子都丢掉，b→strong、i→em）；编辑区固定白底、聚焦不再加阴影。② 草稿恢复改为「本机优先，本机没有就用服务端 `contentHtml`/`contentText`」，换浏览器/换端口/清 localStorage 都不丢格式。③ 批改详情逐份行新增「让 AI 先批」：`POST /api/offerings/{id}/submissions/{submissionId}/grading/dispatch` 只把这一份推进 AI 队列，同场其他提交不动，run 按场次幂等，写 `submission:ai_dispatch` 审计；整场按钮改名「全部交给 AI 批改」。验证：`GradingDispatchTest` 10/10、`pnpm typecheck` / `pnpm build` / `check-i18n` 通过；浏览器实测快捷键、粘贴清洗、清 localStorage 后格式恢复、行内派发→stub 判完→复核页出现 AI 草稿。截图 `docs/reports/t252-ux-fixes/`。
+
 ## 五、结论
 
 `specs/002-v2-platform/tasks.md` 中原有的实现任务均已完成；剩余为上述已知偏差（OSS/PDF/AC-18.5 等）。
@@ -91,4 +93,5 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 人工判分（D-15）新增阶段 20（T243–T246），**已完成**（见第 17 条）。
 用户实测反馈（T248）新增阶段 21，**已完成**（见第 18 条）。
 第二轮实测反馈（T250）新增阶段 22，**已完成**（见第 19 条）。
+第三轮实测反馈（T252）新增阶段 23，**已完成**（见第 20 条）。
 阶段 18 仍不在「已完成」范围内。

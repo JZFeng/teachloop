@@ -313,6 +313,7 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | FR-048 | T238、T240、T241 | FR-049 | T242 |
 | FR-051 | T247 | — | — |
 | FR-052 | T249 | — | — |
+| FR-053 | T251 | — | — |
 | FR-050 | T243、T244、T246 | FR-051 | T247 |
 
 ---
@@ -404,6 +405,18 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
 | T250 | **第二轮实测反馈**：① `AuthProvider` 读 `/api/profile` 计算 `profileComplete`（手机号 + 邮箱都填才算），顶部只在未补全时显示「补全资料」，保存后立即消失；侧栏用户名常驻 `/profile` 入口，资料页仍可随时修改。② 资料页必填项加红色 `*`、红框、字段级红字与顶部红条，未填时禁用保存并说明原因。③ 新增 `RichTextEditor`（粗体/斜体/下划线/有序/无序列表/小标题/正文、空态占位），作业页富文本改用它；本机草稿同时存纯文本、HTML 与输入形态，刷新可恢复。④ `Ports.WorkItem` / `ReviewDetail` 增 `contentHtml`，复核页「学生正文」按消毒后的 HTML 回显。⑤ 复核页操作区收敛为「保存并发布反馈」主按钮 +「仅保存草稿」+「退回重批」+「撤回」+「审计」，发布后隐藏保存类按钮只留撤回；禁用按钮统一降到 45% 透明；队列列名与状态中文化。 | T248 | 资料未补全时顶部有提醒、必填项红色高亮；保存后顶部提醒消失且侧栏仍可进资料页；富文本能输入、能加粗、刷新后草稿（含 HTML）仍在；复核页点「保存并发布反馈」学生立即看到反馈、撤回后回到未发布；富文本提交在复核页按段落回显。验证：`pnpm typecheck`、`pnpm build`、`check-i18n`、`make test`、浏览器实测 |
+| T251 | **通知可跳转 + 已读即时生效**（用户 2026-10-20 在测试台提的 bug）：① 通知带可跳转目标——`OfferingEndpoint.notifyStudents` 的 target_type 由写死 `offering` 改为按布置类型给 `exam` / `assignment`；`ReviewEndpoint.notifyPublished` 的反馈通知改存 **offeringId**（反馈页参数是布置 id，原来存的是 submissionId，点过去必然错页）；② 通知卡片整条可点（含键盘 Enter/Space）→ 先标已读再跳转；加「查看」按钮、可点卡片 hover/focus 样式；③ 标已读改为**本地先行**（角标立刻 -1）再同步后端，失败只回滚该条；④ 新增 `NOTIFICATIONS_CHANGED` 事件，Shell 的未读角标收到事件立刻刷新，不再干等 30 秒轮询 | T208、T114、T242 | `NotificationTest` 新增「作业发布的通知 target_type=assignment」；`ReviewWorkflowTest` 新增「布置通知是 exam+布置 id、反馈通知是 offering+布置 id 而不是 submissionId」；`mvnw -pl teachloop-app -am -Dtest=NotificationTest,ReviewWorkflowTest test` **7/7** 绿；测试台实测学生通知 `feedback_published → /feedback/{offeringId}`、目标接口 `my-feedback` 200；`tsc --noEmit` 0、`pnpm build` 通过、`check-i18n` 通过 |
+
+---
+
+## 阶段 23 — 2026-10-20 第三轮实测反馈（T252）
+
+上游：用户继续在测试台实测——① 富文本不支持 Cmd+B / Cmd+I；② 编辑区底色发灰、聚焦有阴影；
+③ 想知道这是不是标准插件；④ 保存草稿后回来格式全丢；⑤ 批改详情页想要「先让 AI 批、教师再复核」的绿色通道。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T252 | **富文本与 AI 绿色通道**：① 编辑器补 Cmd/Ctrl + B/I/U 快捷键；粘贴按后端同一份白名单清洗（丢灰底/字号/颜色/外部标签，b→strong、i→em）；编辑区固定白底、聚焦不再加阴影。② 草稿恢复改为「本机优先、本机没有就用服务端 `contentHtml`/`contentText`」，换浏览器/换端口/清 localStorage 都不再丢格式；提交前 HTML 统一成后端白名单里的 strong/em/u/ol/ul/h3。③ 新增 `POST /api/offerings/{id}/submissions/{submissionId}/grading/dispatch`：只把这一份从 QUEUED/FAILED 推进到 PENDING，run 按场次幂等，写 `submission:ai_dispatch` 审计；批改详情逐份行加「让 AI 先批」，整场按钮改名「全部交给 AI 批改」。 | T250 | 富文本 Cmd+B/I/U 生效；粘贴外部 HTML 后无灰底、无 style/span；编辑区背景纯白、无阴影；保存草稿→清 localStorage→刷新，粗体/斜体/列表格式仍在；单份派发后该份变 PENDING、同场其他提交仍是 QUEUED，重复派发 409，学生派发 403；AI 完成后复核页出现 AI 草稿。验证：`GradingDispatchTest` 10/10、`pnpm typecheck` / `pnpm build` / `check-i18n`、浏览器实测 |
 
 ---
 
@@ -556,3 +569,4 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | 2026-10-20 | T246 全量回归 + 人工判分浏览器实测 | 完成 | `make test` 退出码 0，surefire 汇总 **tests=203, failures=0, errors=0, skipped=0**（54 个报告类，含并发 T242 的答案格式测试）；`check-i18n`（前端 907 键对齐、后端/前端新增中文字面量 0）/`check-boundaries`/`check-deps` 全通过。浏览器实测：新建独立作业 → 学生提交（不派发 AI）→ 教师在批改详情点「判分 / 复核」→ 详情显示 AI 未参与、客观/主观 0 → 填 17.5 + 评语/优点/建议 → 保存 → 原样通过 → 发布 → 学生反馈显示 17.5/20 与三段文本。截图：`docs/reports/manual-grading/` |
 | 2026-10-20 | T248 三处实测反馈修复（作业页回显提交内容 / 资料页语言下拉 / 审计中文化） | 完成 | 后端 `SittingDtos.AttemptView` 增 `contentHtml`、`contentText`，`/my-submissions` 与 `/my-feedback` 同时受益；`SubmissionFormsTest` 4/4 含新增断言（富文本回显已消毒、纯文本 `Final answer`）。前端：作业页已提交卡片直接渲染正文（`dangerouslySetInnerHTML` 仅用于后端已消毒的 `content_html`）与附件链接；资料页新增「偏好设置 → 界面语言」下拉（`i18n.ts` 用 `import.meta.glob` 加载 `locales/*.json`，语言自称取自各文件 `language.<短码>`，默认 zh-CN），顶栏去掉中/EN 按钮；审计抽屉事件/参数/时间中文化，`fmtDateTime` 改按界面语言输出。验证：`pnpm typecheck` 0、`pnpm build` 0、`check-i18n` 976 键对齐且新增中文字面量 0、`./mvnw -pl teachloop-sitting -am -DskipTests compile` 0、`SubmissionFormsTest` 4/4。**已实测（T250 期间重启 8010 后）**：`/my-submissions` 返回 `contentHtml`（1814 字）/`contentText`（1797 字），作业页「已提交」卡片直接显示「我提交的内容」，无需再点按钮 |
 | 2026-10-20 | T250 第二轮实测反馈（资料提醒 / 必填高亮 / 富文本编辑器 / 复核正文与主操作） | 完成 | 后端：`Ports.WorkItem`、`ReviewEndpoint.ReviewDetail` 增 `contentHtml`（`SittingLedgerImpl` 从已消毒的 `submissions.content_html` 取），AI prompt 仍只用纯文本；资料是否补全改由前端读 `/api/profile` 判定，`/api/auth/me` 不变。前端：`AuthProvider` 暴露 `profileComplete`/`refreshProfile`，顶部只在未补全时显示「补全资料」，保存后 `refresh()`+`refreshProfile()` 立即消失；侧栏用户名常驻 `/profile`；资料页必填项红色 `*`+红框+字段级红字+顶部红条，未填禁用保存；新增 `components/RichTextEditor.tsx`（execCommand 工具条、空态占位、挂载时灌入初始 HTML），作业页富文本改用它，本机草稿存 `{text,html,mode}` 刷新可恢复；复核页「学生正文」优先渲染 `contentHtml`（`rich-content`），操作区改为「保存并发布反馈」主按钮（内部先 PUT 再 publish）+「仅保存草稿」+「退回重批」+「撤回」+「审计」，发布后隐藏保存类按钮，禁用按钮统一半透明；队列列名/状态中文化。验证：`pnpm typecheck` 0、`pnpm build` 0、`check-i18n` 1009 键对齐、`make test` 退出码 0（206/0/0/0）；浏览器实测：学生01 资料空手机号→红色高亮+顶部「补全资料」→保存后按钮消失；富文本输入并加粗成功（`<b>Hello rich text editor</b>`）、保存草稿后刷新仍恢复 HTML 与输入形态；教师复核页 914911e8 的 1814 字 HTML 按段落回显；点「保存并发布反馈」→ 学生可见 →「撤回」回到未发布。运维：重建 jar 后已重启 8010（旧实例因 jar 被覆盖出现过 `NoClassDefFoundError: ThrowableProxy`，重启后恢复）；截图 `docs/reports/t250-ux-fixes/` |
+| 2026-10-20 | T252 富文本快捷键/粘贴清洗/白底 + 草稿服务端恢复 + 单份「让 AI 先批」 | 完成 | 前端：`RichTextEditor` 加 Cmd/Ctrl+B/I/U、粘贴白名单清洗（DOMParser 同后端白名单，b→strong/i→em，丢 style/span/灰底）、编辑区 `background: var(--panel)`、去掉聚焦 box-shadow；`AssignmentPage` 草稿恢复改成本机优先、本机为空时用 `/my-submissions` 的 `contentHtml`/`contentText`（换 origin/清 localStorage 不丢格式）。后端：`SubmissionRepository.enqueueOne` + `OfferingGradingDispatcher.dispatchSubmission` + `POST /offerings/{id}/submissions/{sid}/grading/dispatch`（run 按场次幂等，QUEUED/FAILED→PENDING，写 `submission:ai_dispatch` 审计，错误走消息 key）；`GradingDetailPage` 行内「让 AI 先批」+ 整场按钮改名「全部交给 AI 批改」+ 已完成行禁用。验证：`GradingDispatchTest` **10/10**（新增单份派发用例：目标 PENDING、同场另一份仍 QUEUED、学生 403、重复 409）；`pnpm typecheck` 0、`pnpm build` 0、`check-i18n` 1017 键对齐、`mvn test-compile` 0；浏览器实测：Cmd+B 取消/加粗、Cmd+I 斜体，粘贴 `<span style=...>` 后 DOM/草稿只剩 `<p>/<ul>/<strong>/<em>`，清 localStorage 刷新后格式仍在；教师行内派发→PENDING→stub 判完 DONE（主观 15）→复核页显示 AI 主观草稿 15；截图 `docs/reports/t252-ux-fixes/`。运维：`scripts/env.sh deploy qa` 已把测试台 5174 更新到本版本；开发机 8010 已重启。 |
