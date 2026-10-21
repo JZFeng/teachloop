@@ -7,8 +7,9 @@
 
 - 正在做：T072/T173 完成；T175 执行器就绪，AI 偏差待 `DEEPSEEK_API_KEY`
 - 背单词：`teachloop-vocab` 空模块已接线（**无表、无端口、无路由**），规格目录 `specs/004-vocab/` 待写
-- 分支 / HEAD：`main`，最近提交见 `git log`；`feat/ui-standard` 是并行的 UI 标准分支（未合并）
-- 未提交 WIP：无（工作区干净）
+- 分支 / HEAD：`main` 与 `feat/ui-standard` 已指向同一提交（2026-10-21，UI 标准分支已合入）；
+  背单词的实现分支尚未创建，届时用 `git switch -c feat/vocab main`
+- 未提交 WIP：以 `git status` 为准（本行不再写快照，避免文档腐化）
 - 最近验证：`make test` / `make build` / `make web-build` / 边界守卫 exit 0；147 份 surefire 报告 0 失败；`make test-ai` Skipped 0；T175 golden set 偏差 0.0
 
 ## 下一步
