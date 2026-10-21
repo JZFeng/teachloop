@@ -28,6 +28,7 @@
     <module>teachloop-grading</module>
     <module>teachloop-report</module>
     <module>teachloop-observability</module>
+    <module>teachloop-vocab</module>
     <module>teachloop-app</module>
   </modules>
 
@@ -78,6 +79,11 @@
       <dependency>
         <groupId>com.teachloop</groupId>
         <artifactId>teachloop-observability</artifactId>
+        <version>${project.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>com.teachloop</groupId>
+        <artifactId>teachloop-vocab</artifactId>
         <version>${project.version}</version>
       </dependency>
       <dependency>

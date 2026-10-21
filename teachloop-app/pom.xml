@@ -47,6 +47,12 @@
       <groupId>com.teachloop</groupId>
       <artifactId>teachloop-observability</artifactId>
     </dependency>
+    <!-- 背单词模块骨架：只有 package-info，没有表与端口；接进来是为了让它的
+         db/migration 目录进入 classpath（见下方 copy-migrations-vocab）。 -->
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-vocab</artifactId>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-actuator</artifactId>
@@ -203,6 +209,23 @@
               <resources>
                 <resource>
                   <directory>${project.basedir}/../teachloop-observability/src/main/resources/db/migration</directory>
+                  <includes><include>*.sql</include></includes>
+                </resource>
+              </resources>
+            </configuration>
+          </execution>
+          <!-- 骨架阶段该目录只有 .gitkeep：copy-resources 找不到 *.sql 时不会失败。
+               与其它模块一样，这条 execution 漏了的话 fat jar 里就扫不到 vocab_* 迁移。 -->
+          <execution>
+            <id>copy-migrations-vocab</id>
+            <phase>process-resources</phase>
+            <goals><goal>copy-resources</goal></goals>
+            <configuration>
+              <outputDirectory>${project.build.outputDirectory}/db/migration</outputDirectory>
+              <overwrite>true</overwrite>
+              <resources>
+                <resource>
+                  <directory>${project.basedir}/../teachloop-vocab/src/main/resources/db/migration</directory>
                   <includes><include>*.sql</include></includes>
                 </resource>
               </resources>

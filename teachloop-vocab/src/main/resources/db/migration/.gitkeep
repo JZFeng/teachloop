@@ -1,0 +1,2 @@
+# 背单词模块的 Flyway 迁移目录（V0xx__vocab_*.sql）。
+# 骨架阶段为空：迁移序号是全仓库共享的一串，等 specs/004-vocab 的 plan 定稿后再占号。

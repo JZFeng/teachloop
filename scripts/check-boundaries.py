@@ -18,7 +18,7 @@ import sys
 from pathlib import Path
 
 MODULES = ["shared", "identity", "classroom", "paper", "sitting",
-           "grading", "report", "observability", "app"]
+           "grading", "report", "observability", "vocab", "app"]
 
 # plan §3.3：表归属。新增表必须同时登记在这里与 plan。
 TABLE_OWNER: dict[str, str] = {

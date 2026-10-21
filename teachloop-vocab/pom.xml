@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.teachloop</groupId>
+    <artifactId>teachloop-parent</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>teachloop-vocab</artifactId>
+  <name>teachloop-vocab</name>
+  <description>背单词与间隔重复（骨架：尚无表、端口与业务逻辑）</description>
+
+  <!-- 骨架只接共享层。等 specs/004-vocab 的 plan 定稿后再按需加 identity / classroom
+       与 spring-boot-starter-web + data-jpa；这里的许可范围见 scripts/check-deps.py。 -->
+  <dependencies>
+    <dependency>
+      <groupId>com.teachloop</groupId>
+      <artifactId>teachloop-shared</artifactId>
+    </dependency>
+  </dependencies>
+</project>

@@ -22,8 +22,11 @@ ALLOWED = {
     "grading":       {"shared", "identity", "classroom", "paper", "sitting"},
     "report":        {"shared", "paper", "sitting", "grading"},
     "observability": {"shared"},
+    # 背单词（骨架，2026-10-21 接线）：宪法第十四条允许它只靠 shared + 认证 + 班级接进来。
+    # 这里登记的是**许可范围**，不是实际依赖；实际依赖以 teachloop-vocab/pom.xml 为准。
+    "vocab":         {"shared", "identity", "classroom"},
     "app":           {"shared", "identity", "classroom", "paper", "sitting",
-                      "grading", "report", "observability"},
+                      "grading", "report", "observability", "vocab"},
 }
 
 ROOT = Path(__file__).resolve().parent.parent
