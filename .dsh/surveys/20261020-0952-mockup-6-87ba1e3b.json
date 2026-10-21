@@ -1,0 +1,683 @@
+{
+  "v": 1,
+  "surveyId": "87ba1e3b-4f9a-4875-83f7-f1f62aa96eee",
+  "sessionId": "session-a9abe667-1ccc-4d8a-bc40-2bc1e5cfff85",
+  "outcome": "answered",
+  "settledAt": 1792515145023,
+  "title": "Mockup 对等性：6 个待拍板决策",
+  "answers": [
+    {
+      "id": "ov",
+      "selected": [
+        "page"
+      ]
+    },
+    {
+      "id": "ov_cols",
+      "selected": [
+        "six"
+      ]
+    },
+    {
+      "id": "rp",
+      "selected": [
+        "existing"
+      ]
+    },
+    {
+      "id": "edit",
+      "selected": [
+        "put_all"
+      ]
+    },
+    {
+      "id": "edit_lock",
+      "selected": [
+        "extend_only"
+      ]
+    },
+    {
+      "id": "invite",
+      "selected": [
+        "full"
+      ]
+    },
+    {
+      "id": "parser",
+      "selected": [
+        "both"
+      ]
+    },
+    {
+      "id": "admin",
+      "selected": [
+        "all"
+      ]
+    }
+  ],
+  "path": [
+    "ov",
+    "ov_cols",
+    "rp",
+    "edit",
+    "edit_lock",
+    "invite",
+    "parser",
+    "admin"
+  ],
+  "spec": {
+    "title": "Mockup 对等性：6 个待拍板决策",
+    "intro": "这 6 个决策决定 **mockup 与 spec 的差异怎么收口**：哪些补实现、哪些改需求。现在必须定，是因为审计发现 21 屏里 20 屏有落点、但 53 条 P1 里有一半是「后端没字段/产品没定规则」，先补代码会白做。\n\n答完我会按你的选择：① 把改动回写 `spec.md` / `tasks.md`；② 拆成带验收的任务；③ 按批次开工。每题的选项都标了对现有代码的落点（文件:行号），大概花 6–8 分钟。",
+    "entry": "ov",
+    "questions": {
+      "admin": {
+        "allowCustom": true,
+        "header": "管理员范围",
+        "multiSelect": false,
+        "next": null,
+        "options": [
+          {
+            "description": "管理员跨教师查看所有班级、作业与批改，兑现 mockup 的承诺。",
+            "insight": "- **做法**：`/api/classes` 对 ADMIN 返回全量并标注归属教师；作业与报表同理。\n- **代价**：spec 定义管理员职责是「初始化、创建教师邀请码、查用户、停用账号」，并未授予教学数据全览，属于扩权，需要改 spec。\n- **会崩在哪**：全量班级列表在 200 个班时首屏就卡，需要分页与归属筛选。\n- **现在的落点**：`ClassEndpoint.java:59-62` 按 `teacher_id=me.id()` 过滤，管理员恒空；`ReviewEndpoint.java:110-115` 反而放行。",
+            "key": "all",
+            "label": "全部班级/作业",
+            "sources": [
+              "teachloop-classroom/src/main/java/com/teachloop/classroom/api/ClassEndpoint.java:59-62",
+              "specs/002-v2-platform/mockups/interface.html:587"
+            ]
+          },
+          {
+            "description": "管理员保留复核与报表两类能力，班级与作业页对管理员隐藏。",
+            "insight": "- **做法**：前端按角色裁剪菜单；后端对 ADMIN 关闭班级相关端点；改 mockup 那句承诺。\n- **代价**：管理员无法帮老师排查「这个班为什么没收到作业」，支持成本上升。\n- **现在的落点**：`Shell.tsx:16-24` 给 ADMIN 全套教师菜单，与后端能力不一致。",
+            "key": "review_report",
+            "label": "只给复核与报表",
+            "sources": [
+              "web/src/app/Shell.tsx:16-24",
+              "teachloop-classroom/src/main/java/com/teachloop/classroom/api/ClassEndpoint.java:59-62"
+            ]
+          },
+          {
+            "description": "管理员用「切换查看某位教师」进入其视角，每次切换写审计。",
+            "insight": "- **做法**：顶部加教师选择器，请求带 `actAs` 参数，后端校验 ADMIN 并写审计。\n- **别人怎么做的**：Salesforce 的 Login-As、Google Workspace 的管理员「以用户身份登录」都是这个模式，既有能力又可追溯。\n- **代价**：`actAs` 是高风险参数，实现要严格限制在 ADMIN + 审计 + 只读，否则等于后门。\n- **现在的落点**：`CurrentUser` 无 `actAs`，需要改认证上下文。",
+            "key": "switch",
+            "label": "以教师身份查看",
+            "sources": [
+              "teachloop-identity/src/main/java/com/teachloop/identity/security/CurrentUser.java",
+              "specs/002-v2-platform/spec.md:61-62"
+            ]
+          },
+          {
+            "description": "管理员可读全部数据用于排查，但每行标注归属教师，不能改任何教学内容。",
+            "insight": "- **做法**：读接口对 ADMIN 放开并附 `teacherName`；写操作一律拒绝。\n- **代价**：仍是「能看到全部学生数据」，需要隐私口径说明；但比全量可写安全。\n- **现在的落点**：`ClassView` 只有 4 个字段（`ClassEndpoint.java:46`），无归属教师名。",
+            "key": "readonly_global",
+            "label": "全局只读 + 归属标注",
+            "sources": [
+              "teachloop-classroom/src/main/java/com/teachloop/classroom/api/ClassEndpoint.java:46"
+            ]
+          },
+          {
+            "description": "管理员完全不进教师页，另做「用户 / 班级 / AI 设置」后台。",
+            "insight": "- **做法**：新增 `/admin/*` 布局与用户列表、班级列表；教师导航对 ADMIN 隐藏。\n- **代价**：要多做 2–3 个页面，短期看不到收益；但边界最干净，也最符合 spec 对管理员的定义。\n- **现在的落点**：只有 `/admin/ai`（`App.tsx:85`），用户管理仍靠 CLI。",
+            "key": "separate",
+            "label": "管理员独立后台",
+            "sources": [
+              "web/src/App.tsx:85",
+              "specs/002-v2-platform/spec.md:61"
+            ]
+          }
+        ],
+        "prompt": "管理员能看哪些数据？现状：管理员有教师菜单，但 `/api/classes` 按 `teacher_id` 过滤导致班级列表恒为空；mockup 却承诺「管理员仍可从教师入口查看班级、复核与报表」。"
+      },
+      "edit": {
+        "allowCustom": true,
+        "header": "布置可编辑",
+        "multiSelect": false,
+        "next": "invite",
+        "options": [
+          {
+            "description": "加 `PUT /api/offerings/{id}` 与编辑页，截止、宽限、尝试、语言、两个开关、参与班级都能改。",
+            "insight": "- **做法**：更新端点 + 编辑页复用 `PaperWizardPage` 的表单组件；参与班级变更要遵守 AC-26.11（已有人开始的班不得移除）。\n- **别人怎么做的**：Canvas 的作业可随时改截止并保留历史；Google Classroom 的作业可编辑但会通知已交学生。\n- **会崩在哪**：改 `publish_scores` 或 `show_peer_overview` 会立刻改变学生可见范围，必须写审计并在页面提示影响面。\n- **现在的落点**：`OfferingEndpoint.java` 只有 67/144/154/166/179/201/225/236/251/268 行的映射，无更新端点；`OfferingCreatePage.tsx:146-155` 创建时这 5 个字段一个都不传。",
+            "key": "put_all",
+            "label": "全字段可编辑",
+            "next": "edit_lock",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/OfferingEndpoint.java:179-197",
+              "web/src/teacher/OfferingCreatePage.tsx:146-155",
+              "specs/002-v2-platform/spec.md:488"
+            ]
+          },
+          {
+            "description": "开考前全字段可编辑，开考后只允许延长截止，其余锁定。",
+            "insight": "- **做法**：更新端点按 `started_at` 分两档校验；开考后只接受 `dueAt` 变大与 `durationMinutes` 变大。\n- **别人怎么做的**：Moodle 测验在有人作答后仍可改截止，但改时长只影响下一次开始；Canvas 用「Moderate Quiz」单独给学生加时。\n- **代价**：实现上要同时写两套校验分支，测试面比全量放开小但比只读大。\n- **现在的落点**：`OfferingEndpoint.java` 无更新端点；快照已存在，改截止不影响已交卷分数。",
+            "key": "put_window",
+            "label": "开考前可改",
+            "next": "edit_lock",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/OfferingEndpoint.java:144-160"
+            ]
+          },
+          {
+            "description": "不做编辑，把 6 个字段全部前置到创建页，改规则只能新建一场。",
+            "insight": "- **做法**：`OfferingCreatePage` 加截止、宽限、尝试、语言、两个开关控件；`/offerings/:id` 只读展示。\n- **代价**：老师写错截止只能新建一场并通知两个班，mockup 的 editor 屏等于不做，需要改 mockup。\n- **会崩在哪**：已有 `PUBLISHED` 布置不可改，学生看到的截止与教师想改的永远有偏差。\n- **现在的落点**：`OfferingCreatePage.tsx:146-155` 目前只传类型、班级、时间、时长；后端默认值在 `SittingDtos.java:15-20`。",
+            "key": "create_only",
+            "label": "创建后只读",
+            "sources": [
+              "web/src/teacher/OfferingCreatePage.tsx:146-155",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/SittingDtos.java:15-20"
+            ]
+          },
+          {
+            "description": "不做就地编辑，提供「复制这场并改」的入口，旧场保留。",
+            "insight": "- **做法**：详情页加「复制」，带旧场字段预填创建页；新场发布后旧场归档。\n- **别人怎么做的**：Notion 复制页面、Canvas 复制课程/作业，都是「复制优于就地改」，避免影响已发生的记录。\n- **代价**：学生会在两场之间看到重复作业，需要「归档旧场」的 UI 与文案，否则更乱。\n- **现在的落点**：无复制接口；`PaperEndpoint` 有复制试卷能力可参考。",
+            "key": "clone",
+            "label": "复制为新布置",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/OfferingEndpoint.java:144-160"
+            ]
+          },
+          {
+            "description": "先把更新端点做出来供运维/后续页面用，前端编辑页下一批再做。",
+            "insight": "- **做法**：`PUT /api/offerings/{id}` + 测试，前端暂不加按钮，避免半成品页面。\n- **代价**：教师仍改不了，只能等下一批；但接口先固化，避免以后改数据模型。\n- **现在的落点**：无更新端点，`offering_classes` 已有 `due_at_override` / `duration_override` 可承接按班改。",
+            "key": "api_only",
+            "label": "只加后端接口",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/OfferingEndpoint.java:144-160",
+              "specs/002-v2-platform/spec.md:488"
+            ]
+          }
+        ],
+        "prompt": "布置创建后能不能改？现状：`OfferingEndpoint` 没有 `PUT/PATCH`，截止、宽限、尝试次数、反馈语言、两个可见性开关一旦创建就固定；mockup 的 editor 屏正是要编这些。"
+      },
+      "edit_lock": {
+        "allowCustom": true,
+        "header": "开考后改期",
+        "multiSelect": false,
+        "next": "invite",
+        "options": [
+          {
+            "description": "开考后只允许把截止与时长改大，不允许缩短。",
+            "insight": "- **做法**：更新端点校验新值不小于旧值；缩短请求返回 400 并提示「请等本场结束」。\n- **别人怎么做的**：Canvas 的 Moderate Quiz 只支持给学生额外加时，不做减时；Zoom 会议延长时长也不缩短已开始场次。\n- **会崩在哪**：教师误设了过长时长无法收回，只能等结束——用「取消本场 + 新建」兜底。\n- **现在的落点**：`ExamSessionService` 的剩余时间由服务端起算，改截止后自动生效，无需前端改动。",
+            "key": "extend_only",
+            "label": "只能延长",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/OfferingEndpoint.java:201-225"
+            ]
+          },
+          {
+            "description": "不整体改场次，只给未提交的学生单独加时，接近 Canvas 的 Moderate Quiz。",
+            "insight": "- **做法**：按 submission 存 `extra_seconds`，剩余时间计算加上该值；界面在批改详情行内给「加时」。\n- **别人怎么做的**：Canvas 的 Moderate Quiz 正是逐学生加时，是处理「断网/生病补时」的行业默认做法。\n- **代价**：新增字段与逐人生效逻辑，考试计时路径变复杂，测试面最大。\n- **现在的落点**：`ExamSessionService` 目前只有统一时长；`offering_classes` 已有按班覆盖，缺按人覆盖。",
+            "key": "per_student",
+            "label": "按学生单独延长",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/OfferingEndpoint.java:201-225"
+            ]
+          },
+          {
+            "description": "开考后完全不能改，需要改就新建一场补考。",
+            "insight": "- **做法**：更新端点校验「无 submission 才允许」；有提交直接 409。\n- **代价**：老师发现时长设短了也只能看着学生被自动交卷，补考另建一场成本高。\n- **会崩在哪**：与 mockup editor 屏「发布并开始批改」之后的编辑预期冲突，需要改文案说明。\n- **现在的落点**：无更新端点，现状等价于「永久冻结」，但没有提示。",
+            "key": "frozen",
+            "label": "开考即冻结",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/OfferingEndpoint.java:144-160"
+            ]
+          },
+          {
+            "description": "截止与时长都允许调小调大，服务端立即按新值重算剩余时间。",
+            "insight": "- **做法**：更新端点不做方向校验，前端提交前二次确认并显示「将扣除 N 分钟」。\n- **别人怎么做的**：多数 LMS 允许改截止，但对「缩短正在进行的考试」都会二次确认并记录，不在 API 层禁止。\n- **会崩在哪**：学生正在答题时被瞬间交卷，属于事故级体验；必须配通知与审计，否则不可接受。\n- **现在的落点**：`ExamLivePage` 每 3 秒轮询 session，服务端改值会立即反映到倒计时。",
+            "key": "any",
+            "label": "可任意改",
+            "sources": [
+              "web/src/exam/ExamLivePage.tsx:100-130"
+            ]
+          },
+          {
+            "description": "允许任意改，但必须二次确认、写审计并通知受影响学生。",
+            "insight": "- **做法**：更新端点要求 `reason` 字段，写 `offering:updated` 审计并推送通知；前端弹确认框列出受影响的班与份数。\n- **别人怎么做的**：Stripe 改订阅周期、Salesforce 改记录都要求原因字段并留审计，是「可改但可追溯」的常见形态。\n- **代价**：依赖通知与审计链路；当前审计抽屉还读不到 offering 目标事件（见审计屏结论）。\n- **现在的落点**：审计事件目标错位问题在 `OfferingEndpoint.java:403`，需一并修。",
+            "key": "audit_confirm",
+            "label": "可改但需确认 + 审计",
+            "sources": [
+              "teachloop-observability/src/main/java/com/teachloop/observability/api/AuditEndpoint.java:18-31",
+              "web/src/components/AuditDrawer.tsx:46-53"
+            ]
+          }
+        ],
+        "prompt": "已开始的考试，截止与时长还能改吗？（影响：当场学生可能被瞬间扣时间，或反过来占便宜）"
+      },
+      "invite": {
+        "allowCustom": true,
+        "header": "邀请码",
+        "multiSelect": false,
+        "next": "parser",
+        "options": [
+          {
+            "description": "补齐邀请码过期、提前停用与班级加入截止三件事，完全对齐 AC-2.3/2.4 与 T040。",
+            "insight": "- **做法**：`classes` 加 `invite_expires_at` / `invite_disabled` / `join_deadline`，`join` 校验后返回 404；班级页显示剩余有效期与停用按钮。\n- **别人怎么做的**：Discord 邀请链接同时支持「有效期」与「最大使用次数」，Slack 邀请链接也有过期时间，说明这是班级码的基本盘。\n- **会崩在哪**：已发出的码过期后学生进不来，需要「重新生成并复制」的顺手路径，否则开学第一天就会卡住。\n- **现在的落点**：`ClassEntity.java:9-45` 无字段；`ClassEndpoint.java:66-75` 的 join 不校验；`locales.ts:334` 的文案目前是假的。",
+            "key": "full",
+            "label": "过期 + 停用 + 加入截止",
+            "sources": [
+              "teachloop-classroom/src/main/java/com/teachloop/classroom/api/ClassEndpoint.java:66-75",
+              "specs/002-v2-platform/spec.md:89-90",
+              "specs/002-v2-platform/tasks.md:65"
+            ]
+          },
+          {
+            "description": "默认 3 天过期、可轮换，不做提前停用与加入截止。",
+            "insight": "- **做法**：加 `invite_expires_at`，轮换时重置为 now+3d；`join` 校验过期。\n- **代价**：码泄露时只能等它自然过期或轮换，缺少「立刻停用」的应急手段；AC-2.4 仍不满足。\n- **现在的落点**：`ClassEntity.java` 无字段；`regenerateInvite` 只换码不换过期时间（`ClassEndpoint.java:98-103`）。",
+            "key": "ttl",
+            "label": "只做过期",
+            "sources": [
+              "teachloop-classroom/src/main/java/com/teachloop/classroom/api/ClassEndpoint.java:98-103",
+              "specs/002-v2-platform/spec.md:89"
+            ]
+          },
+          {
+            "description": "保留轮换 + 提前停用，不做自动过期，并把文案改成「长期有效」。",
+            "insight": "- **做法**：加 `invite_disabled` 与停用按钮，`join` 校验；同时改 `locales.ts:334` 与 spec AC-2.3。\n- **代价**：班级码变成长期有效，泄露风险靠教师自觉停用；与 mockup 的「2 天过期 / 18 小时过期 / 已停用」三种状态只能实现一种。\n- **现在的落点**：只有 `regenerate`（`ClassEndpoint.java:98-103`），无停用端点。",
+            "key": "disable",
+            "label": "只做停用",
+            "sources": [
+              "teachloop-classroom/src/main/java/com/teachloop/classroom/api/ClassEndpoint.java:98-103",
+              "web/src/teacher/locales.ts:334"
+            ]
+          },
+          {
+            "description": "用带有效期与使用次数的邀请链接替代 6 位码，学生点链接入班。",
+            "insight": "- **做法**：生成 `token` + `expires_at` + `max_uses`，路由 `/join/{token}` 自动入班；班级页展示链接与二维码。\n- **别人怎么做的**：Discord 与 Slack 的邀请都是链接而非手输码，链接可撤销、可限次。\n- **代价**：要改入班 UI、二维码生成与分享路径，且要防链接被转发滥用（限次 + 过期缺一不可）。\n- **现在的落点**：`ClassView` 只有 `inviteCode`；学生入班页是输入框（`ClassesPage.tsx:203-219`）。",
+            "key": "link",
+            "label": "换成邀请链接",
+            "sources": [
+              "web/src/teacher/ClassesPage.tsx:203-219"
+            ]
+          },
+          {
+            "description": "保持现状，删掉「3 天过期」文案与 spec 里的过期要求。",
+            "insight": "- **做法**：改 `locales.ts:334`、删 AC-2.3 的过期句，保留轮换。\n- **代价**：班级码一旦外泄，任何人都能进班看到作业；对公网教学平台是实质性风险。\n- **现在的落点**：现状即此，但文案与 spec 都说有 3 天过期，属于最危险的「文档说安全、实现不安全」。",
+            "key": "never",
+            "label": "永不过期",
+            "sources": [
+              "web/src/teacher/locales.ts:334",
+              "specs/002-v2-platform/spec.md:89"
+            ]
+          }
+        ],
+        "prompt": "邀请码生命周期按哪套做？现状：`ClassEntity` 没有过期/停用字段，`join` 只按码查找；但页面文案已经写「默认 3 天过期，由服务端控制」，与 spec AC-2.3 一致、与实现相反。"
+      },
+      "ov": {
+        "allowCustom": true,
+        "header": "班级概览",
+        "multiSelect": false,
+        "next": "rp",
+        "options": [
+          {
+            "description": "学生导航加「班级概览」，按作业打开逐人表，完全按 spec AC-13.1–13.4 实现。",
+            "insight": "- **做法**：新增 `GET /api/offerings/{id}/overview`，只返回姓名、是否提交、attempt 次数、提交时间、状态、分数；越界字段（正文/附件/评语）一律 404。\n- **别人怎么做的**：Google Classroom 与 Canvas 的学生端只给「自己 + 花名册」，不给同学分数；Gradescope 在成绩发布后给逐题统计而不给逐人分数。\n- **会崩在哪**：50 人班每开一次就查全班最新提交，需要按 offering 预聚合或短缓存，否则首页与详情页会同时打满数据库。\n- **现在的落点**：`web/src/App.tsx:64-92` 无该路由，`web/src/app/Shell.tsx:25-29` 学生导航仅 3 项，`FeedbackDetailPage.tsx:157-171` 只有 3 个聚合数。",
+            "key": "page",
+            "label": "做独立页 + 新接口",
+            "next": "ov_cols",
+            "sources": [
+              "specs/002-v2-platform/spec.md:257-264",
+              "web/src/App.tsx:64-92",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/OfferingEndpoint.java:268-272"
+            ]
+          },
+          {
+            "description": "不加导航，把反馈详情的 ④ 段从三个聚合数扩成逐人表，少一个路由。",
+            "insight": "- **做法**：`/my-feedback` 增加 `peers[]` 与 `showPeerOverview`，详情页 ④ 段直接渲染表格。\n- **代价**：学生必须先打开某次反馈才看得到概览；mockup 的四段式节奏被拉长，且未发布反馈的作业看不到概览。\n- **会崩在哪**：`my-feedback` 已聚合全班均分，再拼逐人表会让这个接口变成最重的读接口，发布与未发布两种状态要各写一套裁剪逻辑。\n- **现在的落点**：`FeedbackDetailPage.tsx:157-171`；`SittingDtos.java:126-128` 的 `FeedbackOverview` 只有 5 个字段。",
+            "key": "fold",
+            "label": "并入反馈详情第 ④ 段",
+            "next": "ov_cols",
+            "sources": [
+              "web/src/student/FeedbackDetailPage.tsx:157-171",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/SittingDtos.java:126-128"
+            ]
+          },
+          {
+            "description": "只给分数段人数与自己的位置，不暴露任何姓名，隐私风险最低。",
+            "insight": "- **做法**：`/my-feedback` 增加 `buckets[]`（0–59 / 60–69 / …）与 `myBucket`，页面画分布条。\n- **别人怎么做的**：Gradescope 学生端发布后给逐题统计与分数分布，从不给逐人名单；Canvas 的匿名测验也是这个思路。\n- **代价**：不满足 AC-13.1 的六列字面要求，需要同时改 spec 与 mockup；教师想让学生「看见同学都在交」的督促效果变弱。\n- **现在的落点**：spec AC-13.1/13.2 现有五条验收已写好六列，改口径要动验收标准。",
+            "key": "anon",
+            "label": "匿名分布代替逐人表",
+            "next": "rp",
+            "sources": [
+              "specs/002-v2-platform/spec.md:257-264",
+              "web/src/student/FeedbackDetailPage.tsx:157-171"
+            ]
+          },
+          {
+            "description": "保留三个聚合数，把「未接入」换成能解释清楚的文案，不新增能力。",
+            "insight": "- **做法**：只改 `student/locales.ts`，把「后端未提供学生端概览接口」写成「本场只提供应交、实交与均分」。\n- **代价**：spec AC-13.1/13.2 长期悬空，验收清单与交付状态对不上；这一屏从「待做」变成「明确不做」。\n- **现在的落点**：`web/src/student/locales.ts:74-77` 的 `peerMissing` 已定义却从未渲染，现在用户什么解释都看不到。",
+            "key": "minimal",
+            "label": "维持现状 + 改文案",
+            "next": "rp",
+            "sources": [
+              "web/src/student/locales.ts:74-77",
+              "specs/002-v2-platform/spec.md:257-264"
+            ]
+          },
+          {
+            "description": "从 mockup 与 spec US-13 移除学生概览，明确不做并标注原因。",
+            "insight": "- **做法**：删 `#overview-s` 与 AC-13.1–13.5，在 `tasks.md` 标注不实现；教师端 `class-summary` 保留未交名单。\n- **代价**：mockup 已 review 通过，删屏等于重开评审；学生与家长会追问「为什么看不到班级情况」，需要一份对外口径。\n- **会崩在哪**：`show_peer_overview` 与 `publish_scores` 两个开关若只服务教师端，字段会变成无消费者的死配置。\n- **现在的落点**：`specs/002-v2-platform/spec.md:257-264`；后端 `/class-summary` 对学生 403（`OfferingEndpoint.java:268-272`）。",
+            "key": "drop",
+            "label": "删掉这一屏",
+            "next": "rp",
+            "sources": [
+              "specs/002-v2-platform/spec.md:257-264",
+              "specs/002-v2-platform/mockups/interface.html:1411-1440"
+            ]
+          }
+        ],
+        "prompt": "学生端「班级概览」是唯一整屏缺失的页面：mockup 与 spec US-13 都要求逐人表（姓名、是否提交、次数、提交时间、状态、分数），且 `publish_scores` 只控制他人分数。现在只在反馈详情第 ④ 段放了「应交 / 实交 / 均分」三个数。这一屏怎么落地？"
+      },
+      "ov_cols": {
+        "allowCustom": true,
+        "header": "概览列",
+        "multiSelect": false,
+        "next": "rp",
+        "options": [
+          {
+            "description": "姓名、是否提交、次数、提交时间、状态、分数全部给出，与 spec 字面一致。",
+            "insight": "- **做法**：分数列对他人受 `publish_scores` 控制：为 1 显示分数，为 0 显示「已批改 / 未批改」；自己的分数始终显示。\n- **别人怎么做的**：Canvas 花名册只给身份信息、成绩仅本人可见；Gradescope 发布后才给逐题统计，都靠「脱敏他人」而非「隐藏整表」。\n- **会崩在哪**：小班（少于 10 人）里姓名 + 分数等于可推断排名，必须有教师端开关兜底，否则等于默认公布排名。\n- **现在的落点**：`spec.md:258-263` 五条 AC 已写死这六列；`SittingDtos.java:126-128` 只有聚合字段。",
+            "key": "six",
+            "label": "六列全给",
+            "sources": [
+              "specs/002-v2-platform/spec.md:257-264",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/SittingDtos.java:126-128"
+            ]
+          },
+          {
+            "description": "只保留姓名、是否提交、状态、分数，去掉次数与提交时间。",
+            "insight": "- **做法**：表更窄，手机一屏能看完；次数字段仍在库里，只是不投影。\n- **代价**：与 AC-13.1 字面不一致，需改验收；教师端「谁多次尝试」的线索在学生端消失。\n- **现在的落点**：mockup `interface.html:1420-1434` 的列头是姓名/是否提交/尝试/提交时间/状态/分数。",
+            "key": "four",
+            "label": "四列精简",
+            "sources": [
+              "specs/002-v2-platform/mockups/interface.html:1420-1434"
+            ]
+          },
+          {
+            "description": "即使 `publish_scores=1` 也不给别人的分数，只给提交与批改状态。",
+            "insight": "- **做法**：分数列只渲染自己那一行，其他行固定「已批改 / 未批改」。\n- **代价**：直接违反 AC-13.2 对 `publish_scores` 的定义，开关变成无效配置，需改 spec。\n- **别人怎么做的**：Google Classroom 连同学的提交状态都不给，只给教师进度；我们至少还保留「有没有交」。",
+            "key": "noscore",
+            "label": "不显示他人分数",
+            "sources": [
+              "specs/002-v2-platform/spec.md:259-261"
+            ]
+          },
+          {
+            "description": "表格第一行固定是自己并显示分数，其余同学只显示「已批改 / 未批改」。",
+            "insight": "- **做法**：返回 `selfRow` 与 `peerRows` 两段，前端先渲染自己再渲染同学。\n- **代价**：学生无法判断自己在班里的位置，概览的「看别人进度」价值只剩「谁交了」。\n- **现在的落点**：反馈详情 ④ 段已是这个形态的雏形（只有聚合数、没有逐人）。",
+            "key": "self_top",
+            "label": "自己置顶 + 他人仅标签",
+            "sources": [
+              "web/src/student/FeedbackDetailPage.tsx:157-171"
+            ]
+          },
+          {
+            "description": "保留六列结构，但姓名换成「同学 3」这类序号，规避隐私。",
+            "insight": "- **做法**：接口按提交时间排序后编号，不返回真实姓名；自己的行标注「我」。\n- **代价**：不满足 AC-13.1 的「姓名」字段；教师想让学生互相认人时失效。\n- **别人怎么做的**：匿名同行评议（如 Peerceptiv）用编号代替姓名，但需要另一套「谁评谁」的映射表。",
+            "key": "anon_rows",
+            "label": "匿名行",
+            "sources": [
+              "specs/002-v2-platform/spec.md:258"
+            ]
+          }
+        ],
+        "prompt": "逐人表显示哪些列？（spec AC-13.1 要求六列，AC-13.2 要求 `publish_scores` 只控制他人分数、自己永远可见）"
+      },
+      "parser": {
+        "allowCustom": true,
+        "header": "解析增强",
+        "multiSelect": false,
+        "next": "admin",
+        "options": [
+          {
+            "description": "解析器输出 section 与 confidence，前端能分组、能标黄「待确认」。",
+            "insight": "- **做法**：`ParsedItem` 加 `section` 与 `confidence`，`ImportResult` 加 `sections`，前端按部分分组并给低置信度行加黄底。\n- **别人怎么做的**：Gradescope 与 Canvas 的题目导入都会要求「按部分/大题干分组」，并给解析失败行明确的待确认标记。\n- **会崩在哪**：置信度阈值定错会让老师反复确认正确答案，需要「标黄但不阻断」加「一键确认全部已配对」。\n- **现在的落点**：`PaperTextParser.java:28` 无 confidence；`PaperEndpoint.java:129-130` 的 `ImportResult` 无 sections；`createItems` 只写一个 section。",
+            "key": "both",
+            "label": "两者都产出",
+            "sources": [
+              "teachloop-paper/src/main/java/com/teachloop/paper/parse/PaperTextParser.java:28",
+              "teachloop-paper/src/main/java/com/teachloop/paper/api/PaperEndpoint.java:129-130",
+              "specs/002-v2-platform/mockups/interface.html:795-800"
+            ]
+          },
+          {
+            "description": "解析器按大题干切分部分与节，导出表能分组，但不做置信度。",
+            "insight": "- **做法**：标题层级识别 + 题号范围切分；导入结果按 section 落库，前端表格加分组合并行。\n- **代价**：低置信度的题目不会标黄，老师仍需逐题核对 77 行；mockup 的「待确认」状态做不出来。\n- **现在的落点**：`PaperEndpoint.createItems` 单 section 写入（`:374-405`）。",
+            "key": "section",
+            "label": "只产部分/节",
+            "sources": [
+              "teachloop-paper/src/main/java/com/teachloop/paper/api/PaperEndpoint.java:374-405"
+            ]
+          },
+          {
+            "description": "保留单部分，但给每题打置信度并在校对表标黄。",
+            "insight": "- **做法**：答案配对时算置信度（有答案=高、缺答案=低、选项不齐=中），前端加「待确认」列。\n- **代价**：表格不能按部分分组，「4 部分 8 节」的统计仍然缺失。\n- **别人怎么做的**：OCR 类工具（如 Gradescope 的答题卡识别）用置信度标黄，比强制分组更便宜。",
+            "key": "confidence",
+            "label": "只产置信度",
+            "sources": [
+              "teachloop-paper/src/main/java/com/teachloop/paper/parse/PaperTextParser.java:28"
+            ]
+          },
+          {
+            "description": "不做解析增强，导入后提供「手工拆部分 + 标记待确认」的操作。",
+            "insight": "- **做法**：题项表加批量「移到某部分」与「标记待确认」，老师手工整理。\n- **代价**：77 题的手工整理在中秋/月考季会非常痛；但实现成本最低、无需碰解析器。\n- **现在的落点**：`PaperWizardPage` 已有「手工添加部分」（`:868-894`），但没有批量移动。",
+            "key": "manual",
+            "label": "人工拆分代替",
+            "sources": [
+              "web/src/teacher/PaperWizardPage.tsx:868-894"
+            ]
+          },
+          {
+            "description": "不做增强，删掉校对表的「部分」列与「待确认」状态，明确只支持单部分。",
+            "insight": "- **做法**：改 `ImportPaperPage` 与 mockup，说明只支持单部分导入。\n- **代价**：整卷（4 部分 8 节）导入后无法区分听力/完形/写作，评分项也无法按部分挂载。\n- **现在的落点**：`ImportPaperPage.tsx:148-151` 无「部分/状态」列。",
+            "key": "flat",
+            "label": "维持单部分",
+            "sources": [
+              "web/src/teacher/ImportPaperPage.tsx:148-151"
+            ]
+          }
+        ],
+        "prompt": "导入解析要不要产出「部分 / 节」与置信度？现状：解析器一次只灌一个「综合」部分，`ParsedItem` 没有置信度，所以 mockup 的「4 个部分 8 节」与黄行校对都做不出来。"
+      },
+      "rp": {
+        "allowCustom": true,
+        "header": "报表导出",
+        "multiSelect": false,
+        "next": "edit",
+        "options": [
+          {
+            "description": "把已有的 xlsx / pdf 接口接上按钮，按布置聚合，1 天内可见。",
+            "insight": "- **做法**：报表页加两个下载链接指向 `/api/reports/offerings.xlsx?offeringId=…`，班级汇总页的导出模式照搬。\n- **别人怎么做的**：Stripe 与 GitHub 的导出都直接复用「当前筛选结果」，不做二次勾选，界面成本最低。\n- **代价**：不满足 mockup「勾选学生 × 题目」的主链路，导出粒度仍是整场。\n- **现在的落点**：`teachloop-report/.../ReportEndpoint.java:46-72` 已有接口；`ReportsPage.tsx:325-333` 只有一段「未接入」文案。",
+            "key": "existing",
+            "label": "先接现有按布置导出",
+            "sources": [
+              "teachloop-report/src/main/java/com/teachloop/report/api/ReportEndpoint.java:46-72",
+              "web/src/teacher/ReportsPage.tsx:325-333"
+            ]
+          },
+          {
+            "description": "新增「选中的学生 × 选中的题目」导出接口与三格式按钮，完整对齐 mockup。",
+            "insight": "- **做法**：两张可勾选表（学生、题目）+ 已选统计 + `POST /api/reports/export`（学生集、题目集、格式），后端逐份渲染 Markdown/PDF 并打包 ZIP。\n- **别人怎么做的**：Salesforce 报表导出按「当前选中的行」生成，Linear 导出当前视图为 CSV，都是先勾选再导出。\n- **会崩在哪**：100 个学生 × 200 道题的组合导出是 CPU 密集操作，必须异步任务 + 轮询下载，不能同步返回。\n- **现在的落点**：`ReportsPage.tsx:287-333` 没有可勾选列表；后端也没有 selection 导出接口。",
+            "key": "selection",
+            "label": "直接做勾选导出",
+            "sources": [
+              "web/src/teacher/ReportsPage.tsx:287-333",
+              "specs/002-v2-platform/mockups/interface.html:1137-1178"
+            ]
+          },
+          {
+            "description": "先接现有按布置导出让老师能用，再补「勾选 × 题目」主链路。",
+            "insight": "- **做法**：本批只做 `existing`，把 `selection` 排进下一批任务，spec 里保留 AC 但不阻塞当前交付。\n- **别人怎么做的**：GitHub 先做「导出 issues」再做「导出选中项」，两代功能并存，老入口不删。\n- **代价**：两个导出入口并存，需要文案区分「整场」与「按勾选」，否则老师会点错。\n- **现在的落点**：后端接口已就绪，前端接一次即可；selection 需要新表新接口。",
+            "key": "phase",
+            "label": "两步走",
+            "sources": [
+              "teachloop-report/src/main/java/com/teachloop/report/api/ReportEndpoint.java:46-72"
+            ]
+          },
+          {
+            "description": "先做「打包该场全部反馈」一个入口，后端已有 `feedback.zip`。",
+            "insight": "- **做法**：报表页与班级汇总页各加一个「打包反馈（ZIP）」按钮，指向现有接口。\n- **别人怎么做的**：Canvas 的批量下载作业与 Gradescope 的批量导出反馈，都是「整场打包」优先于「自定义勾选」。\n- **代价**：仍不满足 mockup 的题目列表与已选统计；教师想只发某几个学生时做不到。\n- **现在的落点**：`ExportEndpoint.java:85-98` 已有 `feedback.zip` 与 `feedback.pdf`；前端只有班级汇总页在用。",
+            "key": "zip",
+            "label": "只接整场反馈 ZIP",
+            "sources": [
+              "teachloop-report/src/main/java/com/teachloop/report/api/ExportEndpoint.java:85-98",
+              "web/src/teacher/ClassSummaryPage.tsx:266-270"
+            ]
+          },
+          {
+            "description": "只给接口文档，导出交给脚本或外部工具，页面不出现按钮。",
+            "insight": "- **做法**：在 `docs/` 写一段「报表导出 API 用法」，页面删掉「未接入」占位。\n- **代价**：老师必须会用 curl 或找运维，等于放弃这个功能；spec AC-14 的导出要求无处落地。\n- **现在的落点**：`locales.ts:487` 的「报表导出 Excel / PDF / ZIP（未接入）」会变成永久文案。",
+            "key": "none",
+            "label": "前端不做导出",
+            "sources": [
+              "web/src/teacher/locales.ts:487",
+              "specs/002-v2-platform/spec.md:266-270"
+            ]
+          }
+        ],
+        "prompt": "报表页要接哪一段导出？现状是：页面只有「按作业 × 班级汇总」与 Top N 错题，没有任何导出按钮；后端其实已有 `/api/reports/offerings.xlsx|pdf` 与 `/api/offerings/{id}/export/feedback.zip|pdf`，缺的是 mockup 的「勾选学生 × 题目」导出。"
+      }
+    },
+    "quick": [
+      {
+        "answers": {
+          "admin": {
+            "selected": [
+              "readonly_global"
+            ]
+          },
+          "edit": {
+            "selected": [
+              "put_window"
+            ]
+          },
+          "edit_lock": {
+            "selected": [
+              "extend_only"
+            ]
+          },
+          "invite": {
+            "selected": [
+              "full"
+            ]
+          },
+          "ov": {
+            "selected": [
+              "page"
+            ]
+          },
+          "ov_cols": {
+            "selected": [
+              "six"
+            ]
+          },
+          "parser": {
+            "selected": [
+              "both"
+            ]
+          },
+          "rp": {
+            "selected": [
+              "phase"
+            ]
+          }
+        },
+        "description": "只改文案与现有接口，概览维持现状、报表接现有导出、布置只读、邀请码只做过期。",
+        "insight": "- **这条路线适合**：近期要交付试用，先接受 mockup 的部分落差。\n- **代价**：spec 至少 3 条 AC 要降级（班级概览、布置编辑、解析分组），需要同步改 spec 免得文档腐化。\n- **好处**：几乎不动后端数据模型，1 周内可完成并可回归。",
+        "key": "align",
+        "label": "完整对齐 mockup 与 spec",
+        "recommended": true,
+        "sources": [
+          "docs/reports/mockup-parity/README.md:100-140"
+        ]
+      },
+      {
+        "answers": {
+          "edit": {
+            "selected": [
+              "create_only"
+            ]
+          },
+          "invite": {
+            "selected": [
+              "ttl"
+            ]
+          },
+          "ov": {
+            "selected": [
+              "minimal"
+            ]
+          },
+          "parser": {
+            "selected": [
+              "flat"
+            ]
+          },
+          "rp": {
+            "selected": [
+              "existing"
+            ]
+          },
+          "admin": {
+            "selected": [
+              "review_report"
+            ]
+          }
+        },
+        "description": "学生概览只给匿名分布、报表只做整场 ZIP、邀请码换限次链接、管理员只读复核与报表。",
+        "insight": "- **这条路线适合**：面向未成年学生或强合规场景，宁可少功能。\n- **代价**：AC-13.1 的六列与 AC-13.2 的分数开关要改写；mockup 概览屏需重画。\n- **好处**：把「小班可推断排名」这个最难解释的风险直接消掉。",
+        "key": "lean",
+        "label": "先能用再说：最小改动",
+        "sources": [
+          "docs/reports/mockup-parity/README.md:100-140"
+        ]
+      },
+      {
+        "answers": {
+          "admin": {
+            "selected": [
+              "review_report"
+            ]
+          },
+          "edit": {
+            "selected": [
+              "put_window"
+            ]
+          },
+          "edit_lock": {
+            "selected": [
+              "extend_only"
+            ]
+          },
+          "invite": {
+            "selected": [
+              "link"
+            ]
+          },
+          "ov": {
+            "selected": [
+              "anon"
+            ]
+          },
+          "parser": {
+            "selected": [
+              "confidence"
+            ]
+          },
+          "rp": {
+            "selected": [
+              "zip"
+            ]
+          }
+        },
+        "description": "补齐六屏：独立概览页、六列、勾选导出、开考前可编辑、邀请码全套、解析两组字段。",
+        "insight": "- **这条路线适合**：验收要以 mockup 为准、且愿意为 spec AC 全部补齐。\n- **代价**：涉及约 15 个接口/表改动，按审计估计 2–3 周；第 1 批纯前端修复可以并行。\n- **风险**：报表勾选导出与考试段落模型是两块最大工程量，容易拖期。",
+        "key": "privacy",
+        "label": "隐私优先：不露他人分数",
+        "sources": [
+          "specs/002-v2-platform/spec.md:257-264"
+        ]
+      }
+    ]
+  },
+  "workspaceRecord": true
+}

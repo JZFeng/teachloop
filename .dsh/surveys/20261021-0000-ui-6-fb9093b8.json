@@ -1,0 +1,607 @@
+{
+  "v": 1,
+  "surveyId": "fb9093b8-f411-4e73-9f1c-8e36d639d022",
+  "sessionId": "session-edce618f-a49e-4c73-86bf-765be5b3d53d",
+  "outcome": "answered",
+  "settledAt": 1792566030787,
+  "title": "UI 标准：6 个方向决策",
+  "answers": [
+    {
+      "id": "q_dir",
+      "selected": [
+        "b"
+      ]
+    },
+    {
+      "id": "q_lib",
+      "selected": [
+        "b"
+      ]
+    },
+    {
+      "id": "q_scope",
+      "selected": [
+        "a"
+      ]
+    },
+    {
+      "id": "q_theme",
+      "selected": [
+        "a"
+      ]
+    },
+    {
+      "id": "q_enforce",
+      "selected": [
+        "a"
+      ]
+    },
+    {
+      "id": "q_artifact",
+      "selected": [
+        "a"
+      ]
+    }
+  ],
+  "path": [
+    "q_dir",
+    "q_lib",
+    "q_scope",
+    "q_theme",
+    "q_enforce",
+    "q_artifact"
+  ],
+  "spec": {
+    "title": "UI 标准：6 个方向决策",
+    "intro": "这件事定的是 **TeachLoop 以后界面长什么样、由什么保证不走样**。为什么现在定：功能已经跑到 24 条路由、173 个任务，21 屏全靠手写类名拼出来，再往后加页面，每加一屏就多一份不统一。\n\n答完我会出一份**可评审的方案**——令牌文件怎么拆、组件 API 长什么样、先改哪几屏、验收怎么判——但**不写业务代码**，等你看完方案点头。\n\n每题都能选「其他」自己写；右上角有 4 个一键模板，懒得逐题选可以直接套一个再改。",
+    "entry": "q_dir",
+    "questions": {
+      "q_artifact": {
+        "allowCustom": true,
+        "header": "验收落点",
+        "options": [
+          {
+            "description": "既要能点开看组件矩阵，也要有各屏截图作为「改造前/后」的对照。最完整，交付周期最长。",
+            "insight": "- **做法：** 一页 `/ui-kit` 展示组件 × 状态矩阵，加一套 21 屏改造前后截图对照。\n- **Proven at:** Storybook + Chromatic 就是「组件展示页 + 截图比对」的商业化组合，说明这两件事天然配套。\n- **Breaks when:** 40+ 张截图的基线维护成本高，每改一次样式都要重新批准；展示页若不与真实页面共用组件实现，会变成两套真相。\n- **这里现在：** `.docs/screenshots/` 有 20 张手工截图，无基线无对比脚本；也没有任何展示页。",
+            "key": "a",
+            "label": "/ui-kit 展示页 + 21 屏截图基线",
+            "sources": [
+              ".docs/screenshots/",
+              "web/src/components/"
+            ]
+          },
+          {
+            "description": "一页看全所有组件和状态，你自己点一遍点头。页面改造另开任务，标准先立住。",
+            "insight": "- **做法：** 只做展示页，页面不动。\n- **Breaks when:** 展示页对了、真实页面仍可能走样——265 处内联 style 会绕过组件，展示页证明不了真实页面也守规矩。\n- **这里现在：** 现在没有任何展示页，`web/src/components/` 里连 Button 都没有，展示页要从零搭。\n- **成本：** 一页静态页 + 组件矩阵，比 a 少一半工作量，是「先看标准」的最快路径。",
+            "key": "b",
+            "label": "只交 /ui-kit 展示页",
+            "sources": [
+              "web/src/components/",
+              "web/src/teacher/HomePage.tsx"
+            ]
+          },
+          {
+            "description": "把令牌拆成文件、组件写进仓库，靠读代码判断标准对不对。最省事，最难评审。",
+            "insight": "- **做法：** `tokens.css` + `components/` 落地，不额外做页面。\n- **Breaks when:** 你只能读代码判断「标准对不对」，而这个项目的惯例是看截图或可点原型点头（`docs/reports/visual-review-2026-10-19.md` 就是逐屏截图复检的产物）。\n- **这里现在：** 令牌在 `mockup.css:2-57`，组件在 `web/src/components/`（5 个文件），都没有对外可看的入口。\n- **代价：** 省了展示页，但评审会变成「我读一遍 CSS 然后说行吧」，等于没验收。",
+            "key": "c",
+            "label": "令牌文件 + 组件代码，不做展示页",
+            "sources": [
+              "web/src/styles/mockup.css:2-57",
+              "docs/reports/visual-review-2026-10-19.md"
+            ]
+          },
+          {
+            "description": "先出书面规范：用什么色、什么间距、按钮有几种状态、什么场景用哪个组件。不动代码。",
+            "insight": "- **做法：** 一份 Markdown 规范 + 令牌值表，代码另排任务。\n- **Breaks when:** 文档会和代码分叉——宪法一度还写着 Python/FastAPI/Celery，技术栈早就是 Java（`AGENTS.md` 红线第 8 条）。\n- **这里现在：** `docs/research/` 只有 2 篇研究，没有任何设计系统相关资料，写文档前得先补研究。\n- **成本：** 最低，一两天能出一稿，但只是「想法」不是「标准」。",
+            "key": "d",
+            "label": "设计文档（Markdown）+ 令牌文件",
+            "sources": [
+              "AGENTS.md",
+              "docs/research/",
+              ".specify/memory/constitution.md"
+            ]
+          },
+          {
+            "description": "拿两屏做「试穿」，改造前后截图并排给你看，你点头再推广。最快看到效果，也最快暴露方向不对。",
+            "insight": "- **做法：** 登录页与教师首页各出一版改造后截图，和现状并排，你只判断「这个对味不对味」。\n- **Proven at:** 改造前先做单屏「试穿」是降低设计方向风险的常规做法——方向错了只损失两屏，而不是 21 屏。\n- **Breaks when:** 两屏好看不代表可复制：登录页只有一个按钮，教师首页只有统计卡和一张表，验证不到表单、富文本、弹层这些最难的部分。\n- **这里现在：** 这两屏改造量最小（登录页 1 个主按钮 `LoginPage.tsx:52`，首页 4 卡 + 1 表 `teacher/HomePage.tsx`），一天内能出对比图。",
+            "key": "e",
+            "label": "先给你两屏改造对比：登录 + 教师首页",
+            "sources": [
+              "web/src/app/LoginPage.tsx:52",
+              "web/src/teacher/HomePage.tsx",
+              ".docs/screenshots/login.png"
+            ]
+          }
+        ],
+        "prompt": "这套标准最终以什么形式存在、你怎么点头？现在没有组件展示页，也没有视觉基线，改一处样式只能靠肉眼比。这个选择决定我下一步先交什么给你看。"
+      },
+      "q_dir": {
+        "allowCustom": true,
+        "header": "视觉方向",
+        "next": "q_lib",
+        "options": [
+          {
+            "description": "把渐变按钮换成实色，用 8–12 级中性灰承担层级，强调色只出现在主操作、当前项和焦点环上。视觉立刻从模板感变产品感，改造成本中等。",
+            "insight": "- **做法：** 灰阶负责层次，强调色只负责「这里是当前焦点」，一屏里基本看不到第二种彩色。\n- **Proven at:** Linear 的界面就是这个路子——灰阶承担全部层级，强调色只给当前状态，所以界面看起来便宜不了。\n- **Breaks when:** 灰阶层级没排好时，克制会变成「空」——比现在的紫渐变更难调，因为没有任何装饰可以遮丑。\n- **这里现在：** `mockup.css:2-15` 只有 5 个中性变量（`--bg/--panel/--panel-2/--line/--line-2`），不够分级；`--accent-2` 目前唯一的用途就是那道渐变。",
+            "key": "a",
+            "label": "克制的现代 SaaS：灰阶分层 + 单一强调色，去掉渐变",
+            "sources": [
+              "web/src/styles/mockup.css:2-15",
+              "web/src/styles/mockup.css:107-117"
+            ]
+          },
+          {
+            "description": "参照 Ant Design / WPS 那一类教师一看就熟的桌面工具：蓝色主色、边框更实、行高更紧、一屏塞更多信息。学习成本最低，也最容易被看成后台系统。",
+            "insight": "- **做法：** 主色换成可信赖的蓝，边框从现在的 1px 浅灰变成能看出来的实线，表格行高从 10px 内边距往下压。\n- **Proven at:** Ant Design 的默认主题就是蓝主色 + 密表格，被大量国内教育、政务、办公后台直接采用，教师从 Excel/PPT 迁过来几乎不用学。\n- **Breaks when:** 「稳重」离「土」只有一步——这类界面极容易显得像十年前的教务系统，学生端也会跟着变呆板，品牌感基本为零。\n- **这里现在：** 表头已经是 11.5px + `text-transform:uppercase` + 10px 内边距的密排（`mockup.css:120-127`），再压密度中文表头会先读不动。",
+            "key": "b",
+            "label": "教育行业稳重：蓝主色、实边框、更高信息密度",
+            "sources": [
+              "web/src/styles/mockup.css:120-127",
+              "Ant Design 默认主题令牌（蓝主色 + 紧密度）"
+            ]
+          },
+          {
+            "description": "先出品牌层（字标、图形语言、色板、字体），再让所有页面从品牌层派生。辨识度最高，周期最长，现在做有返工风险。",
+            "insight": "- **做法：** 先做品牌最小闭环——一个字标、一个图形 motif、一套色板，再让组件层从这套色板派生。\n- **Proven at:** Duolingo 把品牌色和角色形象贯穿到答题的每个状态，学习产品的辨识度是从品牌层长出来的，不是组件库默认值给的。\n- **Breaks when:** 功能还在变的时候做全套品牌，很可能三个月后重做——现在 21 屏里还有「学生班级概览整屏未实现」（`docs/DELIVERY-STATUS.md` 第 9 条），信息架构没冻结。\n- **这里现在：** 仓库里没有任何 logo 或图形资源，`web/index.html` 连 favicon 引用都没有，登录页只有一个 34px 的文字标题（`app.css` 的 `.login-hero h1`）。",
+            "key": "c",
+            "label": "品牌化定制：先定 TeachLoop 自己的视觉身份",
+            "sources": [
+              "docs/DELIVERY-STATUS.md",
+              "web/index.html",
+              "web/src/styles/app.css:60-66"
+            ]
+          },
+          {
+            "description": "大面积中性色 + 细边框 + 小圆角，主按钮深色实心，彩色只在 focus 时出现。视觉几乎无装饰，靠排版撑住。",
+            "insight": "- **做法：** 把强调色从「主按钮底色」降级成「焦点环颜色」，主操作改成深灰接近黑，圆角从 12px 收到 6px。\n- **Proven at:** shadcn/ui 的默认主题就是中性灰 + 单一强调色，2023 年之后大量新项目直接采用，因为中性底子能扛住后续加功能不改样式。\n- **Breaks when:** 装饰极少，排版功底不够就显廉价；中文正文在 14px 下本来就密，中性配色会让层级更依赖字重和留白。\n- **这里现在：** 现有令牌已经是「浅底 + 白卡」结构，切这套只要换色值、圆角、阴影三组 token，不用动页面结构——改造成本比换库低一个数量级。",
+            "key": "d",
+            "label": "中性 shadcn 风：黑白灰为主，彩色只用于焦点",
+            "sources": [
+              "web/src/styles/mockup.css:2-15",
+              "shadcn/ui 默认主题（neutral + 单一强调色）"
+            ]
+          },
+          {
+            "description": "不动视觉语言，只让同类按钮、表格、间距在全站长一样，把缺的状态补齐。你觉得土的那颗渐变按钮会原样留着。",
+            "insight": "- **做法：** 把类名收进组件、补齐 disabled/focus/loading，视觉语言一条不改。\n- **Proven at:** GitHub 的 Primer 把「组件契约」和「视觉主题」分成两层发布，所以能在不换组件的前提下换主题——先做契约、后做视觉是可行的顺序。\n- **Breaks when:** 规范做完仍然「统一但土」，你还会再提一次同样的问题；那时候组件层已经铺到 21 屏，改视觉的成本比现在高。\n- **这里现在：** 这差不多就是 `mockup.css` 已经到的程度——令牌齐、变体少、渐变主按钮没动（`mockup.css:112`）。",
+            "key": "e",
+            "label": "先只做规范化：保留现在的紫渐变，只统一间距与状态",
+            "sources": [
+              "web/src/styles/mockup.css:107-117",
+              "GitHub Primer 的 Primitives / Components 分层"
+            ]
+          }
+        ],
+        "prompt": "主按钮现在是紫色渐变加彩色投影（`web/src/styles/mockup.css:112`），登录页那颗「Sign in」就是它。TeachLoop 的界面要从这套 2021 年模板审美走到哪个方向？这个选择决定后面所有颜色、阴影、圆角、字重的基准。"
+      },
+      "q_enforce": {
+        "allowCustom": true,
+        "header": "守卫机制",
+        "next": "q_artifact",
+        "options": [
+          {
+            "description": "新增一个检查脚本：禁止硬编码色值、字号、圆角、px 阴影，只允许 var(--…)；和现有三个守卫一样在 make test 里跑。",
+            "insight": "- **做法：** 写 `scripts/check-ui.py`，扫 `.css` 与 `.tsx` 里的色值/字号字面量，只放行令牌变量，存量走基线文件（和 `check-i18n` 的基线机制一样）。\n- **Proven at:** 这个仓库已经用同一模式守住了三件事——依赖方向、模块越界、i18n 字面量（`scripts/check-*.py` + `Makefile:57`），样式守卫是同一个模子。\n- **Breaks when:** 正则守卫只能抓「硬编码值」，抓不到「该用 Dialog 却手写了 div」，也不管 `style={{}}` 里的写法；绕过很容易。\n- **这里现在：** 265 处内联 style 正是守卫要拦的形态，一上来就会红一片，必须先落基线再逐步清零（`check-i18n` 现在就是 275 处存量基线）。",
+            "key": "a",
+            "label": "组件层 + 新增 check-ui 脚本，进 make test",
+            "sources": [
+              "Makefile:57",
+              "scripts/check-i18n.py",
+              "scripts/i18n-web-baseline.txt"
+            ]
+          },
+          {
+            "description": "把样式收进组件，页面不允许直接写类名，靠评审拦住。零额外基建，但完全依赖人。",
+            "insight": "- **做法：** 组件层封装 + 评审清单里加一条「不得手写 btn 类名」。\n- **Breaks when:** 靠人盯 9873 行会漏；`app.css:169` 那条 disabled 样式就是「缺状态没人发现、后来才补」的证据，而且是用户先点出了按钮禁用还能点（`DELIVERY-STATUS.md` 的 T250 批次）。\n- **这里现在：** `DataTable.tsx:73-97` 用内联 style 重写了一遍表格边框，和 `mockup.css` 的 `th/td` 规则各说各话——这是评审没拦住的实际例子。\n- **代价：** 省了脚本，但要给每屏评审都加一次样式检查，人力成本在屏数多时反而更高。",
+            "key": "b",
+            "label": "只靠组件封装 + 代码评审",
+            "sources": [
+              "web/src/styles/app.css:168-170",
+              "web/src/components/DataTable.tsx:73-97",
+              "docs/DELIVERY-STATUS.md"
+            ]
+          },
+          {
+            "description": "给关键屏截图做基线，改样式后跑一遍比对，肉眼看不出的位移会直接报出来。最接近「真的没坏」。",
+            "insight": "- **做法：** Playwright 截图 + `toHaveScreenshot` 比对，基线图进仓库，改样式时人工批准差异。\n- **Proven at:** Playwright 的 `toHaveScreenshot` 是前端最常见的视觉回归手段，Chromatic 把 Storybook 截图做成了付费服务，说明这个需求真实存在。\n- **Breaks when:** 字体渲染跨机器有差异（本机 mac 与 Docker 出图不一致），要固定容器和字体；21 屏 × 亮暗 = 40+ 张基线，每次改样式都要重新批准。\n- **这里现在：** `web/package.json` 连 vitest 都没有，加 Playwright 是一条全新依赖链；`.docs/screenshots/` 里 20 张截图是手工截的，没有比对逻辑。",
+            "key": "c",
+            "label": "加视觉回归：Playwright 截图基线对比",
+            "sources": [
+              "web/package.json",
+              ".docs/screenshots/",
+              "Playwright toHaveScreenshot"
+            ]
+          },
+          {
+            "description": "静态检查拦硬编码，截图回归拦布局走样，两条闸一起。最稳，基建成本也最高。",
+            "insight": "- **做法：** `check-ui` 进 `make test`，Playwright 单独一个 `make ui-diff`（不进默认测试，避免拖慢）。\n- **Proven at:** 成熟团队通常这么分层——静态检查进 CI 每次跑，视觉回归只在改前端时跑，因为截图基线频繁失效会很吵。\n- **Breaks when:** 第一周全花在基建上，页面一行没改；且两条闸同时失败时，先修哪条没人定。\n- **这里现在：** 现状是零守卫、零前端测试框架，两条闸都是从零开始。",
+            "key": "d",
+            "label": "a + c 都上：脚本守值，截图守样子",
+            "sources": [
+              "Makefile:57",
+              "web/package.json",
+              ".docs/screenshots/"
+            ]
+          },
+          {
+            "description": "出一份规范文档，靠自觉执行。成本最低，也最容易被遗忘——这个仓库已经有过文档腐化的记录。",
+            "insight": "- **做法：** 一份 Markdown 规范 + 令牌注释，不写任何检查。\n- **Breaks when:** 文档只记录不拦截。`docs/DELIVERY-STATUS.md` 第 4 节现在列了 11 条已知偏差，都是靠人工发现、事后补记的，没有一条是被文档提前拦住的。\n- **这里现在：** `.specify/memory/constitution.md` 曾经还写着 Python/FastAPI/Celery，而技术栈早就换成 Java（`AGENTS.md` 红线第 8 条）——这就是纯文档的下场。\n- **代价：** 三个月后没人记得有这份文档，还得重做一遍这次的事。",
+            "key": "e",
+            "label": "只写文档，不设闸门",
+            "sources": [
+              "docs/DELIVERY-STATUS.md",
+              "AGENTS.md",
+              ".specify/memory/constitution.md"
+            ]
+          }
+        ],
+        "prompt": "怎么防止下次又长歪？`make test` 现在会跑三个守卫：`check-deps` / `check-boundaries` / `check-i18n`（`Makefile:57`），但没有任何样式守卫。这个选择决定「标准」是一份文档，还是会失败的检查。"
+      },
+      "q_lib": {
+        "allowCustom": true,
+        "header": "组件来源",
+        "next": "q_scope",
+        "options": [
+          {
+            "description": "用现有 React + 手写 CSS，把类名契约收进组件（Button/Input/Select/Table/Dialog/Tag/Toast…），页面只传 type/size/tone。不新增任何依赖。",
+            "insight": "- **做法：** 组件内部包住 `className` 与状态类，页面不写 `btn pri` 这种字符串，只传 `variant=\"primary\"`。\n- **Proven at:** GitLab 的 Pajamas 就是自研组件 + 公共样式令牌，产品线没有引入第三方 UI 库，全站按钮和表格仍然统一。\n- **Breaks when:** 范围一扩大到日期选择、下拉、虚拟滚动表格，就得自己补焦点陷阱、ARIA、键盘导航——通常在第 6–8 个组件开始还技术债。\n- **这里现在：** `web/src/components/` 只有 5 个文件（States / DataTable / RichTextEditor / AuditDrawer / useListState），Button、Input、Dialog 一个都没有；`DataTable.tsx:73-97` 还在用内联 style 写表格边框，绕过 `mockup.css` 的 `th/td` 规则。",
+            "key": "a",
+            "label": "自研轻组件层：在现有 CSS 变量上抽 10–12 个组件，零依赖",
+            "sources": [
+              "web/src/components/",
+              "web/src/components/DataTable.tsx:73-97",
+              "GitLab Pajamas 组件库"
+            ]
+          },
+          {
+            "description": "装 antd，把表格、表单、日期、弹层都交给它，令牌对齐成我们的色板。生态最成熟、中文文档最全，但 21 屏的页面结构要重写。",
+            "insight": "- **做法：** `pnpm add antd`，用 `ConfigProvider` 注入自己的色板，表格/表单/日期/弹层全换掉。\n- **Proven at:** antd 的表格、表单、日期选择覆盖了这条产品线需要的全部复杂组件，中文文档和示例是同类里最全的，国内团队上手成本最低。\n- **Breaks when:** 不改主题就是教科书式 AntD 脸——一眼看出是别的产品；而且 21 屏里 939 行手写 CSS 与 265 处内联样式会大面积作废，等于重写页面。\n- **这里现在：** `web/package.json` 一个 UI 依赖都没有（只有 react / react-router / i18next），换库是前端最大的一次改动。",
+            "key": "b",
+            "label": "引入 Ant Design 5，表格表单交给它",
+            "sources": [
+              "web/package.json",
+              "Ant Design v5 ConfigProvider 令牌"
+            ]
+          },
+          {
+            "description": "字节的 React 组件库，令牌化程度高、中文文档完整，视觉比 antd 更轻。生态和示例数量小于 antd。",
+            "insight": "- **做法：** 同 antd，装库 + 注入令牌，但默认视觉更「轻」，和现在的浅底白卡更接近。\n- **Proven at:** Arco 用设计令牌驱动组件样式，改一套色值能全站生效，这一点和我们要的「唯一真源」一致。\n- **Breaks when:** 社区体量和第三方示例比 antd 小一个量级，遇到表格/表单的边角问题更难搜到答案；同样要重写 21 屏。\n- **这里现在：** 前端连 Tailwind、UI 库都没有，`web/` 是纯手写 CSS —— 引入任何一个库都是从零开始。",
+            "key": "c",
+            "label": "引入 Arco Design",
+            "sources": [
+              "web/package.json",
+              "Arco Design 设计令牌"
+            ]
+          },
+          {
+            "description": "用无样式的可访问性原语处理对话框、下拉、焦点管理，样式全部自己写。外观最自由，前端工作量翻倍。",
+            "insight": "- **做法：** 只引 Radix 或 React Aria 的行为层，样式仍用我们的 CSS 变量，外观完全自控。\n- **Proven at:** shadcn/ui 整个产品就是 Radix 的行为层 + 自己的样式，所以它既拿到可访问性又完全掌控外观——证明这两件事可以拆开。\n- **Breaks when:** 我们不使用 Tailwind，样式要自己维护焦点环、层级、滚动锁定与动画，一个 Dialog 的边角就够调两天。\n- **这里现在：** 没有任何弹层行为库，`AuditDrawer.tsx` 的抽屉是自己写的；引入 Radix 要新增 2–4 个依赖并改造它的定位与滚动行为。",
+            "key": "d",
+            "label": "headless（Radix / React Aria）+ 自研样式",
+            "sources": [
+              "web/src/components/AuditDrawer.tsx",
+              "shadcn/ui 基于 Radix Primitives"
+            ]
+          },
+          {
+            "description": "装 Tailwind，把组件源码放进仓库用 cva 管变体，样式从 CSS 文件搬到 className。拥有全部代码，但现有 939 行 CSS 要整体迁移。",
+            "insight": "- **做法：** 装 Tailwind + cva，组件源码进 `web/src/ui/`，样式以原子类组合表达。\n- **Proven at:** shadcn/ui 的复制式分发让你完全拥有组件源码，改样式不用等上游发版——这是它比传统组件库快的原因。\n- **Breaks when:** 现有 939 行手写 CSS + 265 处内联样式要整体搬到原子类，等于重写全部前端样式；而且「一套标准」会变成「一套约定俗成的类名组合」，反而更难审。\n- **这里现在：** `web/` 没有 Tailwind 依赖、没有 `tailwind.config`，939 行全是手写选择器，迁移期间两套写法必然并存。",
+            "key": "e",
+            "label": "shadcn/ui 模式：Tailwind + CVA，组件源码抄进仓库",
+            "sources": [
+              "web/src/styles/",
+              "shadcn/ui 复制式分发"
+            ]
+          },
+          {
+            "description": "把颜色、间距、字号、圆角、阴影固化成一份令牌文件和一份书面规范，页面继续手写类名。改动最小，约束也最弱。",
+            "insight": "- **做法：** 令牌文件 + 一页规范文档，说明什么场景用什么值，页面照旧手写类名。\n- **Proven at:** Material Design 是先用面向组件的语义令牌统一表达，再由各平台实现组件——令牌确实是设计系统的底座。\n- **Breaks when:** 令牌只能约束「值」，约束不了「缺状态」和「用错组件」——按钮仍然没有 disabled/focus/loading，规范会退化成一张配色表。\n- **这里现在：** 令牌已经有约 30 个（4 套主题同一批变量名），但缺状态令牌（hover/active/focus/disabled），也缺间距与字号阶梯。",
+            "key": "f",
+            "label": "只出令牌 + 文档，不抽组件",
+            "sources": [
+              "web/src/styles/mockup.css:2-57",
+              "Material Design 语义令牌"
+            ]
+          }
+        ],
+        "prompt": "组件从哪来？现在连 Button 组件都没有：127 处手写 `className=\"btn…\"`，6 个变体，页面对样式没有契约。这个选择决定后续每屏怎么落样式，也决定要不要引入新依赖。"
+      },
+      "q_scope": {
+        "allowCustom": true,
+        "header": "改动范围",
+        "next": "q_theme",
+        "options": [
+          {
+            "description": "先把组件做出来，然后改登录、教师首页、任一列表页、任一表单页、复核页这五类代表屏，剩下的页面等下次动它时再改。见效快，但新旧并存会持续一段时间。",
+            "insight": "- **做法：** 组件层一次做完，再挑能覆盖「按钮 / 统计卡 / 表格 / 表单 / 富文本 + 弹层」五类形态的屏先改。\n- **Proven at:** Shopify 的 Polaris 除了组件还发布页面级模板，让新页面直接套模板而不是自己拼——组件 + 代表屏是设计系统落地的常见单位。\n- **Breaks when:** 旧屏占多数时，用户在同一产品里看到两套按钮和密度，「不统一」的观感可能比完全不改更明显。\n- **这里现在：** 24 条路由里，登录页只有 1 个主按钮、教师首页有 4 张统计卡 + 1 张表，改造量小、最出效果；表格与表单的复杂度集中在试卷向导（`PaperWizardPage.tsx` 61 处内联样式）。",
+            "key": "a",
+            "label": "组件层 + 高频 5 屏先落，其余随迭代",
+            "sources": [
+              "web/src/teacher/HomePage.tsx",
+              "web/src/teacher/PaperWizardPage.tsx",
+              "Shopify Polaris 组件 + 模板"
+            ]
+          },
+          {
+            "description": "一套标准一次落地，改完不存在新旧并存。代价是改动面覆盖全部 24 条路由，回归风险最高。",
+            "insight": "- **做法：** 组件层 + 全部页面重排，一次性回归 24 条路由。\n- **Proven at:** antd 从 4 升到 5 时专门发了 codemod 和逐组件的迁移指南，就是因为「一次性换完」在真实项目里不可控——它把大改动拆成了可验证的小步。\n- **Breaks when:** 一次 diff 覆盖 9873 行，视觉和功能同时变，出问题时定位成本极高；而且这个项目没有前端测试框架，回归全靠人工点。\n- **这里现在：** `web/package.json` 里没有 vitest / playwright / 任何测试依赖，`scripts/` 下 6 个守卫脚本也不涉及浏览器。",
+            "key": "b",
+            "label": "21 屏一次改完",
+            "sources": [
+              "web/package.json",
+              "scripts/",
+              "antd v5 codemod 迁移指南"
+            ]
+          },
+          {
+            "description": "新加的页面按新标准写，旧页面冻结。成本最低，但标准无法被验证，而且会长期存在两套视觉。",
+            "insight": "- **做法：** 只给新页面套组件层，旧页面一行不动。\n- **Pattern:** 新页面套新规范、旧页面冻结，是团队止血时最常见的选择。\n- **Breaks when:** 旧页面占绝大多数时，标准没有足够样本可看，也没人验证它能不能覆盖真实场景；半年后两套并存变成三套。\n- **这里现在：** 24 条路由里真正意义上的新页面只有「作业」两屏（`AssignmentsPage.tsx` / `AssignmentCreatePage.tsx`），按这条路只能覆盖 2 屏，且它们不含表格与富文本，验证不到最难的部分。",
+            "key": "c",
+            "label": "只规范新页面，存量不动",
+            "sources": [
+              "web/src/teacher/AssignmentsPage.tsx",
+              "web/src/teacher/AssignmentCreatePage.tsx"
+            ]
+          },
+          {
+            "description": "先做一页把所有组件与状态（默认/悬停/焦点/禁用/加载/错误，亮暗各一套）摆出来，对齐之后再说改哪几屏。",
+            "insight": "- **做法：** 一页静态展示页，左侧目录，右侧组件矩阵，直接复用未来的组件与令牌。\n- **Proven at:** Storybook 成为 React 生态默认的组件验收方式，就是因为它把「标准」变成一个可点开的页面，而不是一份文档。\n- **Breaks when:** 展示页与真实页面的样式不同步时，展示页会变成谎言——必须让它和页面共用同一份组件实现，不能另写一套。\n- **这里现在：** 没有任何展示页，`web/src/components/` 里连 Button 都没有，展示页要从零搭。",
+            "key": "d",
+            "label": "先只做 /ui-kit 展示页，页面一个不改",
+            "sources": [
+              "web/src/components/",
+              "Storybook 的定位"
+            ]
+          },
+          {
+            "description": "先删掉 mockup.css 里原型专用的死代码（主题条、原型提示条、二维码占位、登录两栏），把重复选择器合并，再抽组件，最后逐屏。",
+            "insight": "- **做法：** 先让样式只有一个来源，再抽组件，最后按屏替换——顺序和常见做法相反，但能先止住「同一个类两个定义」。\n- **Proven at:** Primer 的样式只从令牌包和组件自己的样式出，页面本身不写样式——这是它能维持 400+ 页面一致的结构原因。\n- **Breaks when:** 按文件推进不看页面效果，删到一半界面会坏；每一步都必须有截图可回归，否则你不知道删掉的那条规则还在被谁用。\n- **这里现在：** 13 个选择器在两个文件里各定义一次（`.exam-question`/`.tree-item`/`.remaining` 在 app.css 与 exam.css；`.rubric-row`/`.score-big` 在 exam.css 与 mockup.css），另有 `.theme-bar`/`.proto`/`.qr`/`.login-wrap` 是原型遗留、真实应用不用。",
+            "key": "e",
+            "label": "按 CSS 文件推进：先收口样式来源，再逐屏",
+            "sources": [
+              "web/src/styles/app.css",
+              "web/src/exam/exam.css",
+              "web/src/styles/mockup.css:143-200"
+            ]
+          }
+        ],
+        "prompt": "改多少屏、按什么顺序？前端现在 24 条路由、37 个 .tsx 约 9873 行，样式散在 4 个 CSS 文件 939 行加 265 处内联 style。这个选择决定第一批任务怎么拆。"
+      },
+      "q_theme": {
+        "allowCustom": true,
+        "header": "主题策略",
+        "next": "q_enforce",
+        "options": [
+          {
+            "description": "保留亮色和深色，砍掉 academic 与 eyecare。暗色覆盖教师晚上批改的真实场景，验证成本是 2 倍而不是 4 倍。",
+            "insight": "- **做法：** 同一组语义令牌换值出两套，组件层不区分主题。\n- **Proven at:** GitHub 的 Primer 同时发布 light/dark 两套令牌，暗色不是另做一套界面，而是同一组语义令牌换值。\n- **Breaks when:** 暗色要逐屏验对比度；这一轮修 `--muted-2` 时就是 4 套主题各算一次（`docs/reports/visual-review-2026-10-19.md` 第 2 条），两套意味着每加一个组件做 2 次对比度核算。\n- **这里现在：** 4 套主题的令牌已经写好（`mockup.css:2-57`），dark 的 `--muted-2` 是 5.05:1、亮色 4.64:1，两套都达标，砍掉任何一套都浪费了已经调过的值。",
+            "key": "a",
+            "label": "亮 + 暗两套",
+            "sources": [
+              "web/src/styles/mockup.css:2-57",
+              "docs/reports/visual-review-2026-10-19.md",
+              "GitHub Primer 的 light/dark 令牌"
+            ]
+          },
+          {
+            "description": "saas / academic / eyecare / dark 全部留下，在资料页加主题选择。选择最多，验证成本翻 4 倍。",
+            "insight": "- **做法：** 令牌文件保留 4 组，设置页加选择器，选择写 localStorage。\n- **Breaks when:** 4 套 × 每屏 × 对比度 = 4 倍验证，每加一个组件验 4 次；而 academic 和 eyecare 目前没有任何用户需求证据，只是原型阶段做的三个备选方案。\n- **这里现在：** 上一轮修对比度时，4 套主题 × 8 屏 × 每屏约 800 个文本节点才算完（`docs/reports/visual-review-2026-10-19.md`）——这就是 4 套的真实成本。\n- **死代码证据：** `rg data-theme web/src` 只有 mockup.css 里的 4 条定义，React 侧零引用，`index.html:8` 写死 saas。",
+            "key": "b",
+            "label": "保留 4 套，并把切换做进设置页",
+            "sources": [
+              "web/src/styles/mockup.css:2-57",
+              "docs/reports/visual-review-2026-10-19.md",
+              "web/index.html:8"
+            ]
+          },
+          {
+            "description": "砍到一套，令牌最简单，维护成本最低。代价是没有暗色，晚上批改只能看亮屏。",
+            "insight": "- **做法：** 令牌只留一组，删除所有 `body[data-theme]` 选择器。\n- **Breaks when:** 教师真实使用场景是「晚上在家批改」，长时间看亮白屏会被抱怨；而且 dark 令牌已经调到达标，砍掉是净损失。\n- **这里现在：** 组卷和复核页是教师停留最久的两屏（`PaperWizardPage.tsx` / `ReviewPage.tsx`），也是 265 处内联样式最集中的两屏，暗色下这些内联颜色会最先露馅——所以「只留亮色」其实也省不掉验证工作。\n- **反证：** `docs/DELIVERY-STATUS.md` 里没有一条用户反馈要求砍主题，说明这不是被抱怨的问题。",
+            "key": "c",
+            "label": "只留一套亮色",
+            "sources": [
+              "web/src/styles/mockup.css:2-57",
+              "docs/DELIVERY-STATUS.md"
+            ]
+          },
+          {
+            "description": "用 `prefers-color-scheme` 自动切，用户不用选。省一个开关，但系统设置与使用场景经常不一致。",
+            "insight": "- **做法：** 一套令牌两组值，靠媒体查询自动切换，页面不出现开关。\n- **Proven at:** Tailwind 的 `darkMode: 'media'` 策略就是这条路，很多产品默认跟随系统，少了设置项。\n- **Breaks when:** 白天在教室投影、晚上在家批改，系统设置不一定跟着场景走；没有手动开关就会被要求加回来。\n- **这里现在：** `rg prefers-color-scheme web/src` 零命中，暗色现在完全靠 `data-theme` 属性，跟系统无关。",
+            "key": "d",
+            "label": "亮色为主 + 跟随系统自动暗色，不做手动开关",
+            "sources": [
+              "web/src/styles/mockup.css:2-57",
+              "Tailwind darkMode: media 策略"
+            ]
+          },
+          {
+            "description": "全局只留亮色，只在考试作答的专注模式给一套深色高对比。主题从「全局开关」收窄成「场景」。",
+            "insight": "- **做法：** 常规页面只有亮色，`exam-focus` 这个独立壳单独一套令牌。\n- **Pattern:** 把主题收窄到「场景」而不是「全局开关」——考试专注页本来就是独立布局（`app.css:39` 的 `.exam-focus` + `Shell.tsx` 的 `ExamFocusLayout`），改它不牵动其它 20 屏。\n- **Breaks when:** 用户期望全局暗色时会找不到开关；而且学生和教师共用同一套主题，学生端夜间看反馈仍然是亮白。\n- **这里现在：** `exam-focus` 已经是独立壳，`body.examfocus` 在 mockup.css 里还有专门的隐藏规则，是最容易单独换主题的一块。",
+            "key": "e",
+            "label": "亮色为主，暗色只给答题专注页",
+            "sources": [
+              "web/src/styles/app.css:39",
+              "web/src/app/Shell.tsx:99-101",
+              "web/src/styles/mockup.css:280-296"
+            ]
+          }
+        ],
+        "prompt": "主题留几套？`mockup.css` 定义了 4 套（saas / academic / eyecare / dark），但全仓只有 `web/index.html:8` 一处引用 `data-theme=\"saas\"`，没有任何切换入口——3 套是死代码。这个选择决定令牌文件要维护几份、每加一个组件要验几次。"
+      }
+    },
+    "quick": [
+      {
+        "answers": {
+          "q_artifact": {
+            "selected": [
+              "e"
+            ]
+          },
+          "q_dir": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_enforce": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_lib": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_theme": {
+            "selected": [
+              "a"
+            ]
+          }
+        },
+        "description": "推荐路线：去掉渐变、自己抽轻组件、先改五类代表屏、保留亮暗两套、加 check-ui 进 make test，最后先给两屏对比。",
+        "insight": "- **这条路线定的是**：视觉语言换成灰阶分层，组件自己写不引库，改动从 5 类代表屏开始，亮暗两套，样式守卫进 make test。\n- **为什么推荐：** 你现在最痛的是「每屏长得不一样」，自研组件层是唯一能真正约束这件事的做法；引库会让 21 屏重写，砍主题会浪费已经调好的暗色。\n- **代价：** 第 6 个组件之后要自己补焦点陷阱和键盘导航，这部分必须排进任务，不能假装不存在。\n- **适合现在：** 功能已经跑到 24 条路由、还在加页面，正需要一层能接住新页面的组件。",
+        "key": "a",
+        "label": "克制 SaaS + 自研组件 + 先 5 屏 + 亮暗 + 检查脚本",
+        "recommended": true,
+        "sources": [
+          "web/src/styles/mockup.css:107-117",
+          "Makefile:57",
+          "docs/DELIVERY-STATUS.md"
+        ]
+      },
+      {
+        "answers": {
+          "q_artifact": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_dir": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_enforce": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_lib": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_theme": {
+            "selected": [
+              "a"
+            ]
+          }
+        },
+        "description": "直接引 antd 覆盖表格表单，令牌对齐自己的色板，21 屏一次换完，靠组件库自带规范。",
+        "insight": "- **这条路线定的是**：不自己造组件，把表格、表单、日期、弹层全交给 antd，主色改成教育稳重的蓝。\n- **好处：** 复杂组件（日期选择、可编辑表格、树形、上传）一次到位，不用自己还可访问性的债。\n- **代价：** 21 屏的页面结构要重写，939 行手写 CSS 与 265 处内联样式大面积作废；不改主题就是一张人人认得出的 AntD 脸。\n- **适合现在：** 如果你更在意外观「专业、别出错」而不是「有品牌感」，这条路最快到终点。",
+        "key": "b",
+        "label": "换 Ant Design：稳、快、接受一张标准后台脸",
+        "sources": [
+          "web/package.json",
+          "web/src/styles/"
+        ]
+      },
+      {
+        "answers": {
+          "q_artifact": {
+            "selected": [
+              "d"
+            ]
+          },
+          "q_dir": {
+            "selected": [
+              "e"
+            ]
+          },
+          "q_enforce": {
+            "selected": [
+              "e"
+            ]
+          },
+          "q_lib": {
+            "selected": [
+              "f"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "c"
+            ]
+          },
+          "q_theme": {
+            "selected": [
+              "c"
+            ]
+          }
+        },
+        "description": "保留现在的紫渐变，只把值固化成令牌、写一份规范，不抽组件、不设闸门。先看看值不值得投入。",
+        "insight": "- **这条路线定的是**：这次只交令牌文件与设计文档，不动任何页面。\n- **好处：** 一两天出稿，几乎零风险；先确认「我们说的标准是同一件事」再投入。\n- **代价：** 你觉得土的那颗渐变按钮会原样留着；没有组件层和守卫，下次加页面还是各写各的。\n- **适合现在：** 如果你觉得现在最该做的是别的事，只想先把口径写在纸上。",
+        "key": "c",
+        "label": "最小改动：只出令牌和规范，代码先不动",
+        "sources": [
+          "web/src/styles/mockup.css:2-57",
+          "AGENTS.md"
+        ]
+      },
+      {
+        "answers": {
+          "q_artifact": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_dir": {
+            "selected": [
+              "d"
+            ]
+          },
+          "q_enforce": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_lib": {
+            "selected": [
+              "e"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_theme": {
+            "selected": [
+              "a"
+            ]
+          }
+        },
+        "description": "换成中性灰白视觉，装 Tailwind、把 shadcn 的组件源码抄进仓库自己改，先做展示页。",
+        "insight": "- **这条路线定的是**：视觉走中性灰 + 单一强调色，技术栈换成 Tailwind + cva，组件源码完全自己拥有。\n- **好处：** 以后想改任何组件的长相都不用等上游；2023 年后新项目的主流做法。\n- **代价：** 939 行手写 CSS 与 265 处内联样式要搬到原子类，等于重写全部前端样式；迁移期间两套写法必然并存。\n- **适合现在：** 如果你打算长期做这个前端、并且愿意为「样式完全可控」付一次重写的钱。",
+        "key": "d",
+        "label": "shadcn 风：Tailwind + 组件源码进仓库",
+        "sources": [
+          "web/src/styles/",
+          "web/package.json",
+          "shadcn/ui"
+        ]
+      }
+    ]
+  },
+  "workspaceRecord": true
+}
