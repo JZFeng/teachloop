@@ -352,17 +352,18 @@ class Phase2ExamTimingTest {
         String teacher = login(base, "teacher@teachloop.local");
         String student = login(base, "student@teachloop.local");
 
-        String paperId = createPaper(base, teacher);
         String classId = createClass(base, teacher, "高二（1）班");
         String invite = classInvite(base, teacher, classId);
         join(base, student, invite);
 
+        // D-14：作业自带内容，不再建卷、不带 paperId、不设时长
         Map<String, Object> create = new HashMap<>();
-        create.put("paperId", paperId);
-        create.put("kind", "ASSIGNMENT");
+        create.put("title", "高二（1）班写作作业");
+        create.put("instructions", "写一篇 100 词的短文，介绍你的家乡。");
+        create.put("totalPoints", 20);
+        create.put("rubricMarkdown", "# 评分标准\n- 内容要点\n- 语言准确性");
         create.put("timingMode", "INDIVIDUAL");
         create.put("dueAt", BASE.toString());
-        create.put("durationMinutes", 60);
         create.put("graceHours", 3);
         create.put("classes", List.of(Map.of("classId", classId)));
         String offeringId = send(base, teacher, "POST", "/api/offerings", create).get("id").toString();
@@ -398,9 +399,7 @@ class Phase2ExamTimingTest {
         long distTotal = dist.stream().mapToLong(b -> ((Number) ((Map<?, ?>) b).get("count")).longValue()).sum();
         assertThat(distTotal).isEqualTo(1);
         List<?> accuracy = (List<?>) cls.get("itemAccuracy");
-        assertThat(accuracy).hasSize(2);
-        assertThat(((Number) ((Map<?, ?>) accuracy.get(0)).get("answered")).longValue()).isZero();
-        assertThat(((Map<?, ?>) accuracy.get(0)).get("correctRate")).isNull();
+        assertThat(accuracy).as("独立作业只有 1 条主观题项，没有客观题可统计正确率").isEmpty();
 
         String submissionIdFromDb = jdbc.queryForObject(
                 "select id::text from submissions where offering_id = ? order by attempt_no limit 1",

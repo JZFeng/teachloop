@@ -247,4 +247,182 @@ class PaperTextParserTest {
                 .isInstanceOf(ImportException.class)
                 .hasMessageContaining("没有识别到任何题号");
     }
+
+    /** 老师会把「答案」写成「标准答案」「正确答案」或加方括号，四种都要认。 */
+    @Test
+    void acceptsEveryAnswerKeywordSpelling() {
+        String template = """
+                1. 甲题
+                A. 一
+                2. 乙题
+                A. 一
+                %s
+                1 A
+                2 B
+                """;
+        for (String keyword : List.of("答案", "参考答案", "标准答案", "正确答案", "【答案】", "【标准答案】")) {
+            PaperTextParser.Result result = parseMarkdown(template.formatted(keyword));
+
+            assertThat(result.missingAnswers()).as("关键字 %s", keyword).isEmpty();
+            assertThat(result.items()).extracting(PaperTextParser.ParsedItem::answerKey)
+                    .as("关键字 %s", keyword).containsExactly("A", "B");
+        }
+    }
+
+    /** 漏填一道不该让整卷导入失败，但要留下可定位的告警。 */
+    @Test
+    void skipsBareNumberEntriesInsteadOfFailing() {
+        String text = """
+                1. 甲题
+                A. 一
+                2. 乙题
+                A. 一
+                3. 丙题
+                A. 一
+                答案
+                1. A
+                2. B
+                3.
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::answerKey)
+                .containsExactly("A", "B", null);
+        assertThat(result.missingAnswers()).containsExactly(3);
+        assertThat(result.warnings()).anyMatch(w -> w.contains("题号 3 没有答案"));
+    }
+
+    /** 答题卡形态的纯字母串：题号连续时按顺序配。 */
+    @Test
+    void pairsPlainLetterSequenceWhenNumbersAreContiguous() {
+        String text = """
+                1. 甲题
+                A. 一
+                2. 乙题
+                A. 一
+                3. 丙题
+                A. 一
+                答案
+                A B C
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.missingAnswers()).isEmpty();
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::answerKey)
+                .containsExactly("A", "B", "C");
+    }
+
+    /** 题号不连续时拒绝配对：错位给分会比直接失败更糟。 */
+    @Test
+    void refusesPlainLetterSequenceWhenNumbersHaveGaps() {
+        String text = """
+                1. 甲题
+                A. 一
+                2. 乙题
+                A. 一
+                7. 丙题
+                A. 一
+                答案
+                A B C
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::answerKey)
+                .containsExactly(null, null, null);
+        assertThat(result.missingAnswers()).containsExactly(1, 2, 7);
+        assertThat(result.warnings()).anyMatch(w -> w.contains("无法对应到连续题号"));
+    }
+
+    /** T236：答案区里的小标题、带解析的行都不该让整卷导入失败。 */
+    @Test
+    void survivesHeadingsAndCommentaryInsideAnswerZone() {
+        String text = """
+                1. 甲题
+                A. 一
+                2. 乙题
+                A. 一
+                3. 丙题
+                A. 一
+                4. 丁题
+                A. 一
+                5. 戊题
+                A. 一
+                参考答案
+                ### 第一部分 听力（1-20）
+                **第一节：**
+                1-5: A B B C C
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.missingAnswers()).isEmpty();
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::answerKey)
+                .containsExactly("A", "B", "B", "C", "C");
+    }
+
+    /** 卷末附录标题常常带前缀，如「试卷参考答案与解析 (卷末附录)」。 */
+    @Test
+    void findsAnswerZoneByHeadingThatMentionsReferenceAnswers() {
+        String text = """
+                1. 甲题
+                A. 一
+                2. 乙题
+                A. 一
+                3. 丙题
+                A. 一
+                # 试卷参考答案与解析 (卷末附录)
+                21-23: D B A
+                1-3: A B C
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.missingAnswers()).isEmpty();
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::answerKey)
+                .containsExactly("A", "B", "C");
+    }
+
+    /** T236：填空题的答案就是文本，不能被读成字母。 */
+    @Test
+    void readsFillBlankAnswersAsText() {
+        String text = """
+                1. 选择题
+                A. 一
+                2. 选择题
+                A. 一
+                56. 语法填空 ______
+                57. 语法填空 ______
+                答案
+                1 A
+                2 B
+                56. challenging (修饰名词 experience)
+                57. to walk  58. impressive
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::number)
+                .containsExactly(1, 2, 56, 57);
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::answerKey)
+                .containsExactly("A", "B", "challenging", "to walk");
+        assertThat(result.missingAnswers()).isEmpty();
+    }
+
+    /** 选择题写非字母答案仍然报错，不静默存成 "C"。 */
+    @Test
+    void stillRejectsWordAnswerForChoiceQuestion() {
+        String text = """
+                1. 选择题
+                A. 一
+                答案
+                1. challenging
+                """;
+
+        assertThatThrownBy(() -> parseMarkdown(text))
+                .isInstanceOf(ImportException.class)
+                .hasMessageContaining("无法解析的答案行");
+    }
 }

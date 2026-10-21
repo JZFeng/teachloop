@@ -77,10 +77,33 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
      * grading_started_at 置空，下一次领取会重新计时。
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = "update submissions set grading_state = 'PENDING', grading_started_at = null "
+    @Query(value = "update submissions set grading_state = 'PENDING', grading_started_at = null, "
+            + "grading_error = null "
             + "where grading_state = 'RUNNING' and grading_started_at is not null "
-            + "and grading_started_at < :cutoff", nativeQuery = true)
-    int sweepStaleRunning(Instant cutoff);
+            + "and grading_started_at < :cutoff and grading_attempts < :maxAttempts", nativeQuery = true)
+    int sweepStaleRunning(Instant cutoff, int maxAttempts);
+
+    /**
+     * T234：领了太多次还是跑不完的行，退成 FAILED 而不是无限回到队列——
+     * FAILED 才会进「失败」计数，也才有 UI 上的「重试失败/卡住项」可点。
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "update submissions set grading_state = 'FAILED', grading_started_at = null, "
+            + "grading_error = '批改多次未完成，已标记失败（可手动重试）' "
+            + "where grading_state = 'RUNNING' and grading_started_at is not null "
+            + "and grading_started_at < :cutoff and grading_attempts >= :maxAttempts", nativeQuery = true)
+    int failStaleRunning(Instant cutoff, int maxAttempts);
+
+    /**
+     * T234：教师手动「重试失败/卡住项」时，把这一场超时的 RUNNING 也退回队列
+     * （阈值比定时清扫短，见 {@code teachloop.grading.manual-stale-minutes}）。
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "update submissions set grading_state = 'PENDING', grading_started_at = null, "
+            + "grading_error = null "
+            + "where offering_id = :offeringId and grading_state = 'RUNNING' "
+            + "and grading_started_at is not null and grading_started_at < :cutoff", nativeQuery = true)
+    int reclaimStaleRunning(UUID offeringId, Instant cutoff);
 
     /**
      * T094：一条聚合 SQL 返回 total/done/running/pending/failed，不在应用层做 N 次 count。

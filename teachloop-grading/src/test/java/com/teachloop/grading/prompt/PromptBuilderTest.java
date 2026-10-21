@@ -110,7 +110,7 @@ class PromptBuilderTest {
     @DisplayName("rubric 未写分值时按主观满分均分，作为结构化评分项进端口前的过渡")
     void splitsPointsWhenRubricOmitsThem() {
         Ports.WorkItem item = new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), STUDENT_ID,
-                STUDENT_NAME, "TEXT", ESSAY, List.of(),
+                STUDENT_NAME, "TEXT", ESSAY, null, List.of(),
                 List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", null, new BigDecimal("15"),
                         "Write about your class.")),
                 "# 评分标准\n- 内容要点：是否覆盖题目要求的全部要点。\n- 语言准确性：语法与用词。",
@@ -140,7 +140,7 @@ class PromptBuilderTest {
                 : "# 评分标准\n- 内容要点（10 分）：是否覆盖题目要求的全部要点。\n"
                   + "- 语言准确性（5 分）：语法、用词与句式是否准确得体。\n";
         return new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), STUDENT_ID, STUDENT_NAME, "TEXT",
-                ESSAY,
+                ESSAY, null,
                 List.of(new Ports.AnswerRow(UUID.randomUUID(), 1, "A")),
                 List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "SINGLE_CHOICE", ANSWER_KEY,
                                 new BigDecimal("5"), "Multiple choice stem"),

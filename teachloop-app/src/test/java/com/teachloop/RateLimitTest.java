@@ -258,16 +258,12 @@ class RateLimitTest {
     }
 
     private String createOffering(String teacher, String classId) throws Exception {
-        String paperId = post(teacher, "/api/papers",
-                Map.of("title", "限流测试卷", "defaultDurationMinutes", 60), "id");
-        String sectionId = post(teacher, "/api/papers/" + paperId + "/sections",
-                Map.of("title", "写作", "pointsPerItem", 20), "id");
-        post(teacher, "/api/papers/" + paperId + "/items", Map.of("number", 1, "questionType", "ESSAY",
-                "stem", "Write an essay.", "points", 20, "paperSectionId", sectionId), "id");
-        post(teacher, "/api/papers/" + paperId + "/publish", Map.of(), "id");
+        // D-14：作业自带内容，不再建卷、不带 paperId、不设时长
         Map<String, Object> body = Map.of(
-                "paperId", paperId, "kind", "ASSIGNMENT", "timingMode", "INDIVIDUAL",
-                "dueAt", Instant.now().plusSeconds(7 * 86400).toString(), "durationMinutes", 60,
+                "title", "限流测试作业", "timingMode", "INDIVIDUAL",
+                "instructions", "Write an essay.", "totalPoints", 20,
+                "rubricMarkdown", "# 评分标准\n- 内容要点\n- 语言准确性",
+                "dueAt", Instant.now().plusSeconds(7 * 86400).toString(),
                 "classes", List.of(Map.of("classId", classId)));
         String offeringId = sendMap(teacher, "POST", "/api/offerings", body).get("id").toString();
         send(teacher, "POST", "/api/offerings/" + offeringId + "/publish", null);

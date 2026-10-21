@@ -12,7 +12,7 @@ import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-/** sitting 实现的三个端口：读作答（SittingLedger）、写分数（GradingOutcome）、推进工作项（GradingWorkQueue）。 */
+/** sitting 实现的三个端口：读作答与分数（SittingLedger）、写分数（GradingOutcome）、推进工作项（GradingWorkQueue）。 */
 @Component
 public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutcome, Ports.GradingWorkQueue {
 
@@ -41,8 +41,16 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
                 .map(a -> new Ports.AnswerRow(a.getItemId(), a.getNumber(), a.getAnswer()))
                 .toList();
         return new Ports.WorkItem(s.getId(), o.getId(), s.getStudentId(), "",
-                s.getInputKind(), s.getContentText(), rows, snap.items(),
+                s.getInputKind(), s.getContentText(), s.getContentHtml(), rows, snap.items(),
                 o.getRubricMarkdown(), o.getGradingPromptTemplate(), o.getFeedbackLanguage());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Ports.SubmissionScores scores(UUID submissionId) {
+        Submission s = submissions.findById(submissionId).orElseThrow(() -> ApiException.notFound("提交不存在"));
+        return new Ports.SubmissionScores(s.getId(), s.getSubmittedAt(), s.getObjectiveTotal(),
+                s.getSubjectiveTotal(), s.getGradingState().name());
     }
 
     @Override

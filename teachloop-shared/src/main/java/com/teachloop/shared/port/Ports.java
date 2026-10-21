@@ -1,6 +1,7 @@
 package com.teachloop.shared.port;
 
 import java.math.BigDecimal;
+import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
 
@@ -53,11 +54,30 @@ public final class Ports {
         }
     }
 
-    /** 阅卷需要的一切，一次取齐（胖消息、瘦 Worker）。 */
+    /**
+     * 阅卷需要的一切，一次取齐（胖消息、瘦 Worker）。
+     *
+     * <p>contentHtml 是写入时已消毒的富文本原文（T250）：AI prompt 只用 contentText，
+     * 教师复核页要按原格式回显，所以两个都带。
+     */
     public record WorkItem(UUID submissionId, UUID offeringId, UUID studentId, String studentName,
-                           String inputKind, String contentText, List<AnswerRow> answers,
-                           List<ItemSpec> items, String rubricMarkdown, String gradingPrompt,
-                           String feedbackLanguage) {
+                           String inputKind, String contentText, String contentHtml,
+                           List<AnswerRow> answers, List<ItemSpec> items, String rubricMarkdown,
+                           String gradingPrompt, String feedbackLanguage) {
+    }
+
+    /**
+     * 一份提交当前的分数与交卷状态（T243）。
+     *
+     * <p>老师可以完全不依赖 AI 判分：复核工作台需要读到「当前客观分 / 主观分」才能把人工分
+     * 加在正确的基础上，而 {@link WorkItem} 刻意不带分数（阅卷只读作答，不做状态推进）。
+     * 本记录只读，不包含学生身份以外的隐私字段。
+     *
+     * @param submittedAt 交卷时间；null 表示仍在作答（草稿），不允许判分
+     * @param gradingState submissions.grading_state 的枚举名（QUEUED / PENDING / RUNNING / DONE / FAILED）
+     */
+    public record SubmissionScores(UUID submissionId, Instant submittedAt, BigDecimal objectiveTotal,
+                                   BigDecimal subjectiveTotal, String gradingState) {
     }
 
     public record CriterionScore(String name, BigDecimal points, BigDecimal maxPoints, String comment) {
@@ -77,6 +97,13 @@ public final class Ports {
     /** sitting 暴露的**查询**端口：阅卷只读作答，不做任何状态推进。 */
     public interface SittingLedger {
         WorkItem load(UUID submissionId);
+
+        /**
+         * T243：当前分数与交卷时间；提交不存在时抛 notFound。
+         *
+         * <p>只读，不改任何状态；人工判分的「当前实际分」以这里为准。
+         */
+        SubmissionScores scores(UUID submissionId);
     }
 
     /**

@@ -169,9 +169,10 @@ class ExportTest {
         Map<String, Object> aSubmission = submit(f.studentA(), f.offeringId(),
                 answers(1, "A", 3, "我的作文内容。"), "我的作文内容。");
         submit(f.studentB(), f.offeringId(), answers(1, "C"), "乙的作文内容。");
-        // 复核评语应出现在 A 的 Markdown 里（review 状态不影响 comment 是否带出）
+        // 复核评语应出现在 A 的 Markdown 里（review 状态不影响 comment 是否带出）。
+        // T243：AI 未参与且老师没填主观分时「通过」被闸门拒绝（400），导出与状态无关，这里用驳回下结论。
         send(teacher, "POST", "/api/submissions/" + aSubmission.get("submissionId") + "/review",
-                Map.of("status", "APPROVED", "comment", "结构完整，注意论证层次。"));
+                Map.of("status", "REJECTED", "comment", "结构完整，注意论证层次。"));
         publishScores(f.offeringId());
 
         HttpResponse<byte[]> res = rawBytes(teacher, "GET", zipPath(f.offeringId()));
@@ -401,6 +402,37 @@ class ExportTest {
                 .isEqualTo(403);
     }
 
+    // ================= D-14：独立作业导出 =================
+
+    @Test
+    @DisplayName("D-14：独立作业（无试卷）出现在导出里，标题来自快照而非 papers")
+    void standaloneAssignmentExportsWithSnapshotTitle() throws Exception {
+        String classId = post("/api/classes", Map.of("name", "独立作业导出班 " + UUID.randomUUID()), "id");
+        String invite = classInvite(classId);
+        StudentInfo a = newStudent("独立作业学生");
+        join(a.cookie(), invite);
+
+        String offeringId = post("/api/offerings",
+                standaloneBody(classId, "独立作业导出标题"), "id");
+        send(teacher, "POST", "/api/offerings/" + offeringId + "/publish", Map.of());
+        submit(a, offeringId, answers(), "独立作业的正文内容。");
+        publishScores(offeringId);
+
+        HttpResponse<String> summary = raw(teacher, "GET", summaryPath(offeringId));
+        assertThat(summary.statusCode()).as("无试卷的作业不能被 join 掉").isEqualTo(200);
+        assertThat(summary.body())
+                .as("标题必须回退到快照 title，而不是空串")
+                .contains("# 独立作业导出标题 · 班级汇总")
+                .contains("| 独立作业学生 | 1 |");
+
+        HttpResponse<byte[]> zip = rawBytes(teacher, "GET", zipPath(offeringId));
+        assertThat(zip.statusCode()).isEqualTo(200);
+        Map<String, String> entries = unzip(zip.body());
+        assertThat(entries.keySet()).containsExactly("feedback/独立作业学生-attempt1.md");
+        assertThat(entries.get("feedback/独立作业学生-attempt1.md"))
+                .contains("offering: \"独立作业导出标题\"");
+    }
+
     // ================= fixtures / helpers =================
 
     private record StudentInfo(String cookie, String displayName) {
@@ -409,7 +441,20 @@ class ExportTest {
     private record Fixture(String classId, String offeringId, StudentInfo studentA, StudentInfo studentB) {
     }
 
-    /** 1 份 2 单选 + 1 作文的已发布试卷、1 个班（2 名新学生）、1 场已发布作业。 */
+    /** 独立作业的创建请求（D-14）：不带 paperId，内容全部自带。 */
+    private Map<String, Object> standaloneBody(String classId, String title) {
+        Map<String, Object> body = new HashMap<>();
+        body.put("title", title);
+        body.put("instructions", "请写一篇 120 词的短文，谈谈你的暑假计划。");
+        body.put("totalPoints", 15);
+        body.put("rubricMarkdown", "# 评分标准\n- 内容要点：切题\n- 语言准确性：语法正确");
+        body.put("timingMode", "INDIVIDUAL");
+        body.put("dueAt", Instant.now().plus(7, ChronoUnit.DAYS).toString());
+        body.put("classes", List.of(Map.of("classId", classId)));
+        return body;
+    }
+
+    /** 1 份 2 单选 + 1 作文的已发布试卷、1 个班（2 名新学生）、1 场已发布考试。 */
     private Fixture fixture() throws Exception {
         String paperId = post("/api/papers", Map.of("title", "导出测试卷", "defaultDurationMinutes", 60), "id");
         String sectionId = post("/api/papers/" + paperId + "/sections",
@@ -428,7 +473,6 @@ class ExportTest {
 
         Map<String, Object> body = new HashMap<>();
         body.put("paperId", paperId);
-        body.put("kind", "ASSIGNMENT");
         body.put("timingMode", "INDIVIDUAL");
         body.put("dueAt", Instant.now().plus(7, ChronoUnit.DAYS).toString());
         body.put("durationMinutes", 60);

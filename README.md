@@ -70,6 +70,27 @@ make web-build       # 前端生产构建
 
 开发账号：`teacher@teachloop.local` / `student@teachloop.local`，密码 `teachloop123`（仅 dev profile 由 `DevDataSeeder` 创建）。
 
+### 第二个环境：边改代码边做 E2E
+
+`make dev` 那套是**开发环境**——源码一改页面就热更新，重新打包会覆盖正在跑的 jar。要一边开发一边有一个稳定的地方点，用测试台：
+
+```bash
+make qa              # 构建快照 → 起在 :8011(后端) / :5174(前端)
+make qa-status       # 两个环境的端口、健康、版本
+make qa-down         # 停掉
+```
+
+测试台不共享任何可变状态：
+
+| | 开发（`make dev`） | 测试台（`make qa`） |
+|---|---|---|
+| 后端 | `teachloop-app/target/*.jar`，每次重建都是新的 | `.envs/qa/app.jar` **副本**，只有跑 `make qa` 才更新 |
+| 前端 | `vite dev` 监听源码，改代码即热更新 | `vite preview` 服务 `.envs/qa/web/` 的**静态快照** |
+| 数据 | 容器 `teachloop-pg`（55432）/ 库 `teachloop` | 容器 `teachloop-pg-qa`（55433）/ 库 `teachloop_qa` |
+| 附件 | `./uploads` | `.envs/qa/uploads` |
+
+我在开发环境里改文件、跑测试、重新打包，测试台上跑的还是上一次 `make qa` 的快照。想看到新东西就再跑一次 `make qa`；`make qa-status` 会打出各自的 commit，提 bug 时带上那个版本号。
+
 ## 隐私
 
 真实试卷与真实学生作答**不进入本仓库**（宪法第七条）。仓库内的样例提交与评语是脱敏的教学样例，仅用于测试评分流程。

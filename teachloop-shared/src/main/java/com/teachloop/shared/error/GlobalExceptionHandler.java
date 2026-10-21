@@ -25,7 +25,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApi(ApiException ex) {
         return ResponseEntity.status(status(ex.code()))
-                .body(ApiError.of(ex.code(), ex.getMessage()));
+                .body(ApiError.of(ex.code(), localize(ex.getMessage())));
+    }
+
+    /**
+     * 业务异常的消息可能是消息 key（新代码），也可能是写死的中文原文（历史代码）。
+     * 是 key 就按请求语言解析，解析不到就原样返回——存量走字面量的端点行为完全不变。
+     */
+    private String localize(String message) {
+        if (message == null || message.isBlank()) {
+            return message;
+        }
+        String resolved = messages.getMessage(message, null, null, LocaleContextHolder.getLocale());
+        return resolved == null ? message : resolved;
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -249,7 +249,7 @@ V1 的形态是**一个 JAR、一个 Postgres、两个进程**（`app` 与 `grad
 
 ## 5. 数据模型
 
-承接：US-2、US-4、US-5、US-6、US-7、US-8、US-9、US-11、US-16、US-18、US-26
+承接：US-2、US-4、US-5、US-6、US-7、US-8、US-9、US-11、US-16、US-18、US-22、US-26
 
 由 **Flyway** 管理，**按模块分目录**（归属清单见 §3.3）。本节只描述表结构；哪个模块拥有哪张表由 §3.3 规定，跨模块读写规则见 §3.1–3.2。
 
@@ -260,19 +260,32 @@ papers ──< paper_sections ──< objective_items
    │                     └──< section_criteria
    │
    └──< offerings ──< offering_classes >── classes
-              │
-              └──< submissions >── users
+           (paper_id 可空)     │
+                               └──< submissions >── users
 ```
 
 - `papers`：标题、`default_duration_minutes`、总分、版本、状态。**没有 `class_id`。**
-- `offerings`：`paper_id`、`kind`（`exam` / `assignment`）、`start_at`、`due_at`、`duration_minutes`（默认取试卷默认值）、`timing_mode`（`individual` / `fixed_window`）、`grace_hours`、`max_attempts`、`publish_scores`、`feedback_language`、**`paper_snapshot`**（布置瞬间的内容快照 JSONB + `paper_version`）。
+- `offerings`：`paper_id`（**可空**：考试必填、作业必须为空）、`kind`（`exam` / `assignment`）、`start_at`、`due_at`、`duration_minutes`（仅考试，默认取试卷默认值）、`timing_mode`（`individual` / `fixed_window`，仅考试）、`grace_hours`、`max_attempts`、`publish_scores`、`feedback_language`、**`paper_snapshot`**（布置瞬间的**内容**快照 JSONB + `paper_version`）。
 - `offering_classes`：`offering_id`、`class_id`、可空的 `due_at_override` / `duration_override`。唯一键 `(offering_id, class_id)`。
 - `submissions` 外键挂 `offering_id`；唯一索引 `(offering_id, student_id) WHERE active`。
 
 **为什么快照必须落库**：教师在考前一周还会改标准答案。若不快照，改答案会追溯改变已经考完的 90 份卷子的分数——这是无法用审计解释的事故。
 
+**D-14（2026-10-20）：作业与考试在数据层分开。** 作业不引用试卷，内容来自布置表单；
+创建时把内容快照成与考试同构的形状，从而**阅卷、学生端、汇总、导出都不需要分支**：
+
+- 快照里放 1 条 `ESSAY` 题项：`number=1`、`points=总分`、`stem=题目要求`、`sectionTitle="作业要求"`；
+  `PaperSnapshot(paperId=offeringId, paperVersion=0, title=标题, totalPoints=总分, durationMinutes=0, items=[该题项], rubricMarkdown=评分标准)`。
+- 作业没有 `objective_items` 行，也没有 `duration_minutes` / `start_at` / `deadline_at`；
+  错题解析、客观重算、考试计时三条链路天然不命中。
+- 数据约束：`offerings_kind_content_ck CHECK ((kind = 'ASSIGNMENT') = (paper_id IS NULL))`。
+  存量作业在 V026 迁移里回填 `paper_id = NULL, paper_version = 0`（内容已在该场快照里，不丢）。
+- 创建 API：`POST /api/offerings` 的 `kind` 由内容来源派生（`paperId` 有 → 考试，无 → 作业）；
+  请求里若显式给 `kind` 且与来源不一致 → 400，避免旧客户端静默建错。
+
 关键约束：
 
+- `offerings` 内容来源约束：`offerings_kind_content_ck CHECK ((kind = 'ASSIGNMENT') = (paper_id IS NULL))`。
 - `submissions` 部分唯一索引：`(offering_id, student_id) WHERE active`。
 - `submissions` 计时与迟交列：`started_at`、`deadline_at`、`auto_submitted`、`late_by_seconds`、`rejected_at`、`reject_reason`。
 - `submissions` 工作项状态列（替代独立队列表，见 §7）：`grading_state`、`grading_attempts`、`grading_started_at`、`grading_error`、`grading_run_id`。
@@ -484,6 +497,26 @@ DeepSeek 的上下文硬盘缓存**自动生效、无需代码开关**，但只�
 
 ---
 
+### 6.5 人工判分与 AI 的关系（D-15）
+
+**AI 不是前置条件，只是可选草稿。** 复核行的生命周期因此改成「按需创建」：
+
+- 老师从「作业批改详情」的任意已交卷行进入判分页；`GET /submissions/{id}/review` 在
+  `reviews` 没有行时**懒创建**一行 `PENDING`，`original_subjective = NULL` 表示 AI 未参与。
+- 老师直接填主观分与三段文本 → `PUT` 保存，`GradingOutcome.apply` 把 submission 置 `DONE`
+  并回写主观分（客观分仍不可手改）；随后 `POST review` 通过、`POST publish` 发布。
+- 队列仍只列 `PENDING` 的复核行；被打开的人工判分项会自然出现在队列里。
+- **AI 不得覆盖人工结果**：`GradingWorker` 在领取前与拿到模型结果后各查一次
+  `reviews`——只要已有 `teacher_id` 或已发布，就跳过该份（成功与失败两条路径都不改写）。
+  人工判分已把 submission 置 `DONE`，派发队列不会再领到它。
+- 判分页需要读当前分数：`Ports.SittingLedger` 增加只读方法
+  `SubmissionScores scores(UUID submissionId)`（submittedAt / objectiveTotal / subjectiveTotal /
+  gradingState）。它只用于复核展示，**不进 AI prompt**（`SubjectiveGradeRequest` 仍不含分数）。
+- 批量通过跳过「`original_subjective = NULL` 且 `teacher_id = NULL`」的复核行，避免 0 分误发。
+- 失败兜底：AI 失败（`FAILED`）的提交也能人工判分并发布；`apply` 会清掉 `grading_error`。
+
+---
+
 ## 7. 批改调度（状态机，不是队列）
 
 承接：US-8、US-9、US-10、US-26
@@ -575,6 +608,7 @@ MVP 用数据库状态机 + 轮询。将来若换消息队列（RabbitMQ / Redis
 | 幂等 | 归零处理用条件更新 `WHERE deadline_at < now() AND grading_state = 'draft'`，重复扫描无副作用 |
 | 宽限期不适用 | 考试的 `deadline_at` 到期即终态；`grace_hours` 只推迟**批改派发**（§7.3），不是作答截止 |
 | 按班覆盖 | `offering_classes.due_at_override` / `duration_override` 优先于布置级的值 |
+| 作业不适用 | `kind=assignment` 不写 `started_at` / `deadline_at`、不设 `duration_minutes`、不接受 `timing_mode` 与按班时长覆盖；迟交只按 `due_at` 计算（US-8） |
 
 **`fixed_window` 的代价要写清**：全班同时起算意味着只要窗口开了，请假的学生也在掉时长。所以它只给"统一监考"的场景用，默认还是 `individual`。
 
@@ -707,6 +741,8 @@ XLSX/DOCX 由 POI 生成；Markdown/ZIP 不依赖第三方库。
 
 - **先不做预计算表**：聚合 SQL（`GROUP BY` + 窗口函数）+ 只读 Service。数据量到万级再考虑物化视图。
 - **导出复用**：Excel 用 POI，PDF 用 OpenPDF（与 §13 同一套）。
+- **无试卷作业的标题**：`offerings.paper_id` 可空，报表与导出对 `papers` 用 **LEFT JOIN**，
+  标题取 `coalesce(papers.title, offerings.paper_snapshot->>'title')`；否则独立作业会在聚合里整行消失。
 - **权限**：教师仅限自己班级；管理员全局（但不可见教师评语正文）。
 - **口径**：缺考/未交不计入平均分，单列人数（AC-17.8）。
 - **常见错误**（AC-17.9）：每道客观题的正确率、最常被选错的选项与人数，按正确率升序，即教师讲评清单。**纯 SQL 聚合，无 AI 成本**，覆盖全部客观题；只有解析文本受 50 道上限约束。
@@ -779,7 +815,7 @@ XLSX/DOCX 由 POI 生成；Markdown/ZIP 不依赖第三方库。
 | 层 | 内容 | 速度 | 外部依赖 |
 | :--- | :--- | :--- | :--- |
 | ① 单元 | 匹配策略、总分合成、段落计数、HTML 消毒、prompt 构造、输出校验 | 秒级 | 无 |
-| ② 集成 | 迁移与约束、条件 UPDATE 领取、僵尸清扫、派发幂等、计时与自动交卷、峰谷边界、依赖方向守卫 | 十几秒 | Testcontainers 起 Postgres |
+| ② 集成 | 迁移与约束、独立作业创建与约束、条件 UPDATE 领取、僵尸清扫、派发幂等、计时与自动交卷、峰谷边界、依赖方向守卫 | 十几秒 | Testcontainers 起 Postgres |
 | ③ 真机 AI（默认跳过） | 真实调 `deepseek-flash`，确认 prompt 被接受、输出可解析 | 几秒 | 真 Key |
 | ④ E2E（手工，见 18.4） | 整份试卷、纯写作两条旅程 | 分钟级 | 浏览器 |
 
@@ -882,7 +918,7 @@ make seed             # 1 个班 + 30 个学生 + 1 份带标准答案的试卷
 | US-8 | 截止与迟交（作答侧） | §7.3、§7.6、§5 |
 | US-9 | 自动派发 | §7.1–7.4 |
 | US-10 | AI 批改（仅主观部分） | §6、§6.1–6.3、§4 |
-| US-11 | 复核 | §6、§8 |
+| US-11 | 复核与人工判分 | §6、§6.5、§8 |
 | US-12 | 学生反馈 | §6.4、§8 |
 | US-13 | 班级概览 | §14 |
 | US-14 | 导出 | §13 |
@@ -893,11 +929,11 @@ make seed             # 1 个班 + 30 个学生 + 1 份带标准答案的试卷
 | US-19 | 教师首页（跨班级聚合） | §14、§8 |
 | US-20 | 批改总览与详情 | §8 |
 | US-21 | 学生考试视图 | §7.6、§5（`submissions` 计时列） |
-| US-22 | 学生作业视图 | §7.6（`kind=assignment` 不计时）、§7.3 |
+| US-22 | 学生作业视图 | §5.0（D-14 内容快照 + 数据约束）、§7.6（作业不计时）、§7.3 |
 | US-23 | 班级汇总 | §14 |
 | US-24 | 全局列表与表格约定 | §8、§12 |
 | US-25 | 行操作与详情入口 | §12 |
-| US-26 | 一场考试 / 一次布置 | §5.0（`offerings` / `offering_classes`）、§7.6、§3.3 |
+| US-26 | 一次布置（考试 / 作业） | §5.0（`offerings` / `offering_classes` / D-14）、§7.6、§3.3 |
 
 ## 附录 B：本文件与下游文档的约定
 

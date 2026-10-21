@@ -199,4 +199,57 @@ class PaperImportEndpointTest {
         assertThat(error.detail()).contains("第 3 行").contains("重复");
         assertThat(persisted).isEmpty();
     }
+
+    /**
+     * T235：校对页「粘贴答案表」走的契约 —— 补完答案后 {@code GET /papers/{id}} 的题项里要有 answerKey，
+     * 前端就是靠它把「缺答案」清掉的。
+     */
+    @Test
+    void fillsAnswersThroughSeparateAnswerTableAndDetailReflectsThem() {
+        persisted.add(new ObjectiveItem(UUID.randomUUID(), paperId, sectionId, 1, 1,
+                QuestionType.SINGLE_CHOICE, "甲题", "A. 一\nB. 二", null, new BigDecimal("2")));
+        persisted.add(new ObjectiveItem(UUID.randomUUID(), paperId, sectionId, 2, 2,
+                QuestionType.SINGLE_CHOICE, "乙题", "A. 一\nB. 二", null, new BigDecimal("2")));
+        when(items.findByPaperIdAndNumber(any(), any(Integer.class))).thenAnswer(invocation -> {
+            int number = invocation.getArgument(1);
+            return persisted.stream().filter(item -> item.getNumber() == number).findFirst();
+        });
+        when(items.save(any(ObjectiveItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PaperEndpoint.AnswerTableResult result = endpoint.fillAnswers(paperId,
+                new PaperEndpoint.AnswerTableRequest("1 A\n2 B\n9 C"), false, teacher(teacherId));
+
+        assertThat(result.updated()).isEqualTo(2);
+        assertThat(result.unknownNumbers()).containsExactly(9);
+
+        PaperEndpoint.PaperDetail detail = endpoint.detail(paperId);
+        assertThat(detail.sections()).hasSize(1);
+        assertThat(detail.sections().get(0).items())
+                .extracting(PaperEndpoint.ItemView::answerKey)
+                .containsExactly("A", "B");
+    }
+
+    /**
+     * T236：填空题的答案不是字母。端点要按题项类型把题号交给文本通道，
+     * 否则 {@code challenging} 会被读成 {@code C}。
+     */
+    @Test
+    void fillsFillBlankAnswerAsText() {
+        persisted.add(new ObjectiveItem(UUID.randomUUID(), paperId, sectionId, 1, 1,
+                QuestionType.SINGLE_CHOICE, "选择题", "A. 一\nB. 二", null, new BigDecimal("2")));
+        persisted.add(new ObjectiveItem(UUID.randomUUID(), paperId, sectionId, 2, 2,
+                QuestionType.FILL_BLANK, "语法填空 ______", null, null, new BigDecimal("2")));
+        when(items.findByPaperIdAndNumber(any(), any(Integer.class))).thenAnswer(invocation -> {
+            int number = invocation.getArgument(1);
+            return persisted.stream().filter(item -> item.getNumber() == number).findFirst();
+        });
+        when(items.save(any(ObjectiveItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        PaperEndpoint.AnswerTableResult result = endpoint.fillAnswers(paperId,
+                new PaperEndpoint.AnswerTableRequest("1 A\n2. challenging"), false, teacher(teacherId));
+
+        assertThat(result.updated()).isEqualTo(2);
+        assertThat(persisted.get(0).getAnswerKey()).isEqualTo("A");
+        assertThat(persisted.get(1).getAnswerKey()).isEqualTo("challenging");
+    }
 }

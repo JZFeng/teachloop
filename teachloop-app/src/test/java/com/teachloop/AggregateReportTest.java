@@ -118,6 +118,36 @@ class AggregateReportTest {
         assertThat(new String(pdf.body(), 0, 4)).isEqualTo("%PDF");
     }
 
+    @Test
+    @DisplayName("D-14：独立作业（无试卷）出现在按作业聚合里，标题来自快照而非 papers")
+    void standaloneAssignmentAppearsInAggregate() throws Exception {
+        String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
+        String teacher = login(base, "teacher@teachloop.local");
+
+        String classId = post(base, teacher, "/api/classes", Map.of("name", "独立作业聚合班"), "id");
+        String offeringId = post(base, teacher, "/api/offerings", Map.of(
+                "title", "独立作业聚合标题",
+                "instructions", "写一篇 100 词的短文，介绍你的家乡。",
+                "totalPoints", 20,
+                "rubricMarkdown", "# 评分标准\n- 内容要点\n- 语言准确性",
+                "timingMode", "INDIVIDUAL",
+                "dueAt", "2026-12-31T23:59:59Z",
+                "classes", List.of(Map.of("classId", classId))), "id");
+        post(base, teacher, "/api/offerings/" + offeringId + "/publish", Map.of(), "id");
+
+        List<?> offerings = Json.parseList(request(base, teacher, "GET",
+                "/api/reports/offerings?offeringIds=" + offeringId, null).body());
+        assertThat(offerings).as("left join 没兜住就会整行消失").hasSize(1);
+        Map<?, ?> offering = (Map<?, ?>) offerings.get(0);
+        assertThat(offering.get("paperTitle")).as("标题必须回退到快照 title").isEqualTo("独立作业聚合标题");
+        assertThat(((Number) offering.get("expected")).longValue()).isZero();
+
+        HttpResponse<byte[]> xlsx = bytes(base, teacher,
+                "/api/reports/offerings.xlsx?offeringIds=" + offeringId);
+        assertThat(xlsx.statusCode()).isEqualTo(200);
+        assertThat(xlsx.body().length).isGreaterThan(100);
+    }
+
     private String login(String base, String email) throws Exception {
         HttpResponse<String> res = request(base, null, "POST", "/api/auth/login",
                 Map.of("email", email, "password", "teachloop123"));

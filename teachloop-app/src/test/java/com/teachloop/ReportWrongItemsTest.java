@@ -233,7 +233,7 @@ class ReportWrongItemsTest {
     private record Fixture(String classId, String offeringId) {
     }
 
-    /** 一份 3 道单选（10/10/5 分）的已发布试卷、1 个班、1 场已发布作业。 */
+    /** 一份 3 道单选（10/10/5 分）的已发布试卷、1 个班、1 场已发布考试。 */
     private Fixture fixture() throws Exception {
         String paperId = post("/api/papers", Map.of("title", "T192 测试卷", "defaultDurationMinutes", 60), "id");
         String sectionId = post("/api/papers/" + paperId + "/sections",
@@ -248,7 +248,6 @@ class ReportWrongItemsTest {
 
         Map<String, Object> body = new HashMap<>();
         body.put("paperId", paperId);
-        body.put("kind", "ASSIGNMENT");
         body.put("timingMode", "INDIVIDUAL");
         body.put("dueAt", Instant.now().plus(7, ChronoUnit.DAYS).toString());
         body.put("durationMinutes", 60);

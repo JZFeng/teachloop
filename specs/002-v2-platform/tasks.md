@@ -261,52 +261,149 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 
 ## 需求追踪矩阵
 
-`spec.md` 的 26 个用户故事、42 条功能需求全部有对应任务。203 条验收标准在各自用户故事的
+`spec.md` 的 26 个用户故事、51 条功能需求都有对应任务（FR-043/044 由 2026-10-20 的未编号增量实现）。231 条验收标准在各自用户故事的
 任务里被覆盖（验收标准与任务是一对多的关系，因此不逐条列出以免矩阵变成噪音）。
 
 ### 用户故事 → 任务
 
 | 用户故事 | 覆盖任务 | 用户故事 | 覆盖任务 |
 | :--- | :--- | :--- | :--- |
-| US-1 | T030–T034 | US-2 | T040–T043 |
-| US-3 | T036 | US-4 | T050、T051、T054、T056、T185、T186、T206 |
+| US-1 | T030–T034 | US-2 | T040–T043、T213 |
+| US-3 | T036 | US-4 | T050、T051、T054、T056、T185、T186、T206、T217 |
 | US-5 | T052、T053、T055、T196 | US-6 | T060–T063、T066、T067 |
 | US-7 | T064 | US-8 | T065、T202 |
 | US-9 | T092、T093 | US-10 | T070、T071、T080–T085、T094 |
-| US-11 | T100–T105、T182 | US-12 | T110、T111、T114、T193、T194 |
-| US-13 | T112、T113 | US-14 | T120–T124 |
+| US-11 | T100–T105、T182、T243、T244、T246 | US-12 | T110、T111、T114、T193、T194 |
+| US-13 | T112、T113、T211 | US-14 | T120–T124 |
 | US-15 | T130–T132 | US-16 | T105、T140–T143、T184 |
-| US-17 | T150–T152、T192 | US-18 | T056、T086–T088、T115 |
+| US-17 | T150–T152、T192、T215、T216 | US-18 | T056、T086–T088、T115 |
 | US-19 | T180 | US-20 | T181、T182 |
-| US-21 | T187–T189、T195、T197、T199、T200 | US-22 | T190 |
+| US-21 | T187–T189、T195、T197、T199、T200 | US-22 | T190、T238、T240、T241 |
 | US-23 | T191 | US-24 | T183 |
-| US-25 | T184 | US-26 | T198–T201、T202 |
+| US-25 | T184 | US-26 | T198–T201、T202、T212、T237–T239、T241 |
 
 ### 功能需求 → 任务
 
 | 功能需求 | 覆盖任务 | 功能需求 | 覆盖任务 |
 | :--- | :--- | :--- | :--- |
 | FR-001 | T030、T031、T032 | FR-002 | T033 |
-| FR-003 | T034 | FR-004 | T040、T043 |
-| FR-005 | T036 | FR-006 | T050、T198、T206 |
+| FR-003 | T034 | FR-004 | T040、T043、T213 |
+| FR-005 | T036 | FR-006 | T050、T198、T206、T230 |
 | FR-007 | T052、T055 | FR-008 | T053 |
 | FR-009 | T060、T061 | FR-010 | T062 |
 | FR-011 | T063、T070 | FR-012 | T064 |
 | FR-013 | T065、T202 | FR-014 | T092、T093 |
 | FR-015 | T081、T084 | FR-016 | T082 |
 | FR-017 | T071 | FR-018 | T094 |
-| FR-019 | T100、T101 | FR-020 | T019、T105 |
-| FR-021 | T103、T114 | FR-022 | T111 |
-| FR-023 | T112、T113 | FR-024 | T120、T122、T123、T124 |
-| FR-025 | T130、T131 | FR-026 | T140、T141、T143 |
-| FR-027 | T150、T151、T192 | FR-028 | T067 |
+| FR-019 | T100、T101、T218、T219 | FR-020 | T019、T105、T221 |
+| FR-021 | T103、T114、T221 | FR-022 | T111、T220 |
+| FR-023 | T112、T113、T211 | FR-024 | T120、T122、T123、T124 |
+| FR-025 | T130、T131、T226 | FR-026 | T140、T141、T143 |
+| FR-027 | T150、T151、T192、T215、T216 | FR-028 | T067 |
 | FR-029 | T037、T141 | FR-030 | T056 |
 | FR-031 | T086、T087、T088 | FR-032 | T152 |
-| FR-033 | T180 | FR-034 | T181、T182 |
-| FR-035 | T187、T188、T189、T195、T197、T199 | FR-036 | T190 |
-| FR-037 | T191 | FR-038 | T183 |
-| FR-039 | T184 | FR-040 | T186 |
-| FR-041 | T198、T201 | FR-042 | T199、T200 |
+| FR-043 | 未编号增量（2026-10-20「管理员初始设置」，见执行记录） | FR-044 | 同上 |
+| FR-045 | T214 | — | — |
+| FR-033 | T180、T228 | FR-034 | T181、T182、T222、T228 |
+| FR-035 | T187、T188、T189、T195、T197、T199、T224、T229 | FR-036 | T190、T225、T238、T240、T241 |
+| FR-037 | T191、T227 | FR-038 | T183、T228 |
+| FR-039 | T184、T222 | FR-040 | T186、T217 |
+| FR-041 | T198、T201、T212、T237、T239 | FR-042 | T199、T200 |
+| FR-046 | T231 | FR-047 | T235 |
+| FR-048 | T238、T240、T241 | FR-049 | T242 |
+| FR-051 | T247 | — | — |
+| FR-052 | T249 | — | — |
+| FR-050 | T243、T244、T246 | FR-051 | T247 |
+
+---
+
+## 阶段 18 — Mockup 对等性修复（2026-10-20 用户拍板）
+
+上游：`docs/reports/mockup-parity/README.md`（21 屏逐屏审计，P0 6 / P1 53）＋
+`spec.md` §9 的 D-6…D-11。本阶段全部**未开始**；每条验收都可独立测试。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T211 | **学生班级概览**（D-6）：`GET /api/offerings/{id}/overview` 返回姓名、是否提交、attempt 次数、提交时间、状态、分数；未提交学生出行占位；分页与排序；`show_peer_overview=false` 返回关闭态；`publish_scores=0` 时他人分数置空、自己始终可见；越界字段 404。前端新增学生二级页与导航入口，反馈详情 ④ 段改为入口链接 | T198、T210 | 学生 A 请求 B 的正文/附件/评语 404；`publish_scores=0` 时他人分数为空而自己分数在；反馈未发布也能打开概览；50 人班分页 20/50 正常 |
+| T212 | **布置可编辑**（D-8）：`PUT /api/offerings/{id}` 支持截止、宽限期、最多尝试、反馈语言、两个可见性开关、参与班级与按班覆盖；开考后 `due_at`/`duration_minutes` 只增不减，调小返回 400；移除已开始的班返回 400（AC-26.11）；写 `offering:updated` 审计含前后值。前端编辑入口与影响面提示 | T201、T210 | 改截止后学生端剩余时间随之变化；开考后调小被拒并给出原因；可见性开关变更前显示受影响班级与份数；审计可查到前后值 |
+| T213 | **邀请码生命周期**（D-9）：迁移加 `invite_expires_at` / `invite_disabled` / `join_deadline`；`join` 对过期、停用、过加入截止一律 404；轮换重置为 now+3d；新增停用端点；班级表显示「剩余有效期 / 已停用 / 加入截止」 | T040、T043 | 过期码 join 404；停用后 join 404；过 `join_deadline` join 404；轮换后旧码 404、新码可用；班级表三种状态可见 |
+| T214 | **数据范围**（D-11）：`/api/classes` 对 ADMIN 返回全量并附 `teacherName`，教师仍只返回自己的班；`/api/offerings` 与 `/grading/queue` 对教师按归属过滤、对 ADMIN 全量；ADMIN 的写操作仍受「不做评分决定、不改教学内容」限制 | T043、T181 | 教师 B 看不到教师 A 的班与作业；ADMIN 能看到全部且每行带归属；ADMIN 改他人班级邀请码被拒 |
+| T215 | **报表导出接线**（D-7 第一步）：报表页接 `/api/reports/offerings.xlsx` 与 `.pdf`；日期区间把 `from/to` 传给 `wrong-items`；删掉「导出（未接入）」文案 | T151、T192 | 点导出得到非空 xlsx 与以 `%PDF` 开头的文件；缩小日期区间后错题条数下降；页面不再出现「未接入」 |
+| T216 | **报表勾选导出**（D-7 第二步，AC-17.13）：学生列表与题目列表可勾选 + 全选 + 已选统计；`POST /api/reports/export` 接收学生集/题目集/格式，异步生成后下载；支持 Excel / PDF / ZIP | T215、T150 | 只勾 1 名学生与 2 道题时导出内容只含这些；100 名学生导出不阻塞请求；ZIP 只含已发布反馈 |
+| T217 | **导入解析增强**（D-10）：`ParsedItem` 加 `section` 与 `confidence`，`ImportResult` 加 `sections`；按部分落库；解析结果先进暂存批次，确认后才对试卷生效；校对表按部分分组、低置信度标黄、显示「N 部分 M 节」 | T186、T050 | 4 部分 8 节文本导入得到 4 个 section；缺答案与低置信度行标黄；未确认就放弃时试卷不被污染 |
+| T218 | **复核数据补全**（后端）：`WorkItem` 加客观分、错题号、词数与段落数、边界敏感标记；`/grading/queue` 加 `studentName` 与 `status`、`offeringId` 过滤；`ReviewDetail` 返回分项分（criteria）与总分 | T100、T207、T186 | 队列返回姓名且可按状态与作业过滤；详情返回客观分、错题号、指标与分项分；边界敏感提交被标出 |
+| T219 | **复核页展示与操作**（前端）：左栏显示姓名与四态；右侧显示客观分与错题、正文词数/段落、分项分可编辑、当前总分实时计算；三态按钮改为「原样通过 / 修改后通过 / 驳回」；批量通过默认跳过边界敏感 | T218 | 缺数据时显示「—」而不是 0 或编造；改分项后总分同步变化；批量通过回执给出通过/跳过/总数 |
+| T220 | **学生反馈补全**：`/my-feedback` 加分项分与满分、`rank`、单题 `correctRate`、`publishedAt`、客观/主观满分，反馈列表加错题数；前端渲染分项评分、优点、建议、排名（`publish_scores=0` 时显示「教师未公布」） | T194、T111 | 作文分项 10/15 与 8/15 可见；优点与建议两行出现；排名随开关显示或隐藏；他人内容仍 404 |
+| T221 | **审计时间线补全**（AC-16.3）：提交、派发、客观判分、AI 批改完成、解析生成、复核、发布七类事件都能从同一份 submission 查到；事件带 `actorName/role`；`detail` 存 JSON；前端显示中文事件名与时间线 | T105、T184、T086 | 跑完一场从提交到发布，时间线 ≥7 条且每条有「谁」；抽屉不出现 `review:edited` 这类原始 key |
+| T222 | **批改详情补全**（AC-20.5/20.6）：未提交学生占位行；行内「复核」直接定位该份；失败行行内「重试」只重派该份 | T181、T182、T218 | 32 人班列表 32 行含未提交；点行内复核直达该份；单项重试不影响其他份 |
+| T223 | **班级页补全**：班级下钻显示该班作业与试卷（含草稿），班级名可点；加「新建作业」「导入试卷」入口；补待办数（口径：待复核 + 批改中 + 待发布，页面写明） | T213、T214、T201 | 草稿布置在班级页可见并标「草稿」；从班级能进入作业列表；待办数与首页一致 |
+| T224 | **考试段落模型与续答**：快照与 `/paper` 返回材料块（passage），作答页按段落渲染完形/语法空格与阅读语篇；`/session` 返回已保存答案，`writeAnswers` 改增量 upsert；断网重连不覆盖 | T187、T188、T198 | 同一完形 10 空渲染在同一材料下；换设备继续作答保留服务端已存答案；重连后答案不被清空 |
+| T225 | **作业视图补全**（US-22，按 D-14 修订）：题目要求取自布置内容快照的 ESSAY 题项（**不新增 `instructions` 列**）；作业不返回考试 NOTES；`rubricMarkdown` 透出；富文本工具栏补粗体/斜体/下划线/有序/无序/小标题 | T190、T186 | 作业页显示题目要求与两项评分标准（15/15)；工具栏 6 个按钮可用且消毒白名单通过；考试页不再显示作业文案 |
+| T226 | **登录与 i18n 收口**：微信扫码 tab 与 prod 教师/学生放行；登录页加 `/setup` 首次部署入口；资料未补全前端重定向；资料/初始化/AI 三页文案入 i18n；语言偏好写回 `profile.locale`；前端未定义 key 静态检查 | T030、T034、T036、T130 | prod 下教师可扫码登录；未补全访问 `/` 跳 `/profile`；`check-i18n` 对前端缺失 key 退出码 1 |
+| T227 | **班级汇总补全**（US-23）：四张统计卡（应交/实交、平均分仅已提交、最高、最低）；各题正确率按升序并标部分；主观项均分；平均分排除批改失败 | T191、T218 | 统计卡数字与逐份反馈同源；正确率确实升序；未交与失败不计入平均分 |
+| T228 | **首页与批改总览状态细分**（US-19/US-20）：首页补「批改中 12/30」「待复核 N」「可发布」等状态细分与行内复核入口；总览四列可排序、状态含「有失败」；四卡点击后表头显示对应过滤条件 | T180、T181 | 状态细分数字来自 `/progress`；点「已完成」后表头出现过滤条件；四列可排序 |
+| T229 | **学生端细节**（US-21/US-12）：考前须知补客观/主观拆分与参与班级名；反馈列表卡片补「错题 N」；考试目录树图例；作业补视频提交入口 | T200、T193、T062 | 考前须知显示「客观 120 + 主观 30」；卡片显示错题数；图例与实际状态色一致；视频入口可用 |
+| T230 | **新建/导入试卷可用性**（用户实测 critical path）：补 22 个未定义 i18n key；第 2 步导入前自动建草稿卷与部分，使上传/粘贴在新建态可用；向导内支持粘贴整卷；后端补 `PUT/DELETE /api/papers/{id}/sections/{sectionId}` 与 `DELETE /api/papers/{id}/items/{number}`（级联删题项/评分项、重算总分、已发布需 confirm、位置取最大值+1）；前端部分/题项行内编辑与删除 | T185、T186、T050 | 新建卷不先同步即可上传或粘贴导入，导入后第 3 步能看到并可改/删题项；删部分后该部分题项与评分项一并消失且总分重算；已发布卷删除需 `confirm=true`（无则 409）；`PaperCrudTest` 5 条全绿、`cd web && pnpm build` 通过 |
+
+| T231 | **真实试卷 Markdown 导入**（用户 2026-10-20 提供的南昌十九中高一英语月考整卷）：新增 `MarkdownSyntax` 剥掉 `#`/`**`/列表/表格记号（保留下划线空）；`PaperTextParser` 重写结构识别——`第X部分` 落成部分、`第X节` 取「每小题 X 分」让题项分值逐题走、题干行内并排选项拆分、完形/七选五/语法填空无题号自动按空编号并把材料并入题干且标 `___(题号)___`、写作部分不产题项只提醒；修掉答案区标题行差一位被拼进最后一题的 bug；`POST /import` 与 `/import/text` 多部分时按文档结构建部分（单部分仍用目标部分） | T230、T186 | 真实整卷导入后 75 题、4 个部分（20/20/35/0）、总分 120 分、逐题分值 1.5/2.5/1/1.5/1 正确；写作要求里的「1. 表达理解；」不再被当成第 1 题；`RealExamImportTest` 9 条 + 既有 28 条全绿 |
+| T232 | **主观作业端到端可用性**（用户 critical case：布置 3 个写作作业 → 学生作答 → 批改 → 复核 → 反馈）：作业页接上「题目要求」（取 `/api/offerings/{id}/paper` 的题项，ESSAY 题干即题目）与「评分标准」（`EntryView` 新增 `rubric`，来自布置上的 rubricMarkdown）；学生反馈页显示教师写的「优点/建议」；作业页删掉考试计时说明与重复的一行 | T190、T201、T110 | 作业页能看到题目与评分标准；学生能看到评语+优点+建议；三条作业在浏览器里跑通「布置→作答→AI 草稿→复核→发布→学生看反馈」 |
+| T233 | **布置 create 带 publish=true 未落库**（critical case 中实测）：`offerings.save()` 对自带主键的实体走 merge 返回托管副本，之后 `publishInternal` 改的是原对象 → 接口返回 PUBLISHED、库里仍是 DRAFT，学生看不到作业 | T201 | create 带 publish=true 后重新读库为 PUBLISHED；`publishInternal` 内显式 save |
+| T234 | **批改卡在 RUNNING + 会话唯一键冲突**（2026-10-20 已修，根因已定位）：① 卡 RUNNING 的根因是 `NoClassDefFoundError` 未被 `catch (Exception)` 捕获（当时开发机上一个旧进程的 jar 被原地重编覆盖，类加载失败，它抢到 claim 后整条 tick 崩掉，行就停在 RUNNING）——改为 `catch (Throwable)` + ERROR 日志 + 幂等 `markFailed` 兜底，并加 claim/grade/done 的 DEBUG 日志，同时清扫两段化（到 `grading.max-attempts` 标 FAILED）、`retry-failed` 回收卡住 1 分钟以上的 RUNNING；② `spring_session_attributes_pk` 冲突用 V025 触发器把重复插入变成 upsert | T091、T083 | worker 抛 `Error` 也会落 FAILED 并留日志；领满 3 次的卡住项变 FAILED 且不再被反复回收；手动重试能救 1 分钟以上的卡住项；同一 (session, 属性名) 连插两次不报错且值取最后；`GradingDispatchTest` 9 条、`SessionAttributeUpsertTest` 1 条全绿 |
+| T235 | **答案格式宽容化 + 独立答案入口**（AC-4.17/4.18，用户 2026-10-20 实测三种写法全失败后定）：`PaperTextParser` 答案标记词扩到 `参考答案/标准答案/正确答案/答案` 并认 `【】` 包裹；`parseAnswerLines` 对「只有题号没有答案」（如 `3.`）改为提醒跳过而不是抛异常让整卷 400；新增纯字母串（`ABCDA`/`A B C D A`）按题号连续配对，不连续则告警拒绝不给分；`ImportPaperPage` 校对页加「粘贴答案表」面板调 `POST /api/papers/{id}/answers`，补完重拉题项并现算缺答案 | T231、T055 | 四种关键字与 `【标准答案】` 都能开启答案区；`3.` 留空只告警不中断；`ABCDA` 在连续题号下正确配对、在不连续题号下告警且不配；`PaperTextParserTest` 15 条 + `RealExamImportTest` 9 条（75 题/4 部分/120 分）全绿、`pnpm build` 通过 |
+| T242 | **答案的朴素写法与填空题文本答案**（AC-4.19/FR-049，用户真实卷 `paper.md`+`answers.md`+`paper and answer.md` 回归）：① 字母捕获组加 `(?<![A-Za-z])…(?![A-Za-z])`——`56. challenging` 此前被静默读成 `C`；② 区间答案允许空格分隔 `1-5: A B B C C`；③ 新建 `AnswerFreeText`，题项没有选项时整行取文本答案、按题号切片、截断「空格+左括号」注释，`AnswerTableParser` 加 `parse(text, freeTextNumbers)` 重载、`PaperEndpoint.fillAnswers` 传 `FILL_BLANK` 题号；④ `AnswerTableParser` 先过 `MarkdownSyntax.clean`；⑤ 答案区容错（小标题/范文跳过，只有以题号开头却解析不出才报错）+ 标题放宽（含「参考答案/标准答案/正确答案」且 ≤40 字、无句末标点即认定） | T235、T055 | 两个真实文件原样导入：整卷式 75 题 / 4 部分 / 120 分 / **75 题全有答案**、0 缺；两步式 `answers.md` 原样粘贴得 75 条（含 `56=challenging`、`60=when / if`）；`mvnw -pl teachloop-paper -am test` **64/64** 绿（新增 `AnswerTableParserTest` 13 条、`RealExamWithAnswersTest` 4 条）；`pnpm build` 通过 |
+| T247 | **文案集中到 JSON + 后端接通 i18n**（AC-4.20/FR-051，用户「很多翻译不准确、我改起来要方便」）：① 三个 `locales.ts` 与 `i18n.ts` 里的 base 合并成 `web/src/locales/zh-CN.json` / `en.json`（各 907 键，顶层 key 路径不变，组件零改动），删除三个 `locales.ts`；② 补齐 4 个只有中文的 key（`teacher.summary.exportXlsx/exportDocx/exportZip/exportZipBlocked`），删掉 4 个只有英文的死 key；③ 收掉 108 行组件内硬编码中文（18 个文件，含 `ImportPaperPage` 37 行、`SetupPage` 13、`AdminAiPage` 10、`ReviewPage` 12 的组件内私有字典 `zh`/`L`）；④ 后端 `GlobalExceptionHandler.handleApi` 支持消息 key（是 key 才解析，历史字面量原样返回），`ReviewEndpoint` 两条改为 key 并补中英文案，修掉当时是红色的 `check-i18n`；⑤ 前端 `api/client.ts` 每个请求带 `Accept-Language`；⑥ `scripts/check-i18n.py` 扩展成三查：前端 zh/en 键对齐 + 值非空且≠键名、后端中文字面量基线、新增 `i18n-web-baseline.txt` 锁前端存量 | T243、T130 | `python3 scripts/check-i18n.py` 退出码 0（改前为 1）：前端 zh/en 各 907 键完全对齐、后端新增 0 处（基线 291）、前端新增 0 处（基线 1）；`cd web && pnpm build` 通过；`GlobalExceptionHandlerTest` 3 条（key 按语言解析、历史原文不变、空消息不炸）、`I18nErrorTest` 1 条全绿 |
+
+## 阶段 19 — D-14 作业与考试在数据层分开（2026-10-20 用户拍板）
+
+上游：`spec.md` §9 D-14、US-22、AC-26.1/26.6/26.13/26.17。目标：作业永远自带内容、不引用试卷；
+试卷只用于考试；`kind` 由内容来源派生，并由数据库约束保证两者不混。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T236 | **规格/计划/mock 回写**：spec §1/§1.1/US-22/AC-26.1/26.6/26.13/26.17/AC-25.4、D-14（取代 D-13）、FR-048；plan §5/§7.6/§14；mock 新增 assignment-new/assignments 屏并把班级「新建作业」改指向 | — | 四份文档计数自洽、无重复编号；mock 里新建作业不再进试卷向导 |
+| T237 | **V026 迁移 + 实体**：存量作业回填 `paper_id=null, paper_version=0`；`offerings.paper_id` 去掉 not null；加 `offerings_kind_content_ck CHECK ((kind='ASSIGNMENT') = (paper_id IS NULL))`；`Offering.paperId` 可空 | T236 | 空库迁移成功；回填后无「作业带试卷」行；`kind=EXAM` 必须带试卷 |
+| T238 | **后端创建独立作业**：`CreateOffering` 加 title/instructions/totalPoints/rubricMarkdown；`paperId` 派生 kind（无 paperId=作业、有=考试），`kind` 仅做一致性校验；作业合成 1 条 ESSAY 内容快照；`view().paperId` 空安全；`writeAnswers` 跳过 ESSAY；审计 source | T237 | `paperId+kind=ASSIGNMENT`、无 paperId+kind=EXAM、作业带时长/按班覆盖 → 400；作业 `paper_id IS NULL` 且快照 1 条 ESSAY；学生可打开并提交 |
+| T239 | **报表/导出适配无试卷作业**：`ExportReadService` 与 `AggregateReportService` 的 `join papers` 改 `left join`，标题 `coalesce(p.title, paper_snapshot->>'title')` | T237 | 独立作业出现在按作业聚合与 xlsx/pdf，标题非空；考试数字不变 |
+| T240 | **前端作业入口**：导航加「作业」；`/assignments` 列表（kind=ASSIGNMENT）+ `/assignments/new` 单页表单（标题/题目要求/总分/评分标准/班级/截止/宽限/尝试次数）；布置页改纯考试并删 kind；i18n zh/en；学生作业页单 ESSAY 去序号 | T236 | 新建作业全程无试卷字段；发布后学生可作答；`tsc --noEmit` 与 `pnpm build` 通过 |
+| T241 | **测试与实测**：9 个既有 fixture 按严格版迁移（含客观题改 EXAM、纯写作/派发改自带内容）；新增 `StandaloneAssignmentTest`；补 `MigrationTest`/`AggregateReportTest`/`ExportTest`；`make test` 全绿；浏览器跑通「新建作业→学生提交→派发→复核→反馈」并截图 | T238、T239、T240 | 所有断言真实通过；未跑的验证不许写「已验证」 |
+
+## 阶段 20 — D-15 人工判分（AI 可选，2026-10-20 用户拍板）
+
+上游：`spec.md` D-15、US-11（AC-11.11–11.16）、FR-050。目标：老师可对任何已交卷提交人工判分并发布，
+AI 只是可选草稿；AI 晚到不得覆盖人工分。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T245 | **规格/计划/mock 回写（D-15）**：spec D-15、US-11 intro + AC-11.11–11.16、FR-050；plan §6.5；mock 复核屏补人工判分说明 | — | 四份文档计数自洽、无重复编号 |
+| T243 | **后端人工判分**：`Ports.SubmissionScores` + `SittingLedger.scores`；ReviewEndpoint 的 GET/PUT 懒建 review 并返回当前客观/主观分；无 AI 草稿未填分时拒绝直接通过；bulk-approve 跳过未判分项；GradingWorker 在已有教师改分/已发布时跳过（成功与失败都不覆盖）；新增 `ManualGradingTest` | T245 | 无派发直接人工判分→发布→学生可见；人工分不被 AI 覆盖；FAILED 可兜底；批量通过跳过未判分项；指定测试全绿 |
+| T244 | **前端判分入口**：批改详情逐份行加「判分 / 复核」→ `/review?submissionId=`；ReviewPage 支持 URL 直达、AI 草稿为空时提示「AI 未参与」、当前客观/主观分正常显示 | T245 | `tsc --noEmit` 与 `pnpm build` 通过；无裸 key |
+| T246 | **全量回归 + 浏览器实测**：`make test`、静态守卫、浏览器「不派发 AI，直接人工判分→发布→学生反馈」并截图 | T243、T244 | 真实通过；未跑的验证不写「已验证」 |
+
+---
+
+## 阶段 21 — 2026-10-20 用户实测反馈修复（T248）
+
+上游：2026-10-20 用户对已交付页面的三条实测反馈——① 作业页交完还要点按钮才能看提交内容；
+② 顶部「资料」与中/EN 快捷切换不成体系；③ 批改页「审计」抽屉全是 `submission:submit {late=0, attempt=1}`
+这类内部代号，教师读不懂。目标：最小改动修掉这三处，不改数据模型、不加新页面。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T248 | **三处实测反馈修复**：① `AttemptView` 增 `contentHtml` / `contentText`（学生自己的提交正文，写入时已消毒），作业页「已提交」卡片直接回显正文与附件链接，删掉重复的附件按钮；页面在接口还没返回时退回本次提交的内存正文。② 资料页改为「我的资料」+ 独立「偏好设置」卡片，界面语言改成 `<select>`（缺省中文，选项由 `web/src/locales/*.json` 自动生成，新增语言只需加一份 json），顶栏移除中/EN 快捷按钮。③ 审计抽屉把事件代号、参数、时间翻成中文可读文案（事件名词表、字段名词表、枚举词表、隐藏 UUID 类参数、`late`/`attempt` 读成「按时提交／第 1 次提交」），`fmtDateTime` 跟随界面语言格式化。 | T246 | `SubmissionFormsTest` 断言 `/my-submissions` 返回已消毒正文；`tsc --noEmit`、`pnpm build`、`check-i18n`（zh/en 键对齐）通过；浏览器实测资料页语言下拉可切中/英、审计抽屉三条事件中文可读并截图 |
+| T249 | **第二运行环境（快照测试台）**（FR-052，用户「你在改的时候我可以继续 E2E 测试」）：新增 `scripts/env.sh` 管理命名环境，状态全在 `.envs/<name>/`（jar/dist/uploads/VERSION/pid）；`deploy` 在主树构建后**复制**快照并重启，前端用 `vite preview` 服务静态 dist（不监听源码）；独立 Postgres 容器 `teachloop-pg-qa`(55433) + 库 `teachloop_qa`；`web/vite.config.ts` 的代理目标与端口改读 `TEACHLOOP_API`/`WEB_PORT`，并显式配置 `preview.proxy`；`scripts/dev.sh` 的库名与附件目录参数化（`DB_NAME`/`STORAGE_LOCAL_DIR`，默认不变）；Makefile 加 `qa`/`qa-up`/`qa-down`/`qa-status`；`.gitignore` 加 `.envs/` | T130 | `make qa` 后 :5174 可登录、SPA 深链 200、`/api` 代理 200、`/healthz` UP；在主树改文案并重新 `make build` + `pnpm build` 后，测试台 PID 与资源 hash 不变、页面不含新文案；再跑 `make qa` 后测试台资源 hash 变化并出现新文案；`make check-deps/check-boundaries/check-i18n` 全绿 |
+
+---
+
+## 阶段 22 — 2026-10-20 第二轮实测反馈（T250）
+
+上游：用户对 T248 之后的页面继续实测，指出——① 资料保存后顶部「资料」按钮还在；② 必填项空着没有任何提示，
+用户不知道要填；③ 资料页要能随时改；④ 富文本看起来不能输入；⑤ 学生交的富文本在复核页显示不出格式；
+⑥ 复核页一排按钮分不清哪个才是「提交批改意见」。目标：把「补全资料」做成会消失的提醒，把富文本做成真编辑器，
+把复核页收敛成一个明确的主操作。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T250 | **第二轮实测反馈**：① `AuthProvider` 读 `/api/profile` 计算 `profileComplete`（手机号 + 邮箱都填才算），顶部只在未补全时显示「补全资料」，保存后立即消失；侧栏用户名常驻 `/profile` 入口，资料页仍可随时修改。② 资料页必填项加红色 `*`、红框、字段级红字与顶部红条，未填时禁用保存并说明原因。③ 新增 `RichTextEditor`（粗体/斜体/下划线/有序/无序列表/小标题/正文、空态占位），作业页富文本改用它；本机草稿同时存纯文本、HTML 与输入形态，刷新可恢复。④ `Ports.WorkItem` / `ReviewDetail` 增 `contentHtml`，复核页「学生正文」按消毒后的 HTML 回显。⑤ 复核页操作区收敛为「保存并发布反馈」主按钮 +「仅保存草稿」+「退回重批」+「撤回」+「审计」，发布后隐藏保存类按钮只留撤回；禁用按钮统一降到 45% 透明；队列列名与状态中文化。 | T248 | 资料未补全时顶部有提醒、必填项红色高亮；保存后顶部提醒消失且侧栏仍可进资料页；富文本能输入、能加粗、刷新后草稿（含 HTML）仍在；复核页点「保存并发布反馈」学生立即看到反馈、撤回后回到未发布；富文本提交在复核页按段落回显。验证：`pnpm typecheck`、`pnpm build`、`check-i18n`、`make test`、浏览器实测 |
 
 ---
 
@@ -440,3 +537,22 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 
 | 2026-10-20 | 管理员初始设置（用户新增） | 完成 | `/setup` 首次创建管理员（无 ADMIN 时开放）+ `/admin/ai` AI 配置：provider/baseUrl/model/temperature/API Key；Key AES-GCM 加密存库、接口只回掩码；保存后重启生效；测试连接；`AiSetupTest` 覆盖首个管理员、二次 409、加密、掩码、403 |
 | 2026-10-20 | 导入考卷入口与粘贴导入（用户反馈） | 完成 | 试卷库新增「导入考卷」；独立 `/papers/import`：建卷+建部分+上传/粘贴→解析→逐题改题干/选项/答案；后端 `POST /api/papers/{id}/import/text`；`ImportTextTest` 覆盖 2 题粘贴导入 |
+| 2026-10-20 | T230 新建/导入试卷可用性 | 完成 | 补 22 个未定义 i18n key（wizard 子树 zh/en 各 144，本页 156 个 key 0 缺失）；第 2 步导入前自动建卷与部分，新建态即可上传/粘贴；向导内新增粘贴导入与「导入到部分」；部分/题项行内编辑与删除；后端 `PUT/DELETE /api/papers/{id}/sections/{sectionId}`、`DELETE /api/papers/{id}/items/{number}`（级联、重算、confirm 闸门、位置取 max+1）；`pointsPerItem`/`points`/`totalPoints` 由 int 改 BigDecimal，小数分值不再被截断。验证：`PaperCrudTest` 5/5；`PaperCrudTest+PaperPublishLockTest+PaperLibraryTest+ImportTextTest+AnswerTableTest+MatchStrategyTest+T196QuestionTypeTest` 全部退出码 0；`cd web && pnpm build` 通过；浏览器实测（临时 8012+5175，验证后已销毁）新建卷免同步粘贴导入 2 题、第 3 步改/删题项、删部分均即时生效，中文界面无原始 key || 2026-10-20 | T230 新建/导入试卷可用性 | 完成 | 补 22 个未定义 i18n key（wizard 子树 zh/en 各 144，本页 156 个 key 0 缺失）；第 2 步导入前自动建卷与部分，新建态即可上传/粘贴；向导内新增粘贴导入与「导入到部分」；部分/题项行内编辑与删除；后端 `PUT/DELETE /api/papers/{id}/sections/{sectionId}`、`DELETE /api/papers/{id}/items/{number}`（级联、重算、confirm 闸门、位置取 max+1）；`pointsPerItem`/`points`/`totalPoints` 由 int 改 BigDecimal，小数分值不再被截断。验证：`PaperCrudTest` 5/5；`PaperCrudTest+PaperPublishLockTest+PaperLibraryTest+ImportTextTest+AnswerTableTest+MatchStrategyTest+T196QuestionTypeTest` 全部退出码 0；`cd web && pnpm build` 通过；浏览器实测（临时 8012+5175，验证后已销毁）新建卷免同步粘贴导入 2 题、第 3 步改/删题项、删部分均即时生效，中文界面无原始 key |
+| 2026-10-20 | T231 真实试卷 Markdown 导入 | 完成 | 用用户提供的真实整卷（`teachloop-paper/src/test/resources/exam/english-grade10-2026.md`）做回归：旧解析器在第 385 行把写作要求「1. 表达理解；」当成重复题号，整卷 400 失败；新增 `MarkdownSyntax` 归一化 Markdown、重写 `PaperTextParser`（部分/节、逐题分值、行内选项、无题号按空自动编号、材料并入题干并标注空号、主观部分跳过）、修答案区差一位；端点按文档结构建部分。验证：`./mvnw -pl teachloop-paper -am -Dtest=RealExamImportTest,PaperImportEndpointTest,PaperTextParserTest,DocumentTextExtractorTest,WholePaperSplitTest test` 37/37；`-DskipTests package` 后 8012 起新 jar + 5175 前端，浏览器实测导入 75 题/4 部分/120 分、第 3 步 75 行题项、第 5 步「总分一致：120 分」，文章材料与表格行、完形四选项、七选五 7 选项、语法填空空号标注均正确 || 2026-10-20 | T231 真实试卷 Markdown 导入 | 完成 | 用用户提供的真实整卷（`teachloop-paper/src/test/resources/exam/english-grade10-2026.md`）做回归：旧解析器在第 385 行把写作要求「1. 表达理解；」当成重复题号，整卷 400 失败；新增 `MarkdownSyntax` 归一化 Markdown、重写 `PaperTextParser`（部分/节、逐题分值、行内选项、无题号按空自动编号、材料并入题干并标注空号、主观部分跳过）、修答案区差一位；端点按文档结构建部分。验证：`./mvnw -pl teachloop-paper -am -Dtest=RealExamImportTest,PaperImportEndpointTest,PaperTextParserTest,DocumentTextExtractorTest,WholePaperSplitTest test` 37/37；`-DskipTests package` 后 8012 起新 jar + 5175 前端，浏览器实测导入 75 题/4 部分/120 分、第 3 步 75 行题项、第 5 步「总分一致：120 分」，文章材料与表格行、完形四选项、七选五 7 选项、语法填空空号标注均正确 |
+| 2026-10-20 | T232/T233 主观作业 critical case | 完成（T234 未修） | 用户给 3 个写作作业（演讲稿 15 分 / 回信 15 分 / 教案 20 分），按要求跑通整链：建卷（ESSAY 题项 + rubric）→ 布置给演示班 → student01 在浏览器里三份各写正文并提交 → 教师「立即派发」→ stub 引擎出分（11.3/15、11.3/15、15/20）→ 复核改分并写评语/优点/建议 → 发布 → 学生「我的反馈」看到分数与评语。过程中修：作业页接上题目要求与评分标准（`EntryView.rubric`）、反馈页显示优点建议、去掉作业页的考试计时说明与重复行、`create` 带 publish=true 的落库丢失（merge 副本问题）。未修并记录：批改卡 RUNNING 无回收、spring_session 唯一键冲突 500。截图见 `docs/reports/critical-case-subjective/` || 2026-10-20 | T232/T233 主观作业 critical case | 完成（T234 未修） | 用户给 3 个写作作业（演讲稿 15 分 / 回信 15 分 / 教案 20 分），按要求跑通整链：建卷（ESSAY 题项 + rubric）→ 布置给演示班 → student01 在浏览器里三份各写正文并提交 → 教师「立即派发」→ stub 引擎出分（11.3/15、11.3/15、15/20）→ 复核改分并写评语/优点/建议 → 发布 → 学生「我的反馈」看到分数与评语。过程中修：作业页接上题目要求与评分标准（`EntryView.rubric`）、反馈页显示优点建议、去掉作业页的考试计时说明与重复行、`create` 带 publish=true 的落库丢失（merge 副本问题）。未修并记录：批改卡 RUNNING 无回收、spring_session 唯一键冲突 500。截图见 `docs/reports/critical-case-subjective/` |
+| 2026-10-20 | T234 批改卡住与会话冲突 | 完成 | ① 批改卡 RUNNING：用户实测「3 份里 1 份」卡住，原清扫（T091，5 分钟/2 分钟）其实存在，缺的是**兜底与手动入口**——现已改为到 `grading.max-attempts` 就标 FAILED（写 `grading_error`），`retry-failed` 端点额外回收卡住超过 1 分钟的 RUNNING，返回 `{retried, reclaimed}`，教师端按钮改「重试失败/卡住项」且在「批改中 >0」时可点；② `spring_session_attributes_pk` 冲突：V025 用 BEFORE INSERT 触发器把重复插入变成覆盖 bytes。验证：`GradingDispatchTest` 9/9（含新增「领满 3 次标 FAILED」「手动重试回收 RUNNING」）、`SessionAttributeUpsertTest` 1/1（同一属性连插两次不报错、取最后值）；`cd web && npx tsc --noEmit` 通过 || 2026-10-20 | T234 批改卡住与会话冲突 | 完成 | ① 批改卡 RUNNING：用户实测「3 份里 1 份」卡住，原清扫（T091，5 分钟/2 分钟）其实存在，缺的是**兜底与手动入口**——现已改为到 `grading.max-attempts` 就标 FAILED（写 `grading_error`），`retry-failed` 端点额外回收卡住超过 1 分钟的 RUNNING，返回 `{retried, reclaimed}`，教师端按钮改「重试失败/卡住项」且在「批改中 >0」时可点；② `spring_session_attributes_pk` 冲突：V025 用 BEFORE INSERT 触发器把重复插入变成覆盖 bytes。验证：`GradingDispatchTest` 9/9（含新增「领满 3 次标 FAILED」「手动重试回收 RUNNING」）、`SessionAttributeUpsertTest` 1/1（同一属性连插两次不报错、取最后值）；`cd web && npx tsc --noEmit` 通过 |
+| 2026-10-20 | T234 根因复盘 | 完成 | 按用户要求再复现一次：用 30 轮「把同一提交打回 PENDING」稳定复现（10 轮内每次卡住）。取证在**用户 8010 进程的日志**里：`scheduling-1` 抛 `java.lang.NoClassDefFoundError: com/teachloop/shared/port/Ports$CriterionScore`（栈顶 `StubGradingEngine.grade` ← `GradingWorker.processBatch`）——该进程跑的是我原地重编覆盖过的 jar，嵌套 jar 懒加载失败；`Error` 不被旧 `catch (Exception)` 捕获，把行留在了 RUNNING。结论：**不是 worker 逻辑缺陷，是「覆盖 jar 不重启」的开发环境问题**；但暴露的两个真缺陷已修（捕获 Throwable + 两段清扫 + 手动回收）。运维口径：重编 jar 后必须重启 dev 栈，不要在运行中覆盖。 |
+| 2026-10-20 | T235 答案格式宽容化 | 完成 | 用户实测三种「答案标在选项上」的写法全部失败后，确认行业做法是答案与题面分离（Gradescope 答案键独立页 / 腾讯云 `QuestionSplitOCR` 的 `Answer[]` 数组）。改动：① `PaperTextParser` 答案标记词扩到 `参考答案/标准答案/正确答案/答案` 且认 `【】` 包裹（此前 `标准答案` 会**静默失败**，零告警）；② 只有题号没答案（`3.`）改告警跳过，此前会让整卷导入 400；③ 新增纯字母串配对，仅题号连续时启用，不连续告警拒绝（错位给分比失败更糟）；④ `ImportPaperPage` 加「粘贴答案表」面板，补完重拉题项并按真实数据现算缺答案。验证：`./mvnw -pl teachloop-paper -am test` 41/41（`PaperTextParserTest` 15 条含新增 4 条、`RealExamImportTest` 9 条 75 题/4 部分/120 分不变）；`cd web && pnpm build` 通过。**未验证**：浏览器里点「粘贴答案表」的视觉与交互未跑（仅 tsc + vite 构建通过） |
+| 2026-10-20 | T236 规格/计划/任务/mock 回写（D-14） | 完成 | spec §1/§1.1/US-22/AC-26.1/26.6/26.13/26.17/AC-25.4、D-14（取代 D-13）、FR-048；plan §5/§7.6/§14；mock 新增 `assignments`/`assignment-new` 两屏并把班级「新建作业」改指向。验证：四份文档计数 26 US / 223 AC / 48 FR / 164 T，无重复编号；mock 自查 22 个 section 无重复 id、`assignment-new` 内「试卷/部分/题号/标准答案/时长/计时模式/按班覆盖」出现 0 次 |
+| 2026-10-20 | T237 V026 迁移 + 实体可空 | 完成 | `V026__sitting_assignment_content.sql`：先 `drop not null` → 回填 `paper_id=null, paper_version=0` → 加 `offerings_kind_content_ck`。**首次在 dev 库执行失败**（回填顺序反了，撞 not-null），改序后重跑成功：13 条存量作业回填、`count(paper_id)=0`；1 场考试不受影响；约束定义已核对。空库迁移由 `MigrationTest` 断言 |
+| 2026-10-20 | T238 后端独立作业创建 | 完成 | `CreateOffering` 增 title/instructions/totalPoints/rubricMarkdown；`paperId` 派生 kind（有=EXAM、无=ASSIGNMENT），`kind` 仅做一致性校验；作业合成 1 条 ESSAY 内容快照、缺省 rubric、审计 `source`；`view().paperId` 空安全；`writeAnswers` 只在**无试卷作业**上跳过 ESSAY（考试的 ESSAY 作答行保持原行为，避免丢正文）。验证：`StandaloneAssignmentTest` 2/2（数据层/学生可见/提交派发判分/复核 + 5 种 400）；`FlowIntegrationTest` 2/2、`Phase2ExamTimingTest` 3/3 |
+| 2026-10-20 | T239 报表/导出适配无试卷作业 | 完成 | `ExportReadService` / `AggregateReportService` 的 `join papers` → `left join`，标题 `coalesce(p.title, paper_snapshot->>'title')`；`AggregateReportTest` 补「独立作业出现在聚合且标题非空」、`ExportTest` 补 xlsx/zip 用例。验证：两个测试类全绿 |
+| 2026-10-20 | T240 前端作业入口 + mock | 完成 | 新增 `/assignments`（只列 kind=ASSIGNMENT）与 `/assignments/new` 单页表单；教师导航加「作业」；布置页改纯考试并删 `kind`；`OfferingView.paperId` 改可空；学生作业页单 ESSAY 去序号；i18n zh/en 各 45 个新 key（`assignments` 12 + `assignmentCreate` 33），key 自查双向一致；批改详情的「时长」只对考试显示。验证：`npx tsc --noEmit` 0、`pnpm run build` 0 |
+| 2026-10-20 | T241 全量回归 + 浏览器实测 | 完成 | `make test` 退出码 0；surefire 汇总 **tests=173, failures=0, errors=0, skipped=0**（50 个测试类；只有两个 `@Tag("ai")` 真机类按约定未跑）；`check-i18n`/`check-boundaries`/`check-deps` 全通过。浏览器（8010+5173，stub 引擎）实测：新建作业（全程无试卷字段）→ 学生看到题目要求+rubric → 提交 → 教师派发 → stub 判 15/20 → 复核通过并发布 → 学生反馈显示 15/20 与评语。截图与数据断言见 `docs/reports/standalone-assignment/`。复核的 UI 定位未跑（队列未按 offering 过滤），用浏览器会话 API 完成 |
+| 2026-10-20 | T242 答案朴素写法与填空题文本答案 | 完成 | 用户真实卷三件套（`paper.md` / `answers.md` / `paper and answer.md`）原样回归。修掉的缺陷：① `56. challenging` 被 `[A-Ga-g]+` 静默读成 `C`（最严重，会往库里写错答案）——字母两侧加 `(?<![A-Za-z])…(?![A-Za-z])`；② `1-5: A B B C C` 报「需要 5 个答案，实际 1 个」——区间内允许空格分隔；③ `answers.md` 第 4 行死在 `---` 上——`AnswerTableParser` 先过 `MarkdownSyntax.clean`；④ 答案区里 `### 第一部分 听力（1-20）` 让整卷失败——改为跳过，只有以题号开头却解析不出才报错；⑤ `试卷参考答案与解析 (卷末附录)` 不认作答案区导致「题号 66 重复」——含「参考答案/标准答案/正确答案」且 ≤40 字、无句末标点即认定；⑥ 填空题无答案通道——新建 `AnswerFreeText`，无选项的题整行取文本、按题号切片、截断括号注释，端点按 `FILL_BLANK` 传白名单。验证：`./mvnw -pl teachloop-paper -am test` **64/64**（新增 `AnswerTableParserTest` 13 条、`RealExamWithAnswersTest` 4 条、`PaperImportEndpointTest` +1）；两条路径实测 **75 题 / 4 部分 / 120 分 / 75 题全有答案 / 0 缺**；`cd web && pnpm build` 通过。**未验证**：浏览器里点「粘贴答案表」的视觉与交互（本机未起 dev 栈） |
+| 2026-10-20 | T245 规格/计划/mock 回写（D-15） | 完成 | spec 新增 D-15、US-11 改为「AI 可选 + 人工判分一阶路径」、AC-11.11–11.16、FR-050（FR-049 已被并发 T242 答案格式占用，重新编号）；plan 新增 §6.5（懒建 review / worker 三处保护 / `SubmissionScores` 端口）；tasks 阶段 20。验证：26 US / 230 AC / 50 FR / 169 T，无重复编号 |
+| 2026-10-20 | T243 后端人工判分（AI 可选） | 完成 | `Ports.SubmissionScores` + `SittingLedger.scores`；ReviewEndpoint GET/PUT/decide 懒建 review（`original_subjective=null` = AI 未参与）、详情返回当前客观/主观分；无 AI 草稿且未填分时拒绝 APPROVED；bulk-approve 跳过未判分项；GradingWorker 在 teacherId 非空/已发布时三处跳过（认领前、AI 结果后、失败路径）；AI 先被打开详情、后完成的场景补记草稿（`Review.captureAiDraft`）。验证：`ManualGradingTest` 5/5（无派发判分 17.5→发布→学生可见、人工分 12 不被 AI 覆盖、FAILED 兜底、bulk 跳过、先开详情后补草稿）；指定测试类 25/0/0；全量 `make test` 203/0/0 |
+| 2026-10-20 | T244 前端判分入口与无 AI 草稿体验 | 完成 | 批改详情逐份行加「判分 / 复核」→ `/review?submissionId=`（仅已交卷且未拒收）；ReviewPage 支持 URL 直达（不在队列也可打开）、切人写 URL、AI 草稿为空显示「AI 未参与」与「直接填写主观分」提示、当前客观/主观分正常显示；i18n 迁入 `web/src/locales/*.json`。**浏览器实测中发现并修复**：ReviewPage 用 `t('teacher.review.*')` 但文案实际在顶层 `review.*`，页面一度显示裸 key；已改为 `review.*` 并逐键核对 zh/en 35/35 存在。验证：`npx tsc --noEmit`、`pnpm run build` 均 0 |
+| 2026-10-20 | T246 全量回归 + 人工判分浏览器实测 | 完成 | `make test` 退出码 0，surefire 汇总 **tests=203, failures=0, errors=0, skipped=0**（54 个报告类，含并发 T242 的答案格式测试）；`check-i18n`（前端 907 键对齐、后端/前端新增中文字面量 0）/`check-boundaries`/`check-deps` 全通过。浏览器实测：新建独立作业 → 学生提交（不派发 AI）→ 教师在批改详情点「判分 / 复核」→ 详情显示 AI 未参与、客观/主观 0 → 填 17.5 + 评语/优点/建议 → 保存 → 原样通过 → 发布 → 学生反馈显示 17.5/20 与三段文本。截图：`docs/reports/manual-grading/` |
+| 2026-10-20 | T248 三处实测反馈修复（作业页回显提交内容 / 资料页语言下拉 / 审计中文化） | 完成 | 后端 `SittingDtos.AttemptView` 增 `contentHtml`、`contentText`，`/my-submissions` 与 `/my-feedback` 同时受益；`SubmissionFormsTest` 4/4 含新增断言（富文本回显已消毒、纯文本 `Final answer`）。前端：作业页已提交卡片直接渲染正文（`dangerouslySetInnerHTML` 仅用于后端已消毒的 `content_html`）与附件链接；资料页新增「偏好设置 → 界面语言」下拉（`i18n.ts` 用 `import.meta.glob` 加载 `locales/*.json`，语言自称取自各文件 `language.<短码>`，默认 zh-CN），顶栏去掉中/EN 按钮；审计抽屉事件/参数/时间中文化，`fmtDateTime` 改按界面语言输出。验证：`pnpm typecheck` 0、`pnpm build` 0、`check-i18n` 976 键对齐且新增中文字面量 0、`./mvnw -pl teachloop-sitting -am -DskipTests compile` 0、`SubmissionFormsTest` 4/4。**已实测（T250 期间重启 8010 后）**：`/my-submissions` 返回 `contentHtml`（1814 字）/`contentText`（1797 字），作业页「已提交」卡片直接显示「我提交的内容」，无需再点按钮 |
+| 2026-10-20 | T250 第二轮实测反馈（资料提醒 / 必填高亮 / 富文本编辑器 / 复核正文与主操作） | 完成 | 后端：`Ports.WorkItem`、`ReviewEndpoint.ReviewDetail` 增 `contentHtml`（`SittingLedgerImpl` 从已消毒的 `submissions.content_html` 取），AI prompt 仍只用纯文本；资料是否补全改由前端读 `/api/profile` 判定，`/api/auth/me` 不变。前端：`AuthProvider` 暴露 `profileComplete`/`refreshProfile`，顶部只在未补全时显示「补全资料」，保存后 `refresh()`+`refreshProfile()` 立即消失；侧栏用户名常驻 `/profile`；资料页必填项红色 `*`+红框+字段级红字+顶部红条，未填禁用保存；新增 `components/RichTextEditor.tsx`（execCommand 工具条、空态占位、挂载时灌入初始 HTML），作业页富文本改用它，本机草稿存 `{text,html,mode}` 刷新可恢复；复核页「学生正文」优先渲染 `contentHtml`（`rich-content`），操作区改为「保存并发布反馈」主按钮（内部先 PUT 再 publish）+「仅保存草稿」+「退回重批」+「撤回」+「审计」，发布后隐藏保存类按钮，禁用按钮统一半透明；队列列名/状态中文化。验证：`pnpm typecheck` 0、`pnpm build` 0、`check-i18n` 1009 键对齐、`make test` 退出码 0（206/0/0/0）；浏览器实测：学生01 资料空手机号→红色高亮+顶部「补全资料」→保存后按钮消失；富文本输入并加粗成功（`<b>Hello rich text editor</b>`）、保存草稿后刷新仍恢复 HTML 与输入形态；教师复核页 914911e8 的 1814 字 HTML 按段落回显；点「保存并发布反馈」→ 学生可见 →「撤回」回到未发布。运维：重建 jar 后已重启 8010（旧实例因 jar 被覆盖出现过 `NoClassDefFoundError: ThrowableProxy`，重启后恢复）；截图 `docs/reports/t250-ux-fixes/` |

@@ -41,4 +41,7 @@ public class PaperSection {
     public BigDecimal getPointsPerItem() { return pointsPerItem; }
 
     public void setTitle(String title) { this.title = title; }
+
+    /** 只改「之后新增题项」的默认每题分值，不回溯改已有题项。 */
+    public void setPointsPerItem(BigDecimal pointsPerItem) { this.pointsPerItem = pointsPerItem; }
 }

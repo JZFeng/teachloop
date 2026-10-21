@@ -172,7 +172,7 @@ class AiGradingEngineTest {
 
     private static Ports.WorkItem workItem() {
         return new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "张三",
-                "TEXT", "My class is great.\n\nWe learn English together every day.",
+                "TEXT", "My class is great.\n\nWe learn English together every day.", null,
                 List.of(new Ports.AnswerRow(UUID.randomUUID(), 1, "A")),
                 List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", "SECRET",
                         new BigDecimal("15"), "Write about your class.")),
@@ -183,7 +183,7 @@ class AiGradingEngineTest {
 
     private static Ports.WorkItem objectiveOnlyWorkItem() {
         return new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "张三",
-                "TEXT", "A", List.of(new Ports.AnswerRow(UUID.randomUUID(), 1, "A")),
+                "TEXT", "A", null, List.of(new Ports.AnswerRow(UUID.randomUUID(), 1, "A")),
                 List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "SINGLE_CHOICE", "A",
                         new BigDecimal("5"), "Choose one.")),
                 "# 评分标准\n- 内容要点（5 分）：...", null, "zh-CN");

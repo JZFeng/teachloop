@@ -21,7 +21,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.http.MediaType;
@@ -71,6 +73,8 @@ public class PaperEndpoint {
 
     public record CreateSection(@NotBlank String title, BigDecimal pointsPerItem) {
     }
+    public record UpdateSection(String title, BigDecimal pointsPerItem) {
+    }
 
     public record CreateItem(@NotNull Integer number, @NotNull QuestionType questionType, String stem,
                              String options, String answerKey, @NotNull BigDecimal points, UUID sectionId,
@@ -97,21 +101,26 @@ public class PaperEndpoint {
     public record Rubric(String rubricMarkdown, String gradingPromptTemplate) {
     }
 
-    public record PaperView(String id, String title, int totalPoints, int version, int rubricVersion,
+    public record PaperView(String id, String title, BigDecimal totalPoints, int version, int rubricVersion,
                             String status, Integer defaultDurationMinutes, int assignmentCount) {
     }
 
     public record ItemView(String id, int number, String questionType, String stem, String options,
-                           String answerKey, int points, String scoringStrategy) {
+                           String answerKey, BigDecimal points, String scoringStrategy) {
     }
 
-    public record SectionView(String id, String title, int position, int pointsPerItem, List<ItemView> items) {
+    public record SectionView(String id, String title, int position, BigDecimal pointsPerItem, List<ItemView> items) {
     }
 
     public record PaperDetail(PaperView paper, List<SectionView> sections, List<String> criteriaNames) {
     }
 
-    public record ImportedItem(int number, String stem, String options, String answerKey) {
+    public record ImportedItem(int number, String stem, String options, String answerKey,
+                               BigDecimal points, String questionType) {
+    }
+
+    /** 导入后每个部分落的题数，前端用它展示「文档结构被保留成了什么」。 */
+    public record ImportSection(String title, int itemCount, BigDecimal pointsPerItem) {
     }
 
     public record UpdateItem(String stem, String options, String answerKey, BigDecimal points) {
@@ -127,7 +136,7 @@ public class PaperEndpoint {
     }
 
     public record ImportResult(int imported, List<Integer> missingAnswers, List<ImportedItem> items,
-                               List<String> warnings) {
+                               List<ImportSection> sections, List<String> warnings) {
     }
 
     @PostMapping
@@ -193,7 +202,7 @@ public class PaperEndpoint {
         Paper p = load(id);
         List<SectionView> secs = sections.findByPaperIdOrderByPosition(id).stream()
                 .map(s -> new SectionView(s.getId().toString(), s.getTitle(), s.getPosition(),
-                        s.getPointsPerItem() == null ? 0 : s.getPointsPerItem().intValue(),
+                        s.getPointsPerItem() == null ? BigDecimal.ZERO : s.getPointsPerItem(),
                         items.findByPaperSectionIdOrderByPosition(s.getId()).stream()
                                 .map(i -> itemView(i))
                                 .toList()))
@@ -208,11 +217,59 @@ public class PaperEndpoint {
                                   @RequestParam(defaultValue = "false") boolean confirm,
                                   @RequestAttribute("currentUser") CurrentUser me) {
         editable(id, confirm, me, "add_section");
-        int pos = sections.findByPaperIdOrderByPosition(id).size() + 1;
+        // 位置取「现有最大值 + 1」：删过中间部分后 size+1 会和已有位置撞车。
+        int pos = sections.findByPaperIdOrderByPosition(id).stream()
+                .mapToInt(PaperSection::getPosition).max().orElse(0) + 1;
         var s = new PaperSection(UUID.randomUUID(), id, body.title().trim(), pos, body.pointsPerItem());
         sections.save(s);
         return new SectionView(s.getId().toString(), s.getTitle(), pos,
-                body.pointsPerItem() == null ? 0 : body.pointsPerItem().intValue(), List.of());
+                body.pointsPerItem() == null ? BigDecimal.ZERO : body.pointsPerItem(), List.of());
+    }
+
+    /**
+     * 改部分的标题与「每题分值」。每题分值只作为之后新增题项的默认值，
+     * 不回溯改已有题项的分值（已出分的卷子不能被静默改分）。
+     */
+    @PutMapping("/{id}/sections/{sectionId}")
+    @Transactional
+    public SectionView updateSection(@PathVariable UUID id, @PathVariable UUID sectionId,
+                                     @RequestBody @Valid UpdateSection body,
+                                     @RequestParam(defaultValue = "false") boolean confirm,
+                                     @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = editable(id, confirm, me, "update_section");
+        requireAuthor(p, me);
+        PaperSection section = requireSection(id, sectionId);
+        if (body.title() != null && !body.title().isBlank()) {
+            section.setTitle(body.title().trim());
+        }
+        if (body.pointsPerItem() != null) {
+            if (body.pointsPerItem().signum() < 0) {
+                throw ApiException.badRequest("每题分值不能为负数");
+            }
+            section.setPointsPerItem(body.pointsPerItem());
+        }
+        sections.save(section);
+        audit.record(AuditEvent.of(me.id(), "paper:section_updated", "paper", id.toString()));
+        return new SectionView(section.getId().toString(), section.getTitle(), section.getPosition(),
+                section.getPointsPerItem() == null ? BigDecimal.ZERO : section.getPointsPerItem(),
+                items.findByPaperSectionIdOrderByPosition(sectionId).stream().map(PaperEndpoint::itemView).toList());
+    }
+
+    /** 删部分：连同其题项与评分项一起删（外键 on delete cascade），并重算总分。 */
+    @DeleteMapping("/{id}/sections/{sectionId}")
+    @Transactional
+    public ResponseEntity<Void> deleteSection(@PathVariable UUID id, @PathVariable UUID sectionId,
+                                              @RequestParam(defaultValue = "false") boolean confirm,
+                                              @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = editable(id, confirm, me, "delete_section");
+        requireAuthor(p, me);
+        PaperSection section = requireSection(id, sectionId);
+        criteria.deleteAll(criteria.findByPaperSectionIdOrderByPosition(sectionId));
+        items.deleteAll(items.findByPaperSectionIdOrderByPosition(sectionId));
+        sections.delete(section);
+        recalcTotal(p);
+        audit.record(AuditEvent.of(me.id(), "paper:section_deleted", "paper", id.toString()));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/{id}/items")
@@ -226,7 +283,8 @@ public class PaperEndpoint {
             sectionId = sections.findByPaperIdOrderByPosition(id).stream().findFirst()
                     .orElseThrow(() -> ApiException.badRequest("请先创建部分")).getId();
         }
-        int pos = items.findByPaperSectionIdOrderByPosition(sectionId).size() + 1;
+        int pos = items.findByPaperSectionIdOrderByPosition(sectionId).stream()
+                .mapToInt(ObjectiveItem::getPosition).max().orElse(0) + 1;
         var item = new ObjectiveItem(UUID.randomUUID(), id, sectionId, body.number(), pos,
                 body.questionType(), body.stem(), body.options(), body.answerKey(), body.points());
         item.setScoringStrategy(parseStrategy(body.scoringStrategy()));
@@ -236,13 +294,14 @@ public class PaperEndpoint {
     }
 
     /**
-     * 从 .docx / .md / .txt / .xlsx 导入客观题项（T186）。
+     * 从 .docx / .md / .txt / .xlsx 导入客观题项（T186 / T217 / T231）。
      *
      * <p>题目与答案写在同一个文档里也能一次导入：答案按题号自动配对，
      * 没配上的题照样创建，但题号列进 {@code missingAnswers}。</p>
      *
      * <p>只新增 {@code objective_items}：已存在的题号跳过（进 warnings，不覆盖）；
-     * 不触碰已有题项。</p>
+     * 不触碰已有题项。文档写了「第X部分」时按文档结构新建部分（逐题分值跟着走），
+     * 没写时导入到 {@code sectionId} 指定的部分，保持原有语义。</p>
      */
     /** T056：逐题修正题干/选项/答案，教师改拆错的那一道。 */
     @PutMapping("/{id}/items/{number}")
@@ -271,6 +330,22 @@ public class PaperEndpoint {
         return itemView(item);
     }
 
+    /** 删题项并重算总分；题号可被之后的导入/新增重新使用。 */
+    @DeleteMapping("/{id}/items/{number}")
+    @Transactional
+    public ResponseEntity<Void> deleteItem(@PathVariable UUID id, @PathVariable int number,
+                                           @RequestParam(defaultValue = "false") boolean confirm,
+                                           @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = editable(id, confirm, me, "delete_item");
+        requireAuthor(p, me);
+        ObjectiveItem item = items.findByPaperIdAndNumber(id, number)
+                .orElseThrow(() -> ApiException.notFound("题号 " + number + " 不存在"));
+        items.delete(item);
+        recalcTotal(p);
+        audit.record(AuditEvent.of(me.id(), "paper:item_deleted", "paper", id.toString()));
+        return ResponseEntity.noContent().build();
+    }
+
     /** T055：粘贴答案表补齐已有题项的标准答案。 */
     @PostMapping("/{id}/answers")
     @Transactional
@@ -280,7 +355,14 @@ public class PaperEndpoint {
         editable(id, confirm, me, "fill_answers");
         AnswerTableParser.Result parsed;
         try {
-            parsed = AnswerTableParser.parse(body.text());
+            // 填空题的答案不是字母（challenging / to walk），按题号白名单交给文本通道
+            Set<Integer> freeText = new HashSet<>();
+            for (ObjectiveItem item : items.findByPaperIdOrderByNumber(id)) {
+                if (item.getQuestionType() == QuestionType.FILL_BLANK) {
+                    freeText.add(item.getNumber());
+                }
+            }
+            parsed = AnswerTableParser.parse(body.text(), freeText);
         } catch (ImportException ex) {
             throw ApiException.badRequest(ex.getMessage());
         }
@@ -321,7 +403,6 @@ public class PaperEndpoint {
             throw ApiException.forbidden("学生不能导入试卷");
         }
         Paper p = editable(id, confirm, me, "import");
-        PaperSection section = resolveSection(id, sectionId);
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("请选择要导入的文件");
         }
@@ -340,7 +421,7 @@ public class PaperEndpoint {
                             "读取上传文件失败：" + ex.getMessage()));
         }
 
-        return ResponseEntity.ok(createItems(id, section, parsed));
+        return ResponseEntity.ok(createItems(id, sectionId, parsed));
     }
 
     /** 粘贴整卷文本导入（与文件导入同一解析器与创建逻辑）。 */
@@ -352,7 +433,6 @@ public class PaperEndpoint {
             throw ApiException.forbidden("学生不能导入试卷");
         }
         Paper p = editable(id, false, me, "import_text");
-        PaperSection section = resolveSection(id, body.sectionId());
         if (body.text() == null || body.text().isBlank()) {
             throw ApiException.badRequest("请粘贴试卷文字");
         }
@@ -368,41 +448,90 @@ public class PaperEndpoint {
             return ResponseEntity.badRequest()
                     .body(new ApiError(ErrorCode.BAD_REQUEST.name(), "导入失败", ex.getMessage()));
         }
-        return ResponseEntity.ok(createItems(id, section, parsed));
+        return ResponseEntity.ok(createItems(id, body.sectionId(), parsed));
     }
 
-    private ImportResult createItems(UUID paperId, PaperSection section, PaperTextParser.Result parsed) {
+    /**
+     * 把解析结果落成题项（T186 / T217）。
+     *
+     * <p>文档里识别出多个「第X部分」时，按文档结构新建部分、逐题分值跟着走，
+     * 此时 {@code targetSectionId} 不再使用；只有一个部分（或没写部分）时，
+     * 仍然导入到选中的目标部分，与旧行为一致。</p>
+     */
+    private ImportResult createItems(UUID paperId, UUID targetSectionId, PaperTextParser.Result parsed) {
         Set<Integer> existingNumbers = new HashSet<>();
         for (ObjectiveItem existing : items.findByPaperIdOrderByNumber(paperId)) {
             existingNumbers.add(existing.getNumber());
         }
-        BigDecimal points = section.getPointsPerItem() == null ? BigDecimal.ONE : section.getPointsPerItem();
-        int position = items.findByPaperSectionIdOrderByPosition(section.getId()).size();
         List<String> warnings = new ArrayList<>(parsed.warnings());
         List<ImportedItem> imported = new ArrayList<>();
         List<Integer> missingAnswers = new ArrayList<>();
-        for (PaperTextParser.ParsedItem parsedItem : parsed.items()) {
+        List<ImportSection> summary = new ArrayList<>();
+        List<PaperTextParser.ParsedSection> parsedSections = parsed.sections();
+
+        if (parsedSections.size() <= 1) {
+            PaperSection target = resolveSection(paperId, targetSectionId);
+            List<PaperTextParser.ParsedItem> list = parsed.items();
+            fillSection(paperId, target, list, existingNumbers, warnings, imported, missingAnswers);
+            summary.add(new ImportSection(target.getTitle(), list.size(), target.getPointsPerItem()));
+        } else {
+            if (targetSectionId != null) {
+                warnings.add("文档里识别到 " + parsedSections.size() + " 个部分，已按文档结构新建部分，"
+                        + "你选中的目标部分没有使用");
+            }
+            int position = sections.findByPaperIdOrderByPosition(paperId).stream()
+                    .mapToInt(PaperSection::getPosition).max().orElse(0);
+            Map<String, PaperSection> existingByTitle = new LinkedHashMap<>();
+            for (PaperSection section : sections.findByPaperIdOrderByPosition(paperId)) {
+                existingByTitle.putIfAbsent(section.getTitle(), section);
+            }
+            for (PaperTextParser.ParsedSection parsedSection : parsedSections) {
+                String title = parsedSection.title().isBlank() ? "综合" : parsedSection.title();
+                BigDecimal hint = parsedSection.pointsPerItem() == null
+                        ? BigDecimal.ONE : parsedSection.pointsPerItem();
+                PaperSection section = existingByTitle.get(title);
+                if (section == null) {
+                    section = new PaperSection(UUID.randomUUID(), paperId, title, ++position, hint);
+                    sections.save(section);
+                    existingByTitle.put(title, section);
+                }
+                fillSection(paperId, section, parsedSection.items(), existingNumbers, warnings,
+                        imported, missingAnswers);
+                summary.add(new ImportSection(title, parsedSection.items().size(), section.getPointsPerItem()));
+            }
+        }
+        recalcTotal(load(paperId));
+        return new ImportResult(imported.size(), missingAnswers, imported, summary, warnings);
+    }
+
+    private void fillSection(UUID paperId, PaperSection section, List<PaperTextParser.ParsedItem> parsedItems,
+                             Set<Integer> existingNumbers, List<String> warnings, List<ImportedItem> imported,
+                             List<Integer> missingAnswers) {
+        BigDecimal fallback = section.getPointsPerItem() == null
+                ? BigDecimal.ONE : section.getPointsPerItem();
+        int position = items.findByPaperSectionIdOrderByPosition(section.getId()).stream()
+                .mapToInt(ObjectiveItem::getPosition).max().orElse(0);
+        for (PaperTextParser.ParsedItem parsedItem : parsedItems) {
             if (existingNumbers.contains(parsedItem.number())) {
                 warnings.add("题号 " + parsedItem.number() + " 已存在，已跳过（不覆盖已有题项）");
                 continue;
             }
+            String answerKey = parsedItem.answerKey();
             QuestionType type = parsedItem.options() == null
                     ? QuestionType.FILL_BLANK
-                    : (parsedItem.answerKey() != null && parsedItem.answerKey().length() > 1
+                    : (answerKey != null && answerKey.length() > 1
                             ? QuestionType.MULTIPLE_CHOICE : QuestionType.SINGLE_CHOICE);
+            BigDecimal points = parsedItem.points() == null ? fallback : parsedItem.points();
             var item = new ObjectiveItem(UUID.randomUUID(), paperId, section.getId(), parsedItem.number(),
-                    ++position, type, parsedItem.stem(), parsedItem.options(),
-                    parsedItem.answerKey(), points);
+                    ++position, type, parsedItem.stem(), parsedItem.options(), answerKey, points);
             items.save(item);
             existingNumbers.add(parsedItem.number());
-            if (parsedItem.answerKey() == null || parsedItem.answerKey().isBlank()) {
+            if (answerKey == null || answerKey.isBlank()) {
                 missingAnswers.add(parsedItem.number());
             }
             imported.add(new ImportedItem(parsedItem.number(), parsedItem.stem(), parsedItem.options(),
-                    parsedItem.answerKey()));
+                    answerKey, points, type.name()));
         }
-        recalcTotal(load(paperId));
-        return new ImportResult(imported.size(), missingAnswers, imported, warnings);
     }
 
     private PaperSection resolveSection(UUID paperId, UUID sectionId) {
@@ -557,8 +686,27 @@ public class PaperEndpoint {
 
     private static ItemView itemView(ObjectiveItem i) {
         return new ItemView(i.getId().toString(), i.getNumber(), i.getQuestionType().name(),
-                i.getStem(), i.getOptions(), i.getAnswerKey(), i.getPoints().intValue(),
+                i.getStem(), i.getOptions(), i.getAnswerKey(), i.getPoints(),
                 i.getScoringStrategy().name());
+    }
+
+    private PaperSection requireSection(UUID paperId, UUID sectionId) {
+        PaperSection section = sections.findById(sectionId)
+                .orElseThrow(() -> ApiException.notFound("部分不存在"));
+        if (!section.getPaperId().equals(paperId)) {
+            throw ApiException.notFound("部分不存在");
+        }
+        return section;
+    }
+
+    /** 写操作只允许作者本人或管理员；越界一律 404，不泄漏存在性。 */
+    private void requireAuthor(Paper p, CurrentUser me) {
+        if (me == null || me.is("ADMIN")) {
+            return;
+        }
+        if (!p.getAuthorId().equals(me.id())) {
+            throw ApiException.notFound("试卷不存在");
+        }
     }
 
     private void recalcTotal(Paper p) {
@@ -574,7 +722,7 @@ public class PaperEndpoint {
     }
 
     private PaperView view(Paper p) {
-        return new PaperView(p.getId().toString(), p.getTitle(), p.getTotalPoints().intValue(),
+        return new PaperView(p.getId().toString(), p.getTitle(), p.getTotalPoints(),
                 p.getVersion(), p.getRubricVersion(), p.getStatus().name(), p.getDefaultDurationMinutes(),
                 usage.assignmentCount(p.getId()));
     }

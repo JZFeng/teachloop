@@ -6,7 +6,19 @@ import org.hibernate.type.SqlTypes;
 import java.time.Instant;
 import java.util.UUID;
 
-/** 一场考试 / 一次布置：引用试卷 + 时间窗口 + 类型，班级见 offering_classes。 */
+/**
+ * 一场考试 / 一次作业：内容快照 + 时间窗口 + 类型，班级见 offering_classes。
+ *
+ * <p>内容来源只有两种，由 {@link #paperId} 是否为空唯一决定，数据库约束
+ * {@code offerings_kind_content_ck} 兜底：
+ * <ul>
+ *   <li>{@code paperId != null} → {@link OfferingKind#EXAM}：考试引用一份试卷，
+ *       快照由试卷内容生成，{@code paperVersion} 记录试卷版本；</li>
+ *   <li>{@code paperId == null} → {@link OfferingKind#ASSIGNMENT}：作业内容自带
+ *       （题目要求 / 总分 / 评分标准），创建时合成为「1 条 ESSAY 题项」的快照，
+ *       {@code paperVersion = 0}，不引用任何试卷。</li>
+ * </ul>
+ */
 @Entity
 @Table(name = "offerings")
 public class Offering {
@@ -14,7 +26,8 @@ public class Offering {
     @Id
     private UUID id;
 
-    @Column(name = "paper_id", nullable = false)
+    /** 考试必填、作业必须为空（D-14）；可空正是两种内容来源的分界线。 */
+    @Column(name = "paper_id")
     private UUID paperId;
 
     @Enumerated(EnumType.STRING)

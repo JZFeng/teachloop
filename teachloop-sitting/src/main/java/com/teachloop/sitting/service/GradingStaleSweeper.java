@@ -33,12 +33,15 @@ public class GradingStaleSweeper {
     private final SubmissionRepository submissions;
     private final Clock clock;
     private final long staleMinutes;
+    private final int maxAttempts;
 
     public GradingStaleSweeper(SubmissionRepository submissions, Clock clock,
-                               @Value("${teachloop.grading.stale-minutes:5}") long staleMinutes) {
+                               @Value("${teachloop.grading.stale-minutes:5}") long staleMinutes,
+                               @Value("${teachloop.grading.max-attempts:3}") int maxAttempts) {
         this.submissions = submissions;
         this.clock = clock;
         this.staleMinutes = staleMinutes;
+        this.maxAttempts = maxAttempts;
     }
 
     /** 应用启动后先扫一次：上次进程崩溃时留下的 RUNNING 行在这里被救回来。 */
@@ -56,11 +59,16 @@ public class GradingStaleSweeper {
     @Transactional
     public int sweep() {
         Instant cutoff = Instant.now(clock).minus(Duration.ofMinutes(staleMinutes));
-        int recovered = submissions.sweepStaleRunning(cutoff);
+        int failed = submissions.failStaleRunning(cutoff, maxAttempts);
+        if (failed > 0) {
+            log.error("定时清扫：{} 个批改工作项领了 {} 次仍未完成，已标 FAILED（阈值 {} 分钟）",
+                    failed, maxAttempts, staleMinutes);
+        }
+        int recovered = submissions.sweepStaleRunning(cutoff, maxAttempts);
         if (recovered > 0) {
             log.warn("定时清扫：{} 个批改工作项从 RUNNING 退回 PENDING（阈值 {} 分钟）",
                     recovered, staleMinutes);
         }
-        return recovered;
+        return recovered + failed;
     }
 }

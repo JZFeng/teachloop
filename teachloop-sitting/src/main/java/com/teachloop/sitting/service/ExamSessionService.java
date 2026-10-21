@@ -426,11 +426,16 @@ public class ExamSessionService {
                 if (spec == null) {
                     continue;
                 }
+                // 独立作业（D-14）的合成题项在 objective_items 里没有行，写 ESSAY 作答会撞
+                // objective_answers.item_id 外键，所以只在无试卷的作业上跳过；
+                // 考试的 ESSAY 仍按原行为落行（学生正文经 answers[] 上传时不能丢）。
+                if (offering.getPaperId() == null && "ESSAY".equals(spec.questionType())) {
+                    continue;
+                }
                 String given = a.answer() == null ? "" : a.answer().trim();
                 var row = new ObjectiveAnswer(UUID.randomUUID(), s.getId(), spec.itemId(), a.number(), given);
                 java.math.BigDecimal awarded = ObjectiveScoring.award(spec, given);
-                row.setCorrect(awarded.compareTo(spec.points()) == 0
-                        && !"ESSAY".equals(spec.questionType()));
+                row.setCorrect(awarded.compareTo(spec.points()) == 0);
                 answers.save(row);
                 objective = objective.add(awarded);
             }

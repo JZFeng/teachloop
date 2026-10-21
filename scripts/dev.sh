@@ -15,6 +15,10 @@ BACKEND_PORT="${PORT:-8010}"
 WEB_PORT="${WEB_PORT:-5173}"
 DB_PORT="${DB_PORT:-55432}"
 DB_CONTAINER="${DB_CONTAINER:-teachloop-pg}"
+# 第二个环境（scripts/env.sh）要独立的库与附件目录，所以这两项可用环境变量覆盖；
+# 不设时行为与以前完全一致（库 teachloop、附件 ./uploads）。
+DB_NAME="${DB_NAME:-teachloop}"
+STORAGE_LOCAL_DIR="${STORAGE_LOCAL_DIR:-$ROOT/uploads}"
 LOG_DIR="$ROOT/.dsh/logs"
 JAR="$ROOT/teachloop-app/target/teachloop-app-0.1.0-SNAPSHOT.jar"
 
@@ -129,7 +133,8 @@ fi
 # ---------- 可选 seed ----------
 if [ "$SEED" = "1" ]; then
   say "写入演示数据（可重复）…"
-  DB_URL="jdbc:postgresql://localhost:$DB_PORT/teachloop" DB_USER=teachloop DB_PASSWORD=teachloop \
+  DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" DB_USER=teachloop DB_PASSWORD=teachloop \
+    STORAGE_LOCAL_DIR="$STORAGE_LOCAL_DIR" \
     "$JAVA_HOME/bin/java" -jar "$JAR" --teachloop.seed.demo=true --seed-exit --server.port=0 \
     > "$LOG_DIR/dev-seed.log" 2>&1 || { tail -30 "$LOG_DIR/dev-seed.log"; die "seed 失败"; }
 fi
@@ -138,7 +143,8 @@ fi
 say "启动后端 :${BACKEND_PORT}（日志 ${LOG_DIR}/dev-backend.log）"
 AI_ENV="stub"
 [ "$AI" = "1" ] && AI_ENV="ai"
-DB_URL="jdbc:postgresql://localhost:$DB_PORT/teachloop" DB_USER=teachloop DB_PASSWORD=teachloop \
+DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" DB_USER=teachloop DB_PASSWORD=teachloop \
+  STORAGE_LOCAL_DIR="$STORAGE_LOCAL_DIR" \
   PORT="$BACKEND_PORT" TEACHLOOP_GRADING_ENGINE="$AI_ENV" \
   "$JAVA_HOME/bin/java" -jar "$JAR" > "$LOG_DIR/dev-backend.log" 2>&1 &
 BACK_PID=$!
@@ -162,7 +168,8 @@ if [ ! -d "$ROOT/web/node_modules" ]; then
     || { tail -40 "$LOG_DIR/dev-web-install.log"; die "pnpm install 失败"; }
 fi
 say "启动前端 :${WEB_PORT}（日志 ${LOG_DIR}/dev-web.log）"
-(cd "$ROOT/web" && exec pnpm run dev --host 127.0.0.1 --port "$WEB_PORT") \
+(cd "$ROOT/web" && TEACHLOOP_API="http://127.0.0.1:$BACKEND_PORT" WEB_PORT="$WEB_PORT" \
+  exec pnpm run dev --host 127.0.0.1 --port "$WEB_PORT") \
   > "$LOG_DIR/dev-web.log" 2>&1 &
 WEB_PID=$!
 

@@ -105,7 +105,8 @@ public class ExamSessionEndpoint {
         return new SittingDtos.EntryView(o.getId().toString(), snap.title(), snap.items().size(),
                 snap.totalPoints(), window.durationMinutes(), o.getTimingMode().name(), str(o.getStartAt()),
                 window.dueAt().toString(), now.toString(), s.started(), canStart, s.remainingSeconds(),
-                str(s.deadlineAt()), s.submitted(), s.autoSubmitted(), s.locked(), notice, NOTES);
+                str(s.deadlineAt()), s.submitted(), s.autoSubmitted(), s.locked(), notice, NOTES,
+                o.getRubricMarkdown());
     }
 
     /**
@@ -444,7 +445,7 @@ public class ExamSessionEndpoint {
                 s.getLateBySeconds(), str(s.getRejectedAt()), s.getRejectReason(), s.getGradingState().name(),
                 s.getObjectiveTotal(), s.getSubjectiveTotal(),
                 s.getObjectiveTotal().add(s.getSubjectiveTotal()), s.isActive(),
-                s.getId().toString(), s.getAttachmentName());
+                s.getId().toString(), s.getAttachmentName(), s.getContentHtml(), s.getContentText());
     }
 
     private Offering published(UUID id) {

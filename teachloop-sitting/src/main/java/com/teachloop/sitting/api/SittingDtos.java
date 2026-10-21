@@ -12,17 +12,27 @@ public final class SittingDtos {
     public record ClassAssignment(String classId, String dueAtOverride, Integer durationOverride) {
     }
 
+    /**
+     * 一次布置的创建请求（T201 / D-14）。
+     *
+     * <p>两种内容来源：{@code paperId} 非空 → 考试（快照取自试卷）；{@code paperId} 为空 →
+     * 作业（内容来自 {@code title} / {@code instructions} / {@code totalPoints} / {@code rubricMarkdown}）。
+     * {@code kind} 只为兼容旧客户端保留——必须与内容来源一致，否则 400，不再由用户选择。
+     */
     public record CreateOffering(String paperId, String kind, String startAt, String dueAt,
                                  Integer durationMinutes, String timingMode, List<String> classIds,
                                  List<ClassAssignment> classes, Integer maxAttempts, Integer graceHours,
                                  String feedbackLanguage, Boolean showPeerOverview, Boolean publishScores,
-                                 Boolean publish, String gradingPromptTemplate) {
+                                 Boolean publish, String gradingPromptTemplate,
+                                 String title, String instructions, Integer totalPoints,
+                                 String rubricMarkdown) {
     }
 
     public record OfferingClassView(String classId, String dueAtOverride, Integer durationOverride,
                                     long memberCount) {
     }
 
+    /** {@code paperId} 只有考试才有；独立作业（D-14）为 null，标题仍取快照 title。 */
     public record OfferingView(String id, String paperId, String paperTitle, int paperVersion, String kind,
                                String timingMode, String status, String startAt, String dueAt,
                                Integer durationMinutes, int effectiveDurationMinutes, int graceHours,
@@ -58,14 +68,20 @@ public final class SittingDtos {
                             int durationMinutes, String timingMode, String startAt, String dueAt,
                             String serverNow, boolean started, boolean canStart, long remainingSeconds,
                             String deadlineAt, boolean submitted, boolean autoSubmitted, boolean locked,
-                            String notice, List<String> notes) {
+                            String notice, List<String> notes, String rubric) {
     }
 
-    /** 学生看到的一次作答尝试（含拒收理由，T202 / AC-8.6）。 */
+    /**
+     * 学生看到的一次作答尝试（含拒收理由，T202 / AC-8.6）。
+     *
+     * <p>contentHtml / contentText 是这名学生自己提交的正文（T248）：作业页提交后直接回显，
+     * 不用再点按钮跳到反馈页。contentHtml 在写入时已消毒，回显安全；没有富文本时为 null。
+     */
     public record AttemptView(int attemptNo, String submittedAt, boolean autoSubmitted, long lateBySeconds,
                               String rejectedAt, String rejectReason, String gradingState,
                               BigDecimal objectiveScore, BigDecimal subjectiveScore, BigDecimal totalScore,
-                              boolean active, String submissionId, String attachmentName) {
+                              boolean active, String submissionId, String attachmentName,
+                              String contentHtml, String contentText) {
     }
 
     public record MyAttemptsView(String offeringId, int attemptsUsed, int maxAttempts, boolean canRetry,

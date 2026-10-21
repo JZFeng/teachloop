@@ -16,7 +16,10 @@ public final class ExportModels {
     private ExportModels() {
     }
 
-    /** 一场考试 / 一次布置的基础信息。标题取 papers.title。 */
+    /**
+     * 一场考试 / 一次作业的基础信息。标题取 {@code papers.title}；
+     * 独立作业（D-14，{@code paper_id} 为空）回退到布置快照里的 {@code title}。
+     */
     public record OfferingMeta(UUID id, String paperTitle, String kind, Instant dueAt,
                                boolean publishScores) {
     }

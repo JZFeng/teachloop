@@ -63,7 +63,7 @@ class AiGradingRealCallTest {
                 I would like more time for free reading.
                 """;
         return new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "测试学生",
-                "TEXT", essay, List.of(),
+                "TEXT", essay, null, List.of(),
                 List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", "SECRET-ANSWER",
                         new BigDecimal("15"), "Write about your class.")),
                 "# 评分标准\n- 内容要点（10 分）：是否覆盖题目要求的全部要点。\n"

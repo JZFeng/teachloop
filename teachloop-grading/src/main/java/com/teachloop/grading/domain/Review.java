@@ -104,6 +104,17 @@ public class Review {
         this.publishedAt = at;
     }
 
+    /**
+     * D-15：老师先打开复核详情（懒建 PENDING、没有草稿）之后 AI 才完成时，补记 AI 草稿。
+     *
+     * <p>只在没有草稿、老师还没改过分时写入；人工分或已决策的复核不接受 AI 回填。
+     */
+    public void captureAiDraft(BigDecimal points) {
+        if (points != null && this.originalSubjective == null && this.teacherId == null) {
+            this.originalSubjective = points;
+        }
+    }
+
     /** T103：撤回；清 published_at，内容与状态保留以便修改后重新发布。 */
     public void withdraw() {
         this.publishedAt = null;

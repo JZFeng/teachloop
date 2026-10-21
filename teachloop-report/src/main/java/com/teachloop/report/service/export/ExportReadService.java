@@ -41,10 +41,12 @@ import org.springframework.stereotype.Service;
 @Service
 public class ExportReadService {
 
+    /** D-14：独立作业没有 papers 行，必须 left join 并从快照回退标题，否则整场导出会消失。 */
     private static final String OFFERING_SQL = """
-            select o.id, o.kind, o.due_at, o.publish_scores, p.title as paper_title
+            select o.id, o.kind, o.due_at, o.publish_scores,
+                   coalesce(p.title, o.paper_snapshot->>'title') as paper_title
             from offerings o
-            join papers p on p.id = o.paper_id
+            left join papers p on p.id = o.paper_id
             where o.id = ?
             """;
 

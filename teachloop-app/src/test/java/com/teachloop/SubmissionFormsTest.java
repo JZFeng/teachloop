@@ -144,6 +144,14 @@ class SubmissionFormsTest {
                 "select content_html as html, content_text as text from submissions where id = ?",
                 UUID.fromString(submissionId));
         assertThat((String) afterSubmit.get("text")).isEqualTo("Final answer");
+
+        // T248：学生自己拉 /my-submissions 就能拿到已消毒的正文，作业页直接回显，不再需要额外接口。
+        Map<String, Object> mine = send(student, "GET",
+                "/api/offerings/" + offeringId + "/my-submissions", null);
+        Map<?, ?> attempt = (Map<?, ?>) ((List<?>) mine.get("attempts")).get(0);
+        assertThat((String) attempt.get("contentText")).as("纯文本回显").isEqualTo("Final answer");
+        assertThat((String) attempt.get("contentHtml")).as("富文本回显已消毒")
+                .contains("<strong>answer</strong>").doesNotContain("<script", "onclick");
     }
 
     // ================= T061 / T066：文件提交 =================
@@ -363,15 +371,12 @@ class SubmissionFormsTest {
     }
 
     private String createOffering(String classId) throws Exception {
-        String paperId = post("/api/papers", Map.of("title", "表单测试卷", "defaultDurationMinutes", 60), "id");
-        String sectionId = post("/api/papers/" + paperId + "/sections",
-                Map.of("title", "写作", "pointsPerItem", 20), "id");
-        post("/api/papers/" + paperId + "/items", Map.of("number", 1, "questionType", "ESSAY",
-                "stem", "Write an essay.", "points", 20, "paperSectionId", sectionId), "id");
-        post("/api/papers/" + paperId + "/publish", Map.of(), "id");
+        // D-14：作业自带内容，不再建卷、不带 paperId、不设时长
         Map<String, Object> body = Map.of(
-                "paperId", paperId, "kind", "ASSIGNMENT", "timingMode", "INDIVIDUAL",
-                "dueAt", Instant.now().plusSeconds(7 * 86400).toString(), "durationMinutes", 60,
+                "title", "表单测试作业", "timingMode", "INDIVIDUAL",
+                "instructions", "Write an essay.", "totalPoints", 20,
+                "rubricMarkdown", "# 评分标准\n- 内容要点\n- 语言准确性",
+                "dueAt", Instant.now().plusSeconds(7 * 86400).toString(),
                 "classes", List.of(Map.of("classId", classId)));
         String offeringId = send(teacher, "POST", "/api/offerings", body).get("id").toString();
         send(teacher, "POST", "/api/offerings/" + offeringId + "/publish", Map.of());

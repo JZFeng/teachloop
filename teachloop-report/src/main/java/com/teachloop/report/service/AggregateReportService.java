@@ -37,14 +37,15 @@ public class AggregateReportService {
 
     public List<OfferingRow> byOffering(List<UUID> offeringIds) {
         String in = placeholders(offeringIds.size());
-        String sql = "select o.id, p.title, "
+        // D-14：独立作业没有 papers 行；left join + 快照回退标题，否则作业在聚合里整行消失。
+        String sql = "select o.id, coalesce(p.title, o.paper_snapshot->>'title') as title, "
                 + "(select count(distinct cm.student_id) from offering_classes oc "
                 + " join class_members cm on cm.class_id = oc.class_id where oc.offering_id = o.id) expected, "
                 + "(select count(*) from submissions s where s.offering_id = o.id and s.active "
                 + " and s.submitted_at is not null) submitted, "
                 + "(select avg(s.objective_total + s.subjective_total) from submissions s "
                 + " where s.offering_id = o.id and s.active and s.submitted_at is not null) avg_score "
-                + "from offerings o join papers p on p.id = o.paper_id where o.id in (" + in + ") "
+                + "from offerings o left join papers p on p.id = o.paper_id where o.id in (" + in + ") "
                 + "order by o.created_at desc";
         return jdbc.query(sql, (rs, i) -> {
             long expected = rs.getLong("expected");

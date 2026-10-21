@@ -240,7 +240,7 @@ class ReviewWorkflowTest {
     private record Fixture(String classId, String offeringId, StudentInfo studentA, StudentInfo studentB) {
     }
 
-    /** 1 份 2 单选（各 10 分）+ 1 作文（10 分）的已发布试卷、1 个班（2 名学生）、1 场已发布作业。 */
+    /** 1 份 2 单选（各 10 分）+ 1 作文（10 分）的已发布试卷、1 个班（2 名学生）、1 场已发布考试。 */
     private Fixture fixture() throws Exception {
         String paperId = post(teacher, "/api/papers",
                 Map.of("title", "复核测试卷 " + UUID.randomUUID(), "defaultDurationMinutes", 60), "id");
@@ -263,7 +263,6 @@ class ReviewWorkflowTest {
 
         Map<String, Object> body = new HashMap<>();
         body.put("paperId", paperId);
-        body.put("kind", "ASSIGNMENT");
         body.put("timingMode", "INDIVIDUAL");
         body.put("dueAt", Instant.now().plus(7, ChronoUnit.DAYS).toString());
         body.put("durationMinutes", 60);

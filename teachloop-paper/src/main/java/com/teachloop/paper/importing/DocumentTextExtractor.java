@@ -72,7 +72,8 @@ public final class DocumentTextExtractor {
             throw new ImportException(".doc 是旧版二进制 Word 格式，无法解析；请在 Word 里另存为 .docx 后重新上传");
         }
         if (name.endsWith(".md") || name.endsWith(".markdown")) {
-            return new ExtractedDocument("md", textLines(decodeUtf8(bytes)));
+            // T231：真实试卷转成 md 后带着标题/加粗/列表/表格记号，先剥干净再进解析器
+            return new ExtractedDocument("md", MarkdownSyntax.clean(textLines(decodeUtf8(bytes))));
         }
         if (name.endsWith(".txt")) {
             return new ExtractedDocument("txt", textLines(decodeUtf8(bytes)));

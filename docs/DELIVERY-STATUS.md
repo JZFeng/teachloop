@@ -56,7 +56,39 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 5. **CSRF/资料补全**：只在 `prod` profile 强制；开发/测试关闭。
 6. **管理员豁免资料补全**：CLI 创建的管理员无手机号，避免锁死；与「所有角色」字面要求有偏差。
 7. **T007**：中文字面量检查采用「基线 + 新增即失败」，存量 275 处未迁移到消息 key。
+8. **新建/导入试卷第 2 步（2026-10-20 已修，T230）**：22 个 i18n key 补齐、新建态免同步上传/粘贴、向导内粘贴导入、部分与题项行内编辑/删除；后端补 `PUT/DELETE /api/papers/{id}/sections/{sectionId}` 与 `DELETE /api/papers/{id}/items/{number}`。仍在的缺口：解析不产出部分/节与置信度（T217），评分项只能追加。
+9. **Mockup 对等性缺口（2026-10-20 审计）**：21 个 mockup 屏中 20 屏有落点，
+   **学生「班级概览」整屏未实现**（spec US-13 有、后端无学生端接口）；
+   报表页未接任何导出按钮（后端 `/api/reports/offerings.xlsx|pdf` 已有）；
+   复核工作台缺客观分/错题/正文指标/分项分；审计时间线 7 类事件只覆盖 2 类。
+   逐屏明细见 `docs/reports/mockup-parity/README.md`，修复任务见 `tasks.md` 阶段 18（T211–T229）。
+10. **班级成员面板**：前端把 `/api/classes/{id}/members` 当 `string[]` 消费，
+   后端返回 `MemberView` 对象 → 打开成员面板会渲染崩溃（P1，待 T223 一并修）。
+11. **邀请码文案与实现不符**：页面写「默认 3 天过期」，后端 `classes` 无过期字段、`join` 不校验；
+
+12. **真实试卷导入（2026-10-20，T231）**：用户提供的真实高一英语月考整卷（Markdown）已能导入——75 题 / 4 个部分（20/20/35/0）/ 总分 120 分，逐题分值 1.5 / 2.5 / 1 / 1.5 / 1 正确。仍有两条落地约束：① 系统没有「材料/篇章」字段，阅读与完形材料**并入每道题的题干开头**（同一段材料在该组的 4 道题里各存一份，材料长的题题干会达 1KB 量级），补 `material` 字段后应改为独立引用（D-12）；② 源文件没有标准答案，75 题全部落在 `missingAnswers`，第 5 步按既有规则「有题项缺答案，禁止发布」，需先补答案（第 3 步逐题填或粘贴答案表）。③ 写作部分（应用文 15 + 口语 15）是主观题，只落了空部分，需要教师在第 4 步补评分要点。截图：`docs/reports/import-real-exam/`。   已由 D-9 拍板补实现（T213）。
+
+13. **主观作业链路（2026-10-20，T232/T233）**：布置 3 个写作作业 → 学生作答 → 批改 → 复核 → 反馈已跑通；作业页能看到「题目要求」与「评分标准」，学生反馈页显示评语 + 优点 + 建议。同轮修掉 `create` 带 `publish=true` 只改内存不落库（学生看不到作业）的缺陷。截图：`docs/reports/critical-case-subjective/`。
+    **D-14（2026-10-20 拍板，T236–T241 已完成，见第 16 条）**：作业与考试在数据层分开——作业永远自带题目要求/总分/评分标准、不引用试卷；试卷只用于考试。此前「新建作业必须先建一份试卷」的流程废止；存量作业回填为 `paper_id = null, paper_version = 0`，内容仍在该场快照里。
+14. **批改卡在 RUNNING（T234，2026-10-20 已修）**：提交被 claim 成 RUNNING 后若那次 tick 没走完，原实现只有定时清扫（5 分钟阈值）会退回队列，且没有上限与手动入口。现在：领满 `grading.max-attempts`（默认 3）的退回 FAILED 并写原因；教师端「重试失败/卡住项」会额外回收卡住超过 1 分钟的 RUNNING，返回 `{retried, reclaimed}`。
+    **根因（2026-10-20 复查已定位）**：`scheduling-1` 抛 `java.lang.NoClassDefFoundError: com/teachloop/shared/port/Ports$CriterionScore`（`StubGradingEngine.grade`），起因是开发机上另一个后端进程跑着**被原地重编覆盖过的 jar**，类懒加载失败；`Error` 不被旧 `catch (Exception)` 捕获，于是行停在 RUNNING。**运维口径：重编 jar 后必须重启 dev 栈，不要在运行中覆盖 jar。**
+
+15. **会话唯一键冲突（T234，2026-10-20 已修）**：`spring_session_attributes_pk` 冲突发生在 Spring Session 对同一 session 重复 INSERT 属性时。V025 加 BEFORE INSERT 触发器，行已存在就覆盖 `attribute_bytes`，`SessionAttributeUpsertTest` 锁住行为。注意这仍不是多实例会话方案（会话共享仍靠同一个库）。
+
+16. **D-14 作业与考试在数据层分开（2026-10-20 完成）**：作业永远自带题目要求/总分/评分标准、不引用试卷；试卷只用于考试。`offerings.paper_id` 可空，`offerings_kind_content_ck` 保证 `(kind='ASSIGNMENT') = (paper_id IS NULL)`；V026 把 13 条存量作业回填为 `paper_id=null`（快照内容保留）。新增「作业」导航与 `/assignments/new` 单页表单；布置页只保留基于试卷的考试。验证：`make test` 173/0/0 退出码 0；浏览器跑通「新建作业→学生提交→派发→复核→发布→学生反馈」，截图与数据断言见 `docs/reports/standalone-assignment/`。已知限制：存量作业快照可能含客观题（学生作业页无客观题作答，历史数据）；AI prompt 仍不含题目要求（待有 Key 重跑基线后单独立项）；复核工作台未按 offeringId 过滤队列。
+
+17. **D-15 人工判分（AI 可选，2026-10-20 完成）**：老师可从「作业批改详情」的任意已交卷行进入判分；没有 AI 草稿也能填主观分、通过、发布，AI 只是可选辅助。AI 不得覆盖人工分：worker 在认领前、AI 结果落地前、失败路径三处检查 `teacher_id` / 已发布；复核详情显示客观分、当前主观分、AI 草稿三个数；批量通过跳过「AI 未参与且未填分」的行。验证：`ManualGradingTest` 5/5；`make test` 203/0/0（退出码 0）；浏览器不派发 AI 直接判 17.5 → 发布 → 学生反馈可见 17.5 与评语，截图见 `docs/reports/manual-grading/`。已知限制：仅打开详情会懒建 PENDING 复核进入队列；驳回后 AI 不会自动重批（既有语义）；复核工作台列表仍未按 offeringId 过滤。
+
+18. **三处实测反馈修复（T248，2026-10-20 完成）**：① 作业页「已提交」卡片直接回显学生自己的正文（`/my-submissions` 增加 `contentHtml` / `contentText`，富文本是写入时已消毒的 HTML）与附件链接，刚交完先用本页内存副本兜底；② 资料页改为「我的资料」+「偏好设置」，界面语言改为下拉框（默认中文，选项由 `web/src/locales/*.json` 自动生成，新增语言只需加一份 json），顶栏移除中/EN 快捷按钮；③ 审计抽屉把事件代号、参数、时间翻成中文（`submission:submit` → 提交作业；`{late=0, attempt=1}` → 按时提交 · 第 1 次提交），`fmtDateTime` 按界面语言格式化。验证：`SubmissionFormsTest` 4/4（含新增正文回显断言）、全模块 `test-compile` 退出码 0、`tsc --noEmit` / `pnpm build` / `check-i18n`（976 键对齐）通过；浏览器实测资料页语言下拉（中↔英、刷新后保留）与审计抽屉可读，截图 `docs/reports/t248-ux-fixes/`。**已实测**（T250 期间重启 8010 后）：`/my-submissions` 返回 `contentHtml`/`contentText`，作业页「已提交」卡片直接显示「我提交的内容」，截图 `docs/reports/t250-ux-fixes/submitted-content.png`。
+
+19. **第二轮实测反馈（T250，2026-10-20 完成）**：① 顶部「补全资料」只在手机号或邮箱为空时出现，保存后立即消失；侧栏用户名常驻 `/profile`，资料页随时可改；必填项用红色 `*`、红框、字段级红字和顶部红条提示，未填时禁止保存。② 作业页富文本换成带工具条的真编辑器（粗体 / 斜体 / 下划线 / 有序 / 无序列表 / 小标题 / 正文 + 占位提示），本机草稿同时保存纯文本、HTML 与输入形态，刷新可恢复。③ 复核页「学生正文」按写入时已消毒的 HTML 回显（`Ports.WorkItem` / `ReviewDetail` 增 `contentHtml`）；操作区收敛为「保存并发布反馈」主按钮 +「仅保存草稿」+「退回重批」+「撤回」+「审计」，发布后隐藏保存类按钮，禁用按钮统一半透明，队列列名与状态中文化。验证：`pnpm typecheck` / `pnpm build` / `check-i18n`（1009 键对齐）/ `make test` 均通过；浏览器实测资料红框→保存→顶部按钮消失、富文本输入加粗并刷新恢复、复核页富文本按段落回显、发布→撤回往返成功。截图：`docs/reports/t250-ux-fixes/`。**运维注意**：重建 jar 必须重启后端；本轮曾因 jar 被覆盖出现 `NoClassDefFoundError: ThrowableProxy`，重启后恢复。
 
 ## 五、结论
 
-`specs/002-v2-platform/tasks.md` 中的实现任务均已完成；剩余为上述已知偏差（OSS/PDF/AC-18.5 等），不是未做任务。
+`specs/002-v2-platform/tasks.md` 中原有的实现任务均已完成；剩余为上述已知偏差（OSS/PDF/AC-18.5 等）。
+2026-10-20 的 mockup 对等性审计新增了 `tasks.md` 阶段 18（T211–T229），**这些任务尚未开始**；
+同日拍板的 D-14（作业与考试在数据层分开）新增阶段 19（T236–T241），**已完成**（见第 16 条）。
+人工判分（D-15）新增阶段 20（T243–T246），**已完成**（见第 17 条）。
+用户实测反馈（T248）新增阶段 21，**已完成**（见第 18 条）。
+第二轮实测反馈（T250）新增阶段 22，**已完成**（见第 19 条）。
+阶段 18 仍不在「已完成」范围内。

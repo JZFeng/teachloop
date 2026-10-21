@@ -12,6 +12,7 @@ import com.teachloop.sitting.service.SnapshotCodec;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.*;
@@ -19,13 +20,18 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 一场考试 / 一次布置（US-26）。
+ * 一场考试 / 一次作业（US-26 / D-14）。
  *
- * <p>试卷本身不属于班级；布置时一次挂多个班、做内容快照，并允许按班覆盖截止时间与时长。
+ * <p>内容不属于班级；布置时一次挂多个班、做内容快照，考试还允许按班覆盖截止时间与时长。
+ * 内容有两种来源：引用试卷（考试）或布置自带（作业，见 {@link #standaloneSnapshot}）。
  */
 @RestController
 @RequestMapping("/api/offerings")
 public class OfferingEndpoint {
+
+    /** 作业没填评分标准时的缺省两条（D-14）：仍给 AI 一条可判分的 rubric，不让它自由发挥。 */
+    private static final String DEFAULT_ASSIGNMENT_RUBRIC =
+            "# 评分标准\n- 内容要点：切题，观点明确，结构完整。\n- 语言准确性：语法、用词与拼写准确。";
 
     private final OfferingRepository offerings;
     private final OfferingClassRepository offeringClasses;
@@ -40,6 +46,8 @@ public class OfferingEndpoint {
     private final OfferingGradingDispatcher dispatcher;
     private final AuditPort audit;
     private final Clock clock;
+    /** T234：手动「重试失败/卡住项」判定 RUNNING 卡住多久算超时（比定时清扫的 5 分钟短）。 */
+    private final long manualStaleMinutes;
 
     public OfferingEndpoint(OfferingRepository offerings, OfferingClassRepository offeringClasses,
                             SubmissionRepository submissions, ObjectiveAnswerRepository answers,
@@ -47,7 +55,9 @@ public class OfferingEndpoint {
                             Ports.ClassMembership membership, Ports.NotificationPort notifications,
                             Ports.StudentDirectory directory,
                             SnapshotCodec codec, OfferingWindows windows,
-                            OfferingGradingDispatcher dispatcher, AuditPort audit, Clock clock) {
+                            OfferingGradingDispatcher dispatcher, AuditPort audit, Clock clock,
+                            @org.springframework.beans.factory.annotation.Value(
+                                    "${teachloop.grading.manual-stale-minutes:1}") long manualStaleMinutes) {
         this.offerings = offerings;
         this.offeringClasses = offeringClasses;
         this.submissions = submissions;
@@ -61,9 +71,13 @@ public class OfferingEndpoint {
         this.dispatcher = dispatcher;
         this.audit = audit;
         this.clock = clock;
+        this.manualStaleMinutes = manualStaleMinutes;
     }
 
-    /** 布置（T201）：选试卷 → 类型 → 参与班级多选 → 时间窗口 → 按班覆盖 → 发布。 */
+    /**
+     * 布置（T201 / D-14）：内容来源由 {@code paperId} 决定——有试卷是考试，没试卷是自带内容的作业；
+     * {@code kind} 由来源派生、不由用户选择。选试卷 → 参与班级多选 → 时间窗口 → 按班覆盖 → 发布。
+     */
     @PostMapping
     @Transactional
     public SittingDtos.OfferingView create(@RequestBody SittingDtos.CreateOffering body,
@@ -71,9 +85,17 @@ public class OfferingEndpoint {
         if (me.is("STUDENT")) {
             throw ApiException.forbidden("学生不能布置考试");
         }
-        UUID paperId = uuid(body.paperId(), "paperId");
-        Ports.PaperSnapshot snap = paperCatalog.load(paperId);
-        OfferingKind kind = body.kind() == null ? OfferingKind.ASSIGNMENT : enumValue(OfferingKind.class, body.kind());
+        UUID offeringId = UUID.randomUUID();
+        UUID paperId = isBlank(body.paperId()) ? null : uuid(body.paperId(), "paperId");
+        boolean exam = paperId != null;
+        String requestedKind = trimmed(body.kind());
+        if (requestedKind != null && exam && !"EXAM".equalsIgnoreCase(requestedKind)) {
+            throw ApiException.badRequest("作业不能引用试卷");
+        }
+        if (requestedKind != null && !exam && !"ASSIGNMENT".equalsIgnoreCase(requestedKind)) {
+            throw ApiException.badRequest("考试必须引用试卷");
+        }
+        OfferingKind kind = exam ? OfferingKind.EXAM : OfferingKind.ASSIGNMENT;
         TimingMode timing = body.timingMode() == null ? TimingMode.INDIVIDUAL
                 : enumValue(TimingMode.class, body.timingMode());
 
@@ -84,13 +106,6 @@ public class OfferingEndpoint {
         }
         if (startAt != null && !dueAt.isAfter(startAt)) {
             throw ApiException.badRequest("截止时间必须晚于开始时间");
-        }
-        int duration = body.durationMinutes() != null ? body.durationMinutes() : snap.durationMinutes();
-        if (kind == OfferingKind.EXAM && duration <= 0) {
-            throw ApiException.badRequest("考试必须设置时长（可在试卷默认时长上覆盖）");
-        }
-        if (kind == OfferingKind.EXAM && timing == TimingMode.FIXED_WINDOW && startAt == null) {
-            throw ApiException.badRequest("统一开考必须设置开始时间");
         }
 
         List<SittingDtos.ClassAssignment> assignments = assignments(body);
@@ -105,7 +120,27 @@ public class OfferingEndpoint {
             }
         }
 
-        var o = new Offering(UUID.randomUUID(), paperId, kind, startAt, dueAt, duration, timing,
+        if (!exam) {
+            boolean classOverride = assignments.stream()
+                    .anyMatch(a -> !isBlank(a.dueAtOverride()) || a.durationOverride() != null);
+            if (body.durationMinutes() != null || startAt != null || classOverride
+                    || timing != TimingMode.INDIVIDUAL) {
+                throw ApiException.badRequest("作业不支持考试计时字段");
+            }
+        }
+
+        Ports.PaperSnapshot snap = exam ? paperCatalog.load(paperId) : standaloneSnapshot(body, offeringId);
+        int duration = exam
+                ? (body.durationMinutes() != null ? body.durationMinutes() : snap.durationMinutes())
+                : 0;
+        if (exam && duration <= 0) {
+            throw ApiException.badRequest("考试必须设置时长（可在试卷默认时长上覆盖）");
+        }
+        if (exam && timing == TimingMode.FIXED_WINDOW && startAt == null) {
+            throw ApiException.badRequest("统一开考必须设置开始时间");
+        }
+
+        Offering o = new Offering(offeringId, paperId, kind, startAt, dueAt, exam ? duration : null, timing,
                 codec.write(snap), snap.paperVersion(), snap.rubricMarkdown(), body.gradingPromptTemplate(),
                 Instant.now(clock));
         o.setMaxAttempts(body.maxAttempts() == null ? 3 : body.maxAttempts());
@@ -113,7 +148,9 @@ public class OfferingEndpoint {
         o.setFeedbackLanguage(body.feedbackLanguage() == null ? "zh-CN" : body.feedbackLanguage());
         o.setShowPeerOverview(body.showPeerOverview() == null || body.showPeerOverview());
         o.setPublishScores(body.publishScores() != null && body.publishScores());
-        offerings.save(o);
+        // 实体自带主键，save() 走 merge 并返回**托管副本**；后面的发布改动必须落在这个副本上，
+        // 否则 create 带 publish=true 时接口返回 PUBLISHED、库里却是 DRAFT（2026-10-20 实测）。
+        o = offerings.save(o);
 
         for (SittingDtos.ClassAssignment a : assignments) {
             UUID classId = uuid(a.classId(), "classId");
@@ -134,7 +171,8 @@ public class OfferingEndpoint {
         }
 
         audit.record(new AuditEvent(me.id(), "offering:create", "offering", o.getId().toString(),
-                Map.of("classes", assignments.size(), "kind", kind.name(), "timingMode", timing.name())));
+                Map.of("classes", assignments.size(), "kind", kind.name(), "timingMode", timing.name(),
+                        "source", exam ? "paper" : "standalone")));
         if (Boolean.TRUE.equals(body.publish())) {
             publishInternal(o, me);
         }
@@ -257,11 +295,14 @@ public class OfferingEndpoint {
         }
         Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
         int retried = submissions.retryFailed(o.getId());
-        if (retried > 0) {
+        // T234：卡在 RUNNING 的项同样要能手动救回来（定时清扫要等 5 分钟，教师不该干等）
+        int reclaimed = submissions.reclaimStaleRunning(o.getId(),
+                Instant.now(clock).minus(Duration.ofMinutes(manualStaleMinutes)));
+        if (retried > 0 || reclaimed > 0) {
             audit.record(new AuditEvent(me.id(), "grading:retry_failed", "offering", id.toString(),
-                    Map.of("count", retried)));
+                    Map.of("count", retried, "reclaimed", reclaimed)));
         }
-        return Map.of("offeringId", id.toString(), "retried", retried);
+        return Map.of("offeringId", id.toString(), "retried", retried, "reclaimed", reclaimed);
     }
 
     /** 按班统计（T202 / T191 的最小可用面）：按时提交率与迟交份数分开。 */
@@ -393,6 +434,7 @@ public class OfferingEndpoint {
             throw ApiException.badRequest("统一开考必须设置开始时间");
         }
         o.setStatus(OfferingStatus.PUBLISHED);
+        offerings.save(o);
         notifications.notifyOfferingPublished(o.getId());
         String paperTitle = codec.read(o.getPaperSnapshot()).title();
         notifyStudents(o, "offering_published",
@@ -429,12 +471,50 @@ public class OfferingEndpoint {
                 .toList();
         int submitted = (int) submissions.findByOfferingIdOrderByCreatedAtDesc(o.getId()).stream()
                 .filter(s -> s.getSubmittedAt() != null).count();
-        return new SittingDtos.OfferingView(o.getId().toString(), o.getPaperId().toString(),
+        // D-14：独立作业没有试卷，paperId 返回 null；标题两种来源都取快照 title。
+        return new SittingDtos.OfferingView(o.getId().toString(),
+                o.getPaperId() == null ? null : o.getPaperId().toString(),
                 codec.read(o.getPaperSnapshot()).title(), o.getPaperVersion(), o.getKind().name(),
                 o.getTimingMode().name(), o.getStatus().name(), str(o.getStartAt()), o.getDueAt().toString(),
                 o.getDurationMinutes(), windows.forOffering(o).durationMinutes(), o.getGraceHours(),
                 o.getMaxAttempts(), o.getFeedbackLanguage(), o.isShowPeerOverview(), o.isPublishScores(),
                 classes.size(), submitted, classes);
+    }
+
+    /**
+     * 作业自带内容的快照（D-14）：题目要求合成为 1 条 ESSAY 题项，rubric 取布置上的评分标准。
+     *
+     * <p>形状与考试快照同构，所以阅卷、学生端、汇总、导出都不需要分支；
+     * {@code paperId} 用本场 id（只作标识，不指向 {@code papers} 表），{@code paperVersion = 0}。
+     */
+    private static Ports.PaperSnapshot standaloneSnapshot(SittingDtos.CreateOffering body, UUID offeringId) {
+        String title = trimmed(body.title());
+        if (title == null) {
+            throw ApiException.badRequest("作业标题不能为空");
+        }
+        String instructions = trimmed(body.instructions());
+        if (instructions == null) {
+            throw ApiException.badRequest("作业题目要求不能为空");
+        }
+        Integer totalPoints = body.totalPoints();
+        if (totalPoints == null || totalPoints < 1 || totalPoints > 1000) {
+            throw ApiException.badRequest("作业总分必须是 1 到 1000 之间的整数");
+        }
+        String rubric = trimmed(body.rubricMarkdown());
+        if (rubric == null) {
+            rubric = DEFAULT_ASSIGNMENT_RUBRIC;
+        }
+        Ports.ItemSpec item = new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", null,
+                BigDecimal.valueOf(totalPoints), instructions, null, 1, "作业要求", "ALL_OR_NOTHING");
+        return new Ports.PaperSnapshot(offeringId, 0, title, totalPoints, 0, List.of(item), rubric);
+    }
+
+    private static boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private static String trimmed(String value) {
+        return isBlank(value) ? null : value.trim();
     }
 
     private static List<SittingDtos.ClassAssignment> assignments(SittingDtos.CreateOffering body) {

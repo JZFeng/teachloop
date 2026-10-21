@@ -24,17 +24,20 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 /**
- * 复核工作台后端（US-11 / T100–T104）。
+ * 复核工作台后端（US-11 / T100–T104，D-15）。
  *
  * <p>老师对 AI 草稿的处理：原样通过（approved）／改到满意（edited）／弃用重批（rejected）；
  * 只有 approved 或 edited 能发布，已发布的内容必须先撤回才能修改。
  *
+ * <p>AI 只是可选的辅助（D-15）：任何已交卷提交都可以直接人工判分——复核行不存在时本接口懒建一行
+ * {@code original_subjective = null} 的 PENDING 复核，表示「AI 未参与」。没有 AI 草稿时，
+ * 未填主观分不能通过（要求老师先给分），但驳回不受限。
+ *
  * <p>编辑只允许改主观分与三段文本：客观分由 sitting 在交卷时按标准答案判定，本接口不提供修改入口。
  * 改主观分经 {@link Ports.GradingOutcome#apply} 回写 submission 的总分，阅卷模块不直接改 sitting 的表。
  *
- * <p>边界说明：读取复核详情时，{@code Ports.WorkItem} 目前不带 objectiveTotal / subjectiveTotal，
- * 因此响应里的 objectivePoints / subjectivePoints 为 null；AI 主观草稿取自
- * {@code reviews.original_subjective}（批改完成时捕获）。补齐需由 Lead 在 shared 端口增加只读字段。
+ * <p>详情里的 objectivePoints / subjectivePoints 取自 {@link Ports.SittingLedger#scores}
+ * （T243 新增端口），是提交**当前**的实际分，而不是 AI 草稿。
  */
 @RestController
 @RequestMapping("/api")
@@ -96,15 +99,40 @@ public class ReviewEndpoint {
     /**
      * 复核详情：正文、题项与作答、AI 主观草稿、复核字段。
      *
-     * @param objectivePoints   当前端口无法读取，暂为 null
-     * @param subjectivePoints  当前端口无法读取，暂为 null；编辑后的值与 AI 草稿见 review
+     * @param objectivePoints  提交当前的客观分（sitting 判定，不可手改）
+     * @param subjectivePoints 提交当前的主观分（AI 草稿或老师已填的人工分）
      */
     public record ReviewDetail(String submissionId, String studentId, String studentName,
-                               String inputKind, String contentText,
+                               String inputKind, String contentText, String contentHtml,
                                List<AnswerView> answers, List<ItemView> items,
                                String rubricMarkdown, String feedbackLanguage,
                                BigDecimal objectivePoints, BigDecimal subjectivePoints,
                                BigDecimal aiSubjectiveDraft, ReviewView review) {
+    }
+
+    /**
+     * T100：取复核行；不存在则懒建一行「AI 未参与」的待复核（T243 / D-15）。
+     *
+     * <p>{@code original_subjective = null} 是「AI 没给过主观草稿」的记录方式：老师直接在批改详情里
+     * 逐份人工判分时走这条路径，不必先派发 AI。返回的实体未被事务外改写，调用方按需保存。
+     */
+    private Review reviewOrCreate(UUID submissionId) {
+        return reviews.findBySubmissionId(submissionId).orElseGet(() -> reviews.save(
+                new Review(UUID.randomUUID(), submissionId, null, ReviewStatus.PENDING, null, null,
+                        Instant.now(clock))));
+    }
+
+    /**
+     * T243：判分前的统一闸门——取提交当前分数，草稿未交卷（submittedAt 为空）不允许判分。
+     *
+     * <p>未交卷就建复核行会让「待复核队列」混入还在作答的提交，所以先拦下来。
+     */
+    private Ports.SubmissionScores scoresOf(UUID submissionId) {
+        Ports.SubmissionScores scores = ledger.scores(submissionId);
+        if (scores.submittedAt() == null) {
+            throw ApiException.conflict("error.review.notSubmitted");
+        }
+        return scores;
     }
 
     @GetMapping("/grading/queue")
@@ -114,12 +142,13 @@ public class ReviewEndpoint {
                 .map(ReviewEndpoint::view).toList();
     }
 
+    /** T243：任何已交卷提交都能打开复核详情；没有复核行时懒建（AI 未参与）。 */
     @GetMapping("/submissions/{submissionId}/review")
     public ReviewDetail get(@PathVariable UUID submissionId,
                             @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
-        Review review = reviews.findBySubmissionId(submissionId)
-                .orElseThrow(() -> ApiException.notFound("这份提交还没有复核记录"));
+        Ports.SubmissionScores scores = scoresOf(submissionId);
+        Review review = reviewOrCreate(submissionId);
         Ports.WorkItem item = ledger.load(submissionId);
         List<AnswerView> answers = item.answers().stream()
                 .map(a -> new AnswerView(str(a.itemId()), a.number(), a.answer()))
@@ -130,9 +159,10 @@ public class ReviewEndpoint {
                         i.sectionPosition(), i.sectionTitle()))
                 .toList();
         return new ReviewDetail(str(item.submissionId()), str(item.studentId()),
-                item.studentName(), item.inputKind(), item.contentText(), answers, items,
+                item.studentName(), item.inputKind(), item.contentText(), item.contentHtml(), answers, items,
                 item.rubricMarkdown(), item.feedbackLanguage(),
-                null, null, review.getOriginalSubjective(), view(review));
+                scores.objectiveTotal(), scores.subjectiveTotal(),
+                review.getOriginalSubjective(), view(review));
     }
 
     /** 兼容旧调用：三态结论。REJECTED 的原因写 comment；已发布必须先撤回。 */
@@ -144,13 +174,16 @@ public class ReviewEndpoint {
         if (body.status() == ReviewStatus.PENDING) {
             throw ApiException.badRequest("复核结论只能是通过、改后通过或弃用重批");
         }
-        Review review = reviews.findBySubmissionId(submissionId).orElse(null);
-        if (review != null && review.isPublished()) {
+        scoresOf(submissionId);
+        Review r = reviewOrCreate(submissionId);
+        if (r.isPublished()) {
             throw ApiException.conflict("已发布，需先撤回才能修改复核结论");
         }
-        Review r = review != null ? review
-                : new Review(UUID.randomUUID(), submissionId, me.id(),
-                        ReviewStatus.PENDING, null, Instant.now(clock));
+        // T243 / D-15：AI 没参与判分（无草稿）且老师也没填过分，不能「通过」——否则等于给 0 分放行。
+        if (body.status() == ReviewStatus.APPROVED
+                && r.getOriginalSubjective() == null && r.getTeacherId() == null) {
+            throw ApiException.badRequest("error.review.noScore");
+        }
         String comment = body.effectiveComment();
         r.decide(body.status(), me.id(), comment);
         reviews.save(r);
@@ -165,8 +198,8 @@ public class ReviewEndpoint {
     public ReviewView edit(@PathVariable UUID submissionId, @RequestBody @Valid EditRequest body,
                            @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
-        Review r = reviews.findBySubmissionId(submissionId)
-                .orElseThrow(() -> ApiException.notFound("这份提交还没有复核记录"));
+        Ports.SubmissionScores scores = scoresOf(submissionId);
+        Review r = reviewOrCreate(submissionId);
         if (r.isPublished()) {
             throw ApiException.conflict("已发布，需先撤回才能修改");
         }
@@ -178,7 +211,9 @@ public class ReviewEndpoint {
         }
 
         // 变更前快照必须在 r.edit(...) 之前取，否则 Hibernate 托管实体已被改写。
-        BigDecimal beforeSubjective = r.getOriginalSubjective();
+        // T243：beforeSubjective 取提交当前的实际主观分（人工分也在此列），AI 草稿单独记录。
+        BigDecimal beforeSubjective = scores.subjectiveTotal();
+        BigDecimal aiSubjective = r.getOriginalSubjective();
         String beforeComment = r.getComment();
         String beforeStrengths = r.getStrengths();
         String beforeSuggestions = r.getSuggestions();
@@ -192,7 +227,8 @@ public class ReviewEndpoint {
         reviews.save(r);
 
         audit.record(new AuditEvent(me.id(), "review:edited", "submission", submissionId.toString(),
-                editDetail(beforeSubjective, body, beforeComment, beforeStrengths, beforeSuggestions)));
+                editDetail(beforeSubjective, body, aiSubjective, beforeComment, beforeStrengths,
+                        beforeSuggestions)));
         return view(r);
     }
 
@@ -253,8 +289,11 @@ public class ReviewEndpoint {
      * T104：批量通过（只处理 PENDING 的复核）。
      *
      * <p>逐份独立保存与审计；无复核记录、详情不可读（提交不存在/端口抛错）或已决策的提交计入 skipped，
-     * 不整体失败。AC-11.8 的「篇幅判定边界敏感项默认跳过」当前无法实现：sitting 尚未通过端口
-     * 暴露 {@code submission_metrics.boundary_sensitive}，此处保留注释，等端口补齐后再加跳过条件。
+     * 不整体失败。T243：AI 没参与判分（无草稿）且老师还没填分的复核也跳过——批量通过会把这类提交
+     * 当成 0 分放行，而它们本应等老师人工给分。
+     *
+     * <p>AC-11.8 的「篇幅判定边界敏感项默认跳过」当前无法实现：sitting 尚未通过端口暴露
+     * {@code submission_metrics.boundary_sensitive}，此处保留注释，等端口补齐后再加跳过条件。
      */
     @PostMapping("/grading/bulk-approve")
     public BulkApproveResult bulkApprove(@RequestBody BulkApproveRequest body,
@@ -266,7 +305,8 @@ public class ReviewEndpoint {
         for (UUID submissionId : ids) {
             try {
                 Review r = reviews.findBySubmissionId(submissionId).orElse(null);
-                if (r == null || r.isPublished() || r.getStatus() != ReviewStatus.PENDING) {
+                if (r == null || r.isPublished() || r.getStatus() != ReviewStatus.PENDING
+                        || (r.getOriginalSubjective() == null && r.getTeacherId() == null)) {
                     skipped++;
                     continue;
                 }
@@ -301,13 +341,20 @@ public class ReviewEndpoint {
                 r.getCreatedAt().toString());
     }
 
-    /** 审计 detail：AI 草稿→最终分的 before/after + 三段文本的逐行 diff。 */
+    /**
+     * 审计 detail：提交改前的实际分与 AI 草稿、before/after 主观分 + 三段文本的逐行 diff。
+     *
+     * @param beforeSubjective 提交当前的实际主观分（人工重判时是上一次的人工分）
+     * @param aiSubjective     AI 主观草稿；null 表示 AI 未参与，本轮是纯人工判分
+     */
     private static Map<String, Object> editDetail(BigDecimal beforeSubjective, EditRequest body,
-                                                  String beforeComment, String beforeStrengths,
-                                                  String beforeSuggestions) {
+                                                  BigDecimal aiSubjective, String beforeComment,
+                                                  String beforeStrengths, String beforeSuggestions) {
         Map<String, Object> detail = new LinkedHashMap<>();
         BigDecimal afterSubjective = body.subjectivePoints() != null
                 ? body.subjectivePoints() : beforeSubjective;
+        detail.put("manual", aiSubjective == null);
+        detail.put("aiSubjectiveDraft", aiSubjective);
         detail.put("beforeSubjective", beforeSubjective);
         detail.put("afterSubjective", afterSubjective);
         detail.put("scoreChanged", body.subjectivePoints() != null

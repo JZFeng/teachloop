@@ -72,3 +72,6 @@ web/.npm-cache/
 # 运行日志（T140 请求日志 / T141 前端事件，不入库）
 logs/
 teachloop-app/logs/
+
+# 第二运行环境（scripts/env.sh）的快照产物
+.envs/

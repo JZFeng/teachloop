@@ -186,7 +186,7 @@ class GradingDispatchTest {
         String invite = classInvite(classId);
         join(student, invite);
         // due = 09:00 北京（BASE+1h），grace 3h → 派发点 12:00 北京（BASE+4h，空闲时段）
-        String offeringId = createOffering(createPaper(), classId,
+        String offeringId = createOffering(classId,
                 BASE.plus(Duration.ofHours(1)).toString(), 3);
         String submissionId = submitAs(student, offeringId).get("submissionId").toString();
 
@@ -232,7 +232,7 @@ class GradingDispatchTest {
         String classId = createClass("高一（2）班");
         String invite = classInvite(classId);
         join(student, invite);
-        String offeringId = createOffering(createPaper(), classId,
+        String offeringId = createOffering(classId,
                 BASE.plus(Duration.ofDays(10)).toString(), 3);
 
         UUID offeringUuid = UUID.fromString(offeringId);
@@ -274,7 +274,7 @@ class GradingDispatchTest {
         String classId = createClass("高一（3）班");
         String invite = classInvite(classId);
         join(student, invite);
-        String offeringId = createOffering(createPaper(), classId,
+        String offeringId = createOffering(classId,
                 BASE.plus(Duration.ofDays(10)).toString(), 3);
         String submissionId = submitAs(student, offeringId).get("submissionId").toString();
 
@@ -292,6 +292,48 @@ class GradingDispatchTest {
         assertThat(gradingState(submissionId)).isEqualTo("RUNNING");
     }
 
+    @Test
+    @DisplayName("T234：领了太多次仍未完成的卡住项退成 FAILED，不再无限重生")
+    void staleSweepGivesUpAfterMaxAttempts() throws Exception {
+        String classId = createClass("高一（5）班");
+        String invite = classInvite(classId);
+        join(student, invite);
+        String offeringId = createOffering(classId,
+                BASE.plus(Duration.ofDays(10)).toString(), 3);
+        String submissionId = submitAs(student, offeringId).get("submissionId").toString();
+
+        // 模拟「每次领取都跑不完」：attempts 已到上限，started_at 仍是 6 分钟前
+        jdbc.update("update submissions set grading_state = 'RUNNING', grading_attempts = 3, "
+                + "grading_started_at = ? where id = ?",
+                Timestamp.from(BASE.minus(Duration.ofMinutes(6))), UUID.fromString(submissionId));
+
+        assertThat(sweeper.sweep()).as("这一轮把它判为失败").isEqualTo(1);
+        assertThat(gradingState(submissionId)).isEqualTo("FAILED");
+        assertThat(sweeper.sweep()).as("FAILED 不再被清扫反复回收").isZero();
+    }
+
+    @Test
+    @DisplayName("T234：重试失败项也会把卡住的 RUNNING 救回队列")
+    void retryFailedAlsoReclaimsStuckRunning() throws Exception {
+        String classId = createClass("高一（6）班");
+        String invite = classInvite(classId);
+        join(student, invite);
+        String offeringId = createOffering(classId,
+                BASE.plus(Duration.ofDays(10)).toString(), 3);
+        String submissionId = submitAs(student, offeringId).get("submissionId").toString();
+        jdbc.update("update submissions set grading_state = 'PENDING' where id = ?",
+                UUID.fromString(submissionId));
+
+        // 卡住 3 分钟（超过手动重试的 1 分钟阈值，但没到定时清扫的 5 分钟）
+        jdbc.update("update submissions set grading_state = 'RUNNING', grading_started_at = ? where id = ?",
+                Timestamp.from(BASE.minus(Duration.ofMinutes(3))), UUID.fromString(submissionId));
+
+        Map<String, Object> result = send(teacher, "POST",
+                "/api/offerings/" + offeringId + "/grading/retry-failed", Map.of());
+        assertThat(result.get("reclaimed")).as("手动重试回收了卡住的 RUNNING").isEqualTo(1);
+        assertThat(gradingState(submissionId)).isEqualTo("PENDING");
+    }
+
     // ================= T094：progress 单条聚合 =================
 
     @Test
@@ -302,7 +344,7 @@ class GradingDispatchTest {
         join(student, invite);
         String student2 = createStudent("student2@teachloop.local", "示例学生二");
         join(student2, invite);
-        String offeringId = createOffering(createPaper(), classId,
+        String offeringId = createOffering(classId,
                 BASE.plus(Duration.ofDays(10)).toString(), 3);
         submitAs(student, offeringId);
         submitAs(student2, offeringId);
@@ -346,10 +388,9 @@ class GradingDispatchTest {
         String classId = createClass("高一（5）班");
         String invite = classInvite(classId);
         join(student, invite);
-        String paperId = createPaper();
 
         // 场次 A：due 08:00 + grace 1h = 09:00（高峰）→ 自动推迟，手动立即派发
-        String manual = createOffering(paperId, classId, BASE.toString(), 1);
+        String manual = createOffering(classId, BASE.toString(), 1);
         CLOCK.set(BASE.plus(Duration.ofHours(1)));
         assertThat(dispatcher.autoDispatch()).isZero();
         assertThat(gradingDispatchedAt(manual)).isNull();
@@ -359,7 +400,7 @@ class GradingDispatchTest {
         assertThat(gradingDispatchedAt(manual)).isNotNull();
 
         // 场次 B：due 08:00 + grace 3h = 11:00（仍高峰）→ 12:00 空闲起点才自动派发
-        String deferred = createOffering(paperId, classId, BASE.toString(), 3);
+        String deferred = createOffering(classId, BASE.toString(), 3);
         assertThat(dispatcher.autoDispatch()).as("09:00 高峰").isZero();
         assertThat(gradingDispatchedAt(deferred)).isNull();
         assertThat(dispatcher.autoDispatch()).as("11:00 仍高峰").isZero();
@@ -377,7 +418,7 @@ class GradingDispatchTest {
         String invite = classInvite(classId);
         join(student, invite);
         // due 08:00 + grace 1h = 09:00（高峰时段）
-        String offeringId = createOffering(createPaper(), classId, BASE.toString(), 1);
+        String offeringId = createOffering(classId, BASE.toString(), 1);
         CLOCK.set(BASE.plus(Duration.ofHours(1)));
 
         // 用 peak-aware=false 的策略直接构造一个 dispatcher：自动派发不再等待空闲时段
@@ -393,16 +434,6 @@ class GradingDispatchTest {
 
     private Instant beijing(int dayOfMonth, int hour, int minute) {
         return LocalDateTime.of(2026, 11, dayOfMonth, hour, minute).atZone(SHANGHAI).toInstant();
-    }
-
-    private String createPaper() throws Exception {
-        String paperId = post("/api/papers", Map.of("title", "T092 测试卷", "defaultDurationMinutes", 60), "id");
-        String sectionId = post("/api/papers/" + paperId + "/sections",
-                Map.of("title", "写作", "pointsPerItem", 20), "id");
-        post("/api/papers/" + paperId + "/items", Map.of("number", 1, "questionType", "ESSAY",
-                "stem", "Write a short letter.", "points", 20, "paperSectionId", sectionId), "id");
-        post("/api/papers/" + paperId + "/publish", Map.of(), "id");
-        return paperId;
     }
 
     private String createClass(String name) throws Exception {
@@ -423,14 +454,15 @@ class GradingDispatchTest {
         send(cookie, "POST", "/api/classes/join", Map.of("inviteCode", inviteCode));
     }
 
-    private String createOffering(String paperId, String classId, String dueAt, int graceHours)
-            throws Exception {
+    /** D-14：作业自带内容，不再建卷、不带 paperId、不设时长。 */
+    private String createOffering(String classId, String dueAt, int graceHours) throws Exception {
         Map<String, Object> body = new HashMap<>();
-        body.put("paperId", paperId);
-        body.put("kind", "ASSIGNMENT");
+        body.put("title", "T092 作业");
+        body.put("instructions", "Write a short letter.");
+        body.put("totalPoints", 20);
+        body.put("rubricMarkdown", "# 评分标准\n- 内容要点\n- 语言准确性");
         body.put("timingMode", "INDIVIDUAL");
         body.put("dueAt", dueAt);
-        body.put("durationMinutes", 60);
         body.put("graceHours", graceHours);
         body.put("classes", List.of(Map.of("classId", classId)));
         String offeringId = send(teacher, "POST", "/api/offerings", body).get("id").toString();

@@ -468,6 +468,7 @@
     <div class="group">教师</div>
     <button data-s="home">首页</button>
     <button data-s="class">班级与作业</button>
+    <button data-s="assignments">作业</button>
     <button data-s="grading">批改总览</button>
     <button data-s="review">复核工作台 <span class="badge">18</span></button>
     <button data-s="report">报表查询</button>
@@ -480,7 +481,8 @@
     <div class="group">二级页（从上级进入）</div>
     <button data-s="import">导入试卷</button>
     <button data-s="newflow">新建试卷流程</button>
-    <button data-s="offering">布置给班级</button>
+    <button data-s="assignment-new">新建作业</button>
+    <button data-s="offering">布置考试（基于试卷）</button>
     <button data-s="editor">试卷编辑</button>
     <button data-s="grading-detail">作业批改详情</button>
     <button data-s="summary">班级汇总</button>
@@ -693,24 +695,131 @@
       </tbody>
     </table>
     <div class="row" style="margin-top:14px">
-      <button class="btn pri" onclick="go('newflow')">新建作业</button>
+      <button class="btn pri" onclick="go('assignment-new')">新建作业</button>
       <button class="btn" onclick="go('import')">导入试卷</button>
     </div>
   </div>
 </section>
 
-<!-- 新建作业流程 -->
+<!-- 作业列表 -->
+<section class="screen" id="assignments">
+  <h1>作业</h1>
+  <div class="sub">作业自带内容：题目要求、总分与评分标准；一次可发给多个班</div>
+
+  <div class="row" style="margin-bottom:12px">
+    <button class="btn pri" onclick="go('assignment-new')">新建作业</button>
+  </div>
+
+  <div class="card">
+    <h2>我的作业 <small>4 个</small></h2>
+    <table class="sortable">
+      <thead><tr>
+        <th data-sort>标题</th><th data-sort>班级</th><th data-sort>截止</th>
+        <th data-sort>提交</th><th data-sort>状态</th><th></th>
+      </tr></thead>
+      <tbody>
+        <tr>
+          <td data-v="Unit 4 写作"><b>Unit 4 写作</b><div class="small muted">题目要求 + 评分标准 · 25 分</div></td>
+          <td data-v="高一 (3) 班、高一 (5) 班">高一 (3) 班、高一 (5) 班</td>
+          <td data-v="2026-10-24">10-24 22:00</td>
+          <td data-v="18">18<div class="small muted">2 个班</div></td>
+          <td data-v="已发布"><span class="tag green">已发布</span></td>
+          <td><button class="btn sm" onclick="go('grading-detail')">批改</button></td>
+        </tr>
+        <tr>
+          <td data-v="读书笔记 · 第三章"><b>读书笔记 · 第三章</b><div class="small muted">题目要求 + 评分标准 · 20 分</div></td>
+          <td data-v="高一 (3) 班">高一 (3) 班</td>
+          <td data-v="2026-10-27">10-27 22:00</td>
+          <td data-v="0">0<div class="small muted">1 个班</div></td>
+          <td data-v="已发布"><span class="tag green">已发布</span></td>
+          <td><button class="btn sm" onclick="go('grading-detail')">批改</button></td>
+        </tr>
+        <tr>
+          <td data-v="口语表达 · 招新演讲"><b>口语表达 · 招新演讲</b><div class="small muted">题目要求 + 评分标准 · 15 分</div></td>
+          <td data-v="高二 (1) 班">高二 (1) 班</td>
+          <td data-v="2026-10-18">10-18 22:00</td>
+          <td data-v="41">41<div class="small muted">1 个班</div></td>
+          <td data-v="已关闭"><span class="tag gray">已关闭</span></td>
+          <td><button class="btn sm" onclick="go('grading-detail')">批改</button></td>
+        </tr>
+        <tr>
+          <td data-v="周记 · 我的高中第一天"><b>周记 · 我的高中第一天</b><div class="small muted">题目要求 + 评分标准 · 30 分</div></td>
+          <td data-v="高一 (5) 班">高一 (5) 班</td>
+          <td data-v="2026-10-21">10-21 22:00</td>
+          <td data-v="24">24<div class="small muted">1 个班</div></td>
+          <td data-v="草稿"><span class="tag gray">草稿</span></td>
+          <td><button class="btn sm" onclick="go('grading-detail')">批改</button></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="pager">
+      <span>共 4 条</span>
+      <div class="pg"><button>‹</button><button class="on">1</button><button>›</button></div>
+      <select style="width:auto"><option>20 / 页</option><option>50 / 页</option><option>100 / 页</option></select>
+    </div>
+  </div>
+</section>
+
+<!-- 新建作业 -->
+<section class="screen" id="assignment-new">
+  <h1>新建作业</h1>
+  <div class="sub">作业的内容写在这一次布置上：题目要求、总分与评分标准</div>
+
+  <div class="card" style="max-width:900px">
+    <label class="f"><b>标题 <i>*</i></b>
+      <input value="Unit 4 写作 · 议论文">
+      <div class="hint">学生端看到的就是这个标题。</div>
+    </label>
+
+    <label class="f"><b>题目要求 <i>*</i></b>
+      <textarea rows="6">假定你是高一（3）班学生李华，请结合 Unit 4 的内容写一篇短文，谈谈你如何安排自己的学习时间。要求：1. 说明你现在的安排；2. 说明这样安排的理由；3. 80 词左右。</textarea>
+      <div class="hint">写清要做什么、写多长、注意什么；学生只看到这段文字与评分标准。</div>
+    </label>
+
+    <label class="f"><b>总分 <i>*</i></b>
+      <input type="number" value="25">
+      <div class="hint">1–1000 分，分数按下面的评分标准给。</div>
+    </label>
+
+    <label class="f"><b>评分标准</b>
+      <textarea rows="6"># 评分标准
+- 内容要点：
+- 语言准确性：</textarea>
+      <div class="hint">Markdown；建议一个评分项一行，AI 按这份标准判分。</div>
+    </label>
+
+    <div class="f"><b>参与班级 <i>*</i></b>
+      <div class="chips" style="margin-top:6px">
+        <span class="chip on">高一（3）班</span>
+        <span class="chip on">高一（5）班</span>
+        <span class="chip">高二（1）班</span>
+        <span class="chip">高一（2）班</span>
+      </div>
+      <div class="hint">可多选。勾几个班，就生成几条「参与班级」记录。</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <label class="f"><b>截止时间 <i>*</i></b><input value="2026-10-24 22:00"></label>
+      <label class="f"><b>宽限期（小时）</b><input value="3">
+        <div class="hint">宽限期只决定批改启动时间，不影响学生提交。</div></label>
+      <label class="f"><b>最多尝试次数</b><input value="3">
+        <div class="hint">允许学生重交的次数，超过后不能再提交。</div></label>
+    </div>
+
+    <div class="inline-note" style="margin:14px 0">
+      作业没有倒计时；过了截止时间仍可提交，会标记为迟交。发布后通知参与班级。
+    </div>
+    <button class="btn pri">发布并通知</button>
+  </div>
+</section>
+
+<!-- 布置考试（基于试卷） -->
 <section class="screen" id="offering">
-  <h1>布置给班级</h1>
+  <h1>布置考试（基于试卷）</h1>
   <div class="sub">同一份试卷可以同时给多个班考。试卷本身不含班级，班级关系只存在于这一次布置里。</div>
 
   <div class="card" style="max-width:900px">
     <h2>第一次月考（整卷）<small>77 题 · 150 分 · 默认 90 分钟</small></h2>
-
-    <label class="f"><b>类型</b>
-      <select><option>考试（终结性，有倒计时）</option><option>作业（形成性，无倒计时）</option></select>
-      <div class="hint">同一份试卷这次当考试、下次当作业都可以；类型挂在布置上，不挂在试卷上。</div>
-    </label>
 
     <label class="f"><b>参与班级 <i>*</i></b>
       <div class="chips" style="margin-top:6px">
@@ -955,17 +1064,20 @@
         <tr><td data-v="李娜">李娜</td><td data-v="2">2</td><td data-v="2026-10-20 17:58">10-20 17:58</td>
           <td data-v="118" class="mono">118</td><td data-v="18" class="mono">18</td>
           <td data-v="完成"><span class="tag green">完成</span></td>
-          <td><button class="btn sm" onclick="go('review')">复核</button>
+          <td><button class="btn sm" onclick="go('review')">判分</button>
+              <button class="btn sm" onclick="go('review')">复核</button>
               <button class="btn sm" onclick="go('audit')">审计</button></td></tr>
         <tr><td data-v="张伟">张伟</td><td data-v="1">1</td><td data-v="2026-10-20 17:12">10-20 17:12</td>
           <td data-v="124.5" class="mono">124.5</td><td data-v="20" class="mono">20</td>
           <td data-v="完成"><span class="tag green">完成</span></td>
-          <td><button class="btn sm" onclick="go('review')">复核</button>
+          <td><button class="btn sm" onclick="go('review')">判分</button>
+              <button class="btn sm" onclick="go('review')">复核</button>
               <button class="btn sm" onclick="go('audit')">审计</button></td></tr>
         <tr><td data-v="王芳">王芳</td><td data-v="1">1</td><td data-v="2026-10-20 18:20">10-20 18:20 <span class="tag amber">迟交</span></td>
           <td data-v="121" class="mono">121</td><td data-v="0" class="muted">—</td>
           <td data-v="失败"><span class="tag red">失败</span></td>
-          <td><button class="btn sm">重试</button></td></tr>
+          <td><button class="btn sm" onclick="go('review')">判分</button>
+              <button class="btn sm">重试</button></td></tr>
         <tr><td data-v="陈静">陈静</td><td data-v="0">0</td><td data-v="">—</td>
           <td data-v="0" class="muted">—</td><td data-v="0" class="muted">—</td>
           <td data-v="未提交"><span class="tag gray">未提交</span></td>
@@ -986,6 +1098,7 @@
   <div class="breadcrumb"><span onclick="go('grading')" style="cursor:pointer">批改总览</span> / <b>复核工作台</b></div>
   <h1>复核工作台</h1>
   <div class="sub">逐份人工判断 · 30 份 · 12 份已处理 · AI 原样通过率 58%</div>
+  <div class="inline-note" style="margin:10px 0">AI 只是可选辅助：AI 未参与（没派发、失败、或老师直接人工判分）时，在这里直接填主观分与评语即可；发布仍是老师的 green light——点「发布反馈」才发给学生。</div>
   <div class="grid2" style="grid-template-columns:260px 1fr">
     <div class="card" style="padding:10px">
       <h2 style="margin:0 0 10px 4px">待复核</h2>

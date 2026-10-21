@@ -61,6 +61,23 @@ class MigrationTest {
                 Integer.class);
         assertThat(activeIndex).isEqualTo(1);
 
+        // D-14：作业不引用试卷，所以 paper_id 必须可空；kind 与内容来源由 check 约束锁死。
+        String paperNullable = jdbc.queryForObject(
+                "select is_nullable from information_schema.columns "
+                        + "where table_schema = 'public' and table_name = 'offerings' and column_name = 'paper_id'",
+                String.class);
+        assertThat(paperNullable).as("offerings.paper_id 必须是可空的").isEqualTo("YES");
+
+        String contentCheck = jdbc.queryForObject(
+                "select pg_get_constraintdef(oid) from pg_constraint "
+                        + "where conname = 'offerings_kind_content_ck'",
+                String.class);
+        assertThat(contentCheck)
+                .as("kind 必须与内容来源一一对应（D-14）")
+                .contains("CHECK")
+                .contains("ASSIGNMENT")
+                .containsIgnoringCase("paper_id is null");
+
         int before = applied.length;
         assertThat(flyway.migrate().migrationsExecuted).isZero();
         assertThat(flyway.info().applied()).hasSize(before);

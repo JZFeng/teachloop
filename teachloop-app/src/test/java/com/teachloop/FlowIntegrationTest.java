@@ -69,6 +69,35 @@ class FlowIntegrationTest {
     private final HttpClient client = HttpClient.newHttpClient();
 
     @Test
+    @DisplayName("布置 create 带 publish=true 必须真的落成 PUBLISHED（2026-10-20 实测缺陷回归）")
+    void publishingOnCreateActuallyPersists() throws Exception {
+        String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
+        String teacher = login(base, "teacher@teachloop.local");
+        String student = login(base, "student@teachloop.local");
+
+        Map<String, Object> cls = send(base, teacher, "POST", "/api/classes", Map.of("name", "写作（2）班"));
+        String classId = cls.get("id").toString();
+        String invite = cls.get("inviteCode").toString();
+
+        // 关键：create 时直接 publish，不再单独调 /publish。
+        // 作业自带内容（D-14）：不带 paperId，内容全部来自请求体。
+        String offeringId = post(base, teacher, "/api/offerings", Map.of(
+                "title", "写作作业（发布即生效）",
+                "instructions", "Write a speech about your club.",
+                "totalPoints", 15,
+                "rubricMarkdown", "# 评分标准\n- 内容要点\n- 语言准确性",
+                "dueAt", "2026-12-31T23:59:59Z",
+                "timingMode", "INDIVIDUAL",
+                "classes", List.of(Map.of("classId", classId)),
+                "publish", true), "id");
+
+        post(base, student, "/api/classes/join", Map.of("inviteCode", invite), "name");
+        // 学生的 entry 只对「已发布 + 参与班」开放：库里若还是 DRAFT，这里直接 404
+        Map<String, Object> entry = get(base, student, "/api/offerings/" + offeringId + "/entry");
+        assertThat(entry).as("学生能打开刚布置的作业，说明库里确实是 PUBLISHED").containsKey("dueAt");
+    }
+
+    @Test
     @DisplayName("作业全链路：客观题当场出分，主观题由 worker 判，落复核队列并写审计")
     void endToEnd() throws Exception {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");

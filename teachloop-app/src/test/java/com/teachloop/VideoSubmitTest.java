@@ -63,18 +63,16 @@ class VideoSubmitTest {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
         String teacher = login(base);
         String student = loginAs(base, "student@teachloop.local");
-        String paperId = post(base, teacher, "/api/papers", Map.of("title", "视频卷"), "id");
-        String sectionId = post(base, teacher, "/api/papers/" + paperId + "/sections",
-                Map.of("title", "写作", "pointsPerItem", 10), "id");
-        post(base, teacher, "/api/papers/" + paperId + "/items", Map.of("number", 1,
-                "questionType", "ESSAY", "stem", "口述作文", "points", 10, "paperSectionId", sectionId), "id");
-        post(base, teacher, "/api/papers/" + paperId + "/publish", Map.of(), "id");
         String classId = post(base, teacher, "/api/classes", Map.of("name", "视频班"), "id");
         List<?> classes = Json.parseList(request(base, teacher, "GET", "/api/classes", null).body());
         String invite = ((Map<?, ?>) classes.get(0)).get("inviteCode").toString();
         request(base, student, "POST", "/api/classes/join", Map.of("inviteCode", invite));
-        String offeringId = post(base, teacher, "/api/offerings", Map.of("paperId", paperId, "kind", "ASSIGNMENT",
-                "timingMode", "INDIVIDUAL", "dueAt", "2026-12-31T23:59:59Z", "durationMinutes", 60,
+        // D-14：作业自带内容，不再建卷、不带 paperId、不设时长
+        String offeringId = post(base, teacher, "/api/offerings", Map.of(
+                "title", "口述作文作业", "timingMode", "INDIVIDUAL",
+                "instructions", "口述作文：介绍你的学校。", "totalPoints", 10,
+                "rubricMarkdown", "# 评分标准\n- 内容要点\n- 语言准确性",
+                "dueAt", "2026-12-31T23:59:59Z",
                 "classes", List.of(Map.of("classId", classId))), "id");
         post(base, teacher, "/api/offerings/" + offeringId + "/publish", Map.of(), "id");
 
