@@ -168,3 +168,16 @@ input.invalid, input.invalid:focus {
 /* 禁用态必须看得出来：之前按钮 disabled 了外观还像能点，老师会反复点「发布」。 */
 .btn:disabled, .btn[disabled] { opacity: .45; cursor: not-allowed; }
 .btn:disabled:hover, .btn[disabled]:hover { filter: none; }
+
+/* T253：右上角用户信息点击进资料页；AI 逐项意见列表。 */
+.topbar-user {
+  color: var(--muted); font-size: 12.5px; text-decoration: none;
+  padding: 4px 8px; border-radius: var(--radius-sm); white-space: nowrap;
+}
+.topbar-user:hover { color: var(--accent); background: var(--accent-weak); }
+.ai-criteria { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
+.ai-criteria > li {
+  border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+.review-more > summary { cursor: pointer; color: var(--muted); }

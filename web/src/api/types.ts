@@ -406,7 +406,17 @@ export interface ReviewDetail {
   objectivePoints: number | null
   subjectivePoints: number | null
   aiSubjectiveDraft: number | null
+  /** T253：AI 逐项意见；AI 未参与时为空数组。 */
+  aiCriteria: ReviewCriterion[]
+  aiFeedback: string | null
   review: ReviewView
+}
+
+export interface ReviewCriterion {
+  name: string
+  points: number
+  maxPoints: number
+  comment: string | null
 }
 
 export interface BulkApproveResult {

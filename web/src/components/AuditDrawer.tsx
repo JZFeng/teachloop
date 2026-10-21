@@ -10,6 +10,11 @@ type I18n = ReturnType<typeof useTranslation>['i18n']
 /** 内部主键类参数：时间线已经按这个实体过滤，再列出 UUID 只是噪音。 */
 const HIDDEN_DETAIL_KEYS = new Set([
   'offeringId', 'paperId', 'studentId', 'submissionId', 'reviewId', 'runId',
+  // 复核改分专用：下面单独排版，不再按字段逐个平铺
+  'manual', 'scoreChanged', 'aiSubjectiveDraft', 'textDiff',
+  'beforeSubjective', 'afterSubjective',
+  'beforeComment', 'afterComment', 'beforeStrengths', 'afterStrengths',
+  'beforeSuggestions', 'afterSuggestions',
 ])
 
 /**
@@ -73,7 +78,7 @@ export function AuditDrawer({ open, onClose, targetType, targetId, title }: {
         {rows && rows.length > 0 && (
           <ol className="audit-timeline">
             {rows.map((row) => {
-              const detail = describeAuditDetail(row.detail, t, i18n)
+              const detail = describeAuditDetail(row.action, row.detail, t, i18n)
               return (
                 <li key={row.id}>
                   <span className="audit-dot" aria-hidden="true" />
@@ -94,6 +99,42 @@ export function AuditDrawer({ open, onClose, targetType, targetId, title }: {
   )
 }
 
+/** 分数去掉无意义的尾零：7.50 → 7.5，避免审计里出现「7.50 → 7.5」这种假改动。 */
+function formatScore(raw: string): string {
+  if (!raw) return ''
+  const numeric = Number(raw)
+  return Number.isFinite(numeric) ? String(numeric) : raw
+}
+
+/** 复核改分：主观分前后对比 + 实际改过的三段文本，null 不显示。 */
+function describeReviewEdit(pairs: [string, string][], t: Translate): string {
+  const value = (key: string) => {
+    const raw = pairs.find(([name]) => name === key)?.[1] ?? ''
+    return raw === 'null' ? '' : raw
+  }
+  const parts: string[] = []
+  const before = formatScore(value('beforeSubjective'))
+  const after = formatScore(value('afterSubjective'))
+  if (before || after) {
+    // 7.50 → 7.5 这种只是数值格式差异，不算改分。
+    parts.push(before === after
+      ? `${t('audit.review.score')}：${after || before}`
+      : `${t('audit.review.score')}：${before || '—'} → ${after || '—'}`)
+  }
+  const fields: [string, string][] = [
+    ['comment', 'audit.review.comment'],
+    ['strengths', 'audit.review.strengths'],
+    ['suggestions', 'audit.review.suggestions'],
+  ]
+  for (const [field, labelKey] of fields) {
+    const beforeValue = value(`before${field.charAt(0).toUpperCase()}${field.slice(1)}`)
+    const afterValue = value(`after${field.charAt(0).toUpperCase()}${field.slice(1)}`)
+    if (beforeValue === afterValue) continue
+    parts.push(`${t(labelKey)}：${afterValue || t('audit.review.cleared')}`)
+  }
+  return parts.length ? parts.join(' · ') : t('audit.review.noChange')
+}
+
 /** 事件名 → 中文：`submission:submit` 读成「提交作业」，没有翻译的保留原始代号。 */
 function auditEventLabel(action: string, t: Translate, i18n: I18n): string {
   // i18next 的 key 分隔符是 `.`、命名空间分隔符是 `:`，所以事件代号里的冒号换成下划线。
@@ -105,10 +146,12 @@ function auditEventLabel(action: string, t: Translate, i18n: I18n): string {
  * 参数串 → 一行中文：`{late=0, attempt=1}` 读成「第 1 次提交 · 按时」。
  * 后端历史数据是 Java Map.toString()，新数据可能是 JSON，两种都解析。
  */
-function describeAuditDetail(detail: string | null, t: Translate, i18n: I18n): string {
+function describeAuditDetail(action: string, detail: string | null, t: Translate, i18n: I18n): string {
   if (!detail || !detail.trim()) return ''
   const pairs = parseDetail(detail)
   if (!pairs.length) return detail.trim()
+  // 复核改分是「前后值 + 三段文本」，按字段平铺读不懂，单独排版成一句话。
+  if (action === 'review:edited') return describeReviewEdit(pairs, t)
   return pairs
     .filter(([key]) => !HIDDEN_DETAIL_KEYS.has(key))
     .map(([key, value]) => {

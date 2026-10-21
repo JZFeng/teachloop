@@ -4,6 +4,7 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
+import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
 
 interface NavItem { to: string; label: string; end?: boolean }
 
@@ -39,7 +40,13 @@ export function Shell({ children }: { children: ReactNode }) {
     }
     load()
     const timer = setInterval(load, 30000)
-    return () => { alive = false; clearInterval(timer) }
+    // 通知页标已读后立刻刷新角标，不必等下一次轮询（T250）。
+    window.addEventListener(NOTIFICATIONS_CHANGED, load)
+    return () => {
+      alive = false
+      clearInterval(timer)
+      window.removeEventListener(NOTIFICATIONS_CHANGED, load)
+    }
   }, [])
 
   return (
@@ -78,7 +85,9 @@ export function Shell({ children }: { children: ReactNode }) {
               🔔 {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
             </button>
           </div>
-          <div className="small muted">{me?.email}</div>
+          <NavLink to="/profile" className="topbar-user" title={t('nav.profile')}>
+            {me?.displayName} · {me?.email}
+          </NavLink>
         </header>
         <main className="app-main">{children}</main>
       </div>

@@ -199,7 +199,10 @@ export default function ReviewPage() {
           {detail && (
             <div className="card">
               <div className="row" style={{ justifyContent: 'space-between' }}>
-                <h2 style={{ margin: 0 }}>{t('review.edit')} <span className="mono small">{detail.submissionId.slice(0, 8)}</span></h2>
+                <h2 style={{ margin: 0 }}>
+                  {t('review.detailTitle')} <span className="mono small">{detail.submissionId.slice(0, 8)}</span>
+                  {detail.studentName ? <span className="small muted"> · {detail.studentName}</span> : null}
+                </h2>
                 <span className="tag gray">{fmtDateTime(detail.review.createdAt)}</span>
               </div>
               {actionError && <div className="inline-note">{actionError}</div>}
@@ -217,7 +220,45 @@ export default function ReviewPage() {
                 {(detail.objectivePoints == null || detail.subjectivePoints == null) && <div className="hint">{t('review.notConnectedScore')}</div>}
               </div>
 
-              <h3>{t('review.items')}</h3>
+              <h3>{t('review.aiReview')}</h3>
+              {detail.aiSubjectiveDraft == null && (detail.aiCriteria ?? []).length === 0 ? (
+                <div className="inline-note">{t('review.aiNotInvolved')}</div>
+              ) : (
+                <div className="card" style={{ background: 'var(--panel-2)' }}>
+                  <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                    <div>
+                      <span className="muted small">{t('review.aiSuggested')}</span>{' '}
+                      <b className="mono" style={{ fontSize: 18 }}>{detail.aiSubjectiveDraft ?? '—'}</b>
+                    </div>
+                    {detail.aiSubjectiveDraft != null && !detail.review.published && (
+                      <button type="button" className="btn sm"
+                        onClick={() => setForm({ ...form, subjectivePoints: String(detail.aiSubjectiveDraft) })}>
+                        {t('review.adoptAi')}
+                      </button>
+                    )}
+                  </div>
+                  {(detail.aiCriteria ?? []).length > 0 && (
+                    <ul className="ai-criteria">
+                      {(detail.aiCriteria ?? []).map((criterion) => (
+                        <li key={criterion.name}>
+                          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                            <b>{criterion.name}</b>
+                            <span className="mono small">{criterion.points} / {criterion.maxPoints}</span>
+                          </div>
+                          {criterion.comment && <div className="small muted">{criterion.comment}</div>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {detail.aiFeedback && (
+                    <p className="small" style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{detail.aiFeedback}</p>
+                  )}
+                </div>
+              )}
+
+              <details className="review-more" style={{ marginTop: 14 }}>
+                <summary>{t('review.itemsAndRubric')}</summary>
+                <h3>{t('review.items')}</h3>
               <table>
                 <thead><tr><th>#</th><th>{t('review.answer')}</th><th>{t('review.answerKey')}</th><th>{t('review.points')}</th></tr></thead>
                 <tbody>
@@ -234,13 +275,19 @@ export default function ReviewPage() {
                   })}
                 </tbody>
               </table>
-              {detail.rubricMarkdown && <details style={{ marginTop: 10 }}><summary>{t('review.rubric')}</summary><pre className="small" style={{ whiteSpace: 'pre-wrap' }}>{detail.rubricMarkdown}</pre></details>}
+                {detail.rubricMarkdown && (
+                  <details style={{ marginTop: 10 }}>
+                    <summary>{t('review.rubric')}</summary>
+                    <pre className="small" style={{ whiteSpace: 'pre-wrap' }}>{detail.rubricMarkdown}</pre>
+                  </details>
+                )}
+              </details>
 
               {detail.aiSubjectiveDraft == null && (
                 <div className="inline-note" style={{ marginTop: 10 }}>{t('review.manualGradingHint')}</div>
               )}
 
-              <h3>{t('review.edit')}</h3>
+              <h3>{t('review.teacherGrading')}</h3>
               <div className="row" style={{ alignItems: 'flex-start' }}>
                 <label className="f" style={{ width: 120 }}><b>{t('review.subjective')} <span className="required-mark">*</span></b>
                   <input type="number" step="0.5" min={0} value={form.subjectivePoints}
