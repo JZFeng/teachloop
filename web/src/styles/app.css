@@ -242,3 +242,52 @@ input.invalid, input.invalid:focus {
   padding: 8px 10px;
 }
 .review-more > summary { cursor: pointer; color: var(--muted); }
+
+/* 复核页题项表：答对绿、答错红、部分给分琥珀；分数列右对齐。 */
+.review-item-summary { margin: 4px 0 8px; gap: 8px; }
+.review-items { margin-top: 2px; }
+.review-items th.num,
+.review-items td.num { text-align: right; }
+.review-items td { padding-top: 7px; padding-bottom: 7px; }
+.review-items .answer-given {
+  max-width: 360px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.review-items .answer-given.is-correct,
+.review-items .awarded.is-correct { color: var(--green); font-weight: 600; }
+.review-items .answer-given.is-wrong,
+.review-items .awarded.is-wrong { color: var(--red); font-weight: 600; }
+.review-items .answer-given.is-partial,
+.review-items .awarded.is-partial { color: var(--amber); font-weight: 600; }
+.review-items .answer-given.is-ungraded,
+.review-items .awarded.is-ungraded { color: var(--muted); }
+
+/* 教师判分区顶部的学生作答块：先看学生写了什么，再打分。 */
+.grading-answer {
+  border: 1px solid var(--line); background: var(--panel-2);
+  border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;
+}
+.grading-answer-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  margin-bottom: 8px;
+}
+.grading-answer-block + .grading-answer-block { margin-top: 12px; }
+.grading-answer-text {
+  margin-top: 5px; padding: 9px 11px; max-height: 240px; overflow: auto;
+  background: var(--panel); border: 1px solid var(--line-2); border-radius: var(--radius-sm);
+  font-size: 13px; line-height: 1.7;
+}
+.essay-answer + .essay-answer { margin-top: 10px; }
+.answer-sheet {
+  display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+  max-height: 190px; overflow: auto; padding: 2px;
+}
+.answer-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 1px 9px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--muted); font-size: 11.5px; white-space: nowrap;
+}
+.answer-chip b { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 600; }
+.answer-chip.is-correct { background: var(--green-weak); color: var(--green); border-color: transparent; }
+.answer-chip.is-partial { background: var(--amber-weak); color: var(--amber); border-color: transparent; }
+.answer-chip.is-wrong { background: var(--red-weak); color: var(--red); border-color: transparent; }
+.answer-chip.is-ungraded { background: var(--panel-2); color: var(--muted); }

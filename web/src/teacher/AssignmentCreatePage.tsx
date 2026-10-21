@@ -24,8 +24,9 @@ export default function AssignmentCreatePage() {
   const [title, setTitle] = useState('')
   const [instructions, setInstructions] = useState('')
   const [totalPoints, setTotalPoints] = useState('')
-  // 评分标准默认两行：内容要点 / 语言准确性；教师可以直接在 Markdown 里补分值与细则。
+  // 默认是课程 2/4/4 rubric（篇幅 / 立场 / 解释与细节），教师可以直接改 Markdown。
   const [rubricMarkdown, setRubricMarkdown] = useState(t('teacher.assignmentCreate.defaultRubric'))
+  const [anchorExamples, setAnchorExamples] = useState('')
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([])
   const [dueAt, setDueAt] = useState('')
   const [graceHours, setGraceHours] = useState('3')
@@ -83,6 +84,7 @@ export default function AssignmentCreatePage() {
         instructions: instructions.trim(),
         totalPoints: points,
         rubricMarkdown,
+        anchorExamples: anchorExamples.trim() || null,
         dueAt: dueIso,
         graceHours: grace,
         maxAttempts: attempts,
@@ -166,9 +168,42 @@ export default function AssignmentCreatePage() {
           >
             <TextArea
               id="assign-rubric"
-              rows={6}
+              rows={8}
               value={rubricMarkdown}
               onChange={(e) => setRubricMarkdown(e.target.value)}
+            />
+            <div className="row" style={{ gap: 8, marginTop: 6 }}>
+              <label className="small muted" style={{ cursor: 'pointer' }}>
+                {t('teacher.assignmentCreate.importMarkdown')}
+                <input
+                  type="file"
+                  accept=".md,.txt,text/markdown,text/plain"
+                  style={{ display: 'none' }}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    if (file) void file.text().then(setRubricMarkdown)
+                    e.target.value = ''
+                  }}
+                />
+              </label>
+            </div>
+            <details className="review-more" style={{ marginTop: 8 }}>
+              <summary>{t('teacher.assignmentCreate.aiPreview')}</summary>
+              <pre className="small" style={{ whiteSpace: 'pre-wrap' }}>{rubricMarkdown}</pre>
+            </details>
+          </Field>
+
+          <Field
+            label={t('teacher.assignmentCreate.anchorExamples')}
+            hint={t('teacher.assignmentCreate.anchorExamplesHint')}
+            htmlFor="assign-anchors"
+          >
+            <TextArea
+              id="assign-anchors"
+              rows={4}
+              value={anchorExamples}
+              placeholder={t('teacher.assignmentCreate.anchorExamplesPlaceholder')}
+              onChange={(e) => setAnchorExamples(e.target.value)}
             />
           </Field>
 

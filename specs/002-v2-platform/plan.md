@@ -2,7 +2,7 @@
 
 - 项目名：**TeachLoop**（2026-10-19 定名；仓库 `teachloop`，groupId / 包根 `com.teachloop`）
 - 特性编号：`002-v2-platform`
-- 上游：`spec.md`（26 用户故事 / 203 验收标准 / 42 功能需求）、`.specify/memory/constitution.md`（v2.1）
+- 上游：`spec.md`（28 用户故事 / 258 验收标准 / 61 功能需求）、`.specify/memory/constitution.md`（v2.1）
 - 日期：2026-10-19（本版为整份重写，非增量修补）
 - 技术栈变更说明：早期方案用 Python/FastAPI，理由是复用 v1 资产与 `dsh` 子进程。用户 review 后确定部署阿里云、取消 OCR、生产直连模型 API，这两条理由都不再成立；且用户最熟悉 Java。故整体改用 Java。
 - 名字为什么叫 TeachLoop：`loop` 同时指两件事——批改反馈的闭环（出卷→作答→批改→复核→发布），与将来背单词模块的间隔重复循环。所以加模块不需要改名。
@@ -15,9 +15,9 @@ Plan 的退出条件是下面 6 条全部打勾。每条标注了自评结果与
 
 | # | 检查项 | 自评 | 验法 |
 | :--- | :--- | :--- | :--- |
-| 1 | 每个用户故事在本文件里有承接结构 | ✅ | 附录 A 逐条对照 26 个故事。**追溯粒度到故事与 FR**：203 条 AC 不逐条映射（理由见 `tasks.md` 追踪矩阵开头） |
-| 2 | 每个实体的表、字段、索引、状态迁移写全 | ✅ | §5；状态机见 §7 与 §7.6 |
-| 3 | 每条外部依赖写了失败与重试路径 | ✅ | §6.4 失败处理、§7.2 崩溃恢复、§9 上传、§15 字体自检 |
+| 1 | 每个用户故事在本文件里有承接结构 | ✅ | 附录 A 逐条对照 28 个故事。**追溯粒度到故事与 FR**：258 条 AC 不逐条映射（理由见 `tasks.md` 追踪矩阵开头） |
+| 2 | 每个实体的表、字段、索引、状态迁移写全 | ✅ | §5（含 `user_ai_settings` / `offerings.created_by` / `submission_metrics` / `reviews` AI 溯源列）；状态机见 §7 与 §7.6 |
+| 3 | 每条外部依赖写了失败与重试路径 | ✅ | §6.4 失败处理、§6.6 Key 失败分类（NO_KEY/AUTH/TIMEOUT/INVALID_OUTPUT/RATE_LIMITED）、§7.2 崩溃恢复、§9 上传、§15 字体自检 |
 | 4 | 模块依赖无环、跨模块只走端口 | ✅ | §3.1 编译期强制；§3.2 端口表；T203 专门验证 |
 | 5 | 每张表只有一个属主、无跨模块 JOIN | ✅ | §3.3 归属清单；T204 验证越界写入与 `@Entity` 泄漏 |
 | 6 | 拆服务路径写得出来 | ✅ | §3.5：哪两个进程、先拆谁、外键清单 |
@@ -154,7 +154,7 @@ teachloop-app ──▶ paper / sitting / grading / report / observability
 
 | 模块 | 拥有的表 | 迁移目录（模块内） |
 | :--- | :--- | :--- |
-| identity | `users`、`spring_session`、`spring_session_attributes`、`teacher_invites`、`rate_limits`、`notifications` | `teachloop-identity/src/main/resources/db/migration/` |
+| identity | `users`、`credentials`、`spring_session`、`spring_session_attributes`、`teacher_invites`、`rate_limits`、`notifications`、`ai_settings`、`user_ai_settings` | `teachloop-identity/src/main/resources/db/migration/` |
 | classroom | `classes`、`class_members` | `teachloop-classroom/…/db/migration/` |
 | paper | `papers`、`paper_sections`、`objective_items`、`section_criteria` | `teachloop-paper/…/db/migration/` |
 | sitting | `offerings`、`offering_classes`、`submissions`、`objective_answers`、`submission_metrics` | `teachloop-sitting/…/db/migration/` |
@@ -249,7 +249,7 @@ V1 的形态是**一个 JAR、一个 Postgres、两个进程**（`app` 与 `grad
 
 ## 5. 数据模型
 
-承接：US-2、US-4、US-5、US-6、US-7、US-8、US-9、US-11、US-16、US-18、US-22、US-26
+承接：US-2、US-4、US-5、US-6、US-7、US-8、US-9、US-11、US-16、US-18、US-22、US-26、US-27、US-28
 
 由 **Flyway** 管理，**按模块分目录**（归属清单见 §3.3）。本节只描述表结构；哪个模块拥有哪张表由 §3.3 规定，跨模块读写规则见 §3.1–3.2。
 
@@ -286,9 +286,15 @@ papers ──< paper_sections ──< objective_items
 关键约束：
 
 - `offerings` 内容来源约束：`offerings_kind_content_ck CHECK ((kind = 'ASSIGNMENT') = (paper_id IS NULL))`。
+- `offerings` 增 `created_by`（创建教师；与 `papers.author_id` 一样由应用写入，**不加跨模块外键**，
+  拆服务时随 offering 走）；AI Key 归属用它（见 §6.6）。
 - `submissions` 部分唯一索引：`(offering_id, student_id) WHERE active`。
 - `submissions` 计时与迟交列：`started_at`、`deadline_at`、`auto_submitted`、`late_by_seconds`、`rejected_at`、`reject_reason`。
 - `submissions` 工作项状态列（替代独立队列表，见 §7）：`grading_state`、`grading_attempts`、`grading_started_at`、`grading_error`、`grading_run_id`。
+- 篇幅指标不新增表：`TextLengthCounter` 在判分与复核详情里按 `content_text` 现算（policy_default 段数 + 四模型边界标记）；数据量是单班几十份，无需为它建表。
+- `ai_settings` 保持全局单行（id=1）；新增 `user_ai_settings`（`user_id` 主键、provider/base_url/model/api_key_cipher/temperature/updated_at）；两者只存密文。
+- `reviews` 增 `ai_overall`（总评）、`ai_model`、`ai_prompt_version`、`ai_key_source`、`ai_failure`（失败分类）、`feedback_language`（本次 AI 实际输出语言）；`ai_criteria` / `ai_feedback` 保留。
+- `ai_calls` 增 `key_source` 与 `prompt_version`（已有）；不记录 Key 本体。
 - `objective_items` 唯一 `(paper_section_id, number)`；增列 `stem`（题干）、`options`（选项 JSONB）、`question_type`（`single_choice` / `multiple_choice` / `fill_blank` / `essay`）、`answer_key`、`match_strategy`、以及解析工作项状态 `explanation_state` / `explanation_attempts` / `explanation_started_at` / `explanation_error`。
 - `item_explanations` 唯一 `(item_id, language, prompt_version)` —— 这是「同一题只调一次模型」的保证。
 - 枚举用 PG enum 或 check 约束；新增值必须有迁移，不手改线上。
@@ -356,7 +362,7 @@ papers ──< paper_sections ──< objective_items
 
 ## 6. 判分流程
 
-承接：US-5、US-9、US-10、US-11、US-18
+承接：US-5、US-9、US-10、US-11、US-18、US-27、US-28
 
 ```
 学生提交
@@ -371,24 +377,29 @@ due_at + grace_hours 到达 → 派发（见 §7）
 Worker 执行一份：
  ├─ 条件 UPDATE 领取该行（grading_state pending -> running）
  ├─ 校验 paper_version，不一致则重取快照
- ├─ 组装 prompt：仅主观评分项 + 学生正文 + 客观指标
+ ├─ 解析 Key：作业创建者 → 全局；都没有 → NO_KEY，不出分（§6.6）
+ ├─ 读 rubric 快照 + 题目要求 + 学生语言 + 段数（policy_default）与边界标记（§6.7）
+ ├─ 组装 prompt：任务背景 + 完整 rubric + 评分政策 + 可选锚点（system）
+ │               + 客观指标 + 反馈语言 + 正文（user）
  │    （不含标准答案、不含客观得分——由类型系统保证调用方拿不到这些字段）
  ├─ Spring AI ChatClient → deepseek-flash，输出用 Jackson 3 反序列化并校验
- ├─ 校验：项名/顺序/满分/总分；失败重试一次；仍失败 → 标 failed 并保存原始输出
- ├─ 写 reviews（objective_total 由代码汇总，subjective_total 为 AI 合计）
+ ├─ 校验：项名/顺序/满分/总分 + 原文引用 + 语言 + 长度结论 + 二元/分档；失败重试一次；
+ │    仍失败 → 标 failed、写 ai_failure、保存原始输出，不出分
+ ├─ 写 reviews（AI 草稿：主观分、逐项意见、overall、优点、建议、model/prompt_version/key_source）
  └─ 写回 grading_state=done（前端轮询看到）
 ```
 
 **AI 看不到客观答案**这一条用代码结构强制：`SubjectiveGradeRequest` 记录类里根本不存在 `answers` 与 `objectiveTotal` 字段，`buildPrompt` 只能拿到该类型。
 
-### 6.1 Prompt 分层契约
+### 6.1 Prompt 分层契约（2026-10-21 v2）
 
-Prompt 必须严格分两层，**顺序不可变**：
+Prompt 必须严格分两层，**顺序不可变**；v2 把「任务背景、证据、评分政策、锚点」放进 system，
+并把长度结论改为服务端计算：
 
 | 层 | 内容 | 变化频率 |
 | :--- | :--- | :--- |
-| `system` | 角色设定 + 本次 rubric + 输出契约（JSON 形状与规则） | 同一场考试内**完全不变** |
-| `user` | 客观指标（词数/段数/时长/边界敏感）+ 学生正文 | **每份都不同** |
+| `system` | 角色与受众 + **作业题目要求（`instructions`/`stem`）** + 完整 rubric（名称/满分/判定规则/分档） + 评分政策 + 可选锚点 + 输出契约 | 同一条作业内**完全不变** |
+| `user` | 客观指标（词数、段数、长度政策、边界敏感、时长）+ **本次反馈语言** + 学生正文 | **每份都不同** |
 
 实测请求体（写作题、一位学生）：
 
@@ -399,33 +410,40 @@ Prompt 必须严格分两层，**顺序不可变**：
   "response_format": { "type": "json_object" },
   "messages": [
     { "role": "system",
-      "content": "你是一名资深英语教师，按下方 rubric 评分。\n\n## 评分标准（本次固定）\n1. 内容要点 15 分：…\n2. 语言准确性 10 分：…\n\n## 输出契约\n只输出 JSON：{\"criteria\":[…],\"total\":…,\"strength\":…,\"suggestion\":…}" },
+      "content": "You are an experienced TESOL instructor writing a first-pass review; the teacher makes the final decision.\n\n## Assignment\n{instructions / stem}\n\n## Rubric (grade only against this)\n1. Required Length — 2 points: {rule}\n2. Clear Position — 4 points: {rule}\n3. Explanation and Supporting Details — 4 points: {rule}\n\n## Grading policy\n- Award 0 or the full points when the rubric says yes/no; no invented partial credit.\n- Judge the quality of the support, not the viewpoint.\n- Quote a short phrase verbatim from the response in every criterion comment.\n- Required Length: use the server count ({paragraphs} paragraphs, {policy}); do not recount.\n- Strength: one specific strength with evidence. Suggestion: one actionable next step.\n- Be concise; do not rewrite the response.\n\n## Optional anchors (only if teacher-confirmed)\n{0-3 anonymized exemplar reviews}\n\n## Output contract\n{\"criteria\":[{\"name\":\"...\",\"points\":0,\"maxPoints\":2,\"comment\":\"...\"}],\"total\":0,\"overall\":\"...\",\"strength\":\"...\",\"suggestion\":\"...\"}" },
     { "role": "user",
-      "content": "## 客观指标\n词数 96；段落数 2；边界敏感 否\n\n## 学生正文\n{这位学生的作文全文}" }
+      "content": "## Objective metrics\nWord count 96; paragraph count 2 (class policy; boundary-sensitive: no); duration 540s.\n\n## Feedback language\nEnglish (the student's UI locale is en).\n\n## Student response\n{这位学生的作文全文}" }
   ]
 }
 ```
 
 **硬规则（违反即缓存失效，且很难在功能上被发现）**
 
-1. 不变的内容必须位于最前面，从第 0 个 token 起稳定。
-2. **禁止**把每份都不同的内容放进前缀：学生姓名、学号、`submission_id`、提交时间。客观指标里只放数值；需要标识时写进日志与审计，**不进 prompt**。
+1. 不变的内容必须位于最前面，从第 0 个 token 起稳定；锚点属于 system，因为同一条作业内不变。
+2. **禁止**把每份都不同的内容放进前缀：学生姓名、学号、`submission_id`、提交时间、**反馈语言**
+   （同一班内学生的界面语言可能不同，必须放在 user 消息；见 §6.6）。
 3. `temperature` 固定 0.2（判分要稳定，不要发挥）。
 4. `response_format` 固定 `json_object`。
+5. **长度项不由模型判**：服务端把段数与政策写进 user，模型只能引用；输出校验会拒绝与代码结论
+   不一致的 points。
+6. **证据是契约的一部分**：每项 comment 至少包含一处正文逐字引用；编造引用判输出不合规。
 
-**实现口径（2026-10-19，T080–T083 落地时确认）**：
+**实现口径（2026-10-21，v2 修订）**：
 
-- 模型调用走 `grading/ai/LlmClient` 接口；**默认实现是 Spring AI 2.0.1 `ChatClient`**
-  （OpenAI 兼容端点、`response_format=json_object`、`temperature 0.2`、model 默认 `deepseek-flash`，
-  取 `.content()` 而非 `.entity()`）。`DeepSeekLlmClient`（JDK `HttpClient`）保留为
-  `teachloop.ai.client=http` 的回退实现，两者可配置切换。
-- 真实 DeepSeek 调用已验证：`AiGradingRealCallTest` 与 `SpringAiLlmRealCallTest` 在提供
-  `DEEPSEEK_API_KEY` 时通过（非跳过），返回合法 JSON 并通过契约校验。
-- 主观评分项暂从 `rubricMarkdown` 解析（`### 1. Name — 2 points` / `- 名称（15 分）` 等写法）；
-  缺分值或分值和不等于主观满分时按剩余满分均分。等 `PaperSnapshot` 暴露 `section_criteria`
-  结构化字段后移除这条 fallback。
-- `ai_calls` 只记录**收到响应**的调用（model / prompt_version / tokens / latency / raw）；
-  网络与鉴权失败没有 tokens 可记，只进日志与 `submissions.grading_error`。
+- `PromptBuilder.PROMPT_VERSION` 从 `subjective-v1` 升为 `subjective-v2`；`SubjectiveGradeRequest`
+  增加 `instructions`、`paragraphPolicy`、`paragraphBoundarySensitive`、`feedbackLanguage`（学生的），
+  仍然**不含**标准答案、客观分、学生姓名、学号。
+- rubric 解析仍从 `rubricMarkdown` 开始（短期），但**缺分值不再均分**：创建时校验，遗留 rubric
+  标「需补全」；等 `section_criteria` 进端口后再换成结构化数据（见 §5）。
+- 锚点由 `offerings.anchor_ids`（或独立表）指向教师确认过的匿名范文；生成时拼进 system，
+  超过预算（如 6k tokens）就截断到 2 份并记录；无锚点时整段省略，不留空标题。
+- 输出新增 `overall`（1–2 句总评），用于预填教师 `comment`；`strength`/`suggestion` 预填
+  `reviews.strengths` / `reviews.suggestions`。
+- 模型调用走 `grading/ai/LlmClient`；**每次判分按 §6.6 解析 Key 并创建客户端**，不再在 Bean
+  启动时把 Key 固化。`SpringAiLlmClient` 仍为默认，`DeepSeekLlmClient` 为 `http` 回退。
+- `ai_calls` 记录 model / prompt_version / key_source / tokens / latency / 原始输出；
+  网络与鉴权失败没有 tokens 可记，进日志与 `submissions.grading_error`，并保留失败原因以便复核页
+  区分「缺 Key / 鉴权失败 / 超时 / 输出不合规」。
 
 ### 6.2 缓存策略与度量
 
@@ -512,8 +530,64 @@ DeepSeek 的上下文硬盘缓存**自动生效、无需代码开关**，但只�
 - 判分页需要读当前分数：`Ports.SittingLedger` 增加只读方法
   `SubmissionScores scores(UUID submissionId)`（submittedAt / objectiveTotal / subjectiveTotal /
   gradingState）。它只用于复核展示，**不进 AI prompt**（`SubjectiveGradeRequest` 仍不含分数）。
-- 批量通过跳过「`original_subjective = NULL` 且 `teacher_id = NULL`」的复核行，避免 0 分误发。
+- **预填（D-20）**：详情同时返回 `aiOverall` / `aiStrength` / `aiSuggestion` 与逐项意见；前端打开
+  表单时预填 `subjectivePoints`、`comment`、`strengths`、`suggestions`，标「AI 建议，可编辑」。
+  未保存不写教师字段；教师保存后 `teacher_id` 落库，AI 不再覆盖。
+- **批量通过（D-20）**：先返回预览（合格份数、分数范围、跳过原因计数），确认后逐份
+  `decide(APPROVED)` + 审计（`bulk=true`）。跳过条件：无草稿且无教师分、AI 失败、边界敏感、
+  未通过输出质量闸门、已决策/已发布。发布仍是独立动作。
 - 失败兜底：AI 失败（`FAILED`）的提交也能人工判分并发布；`apply` 会清掉 `grading_error`。
+
+### 6.6 Key 解析与归属（D-16）
+
+**问题**：`AiGradingConfig` 在启动时把管理员 Key 固化进 `LlmClient`，无法支持「教师个人 Key」
+与「保存即生效」，也无法在 worker 里按作业找 Key。
+
+**方案**：
+
+```
+GradingWorker 领取 submission
+  ├─ ledger.load(submissionId) → WorkItem（含 offeringId, createdBy）
+  ├─ AiKeyResolver.resolve(createdBy)
+  │    ├─ identity: user_ai_settings(teacherId) 且 configured → key_source=user
+  │    ├─ identity: ai_settings(global id=1) 且 configured → key_source=global
+  │    └─ 都没有 → GradingFailure(NO_KEY)，不出分
+  ├─ LlmClientFactory.create(settings, timeout) → 每次调用一个短生命周期客户端
+  └─ engine.grade(item, client) → ai_calls 写 model/prompt_version/key_source
+```
+
+- **数据**：`ai_settings` 保留全局单行（id=1）；新增 `user_ai_settings`（`user_id` 主键、
+  `provider/base_url/model/api_key_cipher/temperature/updated_at`），两者都只存密文。
+  教师/管理员的 `/profile` 写 `user_ai_settings`；`/admin/ai` 仍写全局。
+- **端口**：`Ports.AiSettingsLookup` 从 `current()` 改为 `resolve(UUID teacherId)`，返回
+  `AiSettings(provider/baseUrl/model/apiKey/temperature/configured/source)`；`source` 是
+  `user` / `global` / `none`。identity 实现里先查 `user_ai_settings`，再查全局；
+  grading 只依赖端口，不查 identity 表。
+- **优先级**：作业创建者 Key → 全局 Key；**不**在鉴权失败时静默改用另一个 Key（避免同一批
+  混用两种口径），只把失败原因写清楚。
+- **归属**：`offerings` 增 `created_by`（创建教师，无跨模块外键，和 `papers.author_id` 一样
+  由应用写入）；`WorkItem` 增 `createdBy`。历史数据 `created_by` 为空时直接用全局 Key。
+- **生效**：`AiSettingsService` 不再在 Bean 创建时读 Key；`AiKeyResolver` 每次判分现查。
+  保存后下一次调用即生效，`restartRequired` 从响应里去掉（或恒为 false）。
+- **安全**：沿用 `SecretBox` AES-GCM；GET 只回 `configured` + 掩码（末 4 位）；`test` 接口
+  接受临时 Key 但不落库、不写日志；审计只记 `user_ai_settings:updated` 与操作者，
+  不记 Key。`teachloop.security.secret` 生产必须显式配置。
+- **失败分类**：`NO_KEY` / `AUTH_FAILED` / `TIMEOUT` / `INVALID_OUTPUT` / `RATE_LIMITED`，
+  写 `submissions.grading_error` 与 `reviews.ai_failure`，复核页按类显示；均不产生分数。
+
+### 6.7 篇幅与语言（D-17 / D-19）
+
+- **篇幅**：`TextLengthCounter` 已有四模型（T072/T173），判分与复核详情按 `content_text` 现算：
+  policy_default 段数 + 四模型边界标记（不新增表）。问候语并入首段、连续项目符号合并为一段；
+  `boundary_sensitive` = 四种模型的 0/2 结论不一致。AI prompt 的 user 消息写入段数、政策名与
+  边界标记；`GradeOutputValidator` 校验长度项的 points 与代码结论一致，不一致即输出不合规，
+  并用服务端的确定性句子覆盖模型对篇幅理由的结构猜测。
+- **语言**：`WorkItem.feedbackLanguage` 改为在 `SittingLedgerImpl` 装配时读学生
+  `users.locale`（经 identity 端口新增 `locales(ids)`），缺失回退 `offering.feedback_language`，
+  再回退 `zh-CN`；实际语言写入 `reviews.feedback_language` 与 `ai_calls`。语言放在 user 消息，
+  不破坏 system 前缀缓存。
+- **参考基准更正**：JZ 在 policy_default 下是 4 段（问候语合并），人工 review 的 0/2 是历史口径；
+  按 D-19 更正 golden set，同时在 `docs/reports/grading-quality/known-inconsistency.md` 留档。
 
 ---
 
@@ -649,7 +723,7 @@ MVP 用数据库状态机 + 轮询。将来若换消息队列（RabbitMQ / Redis
 
 ## 9. 认证与安全
 
-承接：US-1、US-3
+承接：US-1、US-3、US-27
 
 | 项 | 方案 |
 | :--- | :--- |
@@ -662,6 +736,9 @@ MVP 用数据库状态机 + 轮询。将来若换消息队列（RabbitMQ / Redis
 | 上传 | 扩展名 + 内容类型双校验；100 MB 上限；视频 ffprobe 探测 |
 | 富文本 | OWASP Sanitizer 白名单；脚本标签丢弃并记安全事件 |
 | 越权 | 访问非本人资源一律 **404**（不泄漏存在性） |
+| AI Key（D-16） | 管理员初始化必填；教师/管理员 `/profile` 可配；全局 Key 在 `/admin/ai`；AES-GCM 密文；GET 只回掩码（末 4 位）；保存即生效；`test` 临时 Key 不落库；不写日志/审计 |
+| Key 归属 | 作业创建者 Key → 全局 Key；不静默跨 Key 重试；审计只记 `key_source` 与操作者 |
+| Key 生命周期 | 仅 TEACHER/ADMIN 可写；删除/清空需二次确认；密钥轮换只换 `teachloop.security.secret` 时需重填（解密失败给出明确错误） |
 
 ---
 
@@ -686,7 +763,7 @@ MVP 用数据库状态机 + 轮询。将来若换消息队列（RabbitMQ / Redis
 
 - 后端：`MessageSource` + `messages_zh_CN.properties` / `messages_en.properties`；错误统一 `ApiError(code, message, detail)`，`code` 稳定、`message` 本地化。
 - 前端：`react-i18next`，语言存用户资料与 localStorage。
-- 批改语言：`offerings.feedback_language` 决定 prompt 要求模型输出的语言。
+- 批改语言（D-17）：取学生判分时的 `users.locale`，缺失回退 `offerings.feedback_language`，再回退 `zh-CN`。语言放在 user 消息（不破坏 system 前缀缓存），输出做语言合规校验；生成后的反馈不因学生改语言而重写。
 - 静态检查：禁止在 `api/`、`service/` 下出现中文字符串字面量（i18n 资源除外）。
 
 ---
@@ -864,15 +941,26 @@ XLSX/DOCX 由 POI 生成；Markdown/ZIP 不依赖第三方库。
 4. 到点派发 → 复核通过 → 发布
 5. 确认被批改的是**最新一次** attempt，历史仍在
 
-### 18.5 golden set：质量回归
+### 18.5 golden set：质量回归（2026-10-21 强化）
 
-自动化测不出"AI 批得准不准"。维护一个小集子：
+自动化测不出"AI 批得准不准"，但可以测**与人工参考的一致性和契约合规**：
 
-- 挑 10 份**已人工评过分**的真实作业（v1 那批可直接用）
-- 每次改 prompt、换模型、调 temperature，跑一遍
-- 把 AI 分数与人工分数并排放，**人工看偏差分布**
-
-不做自动断言。只记录：平均偏差、最大偏差、偏差方向（系统性偏高还是偏低）。若某次改动让平均偏差明显变大，就回退。
+- 样本：`docs/rubrics/samples` 的 10 份提交 + 人工 review + `Rubric.md`；长度边界项
+  （Genesis/JZ/Maria/Mark）单列，不计入主指标。
+- 每次改 prompt、换模型、调 temperature、改 rubric 结构或长度政策，跑一遍
+  `GradingQualityEvalTest`（`@Tag("ai")`，用真实 `PromptBuilder` + `GradeOutputValidator`）。
+- 指标：
+  - 逐项 exact agreement（三项分别统计）与总分 exact；
+  - 总分 MAE 与偏差方向；
+  - 契约通过率（一次过 / 重试后过 / 失败）；
+  - 原文引用覆盖率（comment 含正文逐字片段的比例）；
+  - 语言合规率（目标语言 vs 实际语言）；
+  - 边界敏感项与「人工参考内部不一致」单列。
+- 闸门（AC-28.10）：非边界样本逐项 exact ≥ 9/10、总分 MAE ≤ 0.5、契约/引用/语言 100%；
+  未达标必须附例外说明，不允许静默上线。
+- 报告：`docs/reports/grading-quality/<date>-<prompt-version>.md`，含每份一行与失败样本原文摘要
+  （不写 Key）。JZ 的人工参考按 D-19 更正为 10/10，旧值在
+  `docs/reports/grading-quality/known-inconsistency.md` 留档。
 
 ### 18.6 本地手工验证
 
@@ -934,6 +1022,8 @@ make seed             # 1 个班 + 30 个学生 + 1 份带标准答案的试卷
 | US-24 | 全局列表与表格约定 | §8、§12 |
 | US-25 | 行操作与详情入口 | §12 |
 | US-26 | 一次布置（考试 / 作业） | §5.0（`offerings` / `offering_classes` / D-14）、§7.6、§3.3 |
+| US-27 | AI 批改质量与密钥 | §6.1（prompt v2）、§6.5（预填/批量）、§6.6（Key 解析）、§6.7（篇幅/语言）、§9、§11、§18.5 |
+| US-28 | 评分标准契约与质量基准 | §5（rubric 快照/锚点/指标）、§6.1、§18.5、§3.3 |
 
 ## 附录 B：本文件与下游文档的约定
 

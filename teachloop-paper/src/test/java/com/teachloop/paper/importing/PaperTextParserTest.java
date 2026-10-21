@@ -411,6 +411,59 @@ class PaperTextParserTest {
         assertThat(result.missingAnswers()).isEmpty();
     }
 
+    /** 阅读材料的 A/B/C/D 标签只用于切分材料，不能出现在题干里（2026-10-21 修）。 */
+    @Test
+    void doesNotPutPassageLabelsIntoStems() {
+        String text = """
+                第二部分 阅读理解
+                A
+                Passage A text first line.
+                Passage A text second line.
+                21. Question A one?
+                A. aa
+                B. bb
+                C. cc
+                22. Question A two?
+                A. aa
+                B. bb
+                C. cc
+                B
+                Passage B text.
+                23. Question B one?
+                A. aa
+                B. bb
+                C. cc
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).hasSize(3);
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::stem).containsExactly(
+                "Passage A text first line.\nPassage A text second line.\n\nQuestion A one?",
+                "Passage A text first line.\nPassage A text second line.\n\nQuestion A two?",
+                "Passage B text.\n\nQuestion B one?");
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::options)
+                .containsOnly("A. aa\nB. bb\nC. cc");
+    }
+
+    /** 卷面自带题号时，标记要连同括号题号一起吸收，别留下「___(9)___ (9)」双写（2026-10-21 修）。 */
+    @Test
+    void absorbsTheQuestionNumberAlreadyWrittenNextToTheBlank() {
+        assertThat(PaperTextParser.labelBlank("but seeing ______ (9) faces", 0, 9))
+                .isEqualTo("but seeing ___(9)___ faces");
+        assertThat(PaperTextParser.labelBlank("（7）______ Keep a notebook", 0, 7))
+                .isEqualTo("___(7)___ Keep a notebook");
+        assertThat(PaperTextParser.labelBlank("only ______ and ______ (7)", 1, 7))
+                .isEqualTo("only ______ and ___(7)___");
+    }
+
+    /** 括号里不是题号时不能吃掉：______ (2019) 是正文。 */
+    @Test
+    void keepsParenthesizedTextThatIsNotTheBlankNumber() {
+        assertThat(PaperTextParser.labelBlank("in ______ (2019) the school was founded", 0, 9))
+                .isEqualTo("in ___(9)___ (2019) the school was founded");
+    }
+
     /** 选择题写非字母答案仍然报错，不静默存成 "C"。 */
     @Test
     void stillRejectsWordAnswerForChoiceQuestion() {

@@ -97,6 +97,16 @@
   <build>
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <!-- 每个测试类一个 JVM：Testcontainers 的容器生命周期与 Spring context 缓存不能跨类复用，
+               否则会拿到已停止容器的数据源（2026-10-21 全量回归出现的 InterruptedException/连接拒绝）。 -->
+          <forkCount>1</forkCount>
+          <reuseForks>false</reuseForks>
+        </configuration>
+      </plugin>
+      <plugin>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-maven-plugin</artifactId>
         <executions>

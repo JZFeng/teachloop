@@ -12,6 +12,7 @@ export {
   BookOutlined,
   CommentOutlined,
   FileTextOutlined,
+  FlagOutlined,
   HighlightOutlined,
   HomeOutlined,
   LogoutOutlined,

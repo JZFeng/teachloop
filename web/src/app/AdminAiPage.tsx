@@ -15,7 +15,7 @@ interface AiSettingsView {
 
 interface TestResult { ok: boolean; latencyMs: number; message: string; model: string }
 
-/** 管理员 AI 设置：保存后需重启应用生效；Key 只显示掩码。 */
+/** 管理员 AI 设置：保存后下一次调用生效；Key 只显示掩码。 */
 export default function AdminAiPage() {
   const { t } = useTranslation('translation')
   const [view, setView] = useState<AiSettingsView | null>(null)

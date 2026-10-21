@@ -25,7 +25,7 @@ public final class SittingDtos {
                                  String feedbackLanguage, Boolean showPeerOverview, Boolean publishScores,
                                  Boolean publish, String gradingPromptTemplate,
                                  String title, String instructions, Integer totalPoints,
-                                 String rubricMarkdown) {
+                                 String rubricMarkdown, String anchorExamples) {
     }
 
     public record OfferingClassView(String classId, String dueAtOverride, Integer durationOverride,
@@ -117,8 +117,21 @@ public final class SittingDtos {
                                 List<ExamPaperItemView> items) {
     }
 
+    /**
+     * 学生端逐题视图。{@code groupKey}/{@code material}/{@code questionStem}/{@code blankIndex}
+     * 是 T321 的展示分组元数据：同一 {@code groupKey} 的题共用材料，材料只在组内第一条带上；
+     * {@code blankIndex} 表示该题是材料里的第几个空。分组不可靠时全部为空，前端按原样渲染。
+     */
     public record ExamPaperItemView(int number, String questionType, BigDecimal points, String stem,
-                                    String options, int sectionPosition, String sectionTitle) {
+                                    String options, int sectionPosition, String sectionTitle,
+                                    String groupKey, String material, String questionStem, Integer blankIndex) {
+
+        /** 兼容既有测试与调用方：不带分组元数据。 */
+        public ExamPaperItemView(int number, String questionType, BigDecimal points, String stem,
+                                 String options, int sectionPosition, String sectionTitle) {
+            this(number, questionType, points, stem, options, sectionPosition, sectionTitle,
+                    null, null, null, null);
+        }
     }
 
     /** 教师端逐份提交表（T182）：姓名经 StudentDirectory 端口取，不跨模块查 users。 */

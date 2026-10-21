@@ -2,7 +2,9 @@ package com.teachloop.grading.engine;
 
 import com.teachloop.grading.ai.DeepSeekLlmClient;
 import com.teachloop.grading.ai.GradeOutputValidator;
+import com.teachloop.grading.ai.LlmCallException;
 import com.teachloop.grading.ai.LlmClient;
+import com.teachloop.grading.ai.LlmClientProvider;
 import com.teachloop.grading.ai.SpringAiLlmClient;
 import com.teachloop.grading.domain.AiCallRepository;
 import com.teachloop.grading.prompt.PromptBuilder;
@@ -11,6 +13,7 @@ import java.util.Optional;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
@@ -86,8 +89,57 @@ public class AiGradingConfig {
         return settings.filter(Ports.AiSettings::configured).orElse(null);
     }
 
+    /**
+     * D-16：按作业创建者解析 Key（本人 → 全局 → 环境变量兜底），每次判分用短生命周期客户端。
+     * 无 Key 时抛 {@link LlmCallException}，由 Worker 标 FAILED，不产生假分。
+     */
     @Bean
-    public GradingEngine aiGradingEngine(LlmClient llmClient, AiCallRepository aiCalls, Clock clock) {
-        return new AiGradingEngine(new PromptBuilder(), new GradeOutputValidator(), llmClient, aiCalls, clock);
+    public GradingEngine aiGradingEngine(
+            AiCallRepository aiCalls, Clock clock,
+            @Value("${teachloop.ai.client:spring-ai}") String clientKind,
+            @Value("${DEEPSEEK_API_KEY:}") String envApiKey,
+            @Value("${teachloop.ai.base-url:https://api.deepseek.com}") String envBaseUrl,
+            @Value("${teachloop.ai.model:deepseek-flash}") String envModel,
+            @Value("${teachloop.ai.temperature:0.2}") BigDecimal envTemperature,
+            @Value("${teachloop.ai.timeout-seconds:180}") int timeoutSeconds,
+            ObjectProvider<Ports.AiSettingsLookup> lookup) {
+        Duration timeout = Duration.ofSeconds(timeoutSeconds);
+        LlmClientProvider provider = new LlmClientProvider() {
+            @Override
+            public LlmClient forTeacher(UUID teacherId) {
+                Ports.AiSettings settings = resolve(teacherId);
+                if ("http".equalsIgnoreCase(clientKind)) {
+                    return new DeepSeekLlmClient(settings.apiKey(), settings.baseUrl(), settings.model(),
+                            settings.temperature(), timeout);
+                }
+                return new SpringAiLlmClient(settings.apiKey(), settings.baseUrl(), settings.model(),
+                        settings.temperature(), timeout);
+            }
+
+            @Override
+            public String source(UUID teacherId) {
+                try {
+                    return resolve(teacherId).source();
+                } catch (LlmCallException ex) {
+                    return null;
+                }
+            }
+
+            private Ports.AiSettings resolve(UUID teacherId) {
+                Ports.AiSettings settings = lookup.getIfAvailable() == null ? null
+                        : lookup.getIfAvailable().resolve(teacherId)
+                        .filter(Ports.AiSettings::configured).orElse(null);
+                if (settings != null) {
+                    return settings;
+                }
+                if (envApiKey == null || envApiKey.isBlank()) {
+                    throw new LlmCallException(
+                            "NO_KEY: 未配置 AI Key，请在个人资料或 /admin/ai 中设置 DeepSeek API Key");
+                }
+                return new Ports.AiSettings("deepseek", envBaseUrl, envModel, envApiKey,
+                        envTemperature, true, "env");
+            }
+        };
+        return new AiGradingEngine(new PromptBuilder(), new GradeOutputValidator(), provider, aiCalls, clock);
     }
 }

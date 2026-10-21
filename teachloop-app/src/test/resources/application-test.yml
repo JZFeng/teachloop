@@ -6,4 +6,5 @@ spring:
     enabled: true
 teachloop:
   grading:
+    engine: stub
     poll-interval-ms: 200

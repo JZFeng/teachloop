@@ -8,6 +8,7 @@ import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.sitting.domain.*;
 import com.teachloop.sitting.service.OfferingGradingDispatcher;
 import com.teachloop.sitting.service.OfferingWindows;
+import com.teachloop.sitting.service.RubricValidator;
 import com.teachloop.sitting.service.SnapshotCodec;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -16,6 +17,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import org.springframework.context.MessageSource;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -30,8 +32,29 @@ import org.springframework.web.bind.annotation.*;
 public class OfferingEndpoint {
 
     /** 作业没填评分标准时的缺省两条（D-14）：仍给 AI 一条可判分的 rubric，不让它自由发挥。 */
-    private static final String DEFAULT_ASSIGNMENT_RUBRIC =
-            "# 评分标准\n- 内容要点：切题，观点明确，结构完整。\n- 语言准确性：语法、用词与拼写准确。";
+    private static final String DEFAULT_ASSIGNMENT_RUBRIC = """
+            # Overall Assignment Rubric
+
+            ## Scoring Rubric
+
+            ### 1. Required Length — 2 points
+            Was it between 1–4 paragraphs (the greeting is merged into the opening paragraph)?
+            - Yes: 2 points
+            - No: 0 points
+
+            ### 2. Clear Position — 4 points
+            Did the learner clearly express an opinion about the statement?
+            - Yes: 4 points
+            - No: 0 points
+
+            ### 3. Explanation and Supporting Details — 4 points
+            Did the learner explain the opinion and incorporate relevant details supporting it?
+            - Yes: 4 points
+            - No: 0 points
+
+            ## Maximum Score
+            10 points
+            """;
 
     private final OfferingRepository offerings;
     private final OfferingClassRepository offeringClasses;
@@ -42,6 +65,7 @@ public class OfferingEndpoint {
     private final Ports.NotificationPort notifications;
     private final Ports.StudentDirectory directory;
     private final SnapshotCodec codec;
+    private final MessageSource messages;
     private final OfferingWindows windows;
     private final OfferingGradingDispatcher dispatcher;
     private final AuditPort audit;
@@ -54,7 +78,7 @@ public class OfferingEndpoint {
                             Ports.PaperCatalog paperCatalog,
                             Ports.ClassMembership membership, Ports.NotificationPort notifications,
                             Ports.StudentDirectory directory,
-                            SnapshotCodec codec, OfferingWindows windows,
+                            SnapshotCodec codec, MessageSource messages, OfferingWindows windows,
                             OfferingGradingDispatcher dispatcher, AuditPort audit, Clock clock,
                             @org.springframework.beans.factory.annotation.Value(
                                     "${teachloop.grading.manual-stale-minutes:1}") long manualStaleMinutes) {
@@ -67,6 +91,7 @@ public class OfferingEndpoint {
         this.notifications = notifications;
         this.directory = directory;
         this.codec = codec;
+        this.messages = messages;
         this.windows = windows;
         this.dispatcher = dispatcher;
         this.audit = audit;
@@ -143,6 +168,8 @@ public class OfferingEndpoint {
         Offering o = new Offering(offeringId, paperId, kind, startAt, dueAt, exam ? duration : null, timing,
                 codec.write(snap), snap.paperVersion(), snap.rubricMarkdown(), body.gradingPromptTemplate(),
                 Instant.now(clock));
+        o.setCreatedBy(me.id());
+        o.setAnchorExamples(trimmed(body.anchorExamples()));
         o.setMaxAttempts(body.maxAttempts() == null ? 3 : body.maxAttempts());
         o.setGraceHours(body.graceHours() == null ? 3 : body.graceHours());
         o.setFeedbackLanguage(body.feedbackLanguage() == null ? "zh-CN" : body.feedbackLanguage());
@@ -506,7 +533,7 @@ public class OfferingEndpoint {
      * <p>形状与考试快照同构，所以阅卷、学生端、汇总、导出都不需要分支；
      * {@code paperId} 用本场 id（只作标识，不指向 {@code papers} 表），{@code paperVersion = 0}。
      */
-    private static Ports.PaperSnapshot standaloneSnapshot(SittingDtos.CreateOffering body, UUID offeringId) {
+    private Ports.PaperSnapshot standaloneSnapshot(SittingDtos.CreateOffering body, UUID offeringId) {
         String title = trimmed(body.title());
         if (title == null) {
             throw ApiException.badRequest("作业标题不能为空");
@@ -522,6 +549,10 @@ public class OfferingEndpoint {
         String rubric = trimmed(body.rubricMarkdown());
         if (rubric == null) {
             rubric = DEFAULT_ASSIGNMENT_RUBRIC;
+        }
+        RubricValidator.Result validation = RubricValidator.validate(rubric, BigDecimal.valueOf(totalPoints));
+        if (!validation.valid()) {
+            throw ApiException.badRequest(RubricIssueText.join(messages, validation.issues()));
         }
         Ports.ItemSpec item = new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", null,
                 BigDecimal.valueOf(totalPoints), instructions, null, 1, "作业要求", "ALL_OR_NOTHING");

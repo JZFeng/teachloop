@@ -245,6 +245,13 @@ export interface ExamPaperItem {
   options: string | null
   sectionPosition: number
   sectionTitle: string | null
+  /** T321：同一 groupKey 的题共用 material；material 只在组内第一条带上。 */
+  groupKey?: string | null
+  material?: string | null
+  /** 阅读题的局部问题（材料已从题干拆出）；其他题为空。 */
+  questionStem?: string | null
+  /** 完形/语法填空：该题是材料里的第几个空，0 起。 */
+  blankIndex?: number | null
 }
 
 export interface ExamPaper {
@@ -377,6 +384,10 @@ export interface ReviewAnswer {
   itemId: string
   number: number
   answer: string
+  /** 提交时落库的对错判定；作文/主观题为 null。 */
+  correct: boolean | null
+  /** 本题实得分；作文/主观题为 null。 */
+  awardedPoints: number | null
 }
 
 export interface ReviewItem {
@@ -409,6 +420,15 @@ export interface ReviewDetail {
   /** T253：AI 逐项意见；AI 未参与时为空数组。 */
   aiCriteria: ReviewCriterion[]
   aiFeedback: string | null
+  aiOverall: string | null
+  aiStrength: string | null
+  aiSuggestion: string | null
+  aiFailure: string | null
+  aiModel: string | null
+  aiPromptVersion: string | null
+  aiKeySource: string | null
+  paragraphCount: number | null
+  paragraphBoundarySensitive: boolean
   review: ReviewView
 }
 
@@ -423,6 +443,40 @@ export interface BulkApproveResult {
   approved: number
   skipped: number
   total: number
+}
+
+export interface BulkApproveSkip {
+  submissionId: string
+  reason: string
+}
+
+export interface BulkApprovePreview {
+  total: number
+  approvable: number
+  skipped: number
+  minScore: number | null
+  maxScore: number | null
+  skippedItems: BulkApproveSkip[]
+}
+
+export interface ProfileAiSettings {
+  provider: string
+  baseUrl: string
+  model: string
+  temperature: string
+  apiKeySet: boolean
+  apiKeyMasked: string | null
+  source: 'user' | 'global' | 'none'
+  globalConfigured: boolean
+  updatedAt: string | null
+  restartRequired: boolean
+}
+
+export interface AiTestResult {
+  ok: boolean
+  latencyMs: number
+  message: string
+  model: string
 }
 
 export interface AuditView {

@@ -47,6 +47,8 @@ class ExplanationEngineTest {
         assertThat(text).isEqualTo("B 正确，因为……");
         assertThat(llm.requests).hasSize(1);
         LlmClient.LlmRequest request = llm.requests.get(0);
+        // 解析是纯文本：必须关掉判分链路的 JSON 模式，否则学生看到的是 {"解析": "..."}
+        assertThat(request.json()).isFalse();
         assertThat(request.system()).contains("纯文本").contains("120");
         assertThat(request.user())
                 .contains("Question type: SINGLE_CHOICE")

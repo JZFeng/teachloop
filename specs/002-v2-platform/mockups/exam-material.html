@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>答题页材料分组 · 可点击原型</title>
+<style>
+  :root{
+    --bg:#eef2f8; --panel:#fff; --panel-2:#f8fafc;
+    --line:#e2e8f1; --line-2:#edf1f7;
+    --text:#141a24; --muted:#667283; --muted-2:#7b8798;
+    --accent:#2563eb; --accent-weak:#e8f0ff; --accent-line:#b9cffa;
+    --done:#2563eb; --done-bg:#e7effd; --done-line:#9fc0f8;
+    --amber:#b45309; --amber-weak:#fef3c7; --amber-line:#f2c46b;
+    --green:#0f766e; --green-weak:#e6f4f1;
+    --shadow:0 1px 2px rgba(16,24,40,.05), 0 2px 8px rgba(16,24,40,.05);
+    --shadow-lg:0 12px 40px rgba(16,24,40,.16);
+    --radius:12px; --radius-sm:8px;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    --serif:"Iowan Old Style",Georgia,"Times New Roman",serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{background:var(--bg);color:var(--text);font:14px/1.75 var(--font);-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit}
+  .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:14px;
+    padding:10px 20px;background:rgba(255,255,255,.94);border-bottom:1px solid var(--line);
+    backdrop-filter:blur(8px)}
+  .topbar .title{font-weight:700;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:24vw}
+  .pill{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 12px;
+    font-size:12.5px;color:var(--muted);white-space:nowrap}
+  .pill b{color:var(--text)}
+  .pill.warn{color:#8a4b09;border-color:var(--amber-line);background:var(--amber-weak)}
+  .spacer{flex:1}
+  .seg{display:flex;border:1px solid var(--line);border-radius:9px;overflow:hidden;background:var(--panel)}
+  .seg button{border:0;background:transparent;padding:6px 12px;font-size:12.5px;cursor:pointer;color:var(--muted)}
+  .seg button[aria-selected="true"]{background:var(--accent);color:#fff;font-weight:650}
+  .btn{border:1px solid var(--line);background:var(--panel);border-radius:8px;padding:6px 13px;
+    font-size:13px;cursor:pointer;white-space:nowrap}
+  .btn:hover{border-color:var(--accent-line);color:var(--accent)}
+  .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:650}
+  .btn.pri:hover{filter:brightness(1.04);color:#fff}
+  .btn.ghost{background:transparent;border-color:transparent;color:var(--muted)}
+  .btn.sm{padding:4px 10px;font-size:12.5px}
+  .layout{display:flex;align-items:flex-start;gap:0;min-height:calc(100vh - 53px)}
+  .tree{width:228px;flex:0 0 228px;position:sticky;top:53px;height:calc(100vh - 53px);overflow:auto;
+    padding:16px 12px 40px;border-right:1px solid var(--line);background:var(--panel)}
+  .tree h3{margin:0 8px 8px;font-size:14px}
+  .tree .sub{font-size:11px;color:var(--muted-2);margin:0 8px 14px}
+  .tree-part{display:flex;align-items:center;gap:6px;width:100%;border:0;background:none;
+    padding:6px 8px;font-size:12px;font-weight:700;color:var(--muted);cursor:default;text-align:left}
+  .tree-part .count{margin-left:auto;font-weight:400;color:var(--muted-2)}
+  .tree-kids{display:flex;flex-wrap:wrap;gap:6px;padding:2px 8px 10px}
+  .tree-node{width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);
+    background:var(--panel);color:var(--muted);font-size:11.5px;font-weight:650;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;position:relative;padding:0}
+  .tree-node:hover{border-color:var(--accent)}
+  .tree-node.done{background:var(--done);border-color:var(--done);color:#fff}
+  .tree-node.marked::after{content:"";position:absolute;right:-2px;top:-2px;width:8px;height:8px;
+    border-radius:50%;background:var(--amber);border:2px solid var(--panel)}
+  .tree-node.current{outline:2px solid var(--accent);outline-offset:1px}
+  .tree-label{font-size:11px;color:var(--muted-2);width:100%;margin:8px 0 0}
+  .paper-wrap{flex:1;min-width:0;padding:22px 26px 90px}
+  .paper{max-width:860px;margin:0 auto}
+  .note{display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--accent-line);
+    background:var(--accent-weak);border-radius:10px;padding:10px 14px;font-size:12.5px;color:#334155;margin-bottom:18px}
+  .note b{color:var(--accent);white-space:nowrap;flex:0 0 auto}
+  .part{margin:26px 0 8px}
+  .part h2{display:flex;align-items:baseline;gap:10px;font-size:17px;margin:0 0 4px}
+  .part h2 .pts{font-size:12px;font-weight:400;color:var(--muted)}
+  .subhead{display:flex;align-items:baseline;gap:10px;margin:14px 0 10px;font-size:13px;font-weight:700;color:var(--muted)}
+  .subhead .pts{font-weight:400;color:var(--muted-2)}
+  .material{border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);
+    box-shadow:var(--shadow);margin:0 0 12px;overflow:hidden}
+  .material-head{display:flex;align-items:center;gap:10px;padding:9px 16px;background:var(--panel-2);
+    border-bottom:1px solid var(--line-2);font-size:11.5px;color:var(--muted);font-weight:700;letter-spacing:.02em}
+  .material-head .tag{margin-left:auto;font-weight:400;letter-spacing:0;
+    border:1px solid var(--line);border-radius:999px;padding:1px 8px;background:var(--panel)}
+  .material-hint{padding:8px 20px 0;font-size:12px;color:var(--muted)}
+  .material-body{padding:12px 20px 16px;font-family:var(--serif);font-size:16.5px;line-height:1.95;color:#1f2937}
+  .material-body p{margin:0 0 12px}
+  .material-body p:last-child{margin-bottom:0}
+  .q-card{border-top:1px dashed var(--line);padding:16px 0 14px;scroll-margin-top:70px}
+  .q-card:first-of-type{border-top:0}
+  .q-card.current{background:linear-gradient(90deg,var(--accent-weak),transparent 70%);border-radius:8px}
+  .q-head{display:flex;gap:10px;align-items:flex-start}
+  .q-num{flex:0 0 30px;width:30px;height:30px;border-radius:50%;border:1.5px solid var(--line);
+    display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:var(--accent);background:var(--panel)}
+  .q-card.done .q-num{background:var(--done);border-color:var(--done);color:#fff}
+  .q-body{min-width:0;flex:1}
+  .q-stem{margin:2px 0 8px;font-weight:650;line-height:1.85}
+  .opts{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}
+  .opt{display:inline-flex;align-items:center;gap:8px;border:1px dashed var(--line);background:var(--panel);
+    border-radius:9px;padding:6px 12px 6px 8px;cursor:pointer;font-size:13.5px;text-align:left}
+  .opt:hover{border-color:var(--accent-line);border-style:solid}
+  .opt b{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;border-radius:50%;
+    background:var(--panel-2);border:1px solid var(--line);font-size:11px;color:var(--muted)}
+  .opt.on{border-style:solid;border-color:var(--done-line);background:var(--done-bg);font-weight:650}
+  .opt.on b{background:var(--done);border-color:var(--done);color:#fff}
+  .q-foot{display:flex;align-items:center;gap:10px;margin-top:8px}
+  .mark{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);
+    border-radius:7px;padding:3px 10px;font-size:12px;color:var(--muted);cursor:pointer}
+  .mark:hover{border-color:var(--amber-line);color:var(--amber)}
+  .mark.on{border-color:var(--amber-line);background:var(--amber-weak);color:var(--amber);font-weight:650}
+  .answered-badge{font-size:12px;color:var(--muted-2)}
+  .blank{display:inline-flex;align-items:baseline;gap:3px;border:0;border-bottom:2px dashed var(--accent-line);
+    background:transparent;border-radius:4px 4px 0 0;padding:0 5px 1px;margin:0 2px;cursor:pointer;
+    font-family:var(--font);font-size:.86em;font-weight:650;color:var(--accent);line-height:1.5;vertical-align:baseline}
+  .blank:hover{border-bottom-style:solid;background:var(--accent-weak)}
+  .blank .bno{font-size:10px;font-weight:600;opacity:.7;letter-spacing:.02em}
+  .blank:not(.answered)::after{content:"▾";font-size:9px;opacity:.5;margin-left:1px}
+  .blank.answered{background:var(--done-bg);border-bottom:2px solid var(--done-line);color:var(--text)}
+  .blank.answered .bval{font-weight:800;color:var(--done)}
+  .blank.marked{box-shadow:inset 0 -2px 0 var(--amber)}
+  .blank.current{outline:2px solid var(--accent);outline-offset:1px}
+  .fill-wrap{display:inline-flex;align-items:center;gap:4px;margin:0 3px;vertical-align:baseline}
+  .fill-wrap .bno{font-size:10px;font-weight:700;color:var(--accent);opacity:.75}
+  .fill-input{border:0;border-bottom:2px dashed var(--accent-line);background:transparent;
+    font-family:var(--font);font-size:14px;text-align:center;padding:1px 4px;border-radius:4px 4px 0 0;
+    min-width:74px;max-width:130px;color:var(--text);outline:none}
+  .fill-input::placeholder{color:#aab4c3;font-size:11px;font-weight:400}
+  .fill-input:focus{background:var(--accent-weak);border-bottom-style:solid}
+  .fill-input.filled{background:var(--done-bg);border-bottom:2px solid var(--done-line);font-weight:650}
+  .fill-wrap.current .fill-input{outline:2px solid var(--accent);outline-offset:2px}
+  .flag{border:0;background:transparent;font-size:12px;color:var(--muted-2);opacity:.35;cursor:pointer;padding:0 2px}
+  .flag:hover{opacity:1;color:var(--amber)}
+  .flag.on{opacity:1;color:var(--amber)}
+  .popover{position:fixed;z-index:60;width:330px;background:var(--panel);border:1px solid var(--line);
+    border-radius:12px;box-shadow:var(--shadow-lg);padding:12px;display:none}
+  .popover.open{display:block}
+  .pop-head{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px}
+  .pop-head .pop-num{color:var(--accent)}
+  .pop-close{margin-left:auto;border:0;background:transparent;font-size:16px;line-height:1;color:var(--muted-2);cursor:pointer}
+  .pop-opts{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+  .pop-opt{display:flex;align-items:center;gap:8px;border:1px solid var(--line);background:var(--panel);
+    border-radius:8px;padding:7px 9px;font-size:13px;cursor:pointer;text-align:left}
+  .pop-opt:hover{border-color:var(--accent-line);background:var(--accent-weak)}
+  .pop-opt b{display:inline-flex;align-items:center;justify-content:center;width:19px;height:19px;border-radius:50%;
+    background:var(--panel-2);border:1px solid var(--line);font-size:11px;color:var(--muted);flex:0 0 19px}
+  .pop-opt.on{border-color:var(--done-line);background:var(--done-bg);font-weight:650}
+  .pop-opt.on b{background:var(--done);border-color:var(--done);color:#fff}
+  .pop-foot{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:9px;border-top:1px solid var(--line-2)}
+  .pop-foot .hint{font-size:11px;color:var(--muted-2);margin-right:auto}
+  .old-note{display:none;margin:0 0 12px;padding:10px 14px;border:1px dashed var(--amber-line);
+    background:var(--amber-weak);border-radius:10px;font-size:12.5px;color:#7c3f06}
+  body[data-mode="old"] .old-note{display:block}
+  .old-stem{font-family:var(--serif);font-size:15px;line-height:1.85;color:#26303f;margin:4px 0 8px;
+    border-left:3px solid var(--line);padding-left:12px}
+  .old-stem .own{background:var(--amber-weak);border-bottom:2px solid var(--amber-line);padding:0 3px;border-radius:3px}
+  .modal-back{position:fixed;inset:0;background:rgba(14,22,38,.42);display:none;align-items:center;justify-content:center;z-index:80;padding:20px}
+  .modal-back.open{display:flex}
+  .modal{background:var(--panel);border-radius:14px;box-shadow:var(--shadow-lg);max-width:520px;width:100%;padding:20px}
+  .modal h3{margin:0 0 6px;font-size:16px}
+  .modal p{margin:0 0 12px;color:var(--muted);font-size:13px}
+  .miss{display:flex;flex-wrap:wrap;gap:6px;max-height:190px;overflow:auto;margin-bottom:14px}
+  .miss button{border:1px solid var(--amber-line);background:var(--amber-weak);color:#7c3f06;border-radius:6px;
+    padding:2px 9px;font-size:12px;cursor:pointer}
+  .modal .actions{display:flex;justify-content:flex-end;gap:8px}
+  .footer-hint{max-width:860px;margin:22px auto 0;color:var(--muted-2);font-size:11.5px;text-align:center}
+  @media (max-width:1020px){
+    .tree{display:none}
+    .paper-wrap{padding:16px 14px 80px}
+    .topbar .title{max-width:34vw}
+    .material-body{font-size:15.5px;padding:14px 16px}
+  }
+</style>
+</head>
+<body data-mode="new">
+
+<header class="topbar">
+  <div class="title">P1_withAnswers</div>
+  <span class="pill">剩余 <b>1:27:21</b></span>
+  <span class="pill">已答 <b id="done-count">0</b> / 28</span>
+  <div class="spacer"></div>
+  <div class="seg" role="tablist" aria-label="布局对照">
+    <button role="tab" id="tab-new" aria-selected="true" onclick="setMode('new')">新布局</button>
+    <button role="tab" id="tab-old" aria-selected="false" onclick="setMode('old')">旧布局对照</button>
+  </div>
+  <button class="btn sm" onclick="toggleMark(currentQ())">标记本题</button>
+  <button class="btn sm pri" onclick="openSubmit()">提交试卷</button>
+</header>
+
+<div class="layout">
+  <aside class="tree" aria-label="试卷目录">
+    <h3>P1_withAnswers</h3>
+    <div class="sub">已答 <span id="tree-done">0</span> / 28 · 标记 <span id="tree-marked">0</span></div>
+    <div class="tree-part">第二部分 阅读理解 <span class="count">7.5 分</span></div>
+    <div class="tree-kids" id="tree-reading"></div>
+    <div class="tree-part">第三部分 英语知识运用 <span class="count">30 分</span></div>
+    <div class="tree-label">第一节 完形填空 41–55</div>
+    <div class="tree-kids" id="tree-cloze"></div>
+    <div class="tree-label">第二节 语法填空 56–65</div>
+    <div class="tree-kids" id="tree-fill"></div>
+  </aside>
+
+  <div class="paper-wrap">
+    <div class="paper">
+      <div class="note">
+        <b>可点击原型</b>
+        <span>范围只画 21–23、41–55、56–65（其余题号略）。点原文里的空选答案，键盘 A–D 也可选，Esc 关闭；右上角可切换「旧布局对照」看重复材料的体量。</span>
+      </div>
+
+      <section class="part" aria-label="阅读理解">
+        <h2>第二部分 阅读理解 <span class="pts">21–23 题 · 每题 2.5 分</span></h2>
+        <div class="material">
+          <div class="material-head"><span>材料 A</span><span class="tag">第 21–23 题共用</span></div>
+          <div class="material-body" id="reading-material"></div>
+        </div>
+        <div id="reading-questions"></div>
+      </section>
+
+      <section class="part" aria-label="英语知识运用">
+        <h2>第三部分 英语知识运用 <span class="pts">41–65 题</span></h2>
+
+        <div class="subhead">第一节 完形填空 <span class="pts">41–55 题 · 每题 1 分</span></div>
+        <div class="old-note">旧布局对照：下面这段 1,223 字的文章原本会在 41–55 每题开头各出现一次（共 15 份）。</div>
+        <div id="cloze-host"></div>
+
+        <div class="subhead">第二节 语法填空 <span class="pts">56–65 题 · 每题 1.5 分</span></div>
+        <div class="old-note">旧布局对照：这段 1,091 字的文章原本会在 56–65 每题开头各出现一次（共 10 份）。</div>
+        <div id="fill-host"></div>
+      </section>
+
+      <div class="footer-hint">原型说明：答案只保存在本页内存，刷新即清空；不写入任何真实数据。</div>
+    </div>
+  </div>
+</div>
+
+<div class="popover" id="popover" role="dialog" aria-label="选择答案">
+  <div class="pop-head"><span class="pop-num" id="pop-num"></span><span id="pop-points"></span><button class="pop-close" onclick="closePopover()" aria-label="关闭">×</button></div>
+  <div class="pop-opts" id="pop-opts"></div>
+  <div class="pop-foot">
+    <span class="hint">A–D 直接选 · Esc 关闭</span>
+    <button class="btn sm" id="pop-mark" onclick="toggleMark(state.popFor)">标记本题</button>
+    <button class="btn sm ghost" onclick="clearAnswer(state.popFor)">清除</button>
+  </div>
+</div>
+
+<div class="modal-back" id="submit-back" onclick="if(event.target===this)closeSubmit()">
+  <div class="modal" role="dialog" aria-modal="true" aria-label="提交检查">
+    <h3>提交前检查</h3>
+    <p id="submit-summary"></p>
+    <div class="miss" id="submit-miss"></div>
+    <div class="actions">
+      <button class="btn" onclick="closeSubmit()">继续作答</button>
+      <button class="btn pri" onclick="closeSubmit()">仍然提交（原型）</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = {"cloze": {"passage": "I walked into the room. 20 years have gone by since I left high school, but seeing ______ faces brought me back to my youth at once.\n\"Dreamlike\" is the best word to ______ my 20-year high school reunion. ______ and excited, I recognized many ______. No one seemed to ______! The women all looked the same as before, and the men too.\nThe high school years are filled with ______. It's a period in life when you are trying to know who you are, or simply trying to ______ with others. There are disagreements and there is plenty of stress. But here's the thing: none of that ______ years later. It doesn't matter whether you were popular or had straight A's.\n20 years later, none of that matters. ______ isn't measured by the car that you drive or how much money you make. Success is what holds real ______ in your life—your happiness, your family and your relationships.\nSuccess is living ______ and making a difference. As I said my goodbyes, I took one last look at this ______. There's something special about your teenage friends. You can recognize easily, even if it's been 20 years since you ______. I'm thankful for the ______ I made as a teenager. I'll see you all in 10 years and hear where ______ takes us next.", "options": {"41": ["A. old", "B. famous", "C. different", "D. fresh"], "42": ["A. change", "B. describe", "C. organize", "D. forget"], "43": ["A. Tired", "B. Annoyed", "C. Nervous", "D. Frightened"], "44": ["A. neighbors", "B. leaders", "C. advisers", "D. classmates"], "45": ["A. agree", "B. move", "C. care", "D. age"], "46": ["A. challenges", "B. information", "C. hope", "D. ideas"], "47": ["A. discuss", "B. fit in", "C. work", "D. check in"], "48": ["A. appears", "B. fails", "C. matters", "D. ends"], "49": ["A. Truth", "B. Success", "C. Kindness", "D. Knowledge"], "50": ["A. meaning", "B. money", "C. control", "D. interest"], "51": ["A. quietly", "B. comfortably", "C. bravely", "D. fully"], "52": ["A. school", "B. family", "C. couple", "D. group"], "53": ["A. registered", "B. graduated", "C. explored", "D. designed"], "54": ["A. friendships", "B. decisions", "C. promises", "D. progress"], "55": ["A. history", "B. education", "C. life", "D. society"]}}, "fill": {"passage": "Entering senior high school is an exciting but ______ (challenge) experience for many teenagers. On the first day, I felt a mix of ______ (anxious) and excitement because everything was new. However, our teacher, an expert in education, gave us a warm welcome and told us to be confident.\nTo get used to the new environment quickly, I decided to register ______ some extra-curricular activities. I joined ______ school debate club, where I made many new friends. We often exchange ideas with each other. My new partner, Li Hua, is an outgoing boy who is always curious about new environment. He is responsible and never leaves others alone ______ they are in trouble. Sometimes, his loud voice makes me ______ (frighten), but I know he is kind-hearted.\nBesides ______ (make) friends, I also need to focus on my studies. Our teachers recommend us ______ (take) notes carefully in class. Although the subjects are much ______ (advance) than before, I am determined to face the challenges. I believe that as long as I work hard, I ______ (leave) a good impression on my teachers and classmates."}, "reading": {"passage": "Welcome to join our Summer Youth Language Program to improve English language skills, make new friends worldwide, and have a good time here! Space is limited and first come, first served! So if you are interested, sign up as soon as possible.\nDates | Costs\n5-week program | June 14 — July 15 | $1600\n5-week program | July 19 — August 19 | $1600\n10-week program | July 14 — August 19 | $3000\nYou can also study with us for shorter periods:\n4-week program: $1300\n3-week program: $1000\nDiscounts:\nThere is a 10% discount for each extra family member.\nProgram Schedule:\nMonday to Thursday, in the morning from 9 a.m to 2 p.m, you can join the all-age English class, where you will meet international students. In the afternoon from 2 to 3 p.m, have fun after-school activities, like soccer in the park, a visit to Science Museum and a story writing competition.\nThings to Bring:\nClothes: Shirts, a jacket, long pants, a swimsuit, and comfortable shoes.\nOther things: A camera phone, and photos of friends or family.\nStudy materials: Notebooks, pens and pencils.\nDon't bring foods and snacks to avoid any unwanted fees.", "questions": {"21": {"stem": "How much should you pay if you and your brother attend a five-week program?", "options": ["A. $3200", "B. $2470", "C. $3000", "D. $3040"]}, "22": {"stem": "What will students do at ten in the morning on Tuesday during the program?", "options": ["A. Play soccer.", "B. Have English classes.", "C. Visit the museum.", "D. Enjoy fun activities."]}, "23": {"stem": "What should a student bring?", "options": ["A. Necessary clothes.", "B. Snacks.", "C. Foods.", "D. A computer."]}}}};
+const READING = [21,22,23];
+const CLOZE = Array.from({length:15},(_,i)=>41+i);
+const FILL = Array.from({length:10},(_,i)=>56+i);
+const ALL = [...READING,...CLOZE,...FILL];
+const POINTS = n => READING.includes(n) ? 2.5 : (CLOZE.includes(n) ? 1 : 1.5);
+const state = { answers:{}, marked:new Set(), current:null, mode:'new', popFor:null };
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isAnswered = n => (state.answers[n] || '').trim() !== '';
+const fmtPoints = p => Number.isInteger(p) ? p + ' 分' : p.toFixed(1) + ' 分';
+
+function parseOption(raw){
+  const m = raw.match(/^([A-G])\.\s*(.*)$/);
+  return m ? { key:m[1], text:m[2] } : { key:'', text:raw };
+}
+function optionList(n){
+  if (CLOZE.includes(n)) return DATA.cloze.options[n].map(parseOption);
+  return DATA.reading.questions[n].options.map(parseOption);
+}
+
+/* ---------------- reading ---------------- */
+function renderReading(){
+  $('#reading-material').innerHTML = DATA.reading.passage.split('\n').map(p=>`<p>${esc(p)}</p>`).join('');
+  const host = $('#reading-questions');
+  host.innerHTML = '';
+  for (const n of READING){
+    const q = DATA.reading.questions[n];
+    const card = document.createElement('article');
+    card.className = 'q-card';
+    card.id = 'q-' + n;
+    card.dataset.q = n;
+    card.innerHTML = `
+      <div class="q-head">
+        <span class="q-num">${n}</span>
+        <div class="q-body">
+          <p class="q-stem">${esc(q.stem)}</p>
+          <div class="opts" role="radiogroup" aria-label="第 ${n} 题">
+            ${optionList(n).map(o=>`<button class="opt" data-answer="${n}" data-opt="${o.key}" aria-pressed="false"><b>${o.key}</b><span>${esc(o.text)}</span></button>`).join('')}
+          </div>
+          <div class="q-foot">
+            <button class="mark" data-mark="${n}">⚑ <span>标记本题</span></button>
+            <span class="answered-badge" data-done-badge="${n}"></span>
+          </div>
+        </div>
+      </div>`;
+    host.appendChild(card);
+  }
+}
+
+/* ---------------- cloze / fill: new (inline) ---------------- */
+function renderPassage(host, passage, numbers, kind){
+  host.innerHTML = '';
+  const card = document.createElement('div');
+  card.className = 'material';
+  const hint = kind === 'choice' ? '从每题所给选项中选出最佳选项。' : '在每个空处填写括号内单词的正确形式。';
+  card.innerHTML = `<div class="material-head"><span>材料 · ${kind==='choice'?'完形填空':'语法填空'}</span><span class="tag">第 ${numbers[0]}–${numbers[numbers.length-1]} 题共用</span></div><div class="material-hint">${hint}</div><div class="material-body" id="${kind}-material"></div>`;
+  host.appendChild(card);
+  const body = card.querySelector('.material-body');
+  let idx = 0;
+  body.innerHTML = passage.split('\n').map(line=>{
+    let html = '', last = 0, m;
+    const re = /_{3,}/g;
+    while ((m = re.exec(line))){
+      html += esc(line.slice(last, m.index));
+      const n = numbers[idx++];
+      html += kind === 'choice' ? blankChoice(n) : blankFill(n);
+      last = m.index + m[0].length;
+    }
+    html += esc(line.slice(last));
+    return `<p>${html}</p>`;
+  }).join('');
+  if (idx !== numbers.length){
+    const warn = document.createElement('p');
+    warn.style.cssText = 'color:#b45309;font-size:12px;font-family:var(--font)';
+    warn.textContent = `原型提示：这段文字有 ${idx} 个空，题号有 ${numbers.length} 个。`;
+    body.appendChild(warn);
+  }
+}
+
+function blankChoice(n){
+  return `<button class="blank" id="q-${n}" data-q="${n}" data-kind="choice" aria-label="第 ${n} 空">
+    <span class="bno">${n}</span><span class="bval">—</span>
+  </button>`;
+}
+function blankFill(n){
+  return `<span class="fill-wrap" id="q-${n}" data-q="${n}">
+    <span class="bno">${n}</span>
+    <input class="fill-input" data-fill="${n}" size="7" aria-label="第 ${n} 空，填写单词">
+    <button class="flag" data-mark="${n}" title="标记本题" aria-label="标记第 ${n} 题">⚑</button>
+  </span>`;
+}
+
+/* ---------------- cloze / fill: old (repeated material) ---------------- */
+function oldStem(passage, ownNumber, numbers){
+  let idx = 0;
+  let out = '', last = 0, m;
+  const re = /_{3,}/g;
+  while ((m = re.exec(passage))){
+    out += esc(passage.slice(last, m.index));
+    const n = numbers[idx++];
+    const token = n === ownNumber ? `<span class="own">[${n}]</span>` : '______';
+    out += token;
+    last = m.index + m[0].length;
+  }
+  out += esc(passage.slice(last));
+  return out;
+}
+function renderOldGroup(host, passage, numbers, kind){
+  host.innerHTML = '';
+  for (const n of numbers){
+    const card = document.createElement('article');
+    card.className = 'q-card';
+    card.id = 'q-' + n;
+    card.dataset.q = n;
+    const options = kind === 'choice'
+      ? `<div class="opts">${optionList(n).map(o=>`<button class="opt" data-answer="${n}" data-opt="${o.key}" aria-pressed="false"><b>${o.key}</b><span>${esc(o.text)}</span></button>`).join('')}</div>`
+      : `<div style="margin:6px 0"><span class="bno" style="font-size:10px;color:var(--accent)">${n}</span>
+           <input class="fill-input" data-fill="${n}" size="10" aria-label="第 ${n} 空，填写单词">
+         </div>`;
+    card.innerHTML = `
+      <div class="q-head">
+        <span class="q-num">${n}</span>
+        <div class="q-body">
+          <div class="old-stem">${oldStem(passage, n, numbers)}</div>
+          ${options}
+          <div class="q-foot">
+            <button class="mark" data-mark="${n}">⚑ <span>标记本题</span></button>
+            <span class="answered-badge" data-done-badge="${n}"></span>
+            <span class="answered-badge">· ${fmtPoints(POINTS(n))}</span>
+          </div>
+        </div>
+      </div>`;
+    host.appendChild(card);
+  }
+}
+
+function renderGroups(){
+  if (state.mode === 'new'){
+    renderPassage($('#cloze-host'), DATA.cloze.passage, CLOZE, 'choice');
+    renderPassage($('#fill-host'), DATA.fill.passage, FILL, 'fill');
+  } else {
+    renderOldGroup($('#cloze-host'), DATA.cloze.passage, CLOZE, 'choice');
+    renderOldGroup($('#fill-host'), DATA.fill.passage, FILL, 'fill');
+  }
+  syncAll();
+}
+
+/* ---------------- state sync ---------------- */
+function syncAll(){
+  for (const n of ALL) syncItem(n);
+  syncTree();
+  syncProgress();
+}
+function syncItem(n){
+  document.querySelectorAll(`[data-q="${n}"]`).forEach(el=>{
+    el.classList.toggle('current', state.current === n);
+    el.classList.toggle('marked', state.marked.has(n));
+  });
+  document.querySelectorAll(`[data-answer="${n}"]`).forEach(btn=>{
+    const on = (state.answers[n] || '').toUpperCase() === btn.dataset.opt;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  document.querySelectorAll(`[data-fill="${n}"]`).forEach(input=>{
+    if (input.value !== (state.answers[n] || '')) input.value = state.answers[n] || '';
+    input.classList.toggle('filled', isAnswered(n));
+  });
+  document.querySelectorAll(`[data-done-badge="${n}"]`).forEach(el=>{
+    el.textContent = isAnswered(n) ? '已答' : '';
+  });
+  document.querySelectorAll(`[data-mark="${n}"]`).forEach(btn=>{
+    const on = state.marked.has(n);
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    const span = btn.querySelector('span');
+    if (span) span.textContent = on ? '已标记' : '标记本题';
+  });
+  if (CLOZE.includes(n)){
+    const blank = document.querySelector(`.blank[data-q="${n}"]`);
+    if (blank){
+      blank.classList.toggle('answered', isAnswered(n));
+      const val = blank.querySelector('.bval');
+      if (val) val.textContent = isAnswered(n) ? state.answers[n].toUpperCase() : '—';
+    }
+  }
+  const card = document.getElementById('q-' + n);
+  if (card && card.classList.contains('q-card')) card.classList.toggle('done', isAnswered(n));
+}
+function syncTree(){
+  for (const n of ALL){
+    document.querySelectorAll(`[data-tree-q="${n}"]`).forEach(el=>{
+      el.classList.toggle('done', isAnswered(n));
+      el.classList.toggle('marked', state.marked.has(n));
+      el.classList.toggle('current', state.current === n);
+    });
+  }
+}
+function syncProgress(){
+  const done = ALL.filter(isAnswered).length;
+  $('#done-count').textContent = done;
+  $('#tree-done').textContent = done;
+  $('#tree-marked').textContent = state.marked.size;
+}
+function setCurrent(n){
+  if (state.current === n) return;
+  state.current = n;
+  syncAll();
+}
+
+/* ---------------- actions ---------------- */
+function setAnswer(n, value){
+  state.answers[n] = value;
+  syncItem(n); syncTree(); syncProgress();
+}
+function clearAnswer(n){
+  state.answers[n] = '';
+  syncItem(n); syncTree(); syncProgress();
+  if (state.popFor === n) closePopover();
+}
+function toggleMark(n){
+  if (n == null) return;
+  if (state.marked.has(n)) state.marked.delete(n); else state.marked.add(n);
+  syncItem(n); syncTree(); syncProgress();
+  if (state.popFor === n) syncPopMark();
+}
+function currentQ(){ return state.current; }
+
+/* ---------------- popover ---------------- */
+function openPopover(n, anchor){
+  state.popFor = n;
+  setCurrent(n);
+  const opts = optionList(n);
+  $('#pop-num').textContent = `第 ${n} 空`;
+  $('#pop-points').textContent = `· ${fmtPoints(POINTS(n))}`;
+  $('#pop-opts').innerHTML = opts.map(o=>`<button class="pop-opt" data-pop-opt="${o.key}" aria-pressed="false"><b>${o.key}</b><span>${esc(o.text)}</span></button>`).join('');
+  const pop = $('#popover');
+  pop.classList.add('open');
+  syncPopMark();
+  syncPopOptions();
+  const r = anchor.getBoundingClientRect();
+  const width = 330;
+  let left = Math.min(Math.max(8, r.left - 10), window.innerWidth - width - 8);
+  pop.style.left = left + 'px';
+  pop.style.top = '0px';
+  const height = pop.offsetHeight;
+  let top = r.bottom + 8;
+  if (top + height > window.innerHeight - 8) top = Math.max(8, r.top - height - 8);
+  pop.style.top = top + 'px';
+  document.querySelectorAll('[data-pop-opt]').forEach(btn=>{
+    btn.onclick = () => { setAnswer(n, btn.dataset.popOpt); closePopover(); };
+  });
+}
+function syncPopMark(){
+  const btn = $('#pop-mark');
+  if (!btn || state.popFor == null) return;
+  const on = state.marked.has(state.popFor);
+  btn.textContent = on ? '已标记' : '标记本题';
+  btn.style.borderColor = on ? 'var(--amber-line)' : '';
+  btn.style.background = on ? 'var(--amber-weak)' : '';
+  btn.style.color = on ? 'var(--amber)' : '';
+}
+function syncPopOptions(){
+  if (state.popFor == null) return;
+  document.querySelectorAll('[data-pop-opt]').forEach(btn=>{
+    const on = (state.answers[state.popFor] || '').toUpperCase() === btn.dataset.popOpt;
+    btn.classList.toggle('on', on);
+    btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+}
+function closePopover(){
+  state.popFor = null;
+  $('#popover').classList.remove('open');
+}
+
+/* ---------------- tree / jump ---------------- */
+function buildTree(){
+  const fill = (host, numbers) => {
+    host.innerHTML = numbers.map(n=>`<button class="tree-node" data-tree-q="${n}" onclick="jump(${n})" title="第 ${n} 题">${n}</button>`).join('');
+  };
+  fill($('#tree-reading'), READING);
+  fill($('#tree-cloze'), CLOZE);
+  fill($('#tree-fill'), FILL);
+}
+function jump(n){
+  const el = document.getElementById('q-' + n);
+  if (!el) return;
+  el.scrollIntoView({behavior:'smooth', block:'center'});
+  setCurrent(n);
+  window.setTimeout(()=>{
+    const blank = document.querySelector(`.blank[data-q="${n}"]`);
+    if (blank) openPopover(n, blank);
+    const input = document.querySelector(`[data-fill="${n}"]`);
+    if (input) input.focus({preventScroll:true});
+    const opt = document.querySelector(`#q-${n} [data-answer="${n}"]`);
+    if (opt) opt.focus({preventScroll:true});
+  }, 380);
+}
+
+/* ---------------- mode ---------------- */
+function setMode(mode){
+  if (state.mode === mode) return;
+  state.mode = mode;
+  document.body.dataset.mode = mode;
+  $('#tab-new').setAttribute('aria-selected', mode==='new' ? 'true' : 'false');
+  $('#tab-old').setAttribute('aria-selected', mode==='old' ? 'true' : 'false');
+  closePopover();
+  renderGroups();
+  if (state.current) setCurrent(state.current);
+}
+
+/* ---------------- submit ---------------- */
+function openSubmit(){
+  const missing = ALL.filter(n=>!isAnswered(n));
+  $('#submit-summary').textContent = `已答 ${ALL.length-missing.length} / ${ALL.length} 题${missing.length ? '，还有 ' + missing.length + ' 题未作答：' : '，全部作答完毕。'}`;
+  $('#submit-miss').innerHTML = missing.map(n=>`<button onclick="closeSubmit();jump(${n})">${n}</button>`).join('');
+  $('#submit-back').classList.add('open');
+}
+function closeSubmit(){ $('#submit-back').classList.remove('open'); }
+
+/* ---------------- delegation ---------------- */
+document.addEventListener('click', (e)=>{
+  const blank = e.target.closest('.blank');
+  if (blank){ openPopover(Number(blank.dataset.q), blank); return; }
+  const opt = e.target.closest('[data-answer]');
+  if (opt){ const n = Number(opt.dataset.answer); setAnswer(n, opt.dataset.opt); return; }
+  const mark = e.target.closest('[data-mark]');
+  if (mark){ toggleMark(Number(mark.dataset.mark)); return; }
+  const node = e.target.closest('[data-tree-q]');
+  if (node){ jump(Number(node.dataset.treeQ)); return; }
+  if (!e.target.closest('#popover')) closePopover();
+  const card = e.target.closest('.q-card');
+  if (card) setCurrent(Number(card.dataset.q));
+});
+document.addEventListener('input', (e)=>{
+  const input = e.target.closest('[data-fill]');
+  if (!input) return;
+  const n = Number(input.dataset.fill);
+  setAnswer(n, input.value);
+  setCurrent(n);
+});
+document.addEventListener('focusin', (e)=>{
+  const input = e.target.closest('[data-fill]');
+  if (input) setCurrent(Number(input.dataset.fill));
+});
+document.addEventListener('keydown', (e)=>{
+  if (document.getElementById('submit-back').classList.contains('open')){
+    if (e.key === 'Escape') closeSubmit();
+    return;
+  }
+  if (state.popFor != null){
+    const key = e.key.toUpperCase();
+    if (/^[A-D]$/.test(key)){
+      setAnswer(state.popFor, key);
+      closePopover();
+      e.preventDefault();
+      return;
+    }
+    if (e.key === 'Escape'){ closePopover(); e.preventDefault(); return; }
+  }
+  if (e.key === 'm' || e.key === 'M'){
+    toggleMark(state.current);
+  }
+});
+
+/* ---------------- boot ---------------- */
+renderReading();
+buildTree();
+renderGroups();
+setMode('new');
+</script>
+</body>
+</html>

@@ -21,7 +21,8 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /** T030：生产 profile 下开发替身登录必须 503。 */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = "teachloop.grading.engine=ai")
 @ActiveProfiles("prod")
 @Testcontainers
 class ProdAuthTest {

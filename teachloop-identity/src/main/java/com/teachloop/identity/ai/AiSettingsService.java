@@ -35,14 +35,23 @@ public class AiSettingsService {
     public record TestResult(boolean ok, long latencyMs, String message, String model) {
     }
 
+    /** 个人 AI 设置页需要的字段；永远不回完整 Key。 */
+    public record UserView(String provider, String baseUrl, String model, String temperature,
+                           boolean apiKeySet, String apiKeyMasked, String source,
+                           boolean globalConfigured, String updatedAt, boolean restartRequired) {
+    }
+
     private final AiSettingsRepository repo;
+    private final UserAiSettingsRepository userRepo;
     private final SecretBox secretBox;
     private final ObjectMapper mapper;
     private final Clock clock;
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(10)).build();
 
-    public AiSettingsService(AiSettingsRepository repo, SecretBox secretBox, ObjectMapper mapper, Clock clock) {
+    public AiSettingsService(AiSettingsRepository repo, UserAiSettingsRepository userRepo,
+                             SecretBox secretBox, ObjectMapper mapper, Clock clock) {
         this.repo = repo;
+        this.userRepo = userRepo;
         this.secretBox = secretBox;
         this.mapper = mapper;
         this.clock = clock;
@@ -60,8 +69,104 @@ public class AiSettingsService {
         return repo.findById(1).map(e -> {
             String key = secretBox.decrypt(e.getApiKeyCipher());
             return new Ports.AiSettings(e.getProvider(), e.getBaseUrl(), e.getModel(), key,
-                    e.getTemperature(), key != null && !key.isBlank());
+                    e.getTemperature(), key != null && !key.isBlank(), "global");
         });
+    }
+
+    /**
+     * D-16：教师个人 Key 优先，缺失回退管理员全局 Key。
+     * 未配置时返回 empty，由 grading 标 NO_KEY，绝不生成假分。
+     */
+    public Optional<Ports.AiSettings> resolve(UUID teacherId) {
+        if (teacherId != null) {
+            Optional<Ports.AiSettings> own = userRepo.findById(teacherId).map(e -> {
+                String key = secretBox.decrypt(e.getApiKeyCipher());
+                return new Ports.AiSettings(e.getProvider(), e.getBaseUrl(), e.getModel(), key,
+                        e.getTemperature(), key != null && !key.isBlank(), "user");
+            });
+            if (own.isPresent() && own.get().configured()) {
+                return own;
+            }
+        }
+        return lookup().filter(Ports.AiSettings::configured);
+    }
+
+    public UserView userView(UUID userId) {
+        Optional<UserAiSettingsEntity> own = userRepo.findById(userId);
+        Optional<AiSettingsEntity> global = repo.findById(1);
+        String key = own.map(e -> secretBox.decrypt(e.getApiKeyCipher())).orElse(null);
+        boolean ownConfigured = key != null && !key.isBlank();
+        String globalKey = global.map(e -> secretBox.decrypt(e.getApiKeyCipher())).orElse(null);
+        boolean globalConfigured = globalKey != null && !globalKey.isBlank();
+        String provider = own.map(UserAiSettingsEntity::getProvider)
+                .orElseGet(() -> global.map(AiSettingsEntity::getProvider).orElse("deepseek"));
+        String baseUrl = own.map(UserAiSettingsEntity::getBaseUrl)
+                .orElseGet(() -> global.map(AiSettingsEntity::getBaseUrl).orElse("https://api.deepseek.com"));
+        String model = own.map(UserAiSettingsEntity::getModel)
+                .orElseGet(() -> global.map(AiSettingsEntity::getModel).orElse("deepseek-flash"));
+        BigDecimal temperature = own.map(UserAiSettingsEntity::getTemperature)
+                .orElseGet(() -> global.map(AiSettingsEntity::getTemperature).orElse(new BigDecimal("0.20")));
+        String source = ownConfigured ? "user" : (globalConfigured ? "global" : "none");
+        String updatedAt = own.map(e -> e.getUpdatedAt().toString())
+                .orElseGet(() -> global.map(e -> e.getUpdatedAt().toString()).orElse(null));
+        return new UserView(provider, baseUrl, model, temperature.stripTrailingZeros().toPlainString(),
+                ownConfigured || globalConfigured, ownConfigured ? mask(key) : null,
+                source, globalConfigured, updatedAt, false);
+    }
+
+    @Transactional
+    public UserView updateUser(UUID userId, UUID actorId, UpdateRequest req) {
+        Optional<AiSettingsEntity> global = repo.findById(1);
+        UserAiSettingsEntity e = userRepo.findById(userId).orElseGet(() -> new UserAiSettingsEntity(
+                userId,
+                req.provider() == null || req.provider().isBlank() ? "deepseek" : req.provider().strip(),
+                global.map(AiSettingsEntity::getBaseUrl).orElse("https://api.deepseek.com"),
+                global.map(AiSettingsEntity::getModel).orElse("deepseek-flash"),
+                null,
+                global.map(AiSettingsEntity::getTemperature).orElse(new BigDecimal("0.20")),
+                clock.instant(), actorId));
+        if (req.provider() != null && !req.provider().isBlank()) e.setProvider(req.provider().strip());
+        if (req.baseUrl() != null && !req.baseUrl().isBlank()) {
+            String url = req.baseUrl().strip();
+            if (!url.startsWith("http://") && !url.startsWith("https://")) {
+                throw ApiException.badRequest("baseUrl 必须以 http:// 或 https:// 开头");
+            }
+            e.setBaseUrl(url);
+        }
+        if (req.model() != null && !req.model().isBlank()) e.setModel(req.model().strip());
+        if (req.temperature() != null) {
+            if (req.temperature().signum() < 0 || req.temperature().compareTo(BigDecimal.ONE) > 0) {
+                throw ApiException.badRequest("temperature 必须在 0–1 之间");
+            }
+            e.setTemperature(req.temperature());
+        }
+        if (req.apiKey() != null && !req.apiKey().isBlank()) {
+            e.setApiKeyCipher(secretBox.encrypt(req.apiKey().strip()));
+        }
+        e.setUpdatedAt(clock.instant());
+        e.setUpdatedBy(actorId);
+        userRepo.save(e);
+        return userView(userId);
+    }
+
+    public TestResult testUser(UUID userId, TestRequest req) {
+        String key = req.apiKey() == null || req.apiKey().isBlank()
+                ? storedUserKey(userId) : req.apiKey().strip();
+        if (key == null || key.isBlank()) {
+            key = storedGlobalKey();
+        }
+        if (key == null || key.isBlank()) {
+            return new TestResult(false, 0, "还没有保存 API Key", req.model());
+        }
+        return testWith(req, key);
+    }
+
+    private String storedUserKey(UUID userId) {
+        return userRepo.findById(userId).map(e -> secretBox.decrypt(e.getApiKeyCipher())).orElse(null);
+    }
+
+    private String storedGlobalKey() {
+        return repo.findById(1).map(e -> secretBox.decrypt(e.getApiKeyCipher())).orElse(null);
     }
 
     @Transactional
@@ -91,19 +196,24 @@ public class AiSettingsService {
         return new View(e.getProvider(), e.getBaseUrl(), e.getModel(),
                 e.getTemperature().stripTrailingZeros().toPlainString(),
                 req.apiKey() != null && !req.apiKey().isBlank(), mask(req.apiKey()),
-                e.getUpdatedAt().toString(), true);
+                e.getUpdatedAt().toString(), false);
     }
 
     /** 用提交值或已保存值测试；异常也转成 ok=false，不把 Key 写日志。 */
     public TestResult test(TestRequest req) {
         AiSettingsEntity e = repo.findById(1).orElseThrow();
-        String baseUrl = req.baseUrl() == null || req.baseUrl().isBlank() ? e.getBaseUrl() : req.baseUrl().strip();
-        String model = req.model() == null || req.model().isBlank() ? e.getModel() : req.model().strip();
         String key = req.apiKey() == null || req.apiKey().isBlank()
                 ? secretBox.decrypt(e.getApiKeyCipher()) : req.apiKey().strip();
         if (key == null || key.isBlank()) {
-            return new TestResult(false, 0, "还没有保存 API Key", model);
+            return new TestResult(false, 0, "还没有保存 API Key", req.model());
         }
+        return testWith(req, key);
+    }
+
+    private TestResult testWith(TestRequest req, String key) {
+        AiSettingsEntity e = repo.findById(1).orElseThrow();
+        String baseUrl = req.baseUrl() == null || req.baseUrl().isBlank() ? e.getBaseUrl() : req.baseUrl().strip();
+        String model = req.model() == null || req.model().isBlank() ? e.getModel() : req.model().strip();
         long started = System.nanoTime();
         try {
             String body = mapper.writeValueAsString(Map.of(

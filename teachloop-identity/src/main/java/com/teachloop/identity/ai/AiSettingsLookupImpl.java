@@ -18,4 +18,9 @@ public class AiSettingsLookupImpl implements Ports.AiSettingsLookup {
     public Optional<Ports.AiSettings> current() {
         return service.lookup();
     }
+
+    @Override
+    public Optional<Ports.AiSettings> resolve(java.util.UUID teacherId) {
+        return service.resolve(teacherId);
+    }
 }

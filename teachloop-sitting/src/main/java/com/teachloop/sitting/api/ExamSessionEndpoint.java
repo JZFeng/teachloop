@@ -1,12 +1,14 @@
 package com.teachloop.sitting.api;
 
 import com.teachloop.shared.audit.AuditEvent;
+import com.teachloop.shared.text.BlankText;
 import com.teachloop.shared.audit.AuditPort;
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.port.Ports;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.sitting.domain.*;
 import com.teachloop.sitting.service.ExamSessionService;
+import com.teachloop.sitting.service.MaterialGrouper;
 import com.teachloop.sitting.service.VideoProbe;
 import com.teachloop.sitting.service.VideoRules;
 import com.teachloop.sitting.service.OfferingWindows;
@@ -120,9 +122,11 @@ public class ExamSessionEndpoint {
         requireParticipant(o, me);
         Ports.PaperSnapshot snap = codec.read(o.getPaperSnapshot());
         OfferingWindows.Window window = windows.forStudent(o, me.id());
-        List<SittingDtos.ExamPaperItemView> items = snap.items().stream()
-                .map(i -> new SittingDtos.ExamPaperItemView(i.number(), i.questionType(), i.points(),
-                        i.stem(), i.options(), i.sectionPosition(), i.sectionTitle()))
+        List<SittingDtos.ExamPaperItemView> items = MaterialGrouper.group(snap.items()).stream()
+                .map(g -> new SittingDtos.ExamPaperItemView(g.item().number(), g.item().questionType(),
+                        g.item().points(), g.item().stem(), g.item().options(),
+                        g.item().sectionPosition(), g.item().sectionTitle(),
+                        g.groupKey(), g.material(), g.questionStem(), g.blankIndex()))
                 .toList();
         return new SittingDtos.ExamPaperView(o.getId().toString(), snap.title(), snap.totalPoints(),
                 window.durationMinutes(), items);
@@ -170,7 +174,8 @@ public class ExamSessionEndpoint {
                                 : explanations.getIfAvailable()
                                         .explanationOf(spec.itemId(), o.getFeedbackLanguage()).orElse(null);
                         return new SittingDtos.FeedbackWrongItem(a.getNumber(), spec.questionType(),
-                                spec.points(), spec.stem(), a.getAnswer(), spec.answerKey(), explanation);
+                                spec.points(), BlankText.forText(spec.stem()), a.getAnswer(),
+                                spec.answerKey(), explanation);
                     })
                     .toList();
             review = note

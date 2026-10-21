@@ -3,6 +3,7 @@ package com.teachloop.grading.engine;
 import com.teachloop.grading.ai.GradeOutputValidator;
 import com.teachloop.grading.ai.InvalidGradeOutputException;
 import com.teachloop.grading.ai.LlmClient;
+import com.teachloop.grading.ai.LlmClientProvider;
 import com.teachloop.grading.domain.AiCall;
 import com.teachloop.grading.domain.AiCallRepository;
 import com.teachloop.grading.prompt.PromptBuilder;
@@ -33,15 +34,21 @@ public class AiGradingEngine implements GradingEngine {
 
     private final PromptBuilder promptBuilder;
     private final GradeOutputValidator validator;
-    private final LlmClient llm;
+    private final LlmClientProvider clients;
     private final AiCallRepository aiCalls;
     private final Clock clock;
 
+    /** 兼容旧测试/调用：固定客户端。 */
     public AiGradingEngine(PromptBuilder promptBuilder, GradeOutputValidator validator, LlmClient llm,
                            AiCallRepository aiCalls, Clock clock) {
+        this(promptBuilder, validator, (LlmClientProvider) teacherId -> llm, aiCalls, clock);
+    }
+
+    public AiGradingEngine(PromptBuilder promptBuilder, GradeOutputValidator validator,
+                           LlmClientProvider clients, AiCallRepository aiCalls, Clock clock) {
         this.promptBuilder = promptBuilder;
         this.validator = validator;
-        this.llm = llm;
+        this.clients = clients;
         this.aiCalls = aiCalls;
         this.clock = clock;
     }
@@ -60,11 +67,16 @@ public class AiGradingEngine implements GradingEngine {
             if (attempt > 1) {
                 user = prompt.user() + correction(request.feedbackLanguage(), lastFailure.getMessage());
             }
+            LlmClient llm = clients.forTeacher(item.createdBy());
             LlmClient.LlmResponse response = llm.complete(
                     new LlmClient.LlmRequest(prompt.system(), user));
             recordCall(prompt.promptVersion(), response);
             try {
-                return validator.validate(response.content(), request);
+                Ports.GradingResult result = validator.validate(response.content(), request);
+                return new Ports.GradingResult(result.objectivePoints(), result.subjectivePoints(),
+                        result.criteria(), result.feedback(), result.explanations(),
+                        result.overall(), result.strength(), result.suggestion(),
+                        response.model(), prompt.promptVersion(), clients.source(item.createdBy()));
             } catch (InvalidGradeOutputException ex) {
                 lastFailure = ex;
                 log.warn("AI 输出不合法（第 {} 次）: {}", attempt, ex.getMessage());

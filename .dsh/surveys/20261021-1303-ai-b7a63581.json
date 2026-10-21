@@ -1,0 +1,700 @@
+{
+  "v": 1,
+  "surveyId": "b7a63581-15b2-4dc3-b8c2-5dec8883d82a",
+  "sessionId": "session-90deffae-0b56-4260-9d07-37e224f0fb38",
+  "outcome": "answered",
+  "settledAt": 1792612980620,
+  "title": "批改质量：从假分数到可信的 AI 复核",
+  "answers": [
+    {
+      "id": "q1_scope",
+      "selected": [
+        "a"
+      ]
+    },
+    {
+      "id": "q2_failure",
+      "selected": [],
+      "custom": "在系统初始化set up的时候，就要让管理员输入api key（目前支持deepseek就行了）。教师登入系统的时候，如果没有api key，直接让老师设置api key。这个api key 也放在profile页面，用户可以自由设置。但是不能明文显示key。"
+    },
+    {
+      "id": "q3_language",
+      "selected": [
+        "c"
+      ]
+    },
+    {
+      "id": "q4_rubric",
+      "selected": [],
+      "custom": "我们每次创建作业的时候，不是都让老师输入rubric的吗？优先用作业本身的rubric。系统的rubric.md是fallback。另外，我们先review一下default rubric。"
+    },
+    {
+      "id": "q5_length",
+      "selected": [],
+      "custom": "前面的greeting可以不作为段落。"
+    },
+    {
+      "id": "q6_anchors",
+      "selected": [],
+      "custom": "没看懂这个问题啥意思"
+    },
+    {
+      "id": "q7_adoption",
+      "selected": [],
+      "custom": "a这个答案不错。基本原则就是prepolulated with ai feedback,老师最后审核提交。30个学生，老师点30次。但是吧，也支持老师批量approve"
+    }
+  ],
+  "path": [
+    "q1_scope",
+    "q2_failure",
+    "q3_language",
+    "q4_rubric",
+    "q5_length",
+    "q6_anchors",
+    "q7_adoption"
+  ],
+  "spec": {
+    "title": "批改质量：从假分数到可信的 AI 复核",
+    "intro": "这轮要定的是「AI 批改到底怎么判、给谁看、怎么证明它可信」。\n\n截图里的 7.5 分不是 AI 打的，是 `StubGradingEngine` 的固定 `0.75 × 10`；真实 AI 既没配 Key（`ai_settings.api_key_cipher` 为空），`application.yml` 也把引擎写死成 `stub`。所以现在不是「提示词差一点」，而是根本没有 AI，评语里的 `stub：按固定比例给分` 也直接展示成了「AI 建议分」。\n\n下面 7 个决定会落到 spec/plan：质量改造范围、失败表现、反馈语言、评分标准录入、篇幅判定、锚点、教师采纳方式。约 4 分钟；每题都有推荐项，也可以一键套用下方模板。",
+    "entry": "q1_scope",
+    "questions": {
+      "q1_scope": {
+        "prompt": "这一轮的质量改造做到哪一步？",
+        "header": "范围",
+        "detail": "质量不止是提示词。假分数、评分标准、长度判定、学生最终看到的文字是四条独立链路。选哪一档决定 spec/plan 的范围，以及这轮是否动代码。对照：`docs/research/2026-10-21-grading-quality.md`。",
+        "options": [
+          {
+            "key": "a",
+            "label": "只出规范",
+            "description": "把缺口写成可验收的 spec、plan、tasks，不改业务代码，等你看完再决定实现。",
+            "insight": "- **Pattern:** 先把四条链路写成验收标准，再动代码；符合本仓库「规范未确认前不写业务代码」的红线。\n- **Proven at:** 本项目上一次直接实现 v1 被叫停并回退（AGENTS.md 红线），返工成本高于一次 spec 评审。\n- **Breaks when:** 只出文档没有失败表现与质量阈值，下一轮实现仍会各自猜口径。\n- **Here now:** `specs/002-v2-platform/spec.md` 的 US-11/AC-11 已经写了 AI 判分，但没有「证据引用、语言、长度政策、质量闸门」的验收。",
+            "sources": [
+              "docs/research/2026-10-21-grading-quality.md",
+              "specs/002-v2-platform/spec.md",
+              "AGENTS.md"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "可信核心",
+            "description": "只做真引擎、提示词 v2、输出校验、失败状态和评估脚本，评分标准录入与班级汇总留到下一轮。",
+            "insight": "- **Pattern:** 先消除假分数，再提高单份 review 的文本质量；范围小、可一次验收。\n- **Proven at:** 本地探针里，当前提示词（若真跑）总分已接近人工；差距在「中文、无引用、泛泛而谈」的评语，提示词 v2 能直接补上。\n- **Breaks when:** 评分标准仍可能是默认的空壳模板，模型再强也只能按空标准判。\n- **Here now:** `PromptBuilder.PROMPT_VERSION = subjective-v1`，`GradeOutputValidator` 只校验名称/顺序/分数/总分，不校验证据与语言。",
+            "sources": [
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/PromptBuilder.java",
+              "teachloop-grading/src/main/java/com/teachloop/grading/ai/GradeOutputValidator.java",
+              "docs/research/2026-10-21-grading-quality.md"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "核心 + 评分标准校验与反馈语言",
+            "description": "在可信核心上加：评分标准解析校验、「AI 将看到」预览、导入 Rubric.md、每条作业显式选反馈语言。",
+            "insight": "- **Pattern:** 把评分标准当成提示词契约的一部分：录入时就校验分值之和、判定规则、缺项，而不是等到判分时才发现。\n- **Proven at:** 物理考试研究里，细粒度、结构清晰的 rubric 比 holistic 评分更一致（arXiv:2604.12227）；Rubric.md 的 2/4/4 正是这种结构。\n- **Breaks when:** 教师仍可用无分值、无描述的空模板，模型会按平均分猜满分。\n- **Here now:** 默认模板是 `# 评分标准\n- 内容要点：\n- 语言准确性：`，没有分值；`RubricCriteria` 缺失分值时按剩余满分均分。",
+            "sources": [
+              "web/src/locales/zh-CN.json",
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/RubricCriteria.java",
+              "docs/rubrics/Rubric.md",
+              "https://arxiv.org/abs/2604.12227"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "核心 + 班级 AI 汇总",
+            "description": "在可信核心上加：班级层面的共同优点、共同问题、3 条教学建议，对应手动跑里的 `class_summary.txt`。",
+            "insight": "- **Pattern:** 单份 review 之外，教师还需要班级层面的教学决策输入；手动 prompt 的 class_summary 就是这个产物。\n- **Proven at:** Gradescope/CoGrader 这类批改工作流都把「逐份结果 → 教师复核 → 汇总/导出」作为完整链路（docs/research/2026-10-18-ai-batch-grading-web.md）。\n- **Breaks when:** 单份 review 还不稳定就先做汇总，汇总会把错误放大成教学建议。\n- **Here now:** 现有班级汇总只统计分数与正确率，没有 AI 生成的共同优点/问题/教学建议；`class_summary.txt` 只在手动资产里。",
+            "sources": [
+              "docs/research/2026-10-18-ai-batch-grading-web.md",
+              "teaching_english/HOMEWORK/reviews/class_summary.txt",
+              "teachloop-report/src/main/java"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "全做：核心 + 评分标准 + 班级汇总",
+            "description": "三条一起做，交付一个从录入标准到班级建议的完整质量闭环。",
+            "insight": "- **Pattern:** 一次把「标准 → 单份 → 班级」打通，减少中间版本的口径漂移。\n- **Proven at:** HITL 研究里的流水线就是 rubric → feedback → alignment/risk → lecturer review → audit，班级汇总在末端（Zenodo 22234876）。\n- **Breaks when:** 范围过大，单份质量还没验收就并行做汇总与编辑器，容易一起返工。\n- **Here now:** 当前 spec 里班级汇总（T191/T192）与 AI 判分（T080–T085）是两条线，没有共享的 AI 质量与证据契约。",
+            "sources": [
+              "https://zenodo.org/records/22234876",
+              "specs/002-v2-platform/tasks.md",
+              "teachloop-grading/src/main/java/com/teachloop/grading"
+            ]
+          }
+        ],
+        "next": "q2_failure"
+      },
+      "q2_failure": {
+        "prompt": "没有 API Key、调用失败或输出不合规时，系统应该怎么表现？",
+        "header": "失败表现",
+        "detail": "当前默认引擎是 `stub`，没有 Key 也能「判分」并把 0.75×10 展示成 AI 建议分。这是截图里 7.5、4.5/6、3/4 的唯一来源。",
+        "options": [
+          {
+            "key": "a",
+            "label": "硬失败：不出分，标「AI 未完成」",
+            "description": "不产生任何 AI 分数或评语；提交标为失败原因可见，教师可直接人工判分。",
+            "insight": "- **Pattern:** 失败就如实失败，人工判分是 D-15 的一等路径；数字永远来自真实模型或教师。\n- **Proven at:** spec 边界表已写「AI Key 未配置或错误 → 真实判分失败，不产生假分数」，与 Gradescope 的「AI 出错不阻塞人工评分」一致。\n- **Breaks when:** 失败状态没有入口可恢复，教师只能等；需要「重试 / 转人工」按钮。\n- **Here now:** `GradingWorker` 会 `markFailed`，但 UI 没有把失败原因放在显眼位置；`ReviewPage` 的 AI 区块只区分「有草稿 / 未参与」。",
+            "sources": [
+              "specs/002-v2-platform/spec.md",
+              "teachloop-grading/src/main/java/com/teachloop/grading/service/GradingWorker.java",
+              "web/src/teacher/ReviewPage.tsx"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "保留 stub，但明确标「开发替身」",
+            "description": "本地开发仍可用固定比例出分，界面与审计都标注「开发替身，不是 AI」，学生端不可见。",
+            "insight": "- **Pattern:** 替身只服务开发与演示，必须与真实评分在视觉、数据、文案上可区分。\n- **Proven at:** 当前 `StubGradingEngine` 的注释与 `stub engine：这不是真实评分结果` 文案本来就是这个意图，只是 UI 把它当成了 AI。\n- **Breaks when:** 一旦部署到测试台或演示环境，替身分仍可能被当成真实分；靠文案无法完全防误用。\n- **Here now:** `application.yml` 无条件下 `engine: stub`；`StubGradingEngine` 硬编码 `内容要点/语言准确性`，与真实 rubric 无关。",
+            "sources": [
+              "teachloop-grading/src/main/java/com/teachloop/grading/engine/StubGradingEngine.java",
+              "teachloop-app/src/main/resources/application.yml",
+              "web/src/teacher/ReviewPage.tsx"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "自动转人工队列",
+            "description": "AI 不可用时完全不显示 AI 区块，提交直接进入教师的待判分队列。",
+            "insight": "- **Pattern:** 把「AI 不可用」降级成普通的「未判分」，教师不需要理解 AI 状态。\n- **Proven at:** D-15 已经允许任何已交卷提交不走 AI、直接人工判分；这条路径在 T243/T244 已实现。\n- **Breaks when:** 教师以为 AI 已经处理过，实际上没有；需要明确的状态与队列计数。\n- **Here now:** `ReviewEndpoint.reviewOrCreate` 会懒建 PENDING 行，`aiSubjectiveDraft` 为空即「AI 未参与」；但批改总览的排队口径仍以 grading_state 为准。",
+            "sources": [
+              "specs/002-v2-platform/spec.md",
+              "teachloop-grading/src/main/java/com/teachloop/grading/api/ReviewEndpoint.java",
+              "web/src/teacher/GradingOverviewPage.tsx"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "排队重试并告警管理员",
+            "description": "AI 失败先重试并通知管理员，期间显示「AI 排队中」，不显示任何分数。",
+            "insight": "- **Pattern:** 把可恢复的失败（缺 Key、限流、超时）与不可恢复的失败分开，前者重试并告警。\n- **Proven at:** spec 的失败重试路径要求「模型输出不合规重试 1 次；仍失败标 failed」；管理员 AI 设置页已有测试连接。\n- **Breaks when:** 无限重试会堆积队列；需要上限与退避。\n- **Here now:** `GradingWorker` 只重试「输出不合规」一次；调用失败不重试，直接 FAILED；`/admin/ai` 有测试连接但不告警。",
+            "sources": [
+              "specs/002-v2-platform/spec.md",
+              "teachloop-grading/src/main/java/com/teachloop/grading/engine/AiGradingEngine.java",
+              "web/src/app/AdminAiPage.tsx"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "教师每次选择是否用演示分",
+            "description": "在界面上让教师显式选择「用替身演示」或「人工判分」，演示分单独标记。",
+            "insight": "- **Pattern:** 把演示能力交给教师显式触发，而不是默认兜底。\n- **Proven at:** 本项目已有「AI 可选、人工判分一阶路径」的 D-15 决策，显式演示比隐式兜底更符合它。\n- **Breaks when:** 教师误点演示分并发布，学生看到的是假分；需要二次确认与发布闸门。\n- **Here now:** 复核页只有「采用 AI 建议分」按钮，没有「演示」入口，也没有发布前的 AI 来源提示。",
+            "sources": [
+              "specs/002-v2-platform/spec.md",
+              "web/src/teacher/ReviewPage.tsx",
+              "teachloop-grading/src/main/java/com/teachloop/grading/domain/Review.java"
+            ]
+          }
+        ],
+        "next": "q3_language"
+      },
+      "q3_language": {
+        "prompt": "英文写作的反馈语言怎么定？",
+        "header": "反馈语言",
+        "detail": "现在 `offerings.feedback_language` 默认 `zh-CN`，作业创建页也没暴露；真实 AI 会给英文作文写中文评语，而你给的 `Alejandro_review.txt` 是英文。",
+        "options": [
+          {
+            "key": "a",
+            "label": "每条作业显式选，默认跟随评分标准语言",
+            "description": "创建作业时可选中文/英文，默认按 rubric 语言预填；复核页显示当前语言。",
+            "insight": "- **Pattern:** 语言是作业属性，不是全局默认；英文写作的反馈默认英文最符合教学场景。\n- **Proven at:** 手动跑的 Rubric.md 与全部 10 份 review 都是英文；`Grading_Prompt.md` 要求英文输出格式。\n- **Breaks when:** 教师用中文 rubric 教英文写作，默认值会选错；仍需要可改。\n- **Here now:** `offering.feedback_language` 默认 `zh-CN`，作业创建表单没有这个字段；英文 rubric 的作业仍写中文评语。",
+            "sources": [
+              "docs/rubrics/samples/reviews/Alejandro_review.txt",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/Offering.java",
+              "web/src/teacher/AssignmentCreatePage.tsx"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "跟随评分标准语言，不给选择",
+            "description": "rubric 是英文就英文反馈，中文就中文，减少一个需要教师理解的设置。",
+            "insight": "- **Pattern:** 一条规则覆盖大多数场景，设置面更小。\n- **Proven at:** 手动跑的 rubric 与反馈语言完全一致，没有出现混用。\n- **Breaks when:** 双语 rubric、或教师希望用中文向英文 rubric 的学生解释时，无法覆盖。\n- **Here now:** `RubricCriteria` 已按 `feedbackLanguage` 选回退名称，说明代码里已有「语言跟随」的雏形。",
+            "sources": [
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/RubricCriteria.java",
+              "docs/rubrics/Rubric.md",
+              "docs/rubrics/samples/reviews/Alejandro_review.txt"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "跟随学生界面语言",
+            "description": "学生用中文界面就中文反馈，英文界面就英文反馈。",
+            "insight": "- **Pattern:** 反馈语言服务于学生理解，按学生偏好走。\n- **Proven at:** 产品已有 `/profile` 界面语言偏好，学生端可以复用。\n- **Breaks when:** 英语写作课的目标语言是英语，学生中文界面会得到中文反馈，偏离写作教学目标。\n- **Here now:** 学生语言偏好存在 identity/profile，但 `WorkItem.feedbackLanguage` 取的是 offering，不取学生偏好。",
+            "sources": [
+              "web/src/app/ProfilePage.tsx",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/Offering.java",
+              "teachloop-shared/src/main/java/com/teachloop/shared/port/Ports.java"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "跟随教师界面语言",
+            "description": "教师用中文就生成中文反馈，英文就英文，批改工作台最省心。",
+            "insight": "- **Pattern:** 反馈语言跟批改者一致，教师复核成本最低。\n- **Proven at:** 复核页的 UI 文案已经按教师语言切换，AI 评语跟随后台可减少一次翻译。\n- **Breaks when:** 英语写作课的学生需要英文反馈，教师中文界面会产出中文反馈。\n- **Here now:** 教师端 i18n 已有 zh/en，但 AI 反馈语言不从教师偏好读取。",
+            "sources": [
+              "web/src/locales/zh-CN.json",
+              "web/src/locales/en.json",
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/PromptBuilder.java"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "按正文自动检测",
+            "description": "英文正文用英文反馈，中文正文用中文反馈，不需要设置。",
+            "insight": "- **Pattern:** 零配置，默认行为对大多数单语作业正确。\n- **Proven at:** 10 份样本都是英文正文，人工 review 也全是英文；自动检测在这些样本上不会出错。\n- **Breaks when:** 中英混写、引用中文材料、或英语课上学生用中文写作时，检测结果与教学目标不一致。\n- **Here now:** 当前没有任何语言检测；`SubjectiveGradeRequest.DEFAULT_LANGUAGE = zh-CN`。",
+            "sources": [
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/SubjectiveGradeRequest.java",
+              "docs/rubrics/samples/submissions",
+              "docs/rubrics/samples/reviews"
+            ]
+          }
+        ],
+        "next": "q4_rubric"
+      },
+      "q4_rubric": {
+        "prompt": "评分标准的录入与校验做到什么程度？",
+        "header": "评分标准",
+        "detail": "手动跑的 Rubric.md 有 3 条二元标准、分值 2/4/4、总分 10；系统默认模板只有两条没有分值的标题，`RubricCriteria` 会把总分平均分给它们。对照：`docs/rubrics/Rubric.md`。",
+        "options": [
+          {
+            "key": "a",
+            "label": "Markdown + 校验 + 预览 + 导入",
+            "description": "保留 Markdown 编辑，创建时解析评分项与分值，校验总和等于总分，展示「AI 将看到」的最终文本，并支持导入 Rubric.md。",
+            "insight": "- **Pattern:** 最小改动获得最大的可靠性：评分标准仍是教师熟悉的 Markdown，但录入时就被机器校验。\n- **Proven at:** 物理考试研究显示 rubric 粒度与清晰度是可靠性主因，提示词格式是次要因素（arXiv:2604.12227）；Rubric.md 本身已经是结构良好的 2/4/4。\n- **Breaks when:** 校验只能看分值与名称，无法判断描述质量；需要「无描述/无判定规则」的警告。\n- **Here now:** `RubricCriteria.parse` 已能解析名称与满分，但作业创建页不展示解析结果，也不阻止空模板。",
+            "sources": [
+              "docs/rubrics/Rubric.md",
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/RubricCriteria.java",
+              "web/src/teacher/AssignmentCreatePage.tsx",
+              "https://arxiv.org/abs/2604.12227"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "结构化评分项编辑器",
+            "description": "把评分项做成表单：名称、满分、判定规则、分档描述；保存时生成 Markdown，AI 与 UI 都读结构化数据。",
+            "insight": "- **Pattern:** 结构化 rubric 是评测研究里最稳的输入；也便于校验、迁移、复用。\n- **Proven at:** Rulers 的核心就是锁定 task-level rubric specification 再执行（arXiv:2601.08654）；二元/分档标准可直接映射到分数。\n- **Breaks when:** 现有 rubric 是自由文本，迁移与兼容成本高；教师也可能更愿意粘贴现成 Markdown。\n- **Here now:** 数据库只有 `offerings.rubric_markdown` 一个文本字段，没有结构化评分项表；`section_criteria` 也未进端口。",
+            "sources": [
+              "https://arxiv.org/abs/2601.08654",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/Offering.java",
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/RubricCriteria.java"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "Markdown + 模板库",
+            "description": "提供二元判定、分档、写作通用等模板，教师套用后修改，仍以 Markdown 存储。",
+            "insight": "- **Pattern:** 用可复制的模板降低「空模板」概率，同时保留自由文本的灵活性。\n- **Proven at:** 本地 skill 已有 `RUBRIC_TEMPLATE.md` 与 `OUTPUT_FORMAT.md`，是可复用的成熟模板。\n- **Breaks when:** 模板仍可能被改成无分值版本；需要与 a 的校验一起用。\n- **Here now:** 只有默认两行模板，没有模板选择器；`teaching_english/HOMEWORK/skills/ai-batch-grading/references/RUBRIC_TEMPLATE.md` 尚未进入产品。",
+            "sources": [
+              "teaching_english/HOMEWORK/skills/ai-batch-grading/references/RUBRIC_TEMPLATE.md",
+              "web/src/locales/zh-CN.json",
+              "docs/rubrics/Rubric.md"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "保持现状，只改提示词",
+            "description": "评分标准继续是自由 Markdown，不校验、不预览，靠提示词把标准讲清楚。",
+            "insight": "- **Pattern:** 改动最小，不触碰创建流程与数据模型。\n- **Proven at:** 当前提示词 v1 在 10 份样本上的总分已接近人工，说明提示词确实能补偿一部分标准质量问题。\n- **Breaks when:** 缺分值、分值总和不等于总分、标准互相重叠时，模型只能猜；同一 rubric 在不同作业上会出现不同满分。\n- **Here now:** 默认模板 `# 评分标准\n- 内容要点：\n- 语言准确性：` 没有分值，`RubricCriteria` 按平均分配。",
+            "sources": [
+              "web/src/locales/zh-CN.json",
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/RubricCriteria.java",
+              "docs/research/2026-10-21-grading-quality.md"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "让 AI 从题目要求起草 rubric",
+            "description": "教师只写题目要求，AI 生成 3-5 条评分标准与分值，教师确认后保存。",
+            "insight": "- **Pattern:** 降低教师写 rubric 的门槛，尤其是没有现成 Rubric.md 的作业。\n- **Proven at:** 商业产品（CoGrader/EssayGrader）都把「assignment-setup-first + rubric」作为入口，说明教师愿意在创建时投入标准。\n- **Breaks when:** AI 起草的标准可能过宽或与课程目标不符；没有教师确认就用于判分会产生系统性偏差。\n- **Here now:** 没有 rubric 生成入口；`assignmentCreate.defaultRubric` 是唯一默认。",
+            "sources": [
+              "docs/research/2026-10-18-ai-batch-grading-web.md",
+              "web/src/teacher/AssignmentCreatePage.tsx",
+              "docs/rubrics/Overall_Assignment_Rubric.txt"
+            ]
+          }
+        ],
+        "next": "q5_length"
+      },
+      "q5_length": {
+        "prompt": "篇幅项（Required Length）由谁判？",
+        "header": "篇幅判定",
+        "detail": "同一段文本按不同计数法会得出 0/2 或 2/2：Maria 空行 8 段、政策 4 段；JZ 空行 5 段、政策 4 段（人工 review 给 0/2）；Mark 政策 5 段（0/2）。",
+        "options": [
+          {
+            "key": "a",
+            "label": "代码按全班统一政策判，边界项标给老师",
+            "description": "用一套班级长度政策计算段数，模型在理由里写明段数；四种计数法结论不一致时标「边界敏感」，请老师确认。",
+            "insight": "- **Pattern:** 能机械判定的项就交给代码，模型只写理由；边界项显式升级，不静默选一个计数法。\n- **Proven at:** 本地长度政策已实现四模型，并在原始 10 份作业上标出 Genesis/JZ/Maria/Mark 四份边界敏感（LENGTH_COUNTING_POLICY.md）。\n- **Breaks when:** 班级没有约定政策，或教师不确认边界项；此时分数仍会漂移，必须在 UI 上显示「待确认」。\n- **Here now:** `SubjectiveGradeRequest.countParagraphs` 只按空行切分，会把 Maria 数成 8 段；政策脚本只在教学目录，未接进产品。",
+            "sources": [
+              "teaching_english/HOMEWORK/skills/ai-batch-grading/references/LENGTH_COUNTING_POLICY.md",
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/SubjectiveGradeRequest.java",
+              "docs/rubrics/samples/reviews/JZ_review.txt"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "模型看系统给的段数自行判",
+            "description": "系统把段数作为客观指标给模型，由模型决定 0 还是 2。",
+            "insight": "- **Pattern:** 保持一个调用、一份 JSON，实现最简单。\n- **Proven at:** 本地探针里，模型拿到段数后能给出正确的 0/2 或 2/2（JZ 政策 4 段给 2/2、Mark 5 段给 0/2）。\n- **Breaks when:** 模型偶尔忽略指标或自行改数（探针里 Maria 被 A 数成 3 段），同一份提交换模型/温度就可能变分。\n- **Here now:** 提示词 v1 把段数放进 user 消息，但没有「必须使用该段数」的硬规则。",
+            "sources": [
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/PromptBuilder.java",
+              "work/grading-quality/experiment.json",
+              "docs/research/2026-10-21-grading-quality.md"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "严格按空行计数",
+            "description": "沿用当前实现：每个空行分隔的块就是一段，不做问候语/列表合并。",
+            "insight": "- **Pattern:** 规则最简单、可完全复现，不需要额外政策。\n- **Proven at:** 严格模型给出 JZ 5、Mark 6、Maria 8，和人工 review 的 JZ 0/2、Mark 0/2 一致；Maria 则会给 0/2（人工给 2/2）。\n- **Breaks when:** 项目符号列表与问候语会被当成多段，Maria 这类学生会被误判；这正是长度政策文件记录的两处可争议判定。\n- **Here now:** `SubjectiveGradeRequest.countParagraphs` 就是严格空行切分；它已经把 Maria 数成 8 段。",
+            "sources": [
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/SubjectiveGradeRequest.java",
+              "teaching_english/HOMEWORK/skills/ai-batch-grading/references/LENGTH_COUNTING_POLICY.md",
+              "docs/rubrics/samples/submissions/Maria.txt"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "每份都由老师手判篇幅",
+            "description": "AI 不碰篇幅项，只判立场与论证；篇幅由教师在复核页勾选 0/2。",
+            "insight": "- **Pattern:** 把最容易争议的一项完全交给人，AI 只做它擅长的文本判断。\n- **Proven at:** HITL 研究里讲师保留最终决定权，AI 只做 draft；Gradescope 的 rubric 评分也允许教师逐项覆盖。\n- **Breaks when:** 每份都要手点一次，批量场景下抵消 AI 的省时价值；边界项仍需要教师理解计数政策。\n- **Here now:** 复核页可以改主观总分，但不能逐项勾选评分项；`Review` 只存一个主观分。",
+            "sources": [
+              "https://zenodo.org/records/22234876",
+              "specs/002-v2-platform/spec.md",
+              "web/src/teacher/ReviewPage.tsx"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "取消篇幅项，只做定性反馈",
+            "description": "rubric 只保留立场与论证，篇幅放到教学建议里，不计分。",
+            "insight": "- **Pattern:** 消除最容易争议的计分项，rubric 更聚焦写作质量。\n- **Proven at:** 10 份人工 review 的班平均 9.6/10，篇幅项只影响 JZ/Mark 两人；多数学生不受影响。\n- **Breaks when:** 教师明确要求 1-4 段（Rubric.md 就是把篇幅单列 2 分），取消计分等于改课程要求，需要教师重新授权。\n- **Here now:** `Rubric.md` 把 Required Length 单列为 2 分；`RubricCriteria` 也把它作为第一项解析。",
+            "sources": [
+              "docs/rubrics/Rubric.md",
+              "docs/rubrics/samples/reviews/class_summary.txt",
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/RubricCriteria.java"
+            ]
+          }
+        ],
+        "next": "q6_anchors"
+      },
+      "q6_anchors": {
+        "prompt": "要不要把已批改的样例（锚点）放进提示词？",
+        "header": "锚点",
+        "detail": "研究里锚点是单项收益最大的提示词改动（QWK +0.29）；但锚点会带学生文本，涉及匿名与授权。对照组：`docs/rubrics/samples` 与 `skills/ai-batch-grading/assets/example`。",
+        "options": [
+          {
+            "key": "a",
+            "label": "用教师确认、匿名化的 2-3 份样例",
+            "description": "每条作业可挂 2-3 份教师已确认的样例（一份满分、一份篇幅不合格），去掉姓名与个人信息后随提示词注入。",
+            "insight": "- **Pattern:** 用少量高质量锚点校准模型，而不是靠更长的说明。\n- **Proven at:** 493 篇历史议论文里，加锚点把 GPT-4o 的 QWK 从 0.43 提到 0.72（+0.29），只加材料仅 +0.06（Choi et al., 2025）。\n- **Breaks when:** 锚点与当前题目不同源，或包含可识别学生的信息；必须由教师确认并匿名化。\n- **Here now:** `assets/example` 已有 Akshay/Maria/Mark 三份带 review 的样例；10 份 golden 样本也带人工 review，但尚未进入产品。",
+            "sources": [
+              "https://github.com/edtechdev/aied/blob/main/content/en/articles/choi-anchor-aes-prompting-2025.md",
+              "teaching_english/HOMEWORK/skills/ai-batch-grading/assets/example",
+              "docs/rubrics/samples/reviews"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "只用合成样例",
+            "description": "由教师或系统写不来自真实学生的合成范文与评语，避免隐私问题。",
+            "insight": "- **Pattern:** 隐私风险最低，样例可随教学目的定制（例如专门示范篇幅失败）。\n- **Proven at:** HITL 研究在早期测试中使用合成提交，避免暴露真实学生数据（Zenodo 22234876）。\n- **Breaks when:** 合成样例缺少真实学生的语言水平分布，模型校准可能偏向「标准答案」文风。\n- **Here now:** 仓库里没有专门为锚点编写的合成样例；`assets/example` 是真实/半真实学生文本。",
+            "sources": [
+              "https://zenodo.org/records/22234876",
+              "teaching_english/HOMEWORK/skills/ai-batch-grading/assets/example",
+              "docs/rubrics/samples/submissions"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "教师每次从历史批改里挑锚点",
+            "description": "创建作业时从教师过去已发布的 review 中选 2-3 份作为锚点。",
+            "insight": "- **Pattern:** 锚点与教师自己的评分口径最接近，比通用样例更贴合。\n- **Proven at:** 锚点收益依赖「与当前题目同源」；研究提醒跨题锚点未必有效（Choi et al., 2025 的限制部分）。\n- **Breaks when:** 新教师没有历史批改；或历史 review 本身有错，会把错误口径复制进新作业。\n- **Here now:** 数据库里有 `reviews` 与已发布记录，但没有「锚点选择」入口或字段。",
+            "sources": [
+              "https://github.com/edtechdev/aied/blob/main/content/en/articles/choi-anchor-aes-prompting-2025.md",
+              "teachloop-grading/src/main/java/com/teachloop/grading/domain/Review.java",
+              "specs/002-v2-platform/tasks.md"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "不用锚点",
+            "description": "提示词只含角色、任务、rubric 与输出契约，不注入样例。",
+            "insight": "- **Pattern:** 提示词最短、最稳定，成本最低，也最容易审计。\n- **Proven at:** 本地探针里，无锚点的提示词 v2 已能给出引用证据的英文评语，分数与人工接近。\n- **Breaks when:** 模型对「满分/不合格」的边界理解与教师不一致；研究显示这正是锚点收益最大的地方。\n- **Here now:** `PromptBuilder` 目前没有任何样例注入点，`PROMPT_VERSION = subjective-v1`。",
+            "sources": [
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/PromptBuilder.java",
+              "docs/research/2026-10-21-grading-quality.md",
+              "https://arxiv.org/abs/2604.12227"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "用公开的 3 份示例",
+            "description": "直接把 `assets/example` 的 Akshay/Maria/Mark 三份（含 review）作为固定锚点。",
+            "insight": "- **Pattern:** 零配置、开箱即用，样例与当前作业同题（Essential Question Peer Review）。\n- **Proven at:** 这三份样例在本地 skill 里已被验证为完整可运行示例，含一份 8/10 的篇幅失败案例。\n- **Breaks when:** 未来换成别的作文题，固定锚点与题目不同源，校准会失效；同时样例姓名需要匿名化。\n- **Here now:** 这 3 份样例已存在于 `assets/example`，但未接入 PromptBuilder。",
+            "sources": [
+              "teaching_english/HOMEWORK/skills/ai-batch-grading/assets/example",
+              "teachloop-grading/src/main/java/com/teachloop/grading/prompt/PromptBuilder.java",
+              "docs/rubrics/samples/reviews/Mark_review.txt"
+            ]
+          }
+        ],
+        "next": "q7_adoption"
+      },
+      "q7_adoption": {
+        "prompt": "教师怎么采纳 AI 草稿？学生最终看到什么？",
+        "header": "采纳方式",
+        "detail": "现在只有「采用 AI 建议分」一个按钮；AI 的逐项理由、优点、建议不会进入学生反馈。你给的 Alejandro_review 是完整 review，不只是分数。",
+        "options": [
+          {
+            "key": "a",
+            "label": "一键带入分数+评语+优点+建议",
+            "description": "教师点一次把 AI 的分数、评语、优点、建议填进复核表单，可逐字修改后再发布。",
+            "insight": "- **Pattern:** 把 AI 的完整 review 变成教师的起点，而不是只搬一个数字；教师保留最终编辑权。\n- **Proven at:** HITL 研究里 60% 的 AI 反馈需要小改、40% 直接通过，说明「带入 + 编辑」是真实工作流（Zenodo 22234876）。\n- **Breaks when:** AI 文字带错误事实或语气不适合学生，教师直接发布；需要发布前的来源提示与编辑提醒。\n- **Here now:** 复核页 `adoptAi` 只设置 `subjectivePoints`；`aiFeedback` 只读展示，没有带入按钮。",
+            "sources": [
+              "https://zenodo.org/records/22234876",
+              "web/src/teacher/ReviewPage.tsx",
+              "teachloop-grading/src/main/java/com/teachloop/grading/domain/Review.java"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "只带入分数，文字教师自己写",
+            "description": "AI 只作为分数参考，评语、优点、建议由教师手写。",
+            "insight": "- **Pattern:** 文字质量完全由教师控制，适合对 AI 语气敏感的场景。\n- **Proven at:** 当前 D-15 就把 AI 定位为「可选辅助」，人工判分是一等路径；T243 已实现无 AI 草稿的人工判分。\n- **Breaks when:** 教师工作量大，AI 的最大价值（生成具体、可引用的反馈）被浪费。\n- **Here now:** 当前 UI 正是这个模式：只有「采用 AI 建议分」。",
+            "sources": [
+              "specs/002-v2-platform/spec.md",
+              "web/src/teacher/ReviewPage.tsx",
+              "teachloop-grading/src/main/java/com/teachloop/grading/api/ReviewEndpoint.java"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "分项勾选带入",
+            "description": "逐项选择带入分数/理由、优点、建议，教师按需组合。",
+            "insight": "- **Pattern:** 控制粒度最细，教师可以只采纳有把握的部分。\n- **Proven at:** 复核页已经逐项展示 AI 分数与理由，结构上支持勾选；HITL 的四种讲师动作也强调逐项判断。\n- **Breaks when:** 勾选成本高，批量场景下反而比一键带入更慢；需要默认全选 + 可取消。\n- **Here now:** `ReviewDetail.aiCriteria` 已返回逐项意见，但前端只渲染、不可选择。",
+            "sources": [
+              "web/src/teacher/ReviewPage.tsx",
+              "teachloop-grading/src/main/java/com/teachloop/grading/api/ReviewEndpoint.java",
+              "https://zenodo.org/records/22234876"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "AI 文字只给教师看，学生只看教师手写",
+            "description": "AI 草稿不进入学生反馈；教师写什么学生看什么。",
+            "insight": "- **Pattern:** 学生端只出现教师署名内容，责任边界最清晰。\n- **Proven at:** D-15 规定 AI 只作为草稿，不直接面向学生；当前学生反馈只读教师 review 字段。\n- **Breaks when:** 教师直接复制 AI 文字但不改，学生仍会看到 AI 内容，只是没有标注；溯源问题依旧。\n- **Here now:** `FeedbackDetailPage` 只显示 `review.comment/strengths/suggestions`，不显示 `aiCriteria`。",
+            "sources": [
+              "specs/002-v2-platform/spec.md",
+              "web/src/student/FeedbackDetailPage.tsx",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/SittingDtos.java"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "发布时自动附 AI 逐项理由并标注「AI 生成」",
+            "description": "学生反馈里保留 AI 的逐项理由，但明确标记为 AI 生成，教师对分数负责。",
+            "insight": "- **Pattern:** 学生获得更细的过程性反馈，同时透明标注来源。\n- **Proven at:** HITL 研究把「最终反馈版本 + 讲师决定」一起审计，说明来源透明是可行做法（Zenodo 22234876）。\n- **Breaks when:** AI 理由错误会被当成教师意见；需要教师发布前逐条确认，或默认不展示。\n- **Here now:** 学生反馈页没有 AI 区块，`MyFeedbackView` 也不返回 AI 逐项意见。",
+            "sources": [
+              "https://zenodo.org/records/22234876",
+              "web/src/student/FeedbackDetailPage.tsx",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/api/ExamSessionEndpoint.java"
+            ]
+          }
+        ]
+      }
+    },
+    "quick": [
+      {
+        "key": "a",
+        "label": "推荐：真实引擎 + 评分标准校验 + 英文反馈",
+        "recommended": true,
+        "description": "核心可信链路、评分标准校验、显式语言、代码判篇幅、教师确认锚点、完整带入。",
+        "insight": "- **Sets up:** 真引擎 + 提示词 v2 + 校验闸门 + 评分标准校验/预览 + 显式反馈语言 + 代码判篇幅 + 教师确认锚点 + 一键带入完整 review。\n- **Proven at:** 本地探针里，同样的 deepseek-flash 在提示词 v2 下能给出引用原文的英文评语；锚点研究显示再加 2-3 份样例可把 QWK 提高 0.29（Choi et al., 2025）。\n- **Costs:** 要动 grading 的 prompt/validator/engine 选择、sitting 的作业创建字段、web 的复核页与学生反馈页；是一条跨三个模块但边界清楚的切片。\n- **For:** 你现在的真实诉求——英文写作课、10 人班、要能拿给老师复核并发布给学生。",
+        "sources": [
+          "docs/research/2026-10-21-grading-quality.md",
+          "docs/rubrics/samples/reviews/Alejandro_review.txt",
+          "https://github.com/edtechdev/aied/blob/main/content/en/articles/choi-anchor-aes-prompting-2025.md"
+        ],
+        "answers": {
+          "q1_scope": {
+            "selected": [
+              "c"
+            ]
+          },
+          "q2_failure": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q3_language": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q4_rubric": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q5_length": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q6_anchors": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q7_adoption": {
+            "selected": [
+              "a"
+            ]
+          }
+        }
+      },
+      {
+        "key": "b",
+        "label": "最小改动：只让 AI 真跑并停止假分数",
+        "description": "先修引擎、提示词与失败状态；评分标准、锚点、采纳方式保持现状。",
+        "insight": "- **Sets up:** `engine=ai` + Key 校验 + 提示词 v2（含任务背景、证据引用、英文输出）+ 校验器 + 失败状态；rubric 仍是自由 Markdown，不校验。\n- **Proven at:** 本地探针显示，仅提示词 v2 就能把评语从中文泛泛改成英文引用原文；总分与人工接近（10 份里 9 份同分，1 份 JSON 总分算错被校验拦下）。\n- **Costs:** 评分标准仍可能是空壳模板；学生最终看到的仍是教师手写文字，AI 的具体评语留在复核页。\n- **For:** 只想先消除「假分数」并看到真实 AI 文本，暂时不碰创建流程。",
+        "sources": [
+          "docs/research/2026-10-21-grading-quality.md",
+          "teachloop-grading/src/main/java/com/teachloop/grading/prompt/PromptBuilder.java"
+        ],
+        "answers": {
+          "q1_scope": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q2_failure": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q3_language": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q4_rubric": {
+            "selected": [
+              "d"
+            ]
+          },
+          "q5_length": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q6_anchors": {
+            "selected": [
+              "d"
+            ]
+          },
+          "q7_adoption": {
+            "selected": [
+              "b"
+            ]
+          }
+        }
+      },
+      {
+        "key": "c",
+        "label": "完整闭环：含评分标准编辑器与班级汇总",
+        "description": "一次做完标准、单份、班级与采纳，范围最大。",
+        "insight": "- **Sets up:** 结构化评分项编辑器（名称/满分/判定/分档）+ AI 班级汇总（共同优点/问题/3 条教学建议）+ 分项采纳。\n- **Proven at:** Rulers 证明「固定 criteria + 证据 + 校准」三者缺一不可（arXiv:2601.08654）；HITL 流水线把班级层面的教学建议放在末端（Zenodo 22234876）。\n- **Costs:** 要新增评分项数据模型或迁移、班级汇总接口与页面；单份质量还没验收就并行，返工面最大。\n- **For:** 想把 TeachLoop 直接做成可替代手动 opencode 全流程的版本。",
+        "sources": [
+          "https://arxiv.org/abs/2601.08654",
+          "https://zenodo.org/records/22234876",
+          "teaching_english/HOMEWORK/reviews/class_summary.txt"
+        ],
+        "answers": {
+          "q1_scope": {
+            "selected": [
+              "e"
+            ]
+          },
+          "q2_failure": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q3_language": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q4_rubric": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q5_length": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q6_anchors": {
+            "selected": [
+              "c"
+            ]
+          },
+          "q7_adoption": {
+            "selected": [
+              "c"
+            ]
+          }
+        }
+      },
+      {
+        "key": "d",
+        "label": "先定规范：本轮不写代码",
+        "description": "把 7 个决定落成 spec/plan/tasks，实现等你下一句「开始实现」。",
+        "insight": "- **Sets up:** research → spec（新 US/AC）→ plan（prompt/validator/eval/长度政策）→ tasks；代码零改动。\n- **Proven at:** 本仓库的 AGENTS.md 红线：规范未确认前不写业务代码；上一轮直接实现 v1 被叫停回退。\n- **Costs:** 这一轮看不到运行结果；但失败表现、语言、长度、锚点、采纳方式会被固定成可验收条款。\n- **For:** 想先审设计，尤其是长度政策和锚点隐私这两项需要你拍板的内容。",
+        "sources": [
+          "AGENTS.md",
+          "specs/002-v2-platform/spec.md",
+          "docs/research/2026-10-21-grading-quality.md"
+        ],
+        "answers": {
+          "q1_scope": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q2_failure": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q3_language": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q4_rubric": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q5_length": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q6_anchors": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q7_adoption": {
+            "selected": [
+              "a"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "workspaceRecord": true
+}

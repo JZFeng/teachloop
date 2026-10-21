@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teachloop.grading.domain.Review;
 import com.teachloop.grading.domain.ReviewRepository;
 import com.teachloop.grading.domain.ReviewStatus;
+import com.teachloop.grading.service.TextLengthCounter;
 import com.teachloop.shared.audit.AuditEvent;
 import com.teachloop.shared.audit.AuditPort;
 import com.teachloop.shared.error.ApiException;
@@ -88,13 +89,28 @@ public class ReviewEndpoint {
     public record BulkApproveResult(int approved, int skipped, int total) {
     }
 
+    public record BulkApproveSkip(String submissionId, String reason) {
+    }
+
+    public record BulkApprovePreview(int total, int approvable, int skipped,
+                                     BigDecimal minScore, BigDecimal maxScore,
+                                     List<BulkApproveSkip> skippedItems) {
+    }
+
     public record ReviewView(String id, String submissionId, String status, String teacherId,
                              String comment, String strengths, String suggestions,
                              BigDecimal originalSubjective, boolean published,
                              String publishedAt, String createdAt) {
     }
 
-    public record AnswerView(String itemId, int number, String answer) {
+    /**
+     * 一道题的作答与判分结果。
+     *
+     * @param correct       提交时的判定结果；主观题/作文为 null
+     * @param awardedPoints 本题实得分；主观题/作文为 null
+     */
+    public record AnswerView(String itemId, int number, String answer,
+                             Boolean correct, BigDecimal awardedPoints) {
     }
 
     public record ItemView(int number, String questionType, String stem, String options,
@@ -120,7 +136,11 @@ public class ReviewEndpoint {
                                String rubricMarkdown, String feedbackLanguage,
                                BigDecimal objectivePoints, BigDecimal subjectivePoints,
                                BigDecimal aiSubjectiveDraft, List<CriterionView> aiCriteria,
-                               String aiFeedback, ReviewView review) {
+                               String aiFeedback, String aiOverall, String aiStrength,
+                               String aiSuggestion, String aiFailure, String aiModel,
+                               String aiPromptVersion, String aiKeySource,
+                               Integer paragraphCount, boolean paragraphBoundarySensitive,
+                               ReviewView review) {
     }
 
     /**
@@ -164,7 +184,8 @@ public class ReviewEndpoint {
         Review review = reviewOrCreate(submissionId);
         Ports.WorkItem item = ledger.load(submissionId);
         List<AnswerView> answers = item.answers().stream()
-                .map(a -> new AnswerView(str(a.itemId()), a.number(), a.answer()))
+                .map(a -> new AnswerView(str(a.itemId()), a.number(), a.answer(),
+                        a.correct(), a.awarded()))
                 .toList();
         List<ItemView> items = item.items().stream()
                 .map(i -> new ItemView(i.number(), i.questionType(), i.stem(), i.options(),
@@ -175,7 +196,13 @@ public class ReviewEndpoint {
                 item.studentName(), item.inputKind(), item.contentText(), item.contentHtml(), answers, items,
                 item.rubricMarkdown(), item.feedbackLanguage(),
                 scores.objectiveTotal(), scores.subjectiveTotal(),
-                review.getOriginalSubjective(), criteriaOf(review), review.getAiFeedback(), view(review));
+                review.getOriginalSubjective(), criteriaOf(review), review.getAiFeedback(),
+                review.getAiOverall(), review.getAiStrength(), review.getAiSuggestion(),
+                review.getAiFailure(), review.getAiModel(), review.getAiPromptVersion(),
+                review.getAiKeySource(),
+                TextLengthCounter.count(item.contentText() == null ? "" : item.contentText(), "policy_default"),
+                TextLengthCounter.boundarySensitive(item.contentText() == null ? "" : item.contentText(), 1, 4),
+                view(review));
     }
 
     /** 兼容旧调用：三态结论。REJECTED 的原因写 comment；已发布必须先撤回。 */
@@ -310,6 +337,33 @@ public class ReviewEndpoint {
      * <p>AC-11.8 的「篇幅判定边界敏感项默认跳过」当前无法实现：sitting 尚未通过端口暴露
      * {@code submission_metrics.boundary_sensitive}，此处保留注释，等端口补齐后再加跳过条件。
      */
+    /** 批量通过前的预览：份数、分数范围、每个跳过原因；不写任何数据。 */
+    @PostMapping("/grading/bulk-approve/preview")
+    public BulkApprovePreview bulkApprovePreview(@RequestBody BulkApproveRequest body,
+                                                 @RequestAttribute("currentUser") CurrentUser me) {
+        requireStaff(me);
+        List<UUID> ids = body == null || body.submissionIds() == null ? List.of() : body.submissionIds();
+        int approvable = 0;
+        BigDecimal min = null;
+        BigDecimal max = null;
+        List<BulkApproveSkip> skippedItems = new ArrayList<>();
+        for (UUID submissionId : ids) {
+            String reason = bulkSkipReason(submissionId, true);
+            if (reason != null) {
+                skippedItems.add(new BulkApproveSkip(submissionId.toString(), reason));
+                continue;
+            }
+            Review r = reviews.findBySubmissionId(submissionId).orElseThrow();
+            BigDecimal score = r.getOriginalSubjective();
+            if (score != null) {
+                min = min == null || score.compareTo(min) < 0 ? score : min;
+                max = max == null || score.compareTo(max) > 0 ? score : max;
+            }
+            approvable++;
+        }
+        return new BulkApprovePreview(ids.size(), approvable, skippedItems.size(), min, max, skippedItems);
+    }
+
     @PostMapping("/grading/bulk-approve")
     public BulkApproveResult bulkApprove(@RequestBody BulkApproveRequest body,
                                          @RequestAttribute("currentUser") CurrentUser me) {
@@ -319,13 +373,12 @@ public class ReviewEndpoint {
         int skipped = 0;
         for (UUID submissionId : ids) {
             try {
-                Review r = reviews.findBySubmissionId(submissionId).orElse(null);
-                if (r == null || r.isPublished() || r.getStatus() != ReviewStatus.PENDING
-                        || (r.getOriginalSubjective() == null && r.getTeacherId() == null)) {
+                String reason = bulkSkipReason(submissionId, false);
+                if (reason != null) {
                     skipped++;
                     continue;
                 }
-                ledger.load(submissionId); // 详情不可读的提交不能盲批
+                Review r = reviews.findBySubmissionId(submissionId).orElseThrow();
                 r.decide(ReviewStatus.APPROVED, me.id(), r.getComment());
                 reviews.save(r);
                 audit.record(new AuditEvent(me.id(), "review:approved", "submission",
@@ -337,6 +390,33 @@ public class ReviewEndpoint {
             }
         }
         return new BulkApproveResult(approved, skipped, ids.size());
+    }
+
+    /**
+     * 批量通过的统一跳过判据；返回 null 表示可批。
+     * 边界敏感、AI 失败、无草稿且无教师分、非 PENDING/已发布都跳过。
+     */
+    private String bulkSkipReason(UUID submissionId, boolean preview) {
+        Review r = reviews.findBySubmissionId(submissionId).orElse(null);
+        if (r == null || r.isPublished() || r.getStatus() != ReviewStatus.PENDING) {
+            return "status";
+        }
+        if (r.getAiFailure() != null) {
+            return "ai_failed:" + r.getAiFailure();
+        }
+        if (r.getOriginalSubjective() == null && r.getTeacherId() == null) {
+            return "no_draft";
+        }
+        try {
+            Ports.WorkItem item = ledger.load(submissionId);
+            String text = item.contentText() == null ? "" : item.contentText();
+            if (TextLengthCounter.boundarySensitive(text, 1, 4)) {
+                return "boundary_sensitive";
+            }
+        } catch (RuntimeException ex) {
+            return "unreadable";
+        }
+        return null;
     }
 
     private static void requireStaff(CurrentUser me) {

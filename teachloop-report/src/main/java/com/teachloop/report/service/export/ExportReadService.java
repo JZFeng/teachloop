@@ -5,6 +5,7 @@ import com.teachloop.report.service.export.ExportModels.MissingStudent;
 import com.teachloop.report.service.export.ExportModels.OfferingMeta;
 import com.teachloop.report.service.export.ExportModels.StudentSubmission;
 import com.teachloop.report.service.export.ExportModels.WrongItem;
+import com.teachloop.shared.text.BlankText;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.sql.PreparedStatement;
@@ -311,7 +312,7 @@ public class ExportReadService {
                         .add(new WrongItem(
                                 rs.getInt("number"),
                                 rs.getString("question_type"),
-                                rs.getString("stem"),
+                                BlankText.forText(rs.getString("stem")),
                                 rs.getString("answer"),
                                 rs.getString("answer_key"),
                                 rs.getBigDecimal("points")));

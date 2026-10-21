@@ -29,6 +29,10 @@ import './exam.css'
 
 const AUTOSAVE_DELAY = 1500
 
+function groupKeyOf(nodes: Map<number, HTMLElement>, number: number): string | null {
+  return nodes.get(number)?.closest('[data-group]')?.getAttribute('data-group') ?? null
+}
+
 /**
  * T187/T188/T189/T195/T197：专注模式作答。
  * 计时以服务端剩余秒数为准，本地每秒只做显示插值；答案变化 debounce 自动保存。
@@ -65,6 +69,11 @@ export default function ExamLivePage() {
   const nodesRef = useRef(new Map<number, HTMLElement>())
   const suppressSpyRef = useRef(0)
   const dirtyRef = useRef(false)
+  const currentRef = useRef(current)
+
+  useEffect(() => {
+    currentRef.current = current
+  }, [current])
 
   const parts = useMemo(
     () => groupParts(paper?.items ?? [], t('exam.wholePaper')),
@@ -269,6 +278,8 @@ export default function ExamLivePage() {
   }, [])
 
   const focusQuestion = useCallback((number: number) => {
+    // 用户主动点题/点空时，短时间内不要让滚动联动把焦点抢回上一段。
+    suppressSpyRef.current = Date.now() + 1200
     setCurrent((prev) => (prev === number ? prev : number))
     const key = partKeyOfNumber(parts, number)
     if (key) setExpanded((prev) => (prev.has(key) ? prev : new Set(prev).add(key)))
@@ -288,6 +299,9 @@ export default function ExamLivePage() {
       if (Date.now() < suppressSpyRef.current) return
       if (!visible.size) return
       const next = Math.min(...visible)
+      // 同一段材料里的当前空仍在屏内时，不把焦点抢走；跨材料组时必须跟随新的段首。
+      if (visible.has(currentRef.current)
+          && groupKeyOf(nodes, currentRef.current) === groupKeyOf(nodes, next)) return
       setCurrent((prev) => (prev === next ? prev : next))
     }, { rootMargin: '-76px 0px -52% 0px', threshold: 0 })
     nodes.forEach((node) => observer.observe(node))
@@ -305,9 +319,11 @@ export default function ExamLivePage() {
     element.scrollIntoView({ behavior: 'smooth', block: 'start' })
     window.setTimeout(() => {
       const target = element.querySelector<HTMLElement>(
-        'textarea:not([disabled]), input:not([disabled]), button.qopt:not([disabled])',
+        'textarea:not([disabled]), input:not([disabled]), button.qopt:not([disabled]), button.inline-blank:not([disabled])',
       )
       target?.focus({ preventScroll: true })
+      // 完形/七选五的空：跳过去顺手把选项弹层打开，省一次点击。
+      if (target instanceof HTMLButtonElement && target.classList.contains('inline-blank')) target.click()
     }, 420)
   }, [parts])
 

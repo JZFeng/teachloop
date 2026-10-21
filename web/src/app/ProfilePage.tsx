@@ -4,6 +4,7 @@ import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import { LANGUAGES, changeLanguage } from '../i18n'
 import { Alert, Button, Field, Input, PageHeader, ThemeToggle } from '../ui'
+import type { AiTestResult, ProfileAiSettings } from '../api/types'
 
 interface ProfileView {
   id: string
@@ -20,13 +21,63 @@ interface ProfileView {
  */
 export default function ProfilePage() {
   const { t, i18n } = useTranslation('translation')
-  const { refresh, refreshProfile } = useAuth()
+  const { me, refresh, refreshProfile } = useAuth()
   const [profile, setProfile] = useState<ProfileView | null>(null)
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [displayName, setDisplayName] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [ai, setAi] = useState<ProfileAiSettings | null>(null)
+  const [aiKey, setAiKey] = useState('')
+  const [aiBaseUrl, setAiBaseUrl] = useState('')
+  const [aiModel, setAiModel] = useState('')
+  const [aiMessage, setAiMessage] = useState<string | null>(null)
+  const [aiError, setAiError] = useState<string | null>(null)
+  const canConfigureAi = me?.role === 'TEACHER' || me?.role === 'ADMIN'
+
+  useEffect(() => {
+    if (!canConfigureAi) return
+    api.get<ProfileAiSettings>('/api/profile/ai-settings').then((value) => {
+      setAi(value)
+      setAiBaseUrl(value.baseUrl)
+      setAiModel(value.model)
+    }).catch((e: Error) => setAiError(e.message))
+  }, [canConfigureAi])
+
+  const saveAi = async () => {
+    setAiError(null)
+    setAiMessage(null)
+    try {
+      const saved = await api.put<ProfileAiSettings>('/api/profile/ai-settings', {
+        provider: ai?.provider ?? 'deepseek',
+        baseUrl: aiBaseUrl,
+        model: aiModel,
+        apiKey: aiKey.trim() || null,
+      })
+      setAi(saved)
+      setAiKey('')
+      setAiMessage(t('profile.aiSaved'))
+    } catch (e) {
+      setAiError((e as Error).message)
+    }
+  }
+
+  const testAi = async () => {
+    setAiError(null)
+    setAiMessage(null)
+    try {
+      const result = await api.post<AiTestResult>('/api/profile/ai-settings/test', {
+        baseUrl: aiBaseUrl,
+        model: aiModel,
+        apiKey: aiKey.trim() || null,
+      })
+      if (result.ok) setAiMessage(t('profile.aiTestOk', { ms: result.latencyMs }))
+      else setAiError(t('profile.aiTestFail', { message: result.message }))
+    } catch (e) {
+      setAiError((e as Error).message)
+    }
+  }
 
   useEffect(() => {
     api.get<ProfileView>('/api/profile').then((p) => {
@@ -140,6 +191,38 @@ export default function ProfilePage() {
         </Field>
         <ThemeToggle size="middle" />
       </div>
+
+      {canConfigureAi && (
+        <div className="card" style={{ maxWidth: 720, marginTop: 16 }}>
+          <h2>{t('profile.aiTitle')}</h2>
+          <p className="small muted">{t('profile.aiSub')}</p>
+          {aiError && <Alert type="error" showIcon message={aiError} style={{ marginBottom: 12 }} />}
+          {aiMessage && <Alert type="success" showIcon message={aiMessage} style={{ marginBottom: 12 }} />}
+          {ai && (
+            <p className="small muted">
+              {ai.source === 'user' ? t('profile.aiSourceUser')
+                : ai.source === 'global' ? t('profile.aiSourceGlobal')
+                  : t('profile.aiSourceNone')}
+              {ai.apiKeyMasked ? ` · ${t('profile.aiMasked', { masked: ai.apiKeyMasked })}` : ''}
+            </p>
+          )}
+          <Field label={t('profile.aiBaseUrl')} htmlFor="ai-base-url">
+            <Input id="ai-base-url" value={aiBaseUrl} onChange={(e) => setAiBaseUrl(e.target.value)} />
+          </Field>
+          <Field label={t('profile.aiModel')} htmlFor="ai-model">
+            <Input id="ai-model" value={aiModel} onChange={(e) => setAiModel(e.target.value)} />
+          </Field>
+          <Field label={t('profile.aiKey')} hint={t('profile.aiKeyHint')} htmlFor="ai-key">
+            <Input id="ai-key" type="password" value={aiKey}
+              placeholder={t('profile.aiKeyPlaceholder')}
+              onChange={(e) => setAiKey(e.target.value)} autoComplete="off" />
+          </Field>
+          <div className="row" style={{ gap: 8 }}>
+            <Button variant="primary" onClick={() => void saveAi()}>{t('profile.aiSave')}</Button>
+            <Button onClick={() => void testAi()}>{t('profile.aiTest')}</Button>
+          </div>
+        </div>
+      )}
     </>
   )
 }

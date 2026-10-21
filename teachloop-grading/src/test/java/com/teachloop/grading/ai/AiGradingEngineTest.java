@@ -61,7 +61,7 @@ class AiGradingEngineTest {
         verify(aiCalls, times(1)).save(saved.capture());
         AiCall call = saved.getValue();
         assertThat(call.getModel()).isEqualTo("deepseek-flash");
-        assertThat(call.getPromptVersion()).isEqualTo("subjective-v1");
+        assertThat(call.getPromptVersion()).isEqualTo("subjective-v2");
         assertThat(call.getTokensIn()).isEqualTo(1200);
         assertThat(call.getTokensOut()).isEqualTo(300);
         assertThat(call.getLatencyMs()).isEqualTo(850);
@@ -166,9 +166,9 @@ class AiGradingEngineTest {
     }
 
     private static final String VALID_JSON = """
-            {"criteria":[{"name":"内容要点","points":9,"comment":"覆盖了题目要求的要点"},
-            {"name":"语言准确性","points":4,"comment":"语法基本准确"}],
-            "total":13,"strength":"结构清晰","suggestion":"补充一个具体例子"}""";
+            {"criteria":[{"name":"内容要点","points":9,"comment":"正文写到了“My class is great”，并说明每天一起学英语，覆盖了题目要求的要点。"},
+            {"name":"语言准确性","points":4,"comment":"使用了“We learn English together every day”，语法基本准确。"}],
+            "total":13,"overall":"总评：文章表达了班级学习情况，结构清楚。","strength":"用“We learn English together every day”说明了日常学习。","suggestion":"建议补充一个具体的课堂活动例子。"}""";
 
     private static Ports.WorkItem workItem() {
         return new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "张三",

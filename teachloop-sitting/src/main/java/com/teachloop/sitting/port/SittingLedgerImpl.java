@@ -1,13 +1,16 @@
 package com.teachloop.sitting.port;
 
 import com.teachloop.sitting.domain.*;
+import com.teachloop.sitting.service.ObjectiveScoring;
 import com.teachloop.sitting.service.SnapshotCodec;
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.port.Ports;
 import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,14 +23,17 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
     private final ObjectiveAnswerRepository answers;
     private final OfferingRepository offerings;
     private final SnapshotCodec codec;
+    private final Ports.StudentDirectory directory;
     private final Clock clock;
 
     public SittingLedgerImpl(SubmissionRepository submissions, ObjectiveAnswerRepository answers,
-                             OfferingRepository offerings, SnapshotCodec codec, Clock clock) {
+                             OfferingRepository offerings, SnapshotCodec codec,
+                             Ports.StudentDirectory directory, Clock clock) {
         this.submissions = submissions;
         this.answers = answers;
         this.offerings = offerings;
         this.codec = codec;
+        this.directory = directory;
         this.clock = clock;
     }
 
@@ -37,12 +43,31 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
         Submission s = submissions.findById(submissionId).orElseThrow(() -> ApiException.notFound("提交不存在"));
         Offering o = offerings.findById(s.getOfferingId()).orElseThrow(() -> ApiException.notFound("布置不存在"));
         Ports.PaperSnapshot snap = codec.read(o.getPaperSnapshot());
+        // 复核页要逐题显示「答对/答错/实得分」：对错取提交时落库的判定，
+        // 实得分按快照标准答案与同一套 ObjectiveScoring 重算，保证与交卷时的客观分一致。
+        Map<Integer, Ports.ItemSpec> specsByNumber = new HashMap<>();
+        snap.items().forEach(i -> specsByNumber.put(i.number(), i));
         List<Ports.AnswerRow> rows = answers.findBySubmissionId(submissionId).stream()
-                .map(a -> new Ports.AnswerRow(a.getItemId(), a.getNumber(), a.getAnswer()))
+                .map(a -> {
+                    Ports.ItemSpec spec = specsByNumber.get(a.getNumber());
+                    boolean autoGraded = spec != null
+                            && !"ESSAY".equals(spec.questionType())
+                            && spec.answerKey() != null;
+                    BigDecimal awarded = autoGraded
+                            ? ObjectiveScoring.award(spec, a.getAnswer())
+                            : null;
+                    return new Ports.AnswerRow(a.getItemId(), a.getNumber(), a.getAnswer(),
+                            a.isCorrect(), awarded);
+                })
                 .toList();
+        String language = directory.locales(List.of(s.getStudentId()))
+                .getOrDefault(s.getStudentId(), o.getFeedbackLanguage());
+        if (language == null || language.isBlank()) {
+            language = o.getFeedbackLanguage();
+        }
         return new Ports.WorkItem(s.getId(), o.getId(), s.getStudentId(), "",
                 s.getInputKind(), s.getContentText(), s.getContentHtml(), rows, snap.items(),
-                o.getRubricMarkdown(), o.getGradingPromptTemplate(), o.getFeedbackLanguage());
+                o.getRubricMarkdown(), o.getGradingPromptTemplate(), language, o.getCreatedBy(), o.getAnchorExamples());
     }
 
     @Override

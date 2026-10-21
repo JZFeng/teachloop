@@ -315,8 +315,9 @@ public final class PaperTextParser {
         for (DocumentTextExtractor.SourceLine line : content) {
             String text = strip(line.text());
             if (isMaterialLabel(text)) {
+                // 标签（A/B/C/D…）只用来标记「新材料从这里开始」，本身对考生没有信息量：
+                // 它若进入 material，会被 finish() 拼到该篇每道题的题干开头，看起来像标准答案。
                 material.clear();
-                material.add(text);
                 materialOpen = true;
                 current = null;
                 continue;
@@ -799,19 +800,38 @@ public final class PaperTextParser {
         return joiner.toString();
     }
 
-    /** 材料标签行：阅读理解前面的 {@code A} / {@code B}，剥掉 Markdown 的 {@code **A**} 之后剩下的。 */
+    /**
+     * 材料标签行：阅读理解前面的 {@code A} / {@code B}，剥掉 Markdown 的 {@code **A**} 之后剩下的。
+     *
+     * <p>只用来切分材料，不会写进题干（2026-10-21 修）：写进去会让该篇每道题开头都多一个
+     * 孤立字母，学生与老师都会把它误认成标准答案。</p>
+     */
     private static boolean isMaterialLabel(String text) {
         return text.length() == 1 && text.charAt(0) >= 'A' && text.charAt(0) <= 'G';
     }
 
-    /** 把第 {@code index} 个空换成 {@code ___(题号)___}。 */
-    private static String labelBlank(String material, int index, int number) {
+    /**
+     * 把第 {@code index} 个空换成 {@code ___(题号)___}。
+     *
+     * <p>卷面通常已经带了题号（{@code ______ (7)} / {@code （7）______}）。标记自带题号，所以
+     * 紧邻的同号括号要一并吸收，否则快照里会留下 {@code ___(7)___ (7)}，学生端就会看到
+     * 「控件 7 + 正文 (7)」的双写（2026-10-21 修）。只吸收与本次题号相同的括号，
+     * {@code ______ (2019)} 这种正文不会被误吃。</p>
+     */
+    static String labelBlank(String material, int index, int number) {
         Matcher matcher = BLANK.matcher(material);
         int seen = 0;
         while (matcher.find()) {
             if (seen == index) {
-                return material.substring(0, matcher.start()) + "___(" + number + ")___"
+                String marker = "___(" + number + ")___";
+                String labeled = material.substring(0, matcher.start()) + marker
                         + material.substring(matcher.end());
+                // 括号在后：___(7)___ (7)
+                String after = "___\\(" + number + "\\)___\\s*[(（]\\s*" + number + "\\s*[)）]";
+                // 括号在前：(7) ___(7)___
+                String before = "[(（]\\s*" + number + "\\s*[)）]\\s*___\\(" + number + "\\)___";
+                return labeled.replaceAll(after, Matcher.quoteReplacement(marker))
+                        .replaceAll(before, Matcher.quoteReplacement(marker));
             }
             seen++;
         }

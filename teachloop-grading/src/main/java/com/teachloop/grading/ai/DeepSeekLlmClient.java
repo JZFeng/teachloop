@@ -89,7 +89,10 @@ public class DeepSeekLlmClient implements LlmClient {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("model", model);
         payload.put("temperature", temperature);
-        payload.put("response_format", Map.of("type", "json_object"));
+        if (request.json()) {
+            // 只有判分链路要求 JSON；错题解析是纯文本，强加 response_format 会被模型包一层 JSON 外壳。
+            payload.put("response_format", Map.of("type", "json_object"));
+        }
         payload.put("messages", List.of(
                 Map.of("role", "system", "content", request.system()),
                 Map.of("role", "user", "content", request.user())));

@@ -46,9 +46,33 @@ public class Review {
     @Column(name = "ai_criteria", columnDefinition = "text")
     private String aiCriteria;
 
-    /** T253：AI 的「优点 / 建议」文本。 */
+    /** T253：AI 的「优点 / 建议」文本（兼容旧数据）。 */
     @Column(name = "ai_feedback", columnDefinition = "text")
     private String aiFeedback;
+
+    @Column(name = "ai_overall", columnDefinition = "text")
+    private String aiOverall;
+
+    @Column(name = "ai_strength", columnDefinition = "text")
+    private String aiStrength;
+
+    @Column(name = "ai_suggestion", columnDefinition = "text")
+    private String aiSuggestion;
+
+    @Column(name = "ai_model")
+    private String aiModel;
+
+    @Column(name = "ai_prompt_version")
+    private String aiPromptVersion;
+
+    @Column(name = "ai_key_source")
+    private String aiKeySource;
+
+    @Column(name = "ai_failure")
+    private String aiFailure;
+
+    @Column(name = "feedback_language")
+    private String feedbackLanguage;
 
     /** 非空即已发布；撤回时置回 null。 */
     @Column(name = "published_at")
@@ -86,6 +110,14 @@ public class Review {
     public BigDecimal getOriginalSubjective() { return originalSubjective; }
     public String getAiCriteria() { return aiCriteria; }
     public String getAiFeedback() { return aiFeedback; }
+    public String getAiOverall() { return aiOverall; }
+    public String getAiStrength() { return aiStrength; }
+    public String getAiSuggestion() { return aiSuggestion; }
+    public String getAiModel() { return aiModel; }
+    public String getAiPromptVersion() { return aiPromptVersion; }
+    public String getAiKeySource() { return aiKeySource; }
+    public String getAiFailure() { return aiFailure; }
+    public String getFeedbackLanguage() { return feedbackLanguage; }
     public Instant getPublishedAt() { return publishedAt; }
     public Instant getCreatedAt() { return createdAt; }
 
@@ -130,6 +162,11 @@ public class Review {
      * 只要老师还没动过，就更新成最新一次的结果。
      */
     public void captureAiDraft(BigDecimal points, String criteriaJson, String feedback) {
+        captureAiDraft(points, criteriaJson, feedback, null, null, null);
+    }
+
+    public void captureAiDraft(BigDecimal points, String criteriaJson, String feedback,
+                               String overall, String strength, String suggestion) {
         if (this.teacherId != null || isPublished()) {
             return;
         }
@@ -141,6 +178,36 @@ public class Review {
         }
         if (feedback != null) {
             this.aiFeedback = feedback;
+        }
+        if (overall != null) {
+            this.aiOverall = overall;
+        }
+        if (strength != null) {
+            this.aiStrength = strength;
+        }
+        if (suggestion != null) {
+            this.aiSuggestion = suggestion;
+        }
+        this.aiFailure = null;
+    }
+
+    /** AI 失败原因；与「AI 未参与」（草稿为空且无失败）区分。 */
+    public void markAiFailure(String failure) {
+        this.aiFailure = failure;
+    }
+
+    public void markAiProvenance(String model, String promptVersion, String keySource, String language) {
+        if (model != null) {
+            this.aiModel = model;
+        }
+        if (promptVersion != null) {
+            this.aiPromptVersion = promptVersion;
+        }
+        if (keySource != null) {
+            this.aiKeySource = keySource;
+        }
+        if (language != null) {
+            this.feedbackLanguage = language;
         }
     }
 

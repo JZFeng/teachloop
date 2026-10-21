@@ -69,16 +69,20 @@ public class SpringAiLlmClient implements LlmClient {
         long started = System.nanoTime();
         ChatResponse response;
         try {
+            OpenAiChatOptions.Builder options = OpenAiChatOptions.builder()
+                    .model(model)
+                    .temperature(temperature.doubleValue())
+                    .timeout(timeout);
+            if (request.json()) {
+                // 只有判分链路要求 JSON；错题解析是纯文本，强加 response_format 会被模型包一层 JSON 外壳。
+                options.responseFormat(OpenAiChatModel.ResponseFormat.builder()
+                        .type(OpenAiChatModel.ResponseFormat.Type.JSON_OBJECT)
+                        .build());
+            }
             response = client.prompt()
                     .system(request.system())
                     .user(request.user())
-                    .options(OpenAiChatOptions.builder()
-                            .model(model)
-                            .temperature(temperature.doubleValue())
-                            .responseFormat(OpenAiChatModel.ResponseFormat.builder()
-                                    .type(OpenAiChatModel.ResponseFormat.Type.JSON_OBJECT)
-                                    .build())
-                            .timeout(timeout))
+                    .options(options)
                     .call()
                     .chatResponse();
         } catch (RuntimeException ex) {

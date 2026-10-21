@@ -61,7 +61,12 @@ final class RubricCriteria {
             }
         }
 
-        List<Parsed> parsed = new ArrayList<>();
+        // T258：标题优先。`Rubric.md` 用 `### 1. Name — 2 points` 写评分项，
+        // 下面的 `- Yes: 2 points` / `- No: 0 points` 是判定规则，不是评分项。
+        // 只要本段里有可解析的标题，就不再从 bullet 里捡评分项；没有标题的旧 rubric
+        // 仍走 bullet 解析，并过滤掉 Yes/No 这类判定行。
+        List<Parsed> headings = new ArrayList<>();
+        List<Parsed> bullets = new ArrayList<>();
         boolean inSection = !hasStart;
         for (String line : lines) {
             Matcher heading = HEADING.matcher(line);
@@ -80,7 +85,7 @@ final class RubricCriteria {
                 if (!inSection) {
                     continue;
                 }
-                add(parsed, heading.group(1));
+                add(headings, heading.group(1));
                 continue;
             }
             if (!inSection) {
@@ -88,15 +93,16 @@ final class RubricCriteria {
             }
             Matcher bullet = BULLET.matcher(line);
             if (bullet.matches()) {
-                add(parsed, bullet.group(1));
+                add(bullets, bullet.group(1));
                 continue;
             }
             Matcher numbered = NUMBERED.matcher(line);
             if (numbered.matches()) {
-                add(parsed, numbered.group(1));
+                add(bullets, numbered.group(1));
             }
         }
 
+        List<Parsed> parsed = headings.isEmpty() ? bullets : headings;
         if (parsed.isEmpty()) {
             return List.of(new SubjectiveGradeRequest.Criterion(fallbackName, subjectiveMax));
         }
@@ -125,6 +131,9 @@ final class RubricCriteria {
         if (IGNORED.contains(name.toLowerCase(Locale.ROOT))) {
             return;
         }
+        if (isDecisionRule(name)) {
+            return;
+        }
         parsed.add(new Parsed(name, max));
     }
 
@@ -137,6 +146,17 @@ final class RubricCriteria {
         cleaned = cleaned.replaceAll("^[\\s\\-–—*_：:、（(]+", "");
         cleaned = cleaned.replaceAll("[\\s\\-–—*_：:、（）()]+$", "");
         return cleaned.strip();
+    }
+
+    /** 二元 rubric 的“是/否”行、档位行不是评分项；旧 rubric 没有标题时靠这条过滤。 */
+    private static boolean isDecisionRule(String name) {
+        String lower = name.toLowerCase(Locale.ROOT).strip();
+        return lower.equals("yes") || lower.equals("no") || lower.equals("true") || lower.equals("false")
+                || lower.startsWith("yes ") || lower.startsWith("no ")
+                || lower.startsWith("是") || lower.startsWith("否")
+                || lower.startsWith("partial") || lower.startsWith("部分")
+                || lower.startsWith("full") || lower.startsWith("完整")
+                || lower.startsWith("none") || lower.startsWith("无");
     }
 
     private static int firstColon(String value) {

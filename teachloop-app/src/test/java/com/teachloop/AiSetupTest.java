@@ -58,7 +58,7 @@ class AiSetupTest {
 
         HttpResponse<String> created = request(base, null, "POST", "/api/setup/admin",
                 Map.of("email", "first-admin@teachloop.local", "password", "first-admin-pass",
-                        "displayName", "初始管理员"));
+                        "displayName", "初始管理员", "apiKey", "sk-test-abcd1234"));
         assertThat(created.statusCode()).withFailMessage(created.body()).isEqualTo(200);
         assertThat(Json.parse(created.body()).get("role")).isEqualTo("ADMIN");
         String admin = cookie(created);
@@ -72,7 +72,7 @@ class AiSetupTest {
                         "model", "deepseek-flash", "apiKey", "sk-test-abcd1234", "temperature", 0.3)).body());
         assertThat(saved.get("apiKeySet")).isEqualTo(true);
         assertThat(saved.get("apiKeyMasked")).isEqualTo("sk-****1234");
-        assertThat(saved.get("restartRequired")).isEqualTo(true);
+        assertThat(saved.get("restartRequired")).isEqualTo(false);
         assertThat(saved.toString()).doesNotContain("sk-test-abcd1234");
 
         Map<String, Object> read = Json.parse(request(base, admin, "GET", "/api/admin/ai-settings", null).body());
@@ -88,6 +88,22 @@ class AiSetupTest {
         Map<String, Object> after = Json.parse(request(base, null, "GET", "/api/setup/status", null).body());
         assertThat(after.get("needsAdmin")).isEqualTo(false);
         assertThat(after.get("aiConfigured")).isEqualTo(true);
+
+        // D-16：教师可以在 profile 配自己的 Key；GET 只回掩码，学生 403。
+        Map<String, Object> own = Json.parse(request(base, teacher, "PUT", "/api/profile/ai-settings",
+                Map.of("provider", "deepseek", "baseUrl", "https://api.deepseek.com",
+                        "model", "deepseek-flash", "apiKey", "sk-teacher-9999")).body());
+        assertThat(own.get("source")).isEqualTo("user");
+        assertThat(own.get("apiKeyMasked")).isEqualTo("sk-****9999");
+        assertThat(own.toString()).doesNotContain("sk-teacher-9999");
+        java.util.UUID teacherId = jdbc.queryForObject(
+                "select id from users where email = 'teacher@teachloop.local'", java.util.UUID.class);
+        String userCipher = jdbc.queryForObject(
+                "select api_key_cipher from user_ai_settings where user_id = ?", String.class, teacherId);
+        assertThat(userCipher).isNotBlank().doesNotContain("sk-teacher-9999");
+
+        String student = login(base, "student@teachloop.local");
+        assertThat(request(base, student, "GET", "/api/profile/ai-settings", null).statusCode()).isEqualTo(403);
     }
 
     private String login(String base, String email) throws Exception {

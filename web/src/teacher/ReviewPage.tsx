@@ -2,11 +2,64 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime } from '../api/client'
-import { errorMessage } from './common'
-import type { BulkApproveResult, ReviewDetail, ReviewView } from '../api/types'
+import { errorMessage, fmtNum } from './common'
+import type {
+  BulkApprovePreview,
+  BulkApproveResult,
+  ReviewAnswer,
+  ReviewDetail,
+  ReviewItem,
+  ReviewView,
+} from '../api/types'
 import { AuditDrawer } from '../components/AuditDrawer'
 import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard } from '../ui'
 import type { Column } from '../ui'
+
+/** 一道题在复核页上的展示状态：答对、部分对、答错、不自动判分。 */
+type AnswerTone = 'correct' | 'partial' | 'wrong' | 'ungraded'
+
+interface ReviewRow {
+  item: ReviewItem
+  answer: ReviewAnswer | undefined
+  tone: AnswerTone
+  awarded: number | null
+}
+
+function isAutoGraded(item: ReviewItem): boolean {
+  return item.questionType !== 'ESSAY' && item.answerKey != null
+}
+
+/**
+ * 把题项、作答与判分结果合成表格行。
+ *
+ * <p>对错以服务端返回的 awardedPoints 为准（部分给分也在这条口径里）；
+ * 客观题没有作答行时按 0 分算，避免「没答」被误显示成「待评」。
+ */
+function reviewRowsOf(detail: ReviewDetail): ReviewRow[] {
+  const answers = new Map(detail.answers.map((a) => [a.number, a]))
+  return detail.items.map((item) => {
+    const answer = answers.get(item.number)
+    if (!isAutoGraded(item)) {
+      return { item, answer, tone: 'ungraded', awarded: null }
+    }
+    const awarded = answer?.awardedPoints == null ? 0 : Number(answer.awardedPoints)
+    const full = Number(item.points)
+    const tone: AnswerTone = awarded <= 0 ? 'wrong' : awarded >= full ? 'correct' : 'partial'
+    return { item, answer, tone, awarded }
+  })
+}
+
+function toneTagClass(tone: AnswerTone): string {
+  if (tone === 'correct') return 'green'
+  if (tone === 'partial') return 'amber'
+  if (tone === 'wrong') return 'red'
+  return 'gray'
+}
+
+function displayAnswer(answer: ReviewAnswer | undefined): string {
+  const text = answer?.answer?.trim()
+  return text ? text : '—'
+}
 
 export default function ReviewPage() {
   const { t } = useTranslation('translation')
@@ -26,6 +79,7 @@ export default function ReviewPage() {
   const [actionError, setActionError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [batch, setBatch] = useState<BulkApproveResult | null>(null)
+  const [batchPreview, setBatchPreview] = useState<BulkApprovePreview | null>(null)
   const [auditFor, setAuditFor] = useState<string | null>(null)
   const [form, setForm] = useState({ subjectivePoints: '', comment: '', strengths: '', suggestions: '', reason: '' })
 
@@ -68,17 +122,18 @@ export default function ReviewPage() {
     api.get<ReviewDetail>(`/api/submissions/${selected}/review`)
       .then((d) => {
         setDetail(d)
+        const teacherSaved = d.review.teacherId != null
         setForm({
-          // D-15：AI 未参与时 subjectivePoints 就是老师已保存的分；AI 草稿存在时仍以草稿为先。
+          // D-20：AI 草稿预填分数与三段文本；教师改过后以教师字段为准。
           subjectivePoints:
-            d.aiSubjectiveDraft != null
+            d.aiSubjectiveDraft != null && !teacherSaved
               ? String(d.aiSubjectiveDraft)
               : d.subjectivePoints != null
                 ? String(d.subjectivePoints)
                 : '',
-          comment: d.review.comment ?? '',
-          strengths: d.review.strengths ?? '',
-          suggestions: d.review.suggestions ?? '',
+          comment: teacherSaved ? d.review.comment ?? '' : d.aiOverall ?? d.review.comment ?? '',
+          strengths: teacherSaved ? d.review.strengths ?? '' : d.aiStrength ?? d.review.strengths ?? '',
+          suggestions: teacherSaved ? d.review.suggestions ?? '' : d.aiSuggestion ?? d.review.suggestions ?? '',
           reason: '',
         })
       })
@@ -150,6 +205,22 @@ export default function ReviewPage() {
   const withdraw = () => act(() => api.post(`/api/submissions/${selected}/review/withdraw`),
     t('review.withdrawnOk'))
 
+  const previewBulkApprove = async () => {
+    if (!queue || queue.length === 0) return
+    setBusy(true)
+    setActionError(null)
+    setBatch(null)
+    try {
+      setBatchPreview(await api.post<BulkApprovePreview>('/api/grading/bulk-approve/preview', {
+        submissionIds: queue.map((r) => r.submissionId),
+      }))
+    } catch (e) {
+      setActionError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const bulkApprove = async () => {
     if (!queue || queue.length === 0) return
     setBusy(true)
@@ -158,6 +229,7 @@ export default function ReviewPage() {
       setBatch(await api.post<BulkApproveResult>('/api/grading/bulk-approve', {
         submissionIds: queue.map((r) => r.submissionId),
       }))
+      setBatchPreview(null)
       loadQueue()
     } catch (e) {
       setActionError(errorMessage(e))
@@ -173,6 +245,32 @@ export default function ReviewPage() {
     { key: 'actions', title: t('review.open'), value: () => '', render: (r) => <Button size="small" onClick={() => openSubmission(r.submissionId)}>{t('review.open')}</Button> },
   ]
 
+  const reviewRows = detail ? reviewRowsOf(detail) : []
+  const autoRows = reviewRows.filter((row) => isAutoGraded(row.item))
+  const objectiveRows = reviewRows.filter((row) => row.item.questionType !== 'ESSAY')
+  const essayRows = reviewRows.filter((row) => row.item.questionType === 'ESSAY')
+  const correctCount = autoRows.filter((row) => row.tone === 'correct').length
+  const partialCount = autoRows.filter((row) => row.tone === 'partial').length
+  const wrongCount = autoRows.filter((row) => row.tone === 'wrong').length
+  const earnedPoints = autoRows.reduce((sum, row) => sum + (row.awarded ?? 0), 0)
+  const fullPoints = autoRows.reduce((sum, row) => sum + Number(row.item.points), 0)
+  const hasContent = Boolean(detail?.contentHtml?.trim() || detail?.contentText?.trim())
+  const aiGraded = Boolean(
+    detail &&
+      (detail.aiSubjectiveDraft != null ||
+        (detail.aiCriteria ?? []).length > 0 ||
+        detail.aiOverall ||
+        detail.aiStrength ||
+        detail.aiSuggestion),
+  )
+  const aiHasText = Boolean(detail?.aiOverall || detail?.aiStrength || detail?.aiSuggestion)
+  const aiScoreHint =
+    detail?.aiSubjectiveDraft != null
+      ? aiHasText
+        ? t('review.aiPrefillHint', { score: fmtNum(detail.aiSubjectiveDraft) })
+        : t('review.aiPrefillScoreOnly', { score: fmtNum(detail.aiSubjectiveDraft) })
+      : t('review.aiPrefillHintNoScore')
+
   return (
     <>
       <PageHeader title={t('review.title')} sub={t('review.sub')} />
@@ -180,7 +278,20 @@ export default function ReviewPage() {
         <StatCard value={queue?.length ?? 0} label={t('review.pending')} />
       </div>
       <div className="row" style={{ marginBottom: 10 }}>
-        <Button disabled={busy || !queue?.length} onClick={() => void bulkApprove()}>{t('review.bulk')}</Button>
+        <Button disabled={busy || !queue?.length} onClick={() => void previewBulkApprove()}>{t('review.bulk')}</Button>
+        {batchPreview && (
+          <span className="small muted">
+            {t('review.batchPreview', {
+              approvable: batchPreview.approvable,
+              skipped: batchPreview.skipped,
+            })}
+            {batchPreview.approvable > 0 && (
+              <Button size="small" disabled={busy} onClick={() => void bulkApprove()} style={{ marginLeft: 8 }}>
+                {t('review.batchConfirm')}
+              </Button>
+            )}
+          </span>
+        )}
         {batch && <span className="small muted">{t('review.batchResult', { approved: batch.approved, skipped: batch.skipped, total: batch.total })}</span>}
       </div>
       {queueError && <ErrorState error={queueError} onRetry={loadQueue} />}
@@ -220,6 +331,27 @@ export default function ReviewPage() {
               </div>
 
               <h3>{t('review.aiReview')}</h3>
+              {detail.aiFeedback?.includes('stub engine') && (
+                <div className="inline-note danger" style={{ marginBottom: 8 }}>
+                  {t('review.stubNotice')}
+                </div>
+              )}
+              {detail.aiFailure && (
+                <div className="inline-note danger" style={{ marginBottom: 8 }}>
+                  {t('review.aiFailure', {
+                    reason: detail.aiFailure === 'NO_KEY' ? t('review.aiFailureNoKey')
+                      : detail.aiFailure === 'AUTH_FAILED' ? t('review.aiFailureAuth')
+                        : detail.aiFailure === 'TIMEOUT' ? t('review.aiFailureTimeout')
+                          : detail.aiFailure === 'INVALID_OUTPUT' ? t('review.aiFailureInvalid')
+                            : detail.aiFailure,
+                  })}
+                </div>
+              )}
+              {detail.paragraphBoundarySensitive && (
+                <div className="inline-note" style={{ marginBottom: 8 }}>
+                  {t('review.boundarySensitive', { count: detail.paragraphCount ?? '—' })}
+                </div>
+              )}
               {detail.aiSubjectiveDraft == null && (detail.aiCriteria ?? []).length === 0 ? (
                 <div className="inline-note">{t('review.aiNotInvolved')}</div>
               ) : (
@@ -249,8 +381,31 @@ export default function ReviewPage() {
                       ))}
                     </ul>
                   )}
-                  {detail.aiFeedback && (
+                  {detail.aiOverall && (
+                    <p className="small" style={{ whiteSpace: 'pre-wrap', marginBottom: 6 }}>
+                      <b>{t('review.aiOverall')}</b> {detail.aiOverall}
+                    </p>
+                  )}
+                  {detail.aiStrength && (
+                    <p className="small" style={{ whiteSpace: 'pre-wrap', marginBottom: 6 }}>
+                      <b>{t('review.aiStrengthLabel')}</b> {detail.aiStrength}
+                    </p>
+                  )}
+                  {detail.aiSuggestion && (
+                    <p className="small" style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>
+                      <b>{t('review.aiSuggestionLabel')}</b> {detail.aiSuggestion}
+                    </p>
+                  )}
+                  {!detail.aiOverall && detail.aiFeedback && (
                     <p className="small" style={{ whiteSpace: 'pre-wrap', marginBottom: 0 }}>{detail.aiFeedback}</p>
+                  )}
+                  {detail.aiPromptVersion && (
+                    <p className="small muted" style={{ marginTop: 8, marginBottom: 0 }}>
+                      {t('review.aiProvenance', {
+                        version: detail.aiPromptVersion,
+                        model: detail.aiModel ?? 'deepseek-flash',
+                      })}
+                    </p>
                   )}
                 </div>
               )}
@@ -258,22 +413,60 @@ export default function ReviewPage() {
               <details className="review-more" style={{ marginTop: 14 }}>
                 <summary>{t('review.itemsAndRubric')}</summary>
                 <h3>{t('review.items')}</h3>
-              <table>
-                <thead><tr><th>#</th><th>{t('review.answer')}</th><th>{t('review.answerKey')}</th><th>{t('review.points')}</th></tr></thead>
-                <tbody>
-                  {detail.items.map((item) => {
-                    const answer = detail.answers.find((a) => a.number === item.number)?.answer
-                    return (
-                      <tr key={item.number}>
-                        <td className="mono">{item.number}</td>
-                        <td className="small">{answer ?? '—'}</td>
-                        <td className="small mono">{item.answerKey ?? '—'}</td>
-                        <td className="mono">{item.points}</td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
+                {autoRows.length > 0 && (
+                  <div className="row review-item-summary">
+                    <span className="small muted">
+                      {t('review.itemSummary', {
+                        total: autoRows.length,
+                        correct: correctCount,
+                        wrong: wrongCount,
+                        earned: fmtNum(earnedPoints),
+                        full: fmtNum(fullPoints),
+                      })}
+                    </span>
+                    {partialCount > 0 && (
+                      <span className="tag amber">{t('review.partialCount', { count: partialCount })}</span>
+                    )}
+                  </div>
+                )}
+                <table className="review-items">
+                  <thead>
+                    <tr>
+                      <th scope="col">#</th>
+                      <th scope="col">{t('review.result')}</th>
+                      <th scope="col">{t('review.answer')}</th>
+                      <th scope="col">{t('review.answerKey')}</th>
+                      <th scope="col" className="num">{t('review.earned')}</th>
+                      <th scope="col" className="num">{t('review.fullPoints')}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {reviewRows.map(({ item, answer, tone, awarded }) => {
+                      const given = displayAnswer(answer)
+                      return (
+                        <tr key={item.number} className={`is-${tone}`}>
+                          <td className="mono" title={item.stem ?? undefined}>{item.number}</td>
+                          <td>
+                            <span className={`tag ${toneTagClass(tone)}`}>
+                              {t(`review.result_${tone}`)}
+                            </span>
+                          </td>
+                          <td
+                            className={`small mono answer-given is-${tone}`}
+                            title={given === '—' ? undefined : given}
+                          >
+                            {given}
+                          </td>
+                          <td className="small mono">{item.answerKey ?? '—'}</td>
+                          <td className={`mono num awarded is-${tone}`}>
+                            {awarded == null ? '—' : fmtNum(awarded)}
+                          </td>
+                          <td className="mono num muted">{fmtNum(item.points)}</td>
+                        </tr>
+                      )
+                    })}
+                  </tbody>
+                </table>
                 {detail.rubricMarkdown && (
                   <details style={{ marginTop: 10 }}>
                     <summary>{t('review.rubric')}</summary>
@@ -287,10 +480,82 @@ export default function ReviewPage() {
               )}
 
               <h3>{t('review.teacherGrading')}</h3>
+              {aiGraded && <div className="inline-note ok">{aiScoreHint}</div>}
+              <div className="grading-answer">
+                <div className="grading-answer-head">
+                  <b>{t('review.studentAnswer')}</b>
+                  {aiGraded && <span className="tag blue">{t('review.aiDraftBadge')}</span>}
+                </div>
+                {hasContent && (
+                  <div className="grading-answer-block">
+                    <div className="small muted">{t('review.content')}</div>
+                    <div className="grading-answer-text">
+                      {detail.contentHtml?.trim() ? (
+                        <div className="rich-content" dangerouslySetInnerHTML={{ __html: detail.contentHtml }} />
+                      ) : (
+                        <div style={{ whiteSpace: 'pre-wrap' }}>{detail.contentText}</div>
+                      )}
+                    </div>
+                  </div>
+                )}
+                {essayRows.length > 0 && (
+                  <div className="grading-answer-block">
+                    <div className="small muted">{t('review.essayAnswers')}</div>
+                    {essayRows.map(({ item, answer }) => {
+                      const text = answer?.answer?.trim()
+                      return (
+                        <div className="essay-answer" key={item.number}>
+                          <div className="small">
+                            <b>{t('review.question', { number: item.number })}</b>{' '}
+                            {item.stem ?? ''}
+                          </div>
+                          <div className="grading-answer-text small">
+                            {text || (hasContent ? t('review.seeContentAbove') : t('review.unanswered'))}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {objectiveRows.length > 0 && (
+                  <div className="grading-answer-block">
+                    <div className="row" style={{ justifyContent: 'space-between' }}>
+                      <span className="small muted">{t('review.answerSheet')}</span>
+                      <span className="small muted">
+                        {t('review.answerSheetSummary', { correct: correctCount, wrong: wrongCount })}
+                      </span>
+                    </div>
+                    <div className="answer-sheet">
+                      {objectiveRows.map(({ item, answer, tone }) => (
+                        <span
+                          key={item.number}
+                          className={`answer-chip is-${tone}`}
+                          title={[t('review.question', { number: item.number }), item.stem]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        >
+                          <b>{item.number}</b>
+                          <span>{displayAnswer(answer)}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {!hasContent && reviewRows.length === 0 && (
+                  <p className="small muted" style={{ marginBottom: 0 }}>
+                    {t('review.noStudentAnswer')}
+                  </p>
+                )}
+              </div>
               <div className="row" style={{ alignItems: 'flex-start' }}>
                 <label className="f" style={{ width: 120 }}><b>{t('review.subjective')} <span className="required-mark">*</span></b>
                   <input type="number" step="0.5" min={0} value={form.subjectivePoints}
                     onChange={(e) => setForm({ ...form, subjectivePoints: e.target.value })} />
+                  {detail.aiSubjectiveDraft != null && (
+                    <span className="hint">
+                      {t('review.aiSuggestedScore', { score: fmtNum(detail.aiSubjectiveDraft) })}
+                    </span>
+                  )}
                 </label>
                 <label className="f" style={{ flex: 1, minWidth: 220 }}><b>{t('review.comment')}</b>
                   <textarea rows={3} value={form.comment} onChange={(e) => setForm({ ...form, comment: e.target.value })} />

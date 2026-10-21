@@ -27,4 +27,13 @@ public class StudentDirectoryImpl implements Ports.StudentDirectory {
         }
         return out;
     }
+
+    @Override
+    public Map<UUID, String> locales(Collection<UUID> userIds) {
+        Map<UUID, String> out = new LinkedHashMap<>();
+        for (User u : users.findAllById(userIds)) {
+            out.put(u.getId(), u.getLocale());
+        }
+        return out;
+    }
 }

@@ -1,6 +1,7 @@
 package com.teachloop.sitting.port;
 
 import com.teachloop.shared.port.Ports;
+import com.teachloop.shared.text.BlankText;
 import com.teachloop.sitting.domain.ObjectiveAnswer;
 import com.teachloop.sitting.domain.ObjectiveAnswerRepository;
 import com.teachloop.sitting.domain.Offering;
@@ -77,7 +78,7 @@ public class ExplanationWorkImpl implements Ports.ExplanationWorkQueue {
                 .forEach(e -> {
                     Ports.ItemSpec spec = byItem.get(e.getKey());
                     out.add(new Ports.ExplanationItem(e.getKey(), spec.number(), spec.questionType(),
-                            spec.stem(), spec.options(), spec.answerKey(), e.getValue(),
+                            BlankText.forText(spec.stem()), spec.options(), spec.answerKey(), e.getValue(),
                             o.getFeedbackLanguage()));
                 });
         return out;

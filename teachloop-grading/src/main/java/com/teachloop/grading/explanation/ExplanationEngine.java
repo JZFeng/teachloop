@@ -63,8 +63,9 @@ public class ExplanationEngine {
             throw new LlmCallException("AI 解析引擎未启用，拒绝生成解析");
         }
         Prompt prompt = buildPrompt(item);
+        // 解析是纯文本：不能走判分链路的 JSON 模式，否则模型会把解析包成 {"解析": "..."}。
         LlmClient.LlmResponse response = llm.complete(
-                new LlmClient.LlmRequest(prompt.system(), prompt.user()));
+                LlmClient.LlmRequest.plain(prompt.system(), prompt.user()));
         recordCall(response);
         String text = response.content() == null ? "" : response.content().strip();
         if (text.isEmpty()) {

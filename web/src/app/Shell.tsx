@@ -22,6 +22,7 @@ import {
   UserOutlined,
 } from '../ui'
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
+import type { ProfileAiSettings } from '../api/types'
 
 interface NavItem { to: string; label: string; icon: ReactNode; end?: boolean }
 
@@ -30,6 +31,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [unread, setUnread] = useState(0)
+  const [aiSource, setAiSource] = useState<'user' | 'global' | 'none' | null>(null)
 
   const teacherNav: NavItem[] = [
     { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true },
@@ -70,6 +72,18 @@ export function Shell({ children }: { children: ReactNode }) {
     }
   }, [])
 
+  useEffect(() => {
+    if (me?.role !== 'TEACHER' && me?.role !== 'ADMIN') {
+      setAiSource(null)
+      return
+    }
+    let alive = true
+    api.get<ProfileAiSettings>('/api/profile/ai-settings')
+      .then((value) => { if (alive) setAiSource(value.source) })
+      .catch(() => { if (alive) setAiSource(null) })
+    return () => { alive = false }
+  }, [me?.id, me?.role])
+
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
@@ -109,6 +123,11 @@ export function Shell({ children }: { children: ReactNode }) {
             {profileComplete === false && (
               <Button size="small" variant="primary" onClick={() => navigate('/profile')}>
                 {t('profile.completeAction')}
+              </Button>
+            )}
+            {aiSource === 'none' && (
+              <Button size="small" variant="primary" onClick={() => navigate('/profile')}>
+                {t('profile.aiMissingAction')}
               </Button>
             )}
             <Button size="small" icon={<BellOutlined aria-hidden="true" />} onClick={() => navigate('/notifications')}>

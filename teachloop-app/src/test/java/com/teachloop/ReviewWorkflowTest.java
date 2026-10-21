@@ -116,6 +116,15 @@ class ReviewWorkflowTest {
         assertThat(detail.get("contentText")).isEqualTo("我的作文内容。");
         assertThat((List<?>) detail.get("answers")).hasSize(2);
         assertThat((List<?>) detail.get("items")).hasSize(3);
+        // 逐题对错与实得分：第 1 题答对拿满 10 分，第 2 题答错 0 分。
+        Map<?, ?> correctRow = answerRow(detail, 1);
+        assertThat(correctRow.get("correct")).isEqualTo(true);
+        assertThat(new BigDecimal(correctRow.get("awardedPoints").toString()))
+                .isEqualByComparingTo("10");
+        Map<?, ?> wrongRow = answerRow(detail, 2);
+        assertThat(wrongRow.get("correct")).isEqualTo(false);
+        assertThat(new BigDecimal(wrongRow.get("awardedPoints").toString()))
+                .isEqualByComparingTo("0");
         assertThat(new BigDecimal(detail.get("aiSubjectiveDraft").toString()))
                 .isEqualByComparingTo("7.5");
         assertThat(((Map<?, ?>) detail.get("review")).get("status")).isEqualTo("PENDING");
@@ -327,6 +336,14 @@ class ReviewWorkflowTest {
         body.put("points", points);
         body.put("sectionId", sectionId);
         post(teacher, "/api/papers/" + paperId + "/items", body, "id");
+    }
+
+    private Map<?, ?> answerRow(Map<String, Object> detail, int number) {
+        return ((List<?>) detail.get("answers")).stream()
+                .map(row -> (Map<?, ?>) row)
+                .filter(row -> ((Number) row.get("number")).intValue() == number)
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("详情里没有第 " + number + " 题的作答"));
     }
 
     private Map<Integer, String> answers(Object... numberAnswerPairs) {

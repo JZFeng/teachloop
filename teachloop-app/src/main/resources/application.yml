@@ -39,7 +39,7 @@ teachloop:
     oss:
       bucket: ${STORAGE_OSS_BUCKET:}
   grading:
-    engine: stub
+    engine: ${TEACHLOOP_GRADING_ENGINE:ai}
     poll-ms: 2000
     batch-size: 5
     # 到期派发的扫描周期（T092）；互斥在 SQL 条件更新，不靠这里

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # TeachLoop 一键本地开发：启动 Postgres → 构建/seed → 后端 → 前端；Ctrl-C 自动清理。
 # 用法：
-#   ./scripts/dev.sh                 # 默认 stub 判分，不 seed
+#   ./scripts/dev.sh                 # 默认真实 AI 引擎，不 seed（Key 在 /profile 或 /admin/ai 配）
 #   ./scripts/dev.sh --seed          # 额外造演示数据（1 班 + 30 学生 + 1 试卷）
-#   ./scripts/dev.sh --ai            # 用真实 AI 引擎（需先在 /admin/ai 保存 Key）
+#   ./scripts/dev.sh --stub          # 用开发替身引擎（只用于无 Key 的 UI 演示）
 #   ./scripts/dev.sh --no-build --no-open --keep-db
 set -u
 
@@ -24,7 +24,7 @@ JAR="$ROOT/teachloop-app/target/teachloop-app-0.1.0-SNAPSHOT.jar"
 
 SEED=0
 BUILD=1
-AI=0
+AI=1
 OPEN=1
 KEEP_DB=0
 
@@ -34,6 +34,7 @@ for arg in "$@"; do
     --rebuild) BUILD=1 ;;
     --no-build) BUILD=0 ;;
     --ai) AI=1 ;;
+    --stub) AI=0 ;;
     --no-open) OPEN=0 ;;
     --keep-db) KEEP_DB=1 ;;
     -h|--help)
@@ -192,7 +193,7 @@ cat <<BANNER
   前端    http://127.0.0.1:$WEB_PORT
   后端    http://127.0.0.1:$BACKEND_PORT
   初始化  http://127.0.0.1:$WEB_PORT/setup   （还没有管理员时）
-  AI      默认 ${AI_ENV}；真实 AI 需在 /admin/ai 保存 Key 后用 --ai 重启
+  AI      默认 ${AI_ENV}；真实 AI 需先在 /profile 或 /admin/ai 保存 Key，--stub 可切回替身
 
   教师    teacher@teachloop.local / teachloop123
   学生    student@teachloop.local / teachloop123

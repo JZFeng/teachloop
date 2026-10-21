@@ -37,22 +37,25 @@ class PromptBuilderTest {
         assertThat(request.studentText()).isEqualTo(ESSAY);
 
         PromptBuilder.Prompt prompt = builder.build(request);
-        assertThat(prompt.promptVersion()).isEqualTo("subjective-v1");
+        assertThat(prompt.promptVersion()).isEqualTo("subjective-v2");
         assertThat(prompt.system())
-                .contains("你是一名资深教师")
+                .contains("TESOL")
+                .contains("Write about your class.")
                 .contains("## 评分标准")
                 .contains("内容要点")
                 .contains("语言准确性")
                 .contains("满分 10 分")
                 .contains("满分 5 分")
+                .contains("## 评分政策")
                 .contains("## 输出契约")
                 .contains("\"criteria\"")
-                .contains("\"total\"")
+                .contains("\"overall\"")
                 .contains("不超过主观题满分 15 分");
         assertThat(prompt.user())
                 .startsWith("## 客观指标")
                 .contains("词数 10")
                 .contains("段落数 2")
+                .contains("## 本次反馈语言")
                 .contains("## 学生正文")
                 .contains(ESSAY);
     }
@@ -64,16 +67,19 @@ class PromptBuilderTest {
 
         PromptBuilder.Prompt prompt = builder.build(request);
         assertThat(prompt.system())
-                .contains("You are an experienced teacher")
+                .contains("TESOL instructor")
+                .contains("Write about your class.")
                 .contains("## Rubric")
+                .contains("## Grading policy")
                 .contains("## Output contract")
                 .contains("points maximum")
-                .contains("\"criteria\"")
+                .contains("\"overall\"")
                 .doesNotContain("你是一名");
         assertThat(prompt.user())
                 .contains("## Objective metrics")
                 .contains("Word count 10")
-                .contains("paragraphs 2")
+                .contains("paragraph count 2")
+                .contains("## Feedback language")
                 .contains("## Student response");
     }
 
@@ -126,11 +132,74 @@ class PromptBuilderTest {
     }
 
     @Test
+    @DisplayName("Rubric.md：标题是评分项，Yes/No 是判定规则，不混进 criteria")
+    void parsesHeadingRubricAndSkipsRuleBullets() {
+        String rubric = """
+                # Overall Assignment Rubric
+
+                ## Scoring Rubric
+
+                ### 1. Required Length — 2 points
+                Was it between 1–4 paragraphs?
+                - Yes: 2 points
+                - No: 0 points
+
+                ### 2. Clear Position — 4 points
+                - Yes: 4 points
+                - No: 0 points
+
+                ### 3. Explanation and Supporting Details — 4 points
+                - Yes: 4 points
+                - No: 0 points
+
+                ## Maximum Score
+                10 points
+                """;
+        Ports.WorkItem item = new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), STUDENT_ID,
+                STUDENT_NAME, "TEXT", ESSAY, null, List.of(),
+                List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", null, new BigDecimal("10"),
+                        "Write about your class.")),
+                rubric, null, "en");
+
+        SubjectiveGradeRequest request = SubjectiveGradeRequest.from(item);
+
+        assertThat(request.criteria()).extracting(SubjectiveGradeRequest.Criterion::name)
+                .containsExactly("Required Length", "Clear Position", "Explanation and Supporting Details");
+        assertThat(request.criteria()).extracting(SubjectiveGradeRequest.Criterion::maxPoints)
+                .containsExactly(new BigDecimal("2"), new BigDecimal("4"), new BigDecimal("4"));
+        assertThat(request.binaryRubric()).isTrue();
+        assertThat(request.lengthMin()).isEqualTo(1);
+        assertThat(request.lengthMax()).isEqualTo(4);
+    }
+
+    @Test
+    @DisplayName("锚点：只有教师确认的参考范文非空时才进入 system")
+    void includesAnchorsOnlyWhenPresent() {
+        String rubric = "# 评分标准\n- 内容要点（10 分）：是否切题。\n- 语言准确性（5 分）：语法与用词。";
+        Ports.WorkItem without = new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), STUDENT_ID,
+                STUDENT_NAME, "TEXT", ESSAY, null, List.of(),
+                List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", null, new BigDecimal("15"),
+                        "Write about your class.")),
+                rubric, null, "zh-CN", null, "");
+        Ports.WorkItem with = new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), STUDENT_ID,
+                STUDENT_NAME, "TEXT", ESSAY, null, List.of(),
+                List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", null, new BigDecimal("15"),
+                        "Write about your class.")),
+                rubric, null, "zh-CN", null, "示例：3 段，立场明确，4/4。片段：We learn English together.");
+
+        assertThat(builder.build(SubjectiveGradeRequest.from(without)).system())
+                .doesNotContain("参考范文");
+        assertThat(builder.build(SubjectiveGradeRequest.from(with)).system())
+                .contains("参考范文（教师确认、已匿名")
+                .contains("We learn English together");
+    }
+
+    @Test
     @DisplayName("没有主观题时拒绝构造 prompt")
     void rejectsEmptyItems() {
         SubjectiveGradeRequest request = new SubjectiveGradeRequest(List.of(), ESSAY, 10, 2, null,
                 List.of(new SubjectiveGradeRequest.Criterion("内容要点", new BigDecimal("10"))),
-                "# 评分标准", "zh-CN");
+                "# 评分标准", "zh-CN", "Write about your class.", false, 1, 4, "policy_default", false, "");
         assertThatThrownBy(() -> builder.build(request)).isInstanceOf(IllegalArgumentException.class);
     }
 

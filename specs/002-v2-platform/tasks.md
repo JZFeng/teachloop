@@ -261,7 +261,7 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 
 ## 需求追踪矩阵
 
-`spec.md` 的 26 个用户故事、51 条功能需求都有对应任务（FR-043/044 由 2026-10-20 的未编号增量实现）。231 条验收标准在各自用户故事的
+`spec.md` 的 28 个用户故事、61 条功能需求都有对应任务（FR-043/044 由 2026-10-20 的未编号增量实现）。258 条验收标准在各自用户故事的
 任务里被覆盖（验收标准与任务是一对多的关系，因此不逐条列出以免矩阵变成噪音）。
 
 ### 用户故事 → 任务
@@ -273,14 +273,15 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | US-5 | T052、T053、T055、T196 | US-6 | T060–T063、T066、T067 |
 | US-7 | T064 | US-8 | T065、T202 |
 | US-9 | T092、T093 | US-10 | T070、T071、T080–T085、T094 |
-| US-11 | T100–T105、T182、T243、T244、T246 | US-12 | T110、T111、T114、T193、T194 |
+| US-11 | T100–T105、T182、T243、T244、T246、T263、T264 | US-12 | T110、T111、T114、T193、T194、T264 |
 | US-13 | T112、T113、T211 | US-14 | T120–T124 |
-| US-15 | T130–T132 | US-16 | T105、T140–T143、T184 |
+| US-15 | T130–T132、T264 | US-16 | T105、T140–T143、T184 |
 | US-17 | T150–T152、T192、T215、T216 | US-18 | T056、T086–T088、T115 |
 | US-19 | T180 | US-20 | T181、T182 |
 | US-21 | T187–T189、T195、T197、T199、T200 | US-22 | T190、T238、T240、T241 |
 | US-23 | T191 | US-24 | T183 |
 | US-25 | T184 | US-26 | T198–T201、T202、T212、T237–T239、T241 |
+| US-27 | T255–T267 | US-28 | T258、T265、T268 |
 
 ### 功能需求 → 任务
 
@@ -314,7 +315,11 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 | FR-051 | T247 | — | — |
 | FR-052 | T249 | — | — |
 | FR-053 | T251 | — | — |
-| FR-050 | T243、T244、T246 | FR-051 | T247 |
+| FR-050 | T243、T244、T246 | FR-054 | T256、T257、T264 |
+| FR-055 | T259 | FR-056 | T261 |
+| FR-057 | T258、T264 | FR-058 | T263、T264 |
+| FR-059 | T265 | FR-060 | T262 |
+| FR-061 | T268 | — | — |
 
 ---
 
@@ -427,6 +432,49 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
 | T253 | **AI 结果可见 + 复核页收敛**：① AI 逐项意见与评语落库（`reviews.ai_criteria` JSON 文本 + `ai_feedback`，V027/V028），复核详情返回 `aiCriteria` / `aiFeedback`；② 复核页新增「AI 评估」区（AI 建议分、逐项得分与意见、优点/建议、「采用 AI 建议分」），并把「题项与评分标准」折叠、标题去重（复核详情 → 学生正文 → AI 评估 → 教师判分与评语 → 批改与发布）；③ 审计「复核改分」改写成一句话（主观分 `7.5 → 8`、评语/优点/建议，去尾零、null 不显示）；④ 顶栏右侧用户信息可点击进 `/profile`。 | T252 | AI 批完复核页能看到逐项意见；审计不再出现原始字段名；顶栏点击 `JZ · teacher@…` 进资料页；用真实 rubric + Maria/Mark 跑通「建作业 → 两学生提交 → 单份 AI 派发 → 教师复核发布 → 学生反馈可见」。验证：`GradingDispatchTest` 10/10（补 `aiCriteria/aiFeedback` 断言）、`make test` 209/0/0/0、`pnpm typecheck` / `pnpm build` / `check-i18n` 通过；截图 `docs/reports/t253-review-ai/` |
+
+---
+
+## 阶段 25 — 2026-10-21 评分质量（D-16–D-22）
+
+上游：用户看了复核页的「AI 建议分 7.5 / 内容要点 4.5/6 / 语言准确性 3/4」，指出这不是 AI 评分，
+而是 stub；要求按 `Grading_Prompt.md` + `Alejandro_review.txt` 的质量重做，并拍板：
+初始化/登录/资料三处配 Key、Key 不明文、反馈语言跟学生界面语言、作业 rubric 优先、
+问候语不计段、AI 反馈预填 + 批量通过。**本轮用户选择「只出规范」**：T254 只改文档，
+其余任务等用户明确说「开始实现」后再执行。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T254 | **规格/研究/任务回写**：新增 `docs/research/2026-10-21-grading-quality.md`（stub 归因、10 份探针、外部证据）、`docs/reports/grading-quality/default-rubric-review.md`、spec US-27/US-28（AC-27.1–27.16、AC-28.1–28.11）、D-16–D-22、FR-054–061、plan §6.1/§6.5–6.7/§9/§11/§18.5、tasks 本阶段。 | T253 | 四份文档计数吻合、无重复编号；用户拍板的 7 项都有对应 AC；默认 rubric 的问题与替换方案有书面结论；**不改业务代码**。 |
+| T255 | **数据库迁移**：`user_ai_settings`（user_id 主键、密文列）、`offerings.created_by`、`reviews.ai_overall/ai_strength/ai_suggestion/ai_model/ai_prompt_version/ai_key_source/ai_failure/feedback_language`、`ai_calls.key_source`；只写各模块自己的表。 | T254 | `MigrationTest` 空库迁移通过；升级 dev 库后旧数据可读；`check-boundaries.py` 不报越界；`offerings.created_by` 历史空值有回填策略（空 = 全局 Key）。 |
+| T256 | **Identity：Key 生命周期**：setup 必填 Key + 测试；`/profile` AI 设置 GET/PUT/test（仅 TEACHER/ADMIN）；Key 加密、GET 只回掩码、保存即生效；审计只记事件与操作者；日志/异常不含 Key。 | T255 | 首个管理员不填 Key 不能完成 setup（可选「仍然保存」需审计警告）；保存后 GET 不回明文；测试连接 401 给出「认证失败」；学生访问 403；`AiSetupTest`/`ProfileAiSettingsTest` 覆盖；审计无 Key 片段。 |
+| T257 | **Key 解析 + 客户端工厂**：`AiKeyResolver`（作业创建者 → 全局 → NO_KEY）；`LlmClientFactory` 按次创建；`WorkItem.createdBy`；去掉启动时固化 Key 与 `restartRequired`；鉴权失败不静默换 Key。 | T255, T256 | user/global/none 三种路径单测；改 Key 后下一次调用生效（无需重启）；`key_source` 落 `ai_calls`；`NO_KEY` 时不发网络请求。 |
+| T258 | **Rubric 契约服务**：解析评分项/满分/规则；校验名称非空唯一、每项有分值、和 = 总分；缺分值/重复/和不等于总分阻止保存，不可执行规则给 warning；默认 rubric 统一为课程 `docs/rubrics/Rubric.md`（2/4/4）；`GET /api/rubrics/default` 或 classpath 单一来源；`POST /api/rubrics/preview` 返回「AI 将看到」文本。 | T255 | 用 `Rubric.md` 解析出 3 项 2/4/4 且和 = 10；两行空模板被拒；和不等/重复/缺分值各有 400 用例；预览含题目要求、rubric、政策、输出契约；前后端不再各写一份默认。 |
+| T259 | **PromptBuilder v2**：角色 + 题目要求 + 完整 rubric（判定规则）+ 评分政策 + 证据要求 + `overall` + 反馈语言（user）+ 可选锚点（system）；`PROMPT_VERSION=subjective-v2`；拒绝把姓名/学号/submission_id 放进 prompt。 | T257, T258 | `PromptBuilderTest` 断言各段存在、语言在 user、姓名不在 prompt；同一作业两次构造 system 完全一致（缓存前缀）；无锚点时不出现空锚点段。 |
+| T260 | **GradeOutputValidator v2**：逐项证据引用（逐字、忽略大小写/空白、≥3 词）、comment 非空且 ≥15 字、strength/suggestion 非套话、语言合规、二元/分档、长度结论一致、total 求和；失败重试 1 次；保留原始输出。 | T259 | 编造引用/空评语/中文混入 en/3/4 这类中间分/长度与代码不一致各有拒绝用例；合法输出 1 次通过；连续 2 次失败抛错且不落分。 |
+| T261 | **篇幅指标接进产品**：`TextLengthCounter` 四模型在判分与复核详情按 `content_text` 现算（policy_default 段数 + 边界敏感，不新增表）；`SubjectiveGradeRequest` 与 `ReviewDetail` 暴露；批量通过跳过边界项。 | T255 | 10 份 fixture 的段数与 Python 脚本一致；Genesis/JZ/Maria/Mark 标边界；复核页显示段数与政策；批量通过跳过边界项，单份通过给「边界敏感，请确认」提示（用例）。 |
+| T262 | **引擎/Worker 去假分**：生产/测试台默认 `ai`；stub 仅 dev/test profile；失败分类 `NO_KEY/AUTH_FAILED/TIMEOUT/INVALID_OUTPUT/RATE_LIMITED` 写 `ai_failure`；AI 草稿写 overall/model/prompt_version/key_source；任何失败不出分。 | T257, T260, T261 | stub 在 ai profile 下不可用；无 Key 提交 FAILED 且无主观分；失败原因在复核详情可见；AI 成功时 `reviews` 五个新列齐全；人工分不被覆盖（沿用测试）。 |
+| T263 | **复核 API：预填 + 批量通过预览**：详情返回 aiOverall/aiFailure/来源；批量预览返回合格份数、分数范围、跳过原因；确认后逐份审计 `bulk=true`；发布仍独立。 | T262 | 打开详情预填三字段与分数、不落库；保存后 teacher_id 落库；预览跳过边界/失败/无草稿/未过闸门；批量只通过合格项；审计逐份可查。 |
+| T264 | **前端**：setup 增加 Key 字段与测试；教师登录无 Key 提示；`/profile` AI 设置卡片（掩码/保存/测试）；作业创建 rubric 校验结果 + 预览 + 导入；复核页 AI 草稿预填、来源/失败状态、批量通过对话框；学生反馈不出现 AI 内部信息；zh/en key 对齐。 | T256, T258, T263 | `pnpm typecheck`/`build` 0；`check-i18n` 通过；浏览器实测无 Key 提示→设置→AI 可用；创建作业拒绝空 rubric；复核页预填可改；批量通过显示跳过项；学生端无 AI 内部字段。 |
+| T265 | **Golden set 评估**：扩展 `scripts/golden-set.py` 为 `scripts/grading-eval.py`（逐项 exact/within-one、总分 MAE、契约/引用/语言合规、边界单列）；按 D-19 更正 JZ 参考为 10/10、Mark 8/10、Maria 10/10；写 known-inconsistency 说明与报告模板。 | T259, T260, T261 | 10 份样本跑出完整报告；JZ 更正前后都有记录；无 Key 退出码 2 不写假数；报告含每份一行与失败样本；阈值写入脚本。 |
+| T266 | **测试面**：单测 + 集成（Key 优先级/明文泄漏/假分/学生语言/rubric 校验/长度/validator/批量跳过/预填/锚点匿名化）。 | T256–T265 | 新增测试全绿；`make test` 退出码 0；`check-i18n`/`check-boundaries`/`check-deps` 通过。 |
+| T267 | **端到端实测**：初始化填 Key → 教师资料改 Key → 用 `Rubric.md` 建作业 → 3 名学生提交 → 派发 → 真实 AI 出逐项证据 → 复核页预填 → 改一份/批量通过 → 发布 → 学生反馈；截图与数据断言。 | T266 | 浏览器全链跑通；AI 输出含逐字引用与英文评语（学生 locale=en）；批量通过跳过边界项；学生只看到教师最终内容；截图存 `docs/reports/grading-quality/e2e/`；**未跑的部分如实标注**。 |
+| T268 | **锚点接缝（可选）**：0–3 份匿名范文的存储/校验/注入/降级；默认关闭；不做自动挑选与专门编辑器（本期）。 | T255, T259 | 未配置时 prompt 无锚点；含姓名/学号/联系方式的锚点被拒；超预算降级为无锚点并记录；同一作业两次 system 一致。 |
+
+---
+
+## 阶段 26 — 2026-10-21 答题页题干标签修复（T320）
+
+上游：用户实测答题页截图，每道阅读题开头多出一个孤立字母（Q26 的 B、Q30 的 C），
+误以为是标准答案泄露。核对数据后确认是阅读材料标签 A–D 被拼进题干（学生端接口本来就不返回 `answerKey`）；
+用户拍板「开头不需要显示任何字母」。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T320 | **材料标签不进题干**：`PaperTextParser` 识别到单独一行的 A–G 材料标签时只切分材料、不再写入 `material`；新增 `V032`（`objective_items` 存量题干）与 `V033`（`offerings.paper_snapshot` 存量快照）清理首行标签，答案/选项/分值/顺序不动。 | T231 | 新导入的阅读题题干不以孤立字母开头；QA 库迁移后 30 条题干与 1 场快照不再命中 `^[A-G]`，快照结构 diff 为 0；`PaperTextParserTest` 新用例 + `RealExamImportTest`/`RealExamWithAnswersTest` + `Phase2ExamTimingTest` 全绿；答题页 Q21–Q35 开头无字母。 |
+| T321 | **共用材料只渲染一次**：`MaterialGrouper` 在考试快照上识别阅读材料组与完形/语法填空空组，`ExamPaperItemView` 增 `groupKey/material/questionStem/blankIndex`；前端按组渲染：阅读材料一次 + 题目列表，完形/语法填空材料一次 + 行内控（选择题点空弹 A–D，填空题行内输入），目录树跳转、滚动联动、标记、提交检查仍按题号；任一分组校验不过整组回退现状。 | T320 | 真实快照分组为 21–23/24–27/28–31/32–35/36–40/41–55/56–65，66–75 独立；`MaterialGrouperTest` 6 条；答题页 41–55 只出现一次 1,223 字文章、56–65 只出现一次 1,091 字文章；作答保存/草稿/交卷/判分不变；`pnpm typecheck`/`build`/`check-i18n`/`check-ui` 通过。 |
+| T322 | **RubricValidator 文案 i18n**：校验问题从 `List<String>` 改为 `Issue(code,args)`，由 `RubricIssueText` 在预览/布置两个出口按 locale 渲染；5 条问题文案进 `messages.properties` / `messages_zh_CN.properties`；中文 rubric 解析词表移到 `sitting/domain/RubricVocabulary`，不靠扩 i18n 基线。 | T258 | `RubricValidatorTest` 4/4、`RubricIssueTextTest` 2/2；`check-i18n` 通过且基线 311 → 290；布置作业的 400 提示按请求语言返回中文/英文；`make test` 225/0/0/0。 |
+| T323 | **复核页逐题判分可视化 + 学生作答前置**：`Ports.AnswerRow` / `ReviewDetail.answers` 增 `correct` 与 `awardedPoints`（客观题按快照答案用 `ObjectiveScoring` 重算，作文为 null）；题项表把原来的「分（满分）」拆成「得分 / 满分」，答对绿、答错红、部分给分琥珀，并给汇总；「教师判分与评语」前置学生作答（正文、主观题作答、客观题答题卡）与 AI 草稿预填提示及建议分。 | T263,T264,T322 | `ReviewWorkflowTest` 断言答对 10 分/答错 0 分；`pnpm typecheck` / `pnpm build` / `check-i18n` / `check-ui` 通过；QA 5174 实测 75 题显示 33 对/42 错/48 分，作文页 AI 建议分 7.5 预填且提示不谎称有评语。 |
 
 ---
 
@@ -581,3 +629,25 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | 2026-10-20 | T250 第二轮实测反馈（资料提醒 / 必填高亮 / 富文本编辑器 / 复核正文与主操作） | 完成 | 后端：`Ports.WorkItem`、`ReviewEndpoint.ReviewDetail` 增 `contentHtml`（`SittingLedgerImpl` 从已消毒的 `submissions.content_html` 取），AI prompt 仍只用纯文本；资料是否补全改由前端读 `/api/profile` 判定，`/api/auth/me` 不变。前端：`AuthProvider` 暴露 `profileComplete`/`refreshProfile`，顶部只在未补全时显示「补全资料」，保存后 `refresh()`+`refreshProfile()` 立即消失；侧栏用户名常驻 `/profile`；资料页必填项红色 `*`+红框+字段级红字+顶部红条，未填禁用保存；新增 `components/RichTextEditor.tsx`（execCommand 工具条、空态占位、挂载时灌入初始 HTML），作业页富文本改用它，本机草稿存 `{text,html,mode}` 刷新可恢复；复核页「学生正文」优先渲染 `contentHtml`（`rich-content`），操作区改为「保存并发布反馈」主按钮（内部先 PUT 再 publish）+「仅保存草稿」+「退回重批」+「撤回」+「审计」，发布后隐藏保存类按钮，禁用按钮统一半透明；队列列名/状态中文化。验证：`pnpm typecheck` 0、`pnpm build` 0、`check-i18n` 1009 键对齐、`make test` 退出码 0（206/0/0/0）；浏览器实测：学生01 资料空手机号→红色高亮+顶部「补全资料」→保存后按钮消失；富文本输入并加粗成功（`<b>Hello rich text editor</b>`）、保存草稿后刷新仍恢复 HTML 与输入形态；教师复核页 914911e8 的 1814 字 HTML 按段落回显；点「保存并发布反馈」→ 学生可见 →「撤回」回到未发布。运维：重建 jar 后已重启 8010（旧实例因 jar 被覆盖出现过 `NoClassDefFoundError: ThrowableProxy`，重启后恢复）；截图 `docs/reports/t250-ux-fixes/` |
 | 2026-10-20 | T252 富文本快捷键/粘贴清洗/白底 + 草稿服务端恢复 + 单份「让 AI 先批」 | 完成 | 前端：`RichTextEditor` 加 Cmd/Ctrl+B/I/U、粘贴白名单清洗（DOMParser 同后端白名单，b→strong/i→em，丢 style/span/灰底）、编辑区 `background: var(--panel)`、去掉聚焦 box-shadow；`AssignmentPage` 草稿恢复改成本机优先、本机为空时用 `/my-submissions` 的 `contentHtml`/`contentText`（换 origin/清 localStorage 不丢格式）。后端：`SubmissionRepository.enqueueOne` + `OfferingGradingDispatcher.dispatchSubmission` + `POST /offerings/{id}/submissions/{sid}/grading/dispatch`（run 按场次幂等，QUEUED/FAILED→PENDING，写 `submission:ai_dispatch` 审计，错误走消息 key）；`GradingDetailPage` 行内「让 AI 先批」+ 整场按钮改名「全部交给 AI 批改」+ 已完成行禁用。验证：`GradingDispatchTest` **10/10**（新增单份派发用例：目标 PENDING、同场另一份仍 QUEUED、学生 403、重复 409）；`pnpm typecheck` 0、`pnpm build` 0、`check-i18n` 1017 键对齐、`mvn test-compile` 0；浏览器实测：Cmd+B 取消/加粗、Cmd+I 斜体，粘贴 `<span style=...>` 后 DOM/草稿只剩 `<p>/<ul>/<strong>/<em>`，清 localStorage 刷新后格式仍在；教师行内派发→PENDING→stub 判完 DONE（主观 15）→复核页显示 AI 主观草稿 15；截图 `docs/reports/t252-ux-fixes/`。运维：`scripts/env.sh deploy qa` 已把测试台 5174 更新到本版本；开发机 8010 已重启。 |
 | 2026-10-20 | T253 AI 结果可见 + 复核页收敛 + 真实作业流程实测 | 完成 | 后端：`reviews` 增 `ai_criteria`（JSON 文本）/`ai_feedback`（V027 jsonb → V028 text，避免 varchar→jsonb 不匹配），`GradingWorker` 捕获 AI 逐项意见与评语（`Review.captureAiDraft(points, criteria, feedback)`，老师动过或已发布则不覆盖），`ReviewEndpoint.ReviewDetail` 返回 `aiCriteria`/`aiFeedback`。前端：复核页新增「AI 评估」（建议分 / 逐项得分与意见 / 优点建议 / 采用 AI 建议分），标题去重、题项与评分标准折叠；审计「复核改分」改写成「主观分 7.5 → 8 · 评语：… · 优点：… · 建议：…」；顶栏右侧用户信息可点进 `/profile`。实测（dev，stub 引擎，未配置 DEEPSEEK_API_KEY）：用用户给的 `Rubric.md` + `Maria.txt`/`Mark.txt` 建作业（offering 6eb1037b…），student02/student03 提交 → 逐份「让 AI 先批」→ AI 草稿 7.5 + 逐项意见可见 → 教师改 8 / 9.5 并发布 → 两个学生反馈页看到分数与评语。验证：`GradingDispatchTest` 10/10、`make test` 209/0/0/0、`pnpm typecheck` / `pnpm build` / `check-i18n`（1029 键）；截图 `docs/reports/t253-review-ai/`。**注意**：AI 结果来自 stub 引擎（固定比例），不是真实评分；配好 Key 并重启（`TEACHLOOP_GRADING_ENGINE=ai`）后同一流程会出真实逐项意见。 |
+| 2026-10-21 | T254 评分质量规格回写（US-27/28、D-16–22） | 完成（仅文档，未动业务代码） | 新增 `docs/research/2026-10-21-grading-quality.md`：用 dev 库与 stub 源码定位截图里的 7.5/4.5/3 是 `StubGradingEngine` 的 `10×0.75` 与 `0.6/0.4`，不是 AI；本地 10 份 golden set 探针显示当前提示词（A）与 v2（B）总分都接近人工，差距在「中文、无引用、泛泛」的评语，B 还有 1/10 总分算错被契约拦下；外部证据（Tang 2026 rubric 粒度、Hong 2026 证据+校准、Choi 2025 锚点 +0.29 QWK、Marigo 2026 few-shot）。新增 `docs/reports/grading-quality/default-rubric-review.md`（两份默认 rubric 均不合格，统一为课程 2/4/4）与 `known-inconsistency.md`（JZ 0/2 与「问候语不计段」冲突，更正为 10/10，旧值留档）。spec 新增 US-27（AC-27.1–27.16）、US-28（AC-28.1–28.11）、FR-054–061、D-16–D-22、A-11–A-14 与 15 条边缘情况；改 AC-11.8/11.15、AC-12.5、AC-26.12、FR-044。plan 更新 §5（user_ai_settings / offerings.created_by / submission_metrics / reviews AI 溯源列）、§6 流程图、§6.1 prompt v2、§6.5 预填+批量、§6.6 Key 解析、§6.7 篇幅/语言、§9 安全、§11 语言、§18.5 golden set。tasks 新增阶段 25（T255–T268）与矩阵。验证：四份计数 **28 US / 258 AC / 61 FR / 191 T**，无重复编号；未改任何业务代码；未跑测试（本轮无代码改动）。 |
+| 2026-10-21 | T255 迁移（Key/归属/溯源） | 完成 | V029 `user_ai_settings`、V030 `offerings.created_by`、V031 `reviews.ai_overall/ai_strength/ai_suggestion/ai_model/ai_prompt_version/ai_key_source/ai_failure/feedback_language` + `ai_calls.key_source`；dev 库 Flyway 至 v031，空库 MigrationTest 通过；`check-boundaries.py` 登记 25 张表、13 条跨模块外键。 |
+| 2026-10-21 | T256 Identity Key 生命周期 | 完成 | setup 首次必须填 Key；`/api/profile/ai-settings` GET（只回掩码/来源）/PUT/测试（TEACHER/ADMIN，学生 403）；`user_ai_settings` 复用 SecretBox；保存即生效；`AiSetupTest` 扩展了个人 Key 加密/掩码/学生 403 断言。**未做**：setup 保存前的连通性测试（当前只校验非空）。 |
+| 2026-10-21 | T257 Key 解析 + 客户端工厂 | 完成 | `Ports.AiSettingsLookup.resolve(teacherId)`；`AiKeyResolver` 逻辑在 `AiGradingConfig` 内按作业创建者 → 全局 → 环境变量兜底；`LlmClientProvider` 每次判分创建客户端；`WorkItem.createdBy`；真实重启后不设 `DEEPSEEK_API_KEY`，用教师个人 Key 判分成功。 |
+| 2026-10-21 | T258 Rubric 解析/默认值/预览 | 部分 | 修复 `RubricCriteria`：标题优先，`Rubric.md` 解析出 3 项 2/4/4，Yes/No 规则不再被当成评分项；默认 rubric 前后端都换成课程 2/4/4；创建页新增「AI 将看到」预览与 .md 导入。**未做**：服务端分值之和校验、独立预览 API、按 rubric 逐项编辑。 |
+| 2026-10-21 | T259 PromptBuilder v2 | 完成 | `subjective-v2`：题目要求、完整 rubric、二元政策、原文引用、`overall/strength/suggestion`；反馈语言放 user 层；长度段数与政策进 user；测试断言 v2 结构、题目要求、无姓名/标准答案。 |
+| 2026-10-21 | T260 Validator v2 | 完成 | 逐项 comment ≥15 字且含正文逐字引用；overall 必填；strength/suggestion 非套话；二元分数 0/满分；长度 points 与代码结论一致并用确定性句子覆盖；语言合规；失败重试 1 次。`AiGradingEngineTest` + 单测通过。 |
+| 2026-10-21 | T261 篇幅现算 | 完成 | `SubjectiveGradeRequest` 用 `TextLengthCounter` policy_default 段数 + 边界标记；`ReviewDetail` 返回 `paragraphCount`/`paragraphBoundarySensitive`；复核页显示边界提示；批量预览/通过跳过边界项（Maria/Mark 实测跳过）。未新增表。 |
+| 2026-10-21 | T262 去假分 + 失败分类 | 完成 | `application.yml` 默认 `ai`；`StubGradingConfig @Profile("!prod")`；测试 properties 显式 stub；无 Key 抛 `NO_KEY`，失败分类写 `reviews.ai_failure`；成功写 overall/strength/suggestion、prompt_version、language。**未填**：`ai_model` / `ai_key_source` 两列仍为空。 |
+| 2026-10-21 | T263 复核 API 预填 + 批量预览 | 完成 | `ReviewDetail` 返回 aiOverall/aiStrength/aiSuggestion/aiFailure/aiModel/aiPromptVersion/aiKeySource/段数；`/grading/bulk-approve/preview` 返回可批份数、分数范围、逐项跳过原因；实际批量通过用同一判据（边界/失败/无草稿/状态）；逐份 `bulk=true` 审计。 |
+| 2026-10-21 | T264 前端 Key/预填/批量 | 完成 | `/profile` AI 设置卡片（掩码/来源/保存/测试）；顶栏无 Key 提示；`/setup` 必填 Key；复核页 AI 草稿预填分数/评语/优点/建议、显示总评/失败/边界/来源；批量通过先预览后确认；作业创建页 rubric 预览 + .md 导入。`tsc --noEmit`、`pnpm build`、`check-i18n`（1098 键）通过；浏览器截图。 |
+| 2026-10-21 | T265 Golden set 评估 | 完成 | 新增 `GradingQualityEvalTest`（@Tag ai，真实 v2 prompt + validator）：10 份样本逐项 exact **29/30**、总分 **9/10**、契约失败 **0**、英文语言合规 **10/10**；报告 `docs/reports/grading-quality/2026-10-21-subjective-v2.md`。JZ 的 0/2 与「问候语不计段」冲突，按 known-inconsistency 单列。 |
+| 2026-10-21 | T267 端到端实测 | 完成 | 新建作业 `09c99ee0-2588-46b8-bce2-20bb1ab94351`（课程 Rubric.md，演示班）→ student01/02 提交 Iam/Alejandro → 真实 AI 两项均 10/10、英文评语带原文引用 → 复核页预填 → 保存并发布一份 → 学生反馈显示 10/10 与英文评语；批量预览 2 份可批、批量通过 1 份、跳过 1 份已发布。截图 `docs/reports/grading-quality/e2e/`。 |
+| 2026-10-21 | T268 锚点 | 未开始 | 本期只留 spec/AC；不注入样例，默认关闭。 |
+| 2026-10-21 | T266 全量回归 | 完成 | `make test` 退出码 0；surefire 汇总 **212 tests / 0 failures / 0 errors / 0 skipped**（含新增 `GradingQualityEvalTest` 仅 @Tag ai 默认跳过）；`check-deps` / `check-boundaries`（25 表 / 13 外键 / 7 端口）/ `check-i18n`（前端 1099 键对齐、新增中文字面量 0）/ `check-ui`（无新增违规）全通过。测试 JVM 改为每类独立 fork，避免 Testcontainers 容器与 Spring context 缓存跨类复用。 |
+| 2026-10-21 | T320 答题页题干材料标签修复 | 完成 | 根因：`PaperTextParser` 把单独一行的 A–G 材料标签写进 `material`，`finish()` 拼进该篇每道题题干；快照里 Q26 是 `"B\nZach Smith…"`、`answerKey` 为 C，学生端 DTO 本就不含 `answerKey`（`Phase2ExamTimingTest` 已有断言）。修：标签只切分材料、不落题干；V032 清 `objective_items` 存量题干、V033 清 `offerings.paper_snapshot` 快照，只删首行一个字母。验证：QA 库干跑与实跑均 30 条题干 + 1 场快照、迁移后命中 0；快照结构/答案/选项/顺序 diff 0；`PaperTextParserTest` 新增 `doesNotPutPassageLabelsIntoStems`；paper 模块 20+9+4+8+13+10+1 全绿；`Phase2ExamTimingTest` 3/3；`make test` 212/0/0/0；`check-boundaries` 通过；QA 部署至 v033 后学生接口 Q21/26/30 题干以正文开头、无 `answerKey`，浏览器实测 Q21–Q35 无孤立字母；截图 `docs/reports/t320-question-label/q26-after.png`。 |
+| 2026-10-21 | T321 共用材料只渲染一次 | 完成 | 后端 `MaterialGrouper` 把快照分成 21–23/24–27/28–31/32–35/36–40/41–55/56–65 七组，66–75 独立；`ExamPaperItemView` 增 `groupKey/material/questionStem/blankIndex`，材料只在组内第一条带。前端 `ExamPaper` 按组渲染：阅读材料一次 + 题目列表；完形/七选五材料一次 + 行内空（点空弹 A–D/A–G，可标记/清除）；语法填空行内输入 + 旗标；目录树、滚动联动、已答/标记、提交检查不变。任何校验不过整组回退。验证：`MaterialGrouperTest` 6/6、`Phase2ExamTimingTest` 3/3、`make test` **225/0/0/0**，`check-i18n` 基线 290、`check-ui` 通过；QA 实测整卷高度 32,147 → 14,286 px，41–55 只出现一次 1,219 字材料、56–65 只出现一次 1,091 字；截图 `docs/reports/exam-material-layout/`。注意：验证时在 Maria 的 QA 作答里点过 36/41/56/57 四题。 |
+| 2026-10-21 | T322 RubricValidator 文案 i18n | 完成 | `RubricValidator.Issue(code,args)` + `RubricIssueText` 按 `LocaleContextHolder` 渲染；`messages*.properties` 各补 6 个 `error.rubric.*` key；`RubricVocabulary` 承接中文解析词表；`OfferingEndpoint`/`RubricPreviewEndpoint` 注入 `MessageSource`。验证：`RubricValidatorTest` 4/4、`RubricIssueTextTest` 2/2（中英参数与分隔符）、`check-i18n` 通过且基线 311 → 290、`make test` **225/0/0/0**（先前 SIGTERM 是后台任务被外部终止，前台重跑通过）。 |
+| 2026-10-21 | T258 补：服务端 rubric 校验 + 预览 API | 完成（无逐项编辑器） | 新增 `RubricValidator`：标题优先、Yes/No 不算评分项；缺分值/名称重复/合计≠作业总分拒绝创建；历史无分值 rubric 仍按均分兼容。新增 `POST /api/rubrics/preview` 返回 criteria/total/issues；`OfferingEndpoint` 创建作业时校验。实测课程 Rubric.md 返回 2/4/4=10，6+5=11 返回 400「评分项合计 11 分，作业总分 10 分」。 |
+| 2026-10-21 | T262 补：AI 溯源落库 | 完成 | `GradingResult` 增 `model/promptVersion/keySource`；`LlmClientProvider.source()` 由 `AiGradingConfig` 按 user/global/env 返回；`GradingWorker` 写 `reviews.ai_model/ai_prompt_version/ai_key_source`。实测重批后 `deepseek-flash / subjective-v2 / user`。 |
+| 2026-10-21 | T268 锚点（简化版） | 完成（简化） | V034 `offerings.anchor_examples`；创建作业可填 0–3 份匿名范文（文本字段）；`WorkItem`/`SubjectiveGradeRequest` 传递，`PromptBuilder` 在非空时注入「参考范文（教师确认、已匿名）」；作业创建页新增输入框。未做结构化逐份锚点、自动匿名化检查与专门编辑器。 |
+| 2026-10-21 | T323 复核页逐题判分可视化 + 学生作答前置 | 完成 | `Ports.AnswerRow` 增 `correct/awarded`，`SittingLedgerImpl` 按快照用 `ObjectiveScoring` 重算；`ReviewDetail.answers` 返回两字段。前端题项表拆「得分/满分」，对绿/错红/部分琥珀并给汇总；教师判分区前置学生正文、主观题作答、客观题答题卡与 AI 草稿预填提示。验证：`ReviewWorkflowTest` 通过（答对 10 / 答错 0）、`pnpm typecheck`/`pnpm build`/`check-i18n`/`check-ui` 通过；QA 5174 实测 75 题 33 对 42 错 48/120，作文页建议分 7.5 预填且提示不谎称有评语。 |

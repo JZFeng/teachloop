@@ -111,9 +111,10 @@ export default function FeedbackDetailPage() {
               <div className="inline-note">{t('student.wrongNone')}</div>
             ) : (
               <>
-                <ol style={{ paddingLeft: 20, marginTop: 0 }}>
+                {/* 题号由「第 N 题」表达；列表序号会和题号打架（1. 第 2 题），所以不用 ol 编号 */}
+                <div style={{ marginTop: 0 }}>
                   {feedback.wrongItems.map((item) => (
-                    <li key={item.number} style={{ marginBottom: 14 }}>
+                    <div key={item.number} style={{ marginBottom: 14 }}>
                       <div className="exam-stem" style={{ margin: '2px 0 6px' }}>
                         {t('student.questionMeta', { number: item.number, points: item.points })}{item.stem ? ` · ${item.stem}` : ''}
                       </div>
@@ -128,9 +129,9 @@ export default function FeedbackDetailPage() {
                       ) : (
                         <div className="small muted" style={{ marginTop: 4 }}>{t('student.explanationMissing')}</div>
                       )}
-                    </li>
+                    </div>
                   ))}
-                </ol>
+                </div>
                 <p className="small muted" style={{ marginBottom: 0 }}>{t('student.explanationMissingHint')}</p>
               </>
             )}

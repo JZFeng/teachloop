@@ -6,6 +6,7 @@ import com.teachloop.grading.domain.ReviewStatus;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teachloop.grading.engine.GradingEngine;
+import com.teachloop.grading.prompt.PromptBuilder;
 import com.teachloop.shared.port.Ports;
 import java.time.Clock;
 import java.time.Instant;
@@ -89,10 +90,14 @@ public class GradingWorker {
                 if (review == null) {
                     Review created = new Review(UUID.randomUUID(), id, null, ReviewStatus.PENDING, null,
                             null, Instant.now(clock));
-                    created.captureAiDraft(result.subjectivePoints(), criteriaJson, result.feedback());
+                    created.captureAiDraft(result.subjectivePoints(), criteriaJson, result.feedback(),
+                            result.overall(), result.strength(), result.suggestion());
+                    created.markAiProvenance(result.model(), result.promptVersion(), result.keySource(), item.feedbackLanguage());
                     reviews.save(created);
                 } else if (!review.isPublished()) {
-                    review.captureAiDraft(result.subjectivePoints(), criteriaJson, result.feedback());
+                    review.captureAiDraft(result.subjectivePoints(), criteriaJson, result.feedback(),
+                            result.overall(), result.strength(), result.suggestion());
+                    review.markAiProvenance(result.model(), result.promptVersion(), result.keySource(), item.feedbackLanguage());
                     reviews.save(review);
                 }
                 done++;
@@ -107,12 +112,40 @@ public class GradingWorker {
                 }
                 try {
                     queue.markFailed(id, ex.getClass().getSimpleName() + ": " + ex.getMessage());
+                    Review failed = reviews.findBySubmissionId(id).orElseGet(() -> reviews.save(
+                            new Review(UUID.randomUUID(), id, null, ReviewStatus.PENDING, null,
+                                    null, Instant.now(clock))));
+                    if (failed.getTeacherId() == null && !failed.isPublished()) {
+                        failed.markAiFailure(classify(ex));
+                        reviews.save(failed);
+                    }
                 } catch (Throwable marking) {
                     log.error("grading failed AND mark-failed failed for {}", id, marking);
                 }
             }
         }
         return done;
+    }
+
+    /** 失败分类：复核页要能区分「缺 Key / 鉴权 / 超时 / 输出不合规」。 */
+    private static String classify(Throwable ex) {
+        String message = ex.getMessage() == null ? "" : ex.getMessage();
+        String lower = message.toLowerCase(java.util.Locale.ROOT);
+        if (message.startsWith("NO_KEY") || message.contains("DEEPSEEK_API_KEY")) {
+            return "NO_KEY";
+        }
+        if (message.contains("401") || message.contains("403")
+                || lower.contains("auth") || lower.contains("unauthorized")) {
+            return "AUTH_FAILED";
+        }
+        if (ex instanceof java.net.http.HttpTimeoutException || lower.contains("timeout")
+                || lower.contains("timed out") || lower.contains("interrupted")) {
+            return "TIMEOUT";
+        }
+        if (ex instanceof com.teachloop.grading.ai.InvalidGradeOutputException) {
+            return "INVALID_OUTPUT";
+        }
+        return "ERROR";
     }
 
     /** 把逐项意见序列化成 JSON；序列化失败不影响判分本身。 */

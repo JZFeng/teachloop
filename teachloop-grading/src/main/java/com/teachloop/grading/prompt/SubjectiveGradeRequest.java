@@ -1,9 +1,12 @@
 package com.teachloop.grading.prompt;
 
+import com.teachloop.grading.service.TextLengthCounter;
 import com.teachloop.shared.port.Ports;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Objects;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * 一次主观题判分调用所需的**全部**输入（plan §6）。
@@ -20,7 +23,14 @@ public record SubjectiveGradeRequest(
         Integer durationSeconds,
         List<Criterion> criteria,
         String rubricMarkdown,
-        String feedbackLanguage) {
+        String feedbackLanguage,
+        String instructions,
+        boolean binaryRubric,
+        int lengthMin,
+        int lengthMax,
+        String paragraphPolicy,
+        boolean paragraphBoundarySensitive,
+        String anchors) {
 
     public static final String DEFAULT_LANGUAGE = "zh-CN";
 
@@ -31,6 +41,16 @@ public record SubjectiveGradeRequest(
         feedbackLanguage = feedbackLanguage == null || feedbackLanguage.isBlank()
                 ? DEFAULT_LANGUAGE
                 : feedbackLanguage;
+        instructions = instructions == null ? "" : instructions;
+        paragraphPolicy = paragraphPolicy == null || paragraphPolicy.isBlank()
+                ? "policy_default" : paragraphPolicy;
+        if (lengthMin <= 0) {
+            lengthMin = 1;
+        }
+        if (lengthMax < lengthMin) {
+            lengthMax = lengthMin;
+        }
+        anchors = anchors == null ? "" : anchors;
     }
 
     /** 一道主观题（作文/简答），只带模型判分需要的字段。 */
@@ -75,8 +95,43 @@ public record SubjectiveGradeRequest(
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         String text = item.contentText() == null ? "" : item.contentText();
         List<Criterion> criteria = RubricCriteria.parse(item.rubricMarkdown(), essayMax, item.feedbackLanguage());
-        return new SubjectiveGradeRequest(essays, text, countWords(text), countParagraphs(text), null,
-                criteria, item.rubricMarkdown(), item.feedbackLanguage());
+        String instructions = essays.stream()
+                .map(Item::stem)
+                .filter(Objects::nonNull)
+                .map(String::strip)
+                .filter(s -> !s.isEmpty())
+                .reduce((a, b) -> a + "\n\n" + b)
+                .orElse("");
+        int[] range = lengthRange(item.rubricMarkdown());
+        return new SubjectiveGradeRequest(essays, text, countWords(text),
+                TextLengthCounter.count(text, "policy_default"), null,
+                criteria, item.rubricMarkdown(), item.feedbackLanguage(), instructions,
+                binaryRubric(item.rubricMarkdown()), range[0], range[1], "policy_default",
+                TextLengthCounter.boundarySensitive(text, range[0], range[1]), item.anchors());
+    }
+
+    private static final Pattern LENGTH_RANGE = Pattern.compile(
+            "(?i)(paragraphs?|段|minutes?|分钟)[^0-9]{0,12}(\\d+)\\s*[–\\-~至到]\\s*(\\d+)");
+    private static final Pattern BINARY_RULE = Pattern.compile(
+            "(?im)^\\s*[-*]?\\s*(?:\\*\\*)?(yes|no|是|否)(?:\\*\\*)?\\s*[:：]");
+
+    private static int[] lengthRange(String rubric) {
+        if (rubric != null) {
+            Matcher m = LENGTH_RANGE.matcher(rubric);
+            if (m.find()) {
+                int min = Integer.parseInt(m.group(2));
+                int max = Integer.parseInt(m.group(3));
+                if (min > 0 && max >= min) {
+                    return new int[] {min, max};
+                }
+            }
+        }
+        return new int[] {1, 4};
+    }
+
+    /** 二元 rubric（Yes/No、是/否）只允许 0 或满分；分档 rubric 不加这个限制。 */
+    private static boolean binaryRubric(String rubric) {
+        return rubric != null && BINARY_RULE.matcher(rubric).find();
     }
 
     static int countWords(String text) {
@@ -93,15 +148,6 @@ public record SubjectiveGradeRequest(
     }
 
     static int countParagraphs(String text) {
-        if (text == null || text.isBlank()) {
-            return 0;
-        }
-        int paragraphs = 0;
-        for (String block : text.strip().split("\\R\\s*\\R")) {
-            if (!block.isBlank()) {
-                paragraphs++;
-            }
-        }
-        return paragraphs;
+        return TextLengthCounter.count(text == null ? "" : text, "policy_default");
     }
 }

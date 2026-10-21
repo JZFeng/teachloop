@@ -255,3 +255,75 @@ export function fmtTimeOfDay(iso: string | null | undefined): string {
   if (Number.isNaN(d.getTime())) return iso
   return d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', second: '2-digit' })
 }
+
+/** T321：答题页展示用的材料组。后端已给出 groupKey/material/blankIndex，这里只做校验与落位。 */
+export interface BlankMember {
+  item: ExamPaperItem
+  blankIndex: number
+}
+
+export type PaperNode =
+  | { kind: 'solo'; item: ExamPaperItem }
+  | { kind: 'reading'; key: string; material: string; items: ExamPaperItem[] }
+  | { kind: 'blank'; key: string; material: string; items: BlankMember[] }
+
+const BLANK_MARK = /_{3,}/g
+
+export function blankCount(text: string | null | undefined): number {
+  if (!text) return 0
+  return (text.match(BLANK_MARK) ?? []).length
+}
+
+function groupMembers(items: ExamPaperItem[], start: number): number {
+  const key = items[start].groupKey
+  let end = start + 1
+  while (end < items.length && items[end].groupKey === key) end++
+  return end
+}
+
+/** 分组不合格就整组退回每一题单独渲染：宁可重复，也不把题拆错。 */
+export function buildPaperNodes(items: ExamPaperItem[]): PaperNode[] {
+  const nodes: PaperNode[] = []
+  let index = 0
+  while (index < items.length) {
+    const first = items[index]
+    if (!first.groupKey) {
+      nodes.push({ kind: 'solo', item: first })
+      index++
+      continue
+    }
+    const end = groupMembers(items, index)
+    const members = items.slice(index, end)
+    const node = makeGroup(first.groupKey, members)
+    if (node) nodes.push(node)
+    else members.forEach((item) => nodes.push({ kind: 'solo', item }))
+    index = end
+  }
+  return nodes
+}
+
+function makeGroup(key: string, members: ExamPaperItem[]): PaperNode | null {
+  if (members.length < 2) return null
+  const material = members.find((item) => item.material)?.material
+  if (!material) return null
+
+  const blankIndexes = members.map((item) => item.blankIndex)
+  if (blankIndexes.some((value) => value === null || value === undefined)) {
+    if (members.some((item) => !item.questionStem)) return null
+    return { kind: 'reading', key, material, items: members }
+  }
+
+  const sorted = members
+    .map((item) => ({ item, blankIndex: Number(item.blankIndex) }))
+    .sort((a, b) => a.blankIndex - b.blankIndex)
+  if (blankCount(material) !== sorted.length) return null
+  if (sorted.some((member, position) => member.blankIndex !== position)) return null
+  return { kind: 'blank', key, material, items: sorted }
+}
+
+/** 材料组里的空是选择还是填空：以该题自己的 options 为准（AC-21.10）。 */
+export function inlineChoice(item: ExamPaperItem): boolean {
+  return item.questionType !== 'MULTIPLE_CHOICE'
+    && item.questionType !== 'ESSAY'
+    && parseOptions(item.options).length > 0
+}

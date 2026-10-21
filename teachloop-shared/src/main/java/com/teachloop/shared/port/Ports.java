@@ -40,8 +40,20 @@ public final class Ports {
         }
     }
 
-    /** 学生的某一道题的作答。 */
-    public record AnswerRow(UUID itemId, int number, String answer) {
+    /**
+     * 学生的某一道题的作答。
+     *
+     * <p>{@code correct} 是提交时落库的判定结果（{@code objective_answers.correct}），
+     * {@code awarded} 是按快照标准答案算出的本题实得分；两者只对可自动判分的题有值，
+     * 作文/主观题一律为 null。复核页据此把答对/答错/部分对分色显示。
+     */
+    public record AnswerRow(UUID itemId, int number, String answer,
+                            Boolean correct, BigDecimal awarded) {
+
+        /** 兼容既有调用：只关心作答内容时，对错与得分留空。 */
+        public AnswerRow(UUID itemId, int number, String answer) {
+            this(itemId, number, answer, null, null);
+        }
     }
 
     /** 试卷只读快照（布置时固化，不回查活表）；paperVersion 随快照一起落库，便于追溯。 */
@@ -63,7 +75,24 @@ public final class Ports {
     public record WorkItem(UUID submissionId, UUID offeringId, UUID studentId, String studentName,
                            String inputKind, String contentText, String contentHtml,
                            List<AnswerRow> answers, List<ItemSpec> items, String rubricMarkdown,
-                           String gradingPrompt, String feedbackLanguage) {
+                           String gradingPrompt, String feedbackLanguage, UUID createdBy, String anchors) {
+
+        /** 兼容既有测试与调用方：没有作业创建者/锚点时按全局 Key、无锚点处理。 */
+        public WorkItem(UUID submissionId, UUID offeringId, UUID studentId, String studentName,
+                        String inputKind, String contentText, String contentHtml,
+                        List<AnswerRow> answers, List<ItemSpec> items, String rubricMarkdown,
+                        String gradingPrompt, String feedbackLanguage) {
+            this(submissionId, offeringId, studentId, studentName, inputKind, contentText, contentHtml,
+                    answers, items, rubricMarkdown, gradingPrompt, feedbackLanguage, null, null);
+        }
+
+        public WorkItem(UUID submissionId, UUID offeringId, UUID studentId, String studentName,
+                        String inputKind, String contentText, String contentHtml,
+                        List<AnswerRow> answers, List<ItemSpec> items, String rubricMarkdown,
+                        String gradingPrompt, String feedbackLanguage, UUID createdBy) {
+            this(submissionId, offeringId, studentId, studentName, inputKind, contentText, contentHtml,
+                    answers, items, rubricMarkdown, gradingPrompt, feedbackLanguage, createdBy, null);
+        }
     }
 
     /**
@@ -91,7 +120,26 @@ public final class Ports {
      */
     public record GradingResult(BigDecimal objectivePoints, BigDecimal subjectivePoints,
                                 List<CriterionScore> criteria, String feedback,
-                                List<ItemExplanation> explanations) {
+                                List<ItemExplanation> explanations,
+                                String overall, String strength, String suggestion,
+                                String model, String promptVersion, String keySource) {
+
+        /** 兼容旧调用：只带合并后的 feedback。 */
+        public GradingResult(BigDecimal objectivePoints, BigDecimal subjectivePoints,
+                             List<CriterionScore> criteria, String feedback,
+                             List<ItemExplanation> explanations) {
+            this(objectivePoints, subjectivePoints, criteria, feedback, explanations,
+                    null, null, null, null, null, null);
+        }
+
+        /** 兼容 v2 校验结果：不带模型/Key 溯源。 */
+        public GradingResult(BigDecimal objectivePoints, BigDecimal subjectivePoints,
+                             List<CriterionScore> criteria, String feedback,
+                             List<ItemExplanation> explanations,
+                             String overall, String strength, String suggestion) {
+            this(objectivePoints, subjectivePoints, criteria, feedback, explanations,
+                    overall, strength, suggestion, null, null, null);
+        }
     }
 
     /** sitting 暴露的**查询**端口：阅卷只读作答，不做任何状态推进。 */
@@ -146,13 +194,21 @@ public final class Ports {
         List<UUID> membersOf(UUID classId);
     }
 
-    /** 管理员在初始设置里保存的 AI 配置；key 不随端口返回给业务方以外的接口。 */
+    /** 管理员/教师保存的 AI 配置；key 不随端口返回给业务方以外的接口。 */
     public record AiSettings(String provider, String baseUrl, String model, String apiKey,
-                             BigDecimal temperature, boolean configured) {
+                             BigDecimal temperature, boolean configured, String source) {
+
+        public AiSettings(String provider, String baseUrl, String model, String apiKey,
+                          BigDecimal temperature, boolean configured) {
+            this(provider, baseUrl, model, apiKey, temperature, configured, configured ? "global" : "none");
+        }
     }
 
     public interface AiSettingsLookup {
         java.util.Optional<AiSettings> current();
+
+        /** D-16：本人 Key 优先，缺失回退全局；返回的 source 是 user / global。 */
+        java.util.Optional<AiSettings> resolve(UUID teacherId);
     }
 
     /** T102：改标准答案后重算客观分。 */
@@ -201,9 +257,12 @@ public final class Ports {
         java.util.Optional<ReviewNote> noteOf(UUID submissionId);
     }
 
-    /** identity 暴露：只读显示名，用于教师端提交表；不暴露联系方式。 */
+    /** identity 暴露：只读显示名/界面语言，用于教师端提交表与反馈语言；不暴露联系方式。 */
     public interface StudentDirectory {
         java.util.Map<UUID, String> displayNames(java.util.Collection<UUID> userIds);
+
+        /** 学生的界面语言（`zh-CN` / `en`）；缺失时由调用方回退。 */
+        java.util.Map<UUID, String> locales(java.util.Collection<UUID> userIds);
     }
 
     /** 一条站内通知：接收方与标题正文由调用方给出，identity 只负责存储与投递。 */

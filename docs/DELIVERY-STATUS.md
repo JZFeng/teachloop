@@ -45,7 +45,7 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 | 压测 | 50 份提交、并发 10；1+1 p95 45ms/33.8s，2+2 p95 97ms/7.22s | `.docs/perf-report-v2.md` |
 | 质量基线 | v1 四模型段落计数移植，10 份 parity 全一致 | `TextLengthCounterFixtureTest` |
 | Golden set | 10 份人工均分 9.6；deepseek-flash 平均偏差 0.0、最大 0、方向持平 | `docs/reports/golden-set-baseline.md`、`make test-ai` |
-| 管理员初始设置 | `/setup` 创建首个管理员；`/admin/ai` 配置 AI（Key AES-GCM 加密、只回掩码、测试连接、保存后重启生效） | `AiSetupTest` + 浏览器截图 `setup-admin.png`、`admin-ai-settings.png` |
+| 管理员初始设置 | `/setup` 创建首个管理员；`/admin/ai` 配置 AI（Key AES-GCM 加密、只回掩码、测试连接、保存后下一次调用生效；教师个人 Key 在 `/profile`） | `AiSetupTest` + 浏览器截图 `setup-admin.png`、`admin-ai-settings.png` |
 
 ## 四、部分完成 / 已知偏差
 
@@ -66,7 +66,7 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
    后端返回 `MemberView` 对象 → 打开成员面板会渲染崩溃（P1，待 T223 一并修）。
 11. **邀请码文案与实现不符**：页面写「默认 3 天过期」，后端 `classes` 无过期字段、`join` 不校验；
 
-12. **真实试卷导入（2026-10-20，T231）**：用户提供的真实高一英语月考整卷（Markdown）已能导入——75 题 / 4 个部分（20/20/35/0）/ 总分 120 分，逐题分值 1.5 / 2.5 / 1 / 1.5 / 1 正确。仍有两条落地约束：① 系统没有「材料/篇章」字段，阅读与完形材料**并入每道题的题干开头**（同一段材料在该组的 4 道题里各存一份，材料长的题题干会达 1KB 量级），补 `material` 字段后应改为独立引用（D-12）；② 源文件没有标准答案，75 题全部落在 `missingAnswers`，第 5 步按既有规则「有题项缺答案，禁止发布」，需先补答案（第 3 步逐题填或粘贴答案表）。③ 写作部分（应用文 15 + 口语 15）是主观题，只落了空部分，需要教师在第 4 步补评分要点。截图：`docs/reports/import-real-exam/`。   已由 D-9 拍板补实现（T213）。
+12. **真实试卷导入（2026-10-20，T231）**：用户提供的真实高一英语月考整卷（Markdown）已能导入——75 题 / 4 个部分（20/20/35/0）/ 总分 120 分，逐题分值 1.5 / 2.5 / 1 / 1.5 / 1 正确。仍有两条落地约束：① 系统没有「材料/篇章」字段，阅读与完形材料**并入每道题的题干开头**（同一段材料在该组的 4 道题里各存一份，材料长的题题干会达 1KB 量级），补 `material` 字段后应改为独立引用（D-12）；**学生答题页已按材料组只渲染一次（T321），数据层仍每题重复**；② 源文件没有标准答案，75 题全部落在 `missingAnswers`，第 5 步按既有规则「有题项缺答案，禁止发布」，需先补答案（第 3 步逐题填或粘贴答案表）。③ 写作部分（应用文 15 + 口语 15）是主观题，只落了空部分，需要教师在第 4 步补评分要点。截图：`docs/reports/import-real-exam/`。   已由 D-9 拍板补实现（T213）。**2026-10-21 T320 修复**：材料前的 A–D 标签不再拼进题干，V032/V033 已清理存量题干与快照，学生答题页不再出现孤立字母。
 
 13. **主观作业链路（2026-10-20，T232/T233）**：布置 3 个写作作业 → 学生作答 → 批改 → 复核 → 反馈已跑通；作业页能看到「题目要求」与「评分标准」，学生反馈页显示评语 + 优点 + 建议。同轮修掉 `create` 带 `publish=true` 只改内存不落库（学生看不到作业）的缺陷。截图：`docs/reports/critical-case-subjective/`。
     **D-14（2026-10-20 拍板，T236–T241 已完成，见第 16 条）**：作业与考试在数据层分开——作业永远自带题目要求/总分/评分标准、不引用试卷；试卷只用于考试。此前「新建作业必须先建一份试卷」的流程废止；存量作业回填为 `paper_id = null, paper_version = 0`，内容仍在该场快照里。
@@ -86,6 +86,8 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 20. **富文本与 AI 绿色通道（T252，2026-10-20 完成）**：① 富文本编辑器补 Cmd/Ctrl + B/I/U 快捷键；粘贴按后端同一份白名单清洗（外部灰底、字号、颜色、span/div 壳子都丢掉，b→strong、i→em）；编辑区固定白底、聚焦不再加阴影。② 草稿恢复改为「本机优先，本机没有就用服务端 `contentHtml`/`contentText`」，换浏览器/换端口/清 localStorage 都不丢格式。③ 批改详情逐份行新增「让 AI 先批」：`POST /api/offerings/{id}/submissions/{submissionId}/grading/dispatch` 只把这一份推进 AI 队列，同场其他提交不动，run 按场次幂等，写 `submission:ai_dispatch` 审计；整场按钮改名「全部交给 AI 批改」。验证：`GradingDispatchTest` 10/10、`pnpm typecheck` / `pnpm build` / `check-i18n` 通过；浏览器实测快捷键、粘贴清洗、清 localStorage 后格式恢复、行内派发→stub 判完→复核页出现 AI 草稿。截图 `docs/reports/t252-ux-fixes/`。
 
 21. **AI 结果可见与复核页收敛（T253，2026-10-20 完成）**：AI 判分不再只有一个分数——`reviews.ai_criteria` / `ai_feedback` 落库，复核页新增「AI 评估」区（建议分、逐项得分与意见、优点/建议、「采用 AI 建议分」）；复核页标题去重、题项与评分标准折叠；审计「复核改分」改写成「主观分 7.5 → 8 · 评语：… · 优点：… · 建议：…」（去尾零、null 不显示）；顶栏右侧用户信息可点击进 `/profile`。验证：`GradingDispatchTest` 10/10（含 AI 逐项意见断言）、`make test` 209/0/0/0、`pnpm typecheck` / `pnpm build` / `check-i18n`（1029 键）通过；用用户提供的 `Rubric.md` + `Maria.txt` / `Mark.txt` 跑通「建作业 → 两人提交 → AI 先批 → 教师复核发布 → 学生反馈」。**注意**：当前 dev 用 stub 引擎、未配置 DEEPSEEK_API_KEY，AI 分数与意见不是真实评分。
+
+22. **AI 批改质量（2026-10-21，T255–T267 已实现，全量回归 212/0/0/0；T268 锚点未做）**：截图里的 `7.5 / 4.5/6 / 3/4` 已确认来自 `StubGradingEngine`；现在默认 `engine=ai`，`stub` 加 `@Profile("!prod")` 且只在测试 properties 显式启用。个人 Key 存在 `user_ai_settings`（AES-GCM 密文，GET 只回掩码），作业创建者 Key 优先、回退全局，保存后下一次调用生效；setup 首次必须填 Key，教师无 Key 时顶栏提示去 `/profile`。Prompt 升到 `subjective-v2`（题目要求 + 完整 rubric + 评分政策 + 原文引用 + `overall/strength/suggestion`，反馈语言取学生 locale）；`GradeOutputValidator` 增加引用/语言/二元分数/长度结论校验，长度由 `TextLengthCounter` 现算并覆盖模型的结构猜测。复核页用 AI 草稿预填分数/评语/优点/建议，并新增批量通过预览（跳过边界/失败/无草稿项）；默认 rubric 统一为课程 2/4/4。真实 AI 实测：Maria 10/10、Mark 8/10、Iam 10/10、Alejandro 10/10，英文评语带原文引用；E2E 建作业 09c99ee0… → 两学生提交 → 真实 AI → 发布 → 学生反馈可见，截图 `docs/reports/grading-quality/e2e/`。Golden set 评估：逐项 exact 29/30、总分 9/10、契约失败 0、语言合规 10/10（JZ 的差异是已知人工参考与长度政策冲突）。**已补**：服务端 `RubricValidator` + `POST /api/rubrics/preview`（课程 rubric 2/4/4=10；6+5 对总分 10 返回 400）；`ai_model`/`ai_key_source` 落库（重批实测 `deepseek-flash / subjective-v2 / user`）；锚点简化版（`offerings.anchor_examples`，非空才注入）。**仍缺**：按评分项编辑器、锚点自动匿名化、批量通过后一键发布；rubric 校验错误文案暂为后端中文字面量（已入 i18n 基线）。报告：`docs/reports/grading-quality/2026-10-21-subjective-v2.md`。
 
 18. **UI 标准（2026-10-21，已合入 `main`）**：令牌层 + 组件层 + 守卫三层落地。
     视觉：蓝主色 `#1D5FBF`（白字 6.10:1）、实边框、圆角 12→6、中文行高 1.65、表头去 uppercase、

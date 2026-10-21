@@ -76,6 +76,10 @@ public class Offering {
     @Column(name = "rubric_markdown", columnDefinition = "text")
     private String rubricMarkdown;
 
+    /** T268：教师确认、匿名化的参考范文（可选）；空表示不注入锚点。 */
+    @Column(name = "anchor_examples", columnDefinition = "text")
+    private String anchorExamples;
+
     @Column(name = "grading_prompt_template", columnDefinition = "text")
     private String gradingPromptTemplate;
 
@@ -84,6 +88,10 @@ public class Offering {
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    /** D-16：创建教师；AI Key 归属用，不跨模块加外键。历史数据为空。 */
+    @Column(name = "created_by")
+    private UUID createdBy;
 
     protected Offering() {
     }
@@ -123,8 +131,12 @@ public class Offering {
     public void setPaperSnapshot(String paperSnapshot) { this.paperSnapshot = paperSnapshot; }
     public int getPaperVersion() { return paperVersion; }
     public String getRubricMarkdown() { return rubricMarkdown; }
+    public String getAnchorExamples() { return anchorExamples; }
+    public void setAnchorExamples(String v) { this.anchorExamples = v; }
     public String getGradingPromptTemplate() { return gradingPromptTemplate; }
     public Instant getGradingDispatchedAt() { return gradingDispatchedAt; }
+    public UUID getCreatedBy() { return createdBy; }
+    public void setCreatedBy(UUID createdBy) { this.createdBy = createdBy; }
 
     public void setStatus(OfferingStatus status) { this.status = status; }
     public void setPublishScores(boolean v) { this.publishScores = v; }

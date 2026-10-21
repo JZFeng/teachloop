@@ -6,6 +6,7 @@ import com.teachloop.identity.domain.UserRepository;
 import com.teachloop.identity.domain.UserRole;
 import com.teachloop.identity.security.SessionAuthFilter;
 import com.teachloop.shared.error.ApiException;
+import com.teachloop.shared.port.Ports;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
@@ -27,7 +28,7 @@ public class SetupEndpoint {
     }
 
     public record CreateAdmin(@NotBlank @Email String email, @NotBlank @Size(min = 8) String password,
-                              String displayName) {
+                              String displayName, String apiKey) {
     }
 
     private final UserRepository users;
@@ -60,8 +61,17 @@ public class SetupEndpoint {
         }
         String name = body.displayName() == null || body.displayName().isBlank()
                 ? "管理员" : body.displayName().trim();
+        boolean globalConfigured = aiSettings.lookup().map(Ports.AiSettings::configured).orElse(false);
+        String apiKey = body.apiKey() == null ? null : body.apiKey().strip();
+        if ((apiKey == null || apiKey.isBlank()) && !globalConfigured) {
+            throw ApiException.badRequest("首次初始化必须填写 DeepSeek API Key");
+        }
         User admin = users.save(new User(UUID.randomUUID(), UserRole.ADMIN, email,
                 encoder.encode(body.password()), name, Instant.now(clock)));
+        if (apiKey != null && !apiKey.isBlank()) {
+            aiSettings.update(admin.getId(), new AiSettingsService.UpdateRequest(
+                    "deepseek", null, null, apiKey, null));
+        }
         request.getSession(true).setAttribute(SessionAuthFilter.SESSION_UID, admin.getId().toString());
         return new AuthDtos.MeView(admin.getId().toString(), admin.getDisplayName(), admin.getEmail(),
                 admin.getRole(), admin.getLocale());
