@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassView, OfferingView } from '../api/types'
-import { ErrorState, Loading, PageHeader } from '../components/States'
+import { Alert, Button, ErrorState, Field, Input, Loading, PageHeader, TextArea } from '../ui'
 import { errorMessage, fromLocalInput, TeacherPage, useApiData } from './common'
 
 
@@ -113,36 +113,43 @@ export default function AssignmentCreatePage() {
 
       {data && (
         <div className="card" style={{ maxWidth: 960 }}>
-          <label className="f">
-            <b>
-              {t('teacher.assignmentCreate.fieldTitle')} <i>*</i>
-            </b>
-            <input
+          <Field
+            label={t('teacher.assignmentCreate.fieldTitle')}
+            required
+            hint={t('teacher.assignmentCreate.titleHint')}
+            htmlFor="assign-title"
+          >
+            <Input
+              id="assign-title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={t('teacher.assignmentCreate.titlePlaceholder')}
             />
-            <div className="hint">{t('teacher.assignmentCreate.titleHint')}</div>
-          </label>
+          </Field>
 
-          <label className="f">
-            <b>
-              {t('teacher.assignmentCreate.fieldInstructions')} <i>*</i>
-            </b>
-            <textarea
+          <Field
+            label={t('teacher.assignmentCreate.fieldInstructions')}
+            required
+            hint={t('teacher.assignmentCreate.instructionsHint')}
+            htmlFor="assign-instructions"
+          >
+            <TextArea
+              id="assign-instructions"
               rows={6}
               value={instructions}
               onChange={(e) => setInstructions(e.target.value)}
               placeholder={t('teacher.assignmentCreate.instructionsPlaceholder')}
             />
-            <div className="hint">{t('teacher.assignmentCreate.instructionsHint')}</div>
-          </label>
+          </Field>
 
-          <label className="f">
-            <b>
-              {t('teacher.assignmentCreate.fieldTotalPoints')} <i>*</i>
-            </b>
-            <input
+          <Field
+            label={t('teacher.assignmentCreate.fieldTotalPoints')}
+            required
+            hint={t('teacher.assignmentCreate.totalPointsHint')}
+            htmlFor="assign-total"
+          >
+            <Input
+              id="assign-total"
               type="number"
               min={1}
               max={1000}
@@ -150,23 +157,22 @@ export default function AssignmentCreatePage() {
               onChange={(e) => setTotalPoints(e.target.value)}
               placeholder={t('teacher.assignmentCreate.totalPointsPlaceholder')}
             />
-            <div className="hint">{t('teacher.assignmentCreate.totalPointsHint')}</div>
-          </label>
+          </Field>
 
-          <label className="f">
-            <b>{t('teacher.assignmentCreate.fieldRubric')}</b>
-            <textarea
+          <Field
+            label={t('teacher.assignmentCreate.fieldRubric')}
+            hint={t('teacher.assignmentCreate.rubricHint')}
+            htmlFor="assign-rubric"
+          >
+            <TextArea
+              id="assign-rubric"
               rows={6}
               value={rubricMarkdown}
               onChange={(e) => setRubricMarkdown(e.target.value)}
             />
-            <div className="hint">{t('teacher.assignmentCreate.rubricHint')}</div>
-          </label>
+          </Field>
 
-          <div className="f">
-            <b>
-              {t('teacher.assignmentCreate.classes')} <i>*</i>
-            </b>
+          <Field label={t('teacher.assignmentCreate.classes')} required hint={t('teacher.assignmentCreate.classesHint')}>
             {classes.length === 0 ? (
               <p className="muted">
                 {t('teacher.assignmentCreate.noClasses')}{' '}
@@ -179,6 +185,7 @@ export default function AssignmentCreatePage() {
                     key={c.id}
                     type="button"
                     className={`chip${selectedClassIds.includes(c.id) ? ' on' : ''}`}
+                    aria-pressed={selectedClassIds.includes(c.id)}
                     onClick={() => toggleClass(c.id)}
                   >
                     {c.name} ({c.memberCount})
@@ -186,50 +193,53 @@ export default function AssignmentCreatePage() {
                 ))}
               </div>
             )}
-            <div className="hint">{t('teacher.assignmentCreate.classesHint')}</div>
-          </div>
+          </Field>
 
           <div className="form-grid">
-            <label className="f">
-              <b>
-                {t('teacher.assignmentCreate.dueAt')} <i>*</i>
-              </b>
+            <Field label={t('teacher.assignmentCreate.dueAt')} required htmlFor="assign-due">
               <input
+                id="assign-due"
                 type="datetime-local"
                 value={dueAt}
                 onChange={(e) => setDueAt(e.target.value)}
               />
-            </label>
-            <label className="f">
-              <b>{t('teacher.assignmentCreate.graceHours')}</b>
-              <input
+            </Field>
+            <Field
+              label={t('teacher.assignmentCreate.graceHours')}
+              hint={t('teacher.assignmentCreate.graceHint')}
+              htmlFor="assign-grace"
+            >
+              <Input
+                id="assign-grace"
                 type="number"
                 min={0}
                 value={graceHours}
                 onChange={(e) => setGraceHours(e.target.value)}
               />
-              <div className="hint">{t('teacher.assignmentCreate.graceHint')}</div>
-            </label>
-            <label className="f">
-              <b>{t('teacher.assignmentCreate.maxAttempts')}</b>
-              <input
+            </Field>
+            <Field
+              label={t('teacher.assignmentCreate.maxAttempts')}
+              hint={t('teacher.assignmentCreate.maxAttemptsHint')}
+              htmlFor="assign-attempts"
+            >
+              <Input
+                id="assign-attempts"
                 type="number"
                 min={1}
                 value={maxAttempts}
                 onChange={(e) => setMaxAttempts(e.target.value)}
               />
-              <div className="hint">{t('teacher.assignmentCreate.maxAttemptsHint')}</div>
-            </label>
+            </Field>
           </div>
 
-          {formError && <div className="inline-note" style={{ marginTop: 12 }}>{formError}</div>}
+          {formError && <Alert type="error" showIcon message={formError} style={{ marginTop: 12 }} />}
 
           <div className="row" style={{ marginTop: 14 }}>
-            <button type="button" className="btn pri" disabled={busy} onClick={() => void submit()}>
+            <Button variant="primary" busy={busy} onClick={() => void submit()}>
               {busy
                 ? t('teacher.assignmentCreate.publishing')
                 : t('teacher.assignmentCreate.publish')}
-            </button>
+            </Button>
           </div>
           <div className="hint" style={{ marginTop: 10 }}>
             {t('teacher.assignmentCreate.publishHint')}

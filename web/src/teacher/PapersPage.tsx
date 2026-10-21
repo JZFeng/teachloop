@@ -2,9 +2,8 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { PaperView } from '../api/types'
-import { DataTable } from '../components/DataTable'
-import type { Column } from '../components/DataTable'
-import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
+import { Button, DataTable, Empty, ErrorState, Loading, PageHeader } from '../ui'
+import type { Column } from '../ui'
 import { useListState } from '../components/useListState'
 import { PageSizePicker, Tag, TeacherPage, useApiData } from './common'
 
@@ -79,22 +78,27 @@ export default function PapersPage() {
     {
       key: 'actions',
       title: t('teacher.common.actions'),
+      width: '240px',
       value: () => '',
       render: (row) => (
         <div className="row" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
-          <Link className="btn sm" to={`/papers/${row.id}`}>
+          <Button size="small" variant="text" onClick={() => navigate(`/papers/${row.id}`)}>
             {t('teacher.common.edit')}
-          </Link>
-          <Link className="btn sm" to={`/offerings/new?paperId=${row.id}`}>
+          </Button>
+          <Button size="small" variant="text" onClick={() => navigate(`/offerings/new?paperId=${row.id}`)}>
             {t('teacher.papers.assign')}
-          </Link>
-          <button type="button" className="btn sm" onClick={() => void api.post(`/api/papers/${row.id}/copy`).then(reload)}>
+          </Button>
+          <Button size="small" variant="text" onClick={() => void api.post(`/api/papers/${row.id}/copy`).then(reload)}>
             {t('teacher.papers.copy')}
-          </button>
-          <button type="button" className="btn sm" disabled={row.status === 'ARCHIVED'}
-            onClick={() => void api.post(`/api/papers/${row.id}/archive`).then(reload)}>
+          </Button>
+          <Button
+            size="small"
+            variant="text"
+            disabled={row.status === 'ARCHIVED'}
+            onClick={() => void api.post(`/api/papers/${row.id}/archive`).then(reload)}
+          >
             {t('teacher.papers.archive')}
-          </button>
+          </Button>
         </div>
       ),
     },
@@ -107,10 +111,10 @@ export default function PapersPage() {
         sub={t('teacher.papers.sub')}
         actions={
           <div className="row">
-            <Link className="btn" to="/papers/import">{t('teacher.import.importCta')}</Link>
-            <Link className="btn pri" to="/papers/new">
+            <Button onClick={() => navigate('/papers/import')}>{t('teacher.import.importCta')}</Button>
+            <Button variant="primary" onClick={() => navigate('/papers/new')}>
               {t('teacher.papers.new')}
-            </Link>
+            </Button>
           </div>
         }
       />

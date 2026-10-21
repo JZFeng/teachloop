@@ -2,9 +2,8 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime } from '../api/client'
 import type { ClassView, OfferingView, ReviewView } from '../api/types'
-import { DataTable } from '../components/DataTable'
-import type { Column } from '../components/DataTable'
-import { Empty, ErrorState, Loading, PageHeader, StatCard } from '../components/States'
+import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard } from '../ui'
+import type { Column } from '../ui'
 import { useListState } from '../components/useListState'
 import {
   classNamesText,
@@ -154,15 +153,16 @@ export default function TeacherHomePage() {
     {
       key: 'actions',
       title: t('teacher.common.actions'),
+      width: '132px',
       value: () => '',
       render: (o) => (
         <div className="row" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
-          <Link className="btn sm" to={`/grading/${o.id}`}>
+          <Button size="small" variant="text" onClick={() => navigate(`/grading/${o.id}`)}>
             {t('teacher.common.detail')}
-          </Link>
-          <Link className="btn sm" to={`/offerings/${o.id}/summary`}>
+          </Button>
+          <Button size="small" variant="text" onClick={() => navigate(`/offerings/${o.id}/summary`)}>
             {t('teacher.common.summary')}
-          </Link>
+          </Button>
         </div>
       ),
     },
@@ -179,25 +179,25 @@ export default function TeacherHomePage() {
         <>
           <div className="stats">
             <StatCard
-              n={reviewCount}
+              value={reviewCount}
               label={t('teacher.home.stats.review')}
               sub={t('teacher.home.stats.reviewSub')}
               onClick={() => navigate('/review?status=PENDING')}
             />
             <StatCard
-              n={running}
+              value={running}
               label={t('teacher.home.stats.running')}
               sub={t('teacher.home.stats.runningSub')}
               onClick={() => navigate('/grading?state=running')}
             />
             <StatCard
-              n={pendingPublish}
+              value={pendingPublish}
               label={t('teacher.home.stats.publish')}
               sub={t('teacher.home.stats.publishSub')}
               onClick={() => navigate('/grading?state=unpublished')}
             />
             <StatCard
-              n={unsubmitted}
+              value={unsubmitted}
               label={t('teacher.home.stats.unsubmitted')}
               sub={t('teacher.home.stats.unsubmittedSub')}
               onClick={() => navigate('/grading?state=unsubmitted')}

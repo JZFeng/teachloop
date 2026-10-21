@@ -15,11 +15,11 @@ export function TeacherPage({ children }: { children: ReactNode }) {
   return <div className="teacher-page">{children}</div>
 }
 
-export type Tone = 'blue' | 'green' | 'amber' | 'red' | 'gray'
-
-export function Tag({ tone = 'gray', children }: { tone?: Tone; children: ReactNode }) {
-  return <span className={`tag ${tone}`}>{children}</span>
-}
+// 标签统一由组件层提供（antd Tag），这里只做转发，避免两套标签样式。
+import { Tag } from '../ui'
+import type { Tone } from '../ui'
+export { Tag }
+export type { Tone }
 
 export interface AsyncData<T> {
   data: T | null

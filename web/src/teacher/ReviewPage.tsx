@@ -5,9 +5,8 @@ import { api, fmtDateTime } from '../api/client'
 import { errorMessage } from './common'
 import type { BulkApproveResult, ReviewDetail, ReviewView } from '../api/types'
 import { AuditDrawer } from '../components/AuditDrawer'
-import { DataTable } from '../components/DataTable'
-import type { Column } from '../components/DataTable'
-import { Empty, ErrorState, Loading, PageHeader, StatCard } from '../components/States'
+import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard } from '../ui'
+import type { Column } from '../ui'
 
 export default function ReviewPage() {
   const { t } = useTranslation('translation')
@@ -171,17 +170,17 @@ export default function ReviewPage() {
     { key: 'submissionId', title: t('review.submissionId'), value: (r) => r.submissionId, sortable: true, render: (r) => <span className="mono small">{r.submissionId.slice(0, 8)}</span> },
     { key: 'status', title: t('review.status'), value: (r) => r.status, sortable: true, render: (r) => <span className="tag amber">{t(`review.status_${r.status}`)}</span> },
     { key: 'createdAt', title: t('review.queuedAt'), value: (r) => r.createdAt, sortable: true, render: (r) => <span className="small">{fmtDateTime(r.createdAt)}</span> },
-    { key: 'actions', title: t('review.open'), value: () => '', render: (r) => <button className="btn sm" onClick={() => openSubmission(r.submissionId)}>{t('review.open')}</button> },
+    { key: 'actions', title: t('review.open'), value: () => '', render: (r) => <Button size="small" variant="text" onClick={() => openSubmission(r.submissionId)}>{t('review.open')}</Button> },
   ]
 
   return (
     <>
       <PageHeader title={t('review.title')} sub={t('review.sub')} />
       <div className="stats">
-        <StatCard n={queue?.length ?? 0} label={t('review.pending')} />
+        <StatCard value={queue?.length ?? 0} label={t('review.pending')} />
       </div>
       <div className="row" style={{ marginBottom: 10 }}>
-        <button className="btn" disabled={busy || !queue?.length} onClick={() => void bulkApprove()}>{t('review.bulk')}</button>
+        <Button disabled={busy || !queue?.length} onClick={() => void bulkApprove()}>{t('review.bulk')}</Button>
         {batch && <span className="small muted">{t('review.batchResult', { approved: batch.approved, skipped: batch.skipped, total: batch.total })}</span>}
       </div>
       {queueError && <ErrorState error={queueError} onRetry={loadQueue} />}
@@ -318,18 +317,18 @@ export default function ReviewPage() {
               <div className="row" style={{ gap: 8, alignItems: 'center' }}>
                 {!detail.review.published && (
                   <>
-                    <button className="btn pri"
+                    <Button variant="primary"
                       disabled={busy || detail.review.status === 'REJECTED' || !form.subjectivePoints.trim()}
-                      onClick={() => void publishFeedback()}>{t('review.publishFeedback')}</button>
-                    <button className="btn" disabled={busy || detail.review.status === 'REJECTED'}
-                      onClick={() => void saveDraft()}>{t('review.saveDraft')}</button>
+                      onClick={() => void publishFeedback()}>{t('review.publishFeedback')}</Button>
+                    <Button disabled={busy || detail.review.status === 'REJECTED'}
+                      onClick={() => void saveDraft()}>{t('review.saveDraft')}</Button>
                   </>
                 )}
                 {detail.review.published && (
-                  <button className="btn" disabled={busy} onClick={() => void withdraw()}>{t('review.withdraw')}</button>
+                  <Button disabled={busy} onClick={() => void withdraw()}>{t('review.withdraw')}</Button>
                 )}
                 <div style={{ flex: 1 }} />
-                <button className="btn" onClick={() => setAuditFor(detail.submissionId)}>{t('review.audit')}</button>
+                <Button onClick={() => setAuditFor(detail.submissionId)}>{t('review.audit')}</Button>
               </div>
               <p className="small muted" style={{ margin: '6px 0 0' }}>
                 {detail.review.published ? t('review.publishedHint') : t('review.publishHint')}
@@ -344,8 +343,8 @@ export default function ReviewPage() {
                     <input style={{ flex: 1, minWidth: 220 }} placeholder={t('review.rejectReason')} value={form.reason}
                       onChange={(e) => setForm({ ...form, reason: e.target.value })}
                       disabled={detail.review.status === 'REJECTED'} />
-                    <button className="btn danger" disabled={busy || detail.review.status === 'REJECTED'}
-                      onClick={() => void rejectReview()}>{t('review.reject')}</button>
+                    <Button variant="danger" disabled={busy || detail.review.status === 'REJECTED'}
+                      onClick={() => void rejectReview()}>{t('review.reject')}</Button>
                   </div>
                   <p className="small muted" style={{ margin: '6px 0 0' }}>{t('review.rejectHint')}</p>
                 </div>

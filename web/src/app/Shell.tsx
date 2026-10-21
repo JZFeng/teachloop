@@ -2,8 +2,10 @@ import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { BellOutlined } from '@ant-design/icons'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
+import { Button, ThemeToggle } from '../ui'
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
 
 interface NavItem { to: string; label: string; end?: boolean }
@@ -22,6 +24,8 @@ export function Shell({ children }: { children: ReactNode }) {
     { to: '/grading', label: t('nav.grading') },
     { to: '/review', label: t('nav.review') },
     { to: '/reports', label: t('nav.reports') },
+    // UI 标准的展示页：只有教师与管理员看得到，学生端不需要。
+    { to: '/ui-kit', label: t('ui.navKit') },
     ...(me?.role === 'ADMIN' ? [{ to: '/admin/ai', label: t('nav.aiSettings') }] : []),
   ]
   const studentNav: NavItem[] = [
@@ -66,24 +70,27 @@ export function Shell({ children }: { children: ReactNode }) {
           ))}
         </nav>
         <div className="sidebar-foot">
+          <ThemeToggle />
           {/* 资料页入口常驻在这里：顶部「资料」button 只负责提醒补全，补全后消失。 */}
           <NavLink to="/profile" className="sidebar-user" title={t('nav.profile')}>
             {me?.displayName} · {me?.role}
           </NavLink>
-          <button className="btn" onClick={() => void logout().then(() => navigate('/login'))}>
+          <Button block onClick={() => void logout().then(() => navigate('/login'))}>
             {t('common.logout')}
-          </button>
+          </Button>
         </div>
       </aside>
       <div className="app-main-wrap">
         <header className="app-topbar">
           <div className="row" style={{ gap: 8 }}>
             {profileComplete === false && (
-              <button className="btn sm" onClick={() => navigate('/profile')}>{t('profile.completeAction')}</button>
+              <Button size="small" variant="primary" onClick={() => navigate('/profile')}>
+                {t('profile.completeAction')}
+              </Button>
             )}
-            <button className="btn sm" onClick={() => navigate('/notifications')} title={t('nav.notifications')}>
-              🔔 {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
-            </button>
+            <Button size="small" icon={<BellOutlined />} onClick={() => navigate('/notifications')}>
+              {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
+            </Button>
           </div>
           <NavLink to="/profile" className="topbar-user" title={t('nav.profile')}>
             {me?.displayName} · {me?.email}

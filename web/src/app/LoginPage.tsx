@@ -4,9 +4,15 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { ApiError } from '../api/client'
+import { Alert, Button, Field, Input, Password } from '../ui'
 
+/**
+ * 登录页（UI 标准迁移第 1 屏）。
+ * 改动：输入框与按钮交给组件层；错误改成 antd Alert（不再是一段灰字）；
+ * 主按钮去掉渐变与彩色投影，改成实色 #1D5FBF。
+ */
 export default function LoginPage() {
-  const { t } = useTranslation()
+  const { t } = useTranslation('translation')
   const { login } = useAuth()
   const navigate = useNavigate()
   const [email, setEmail] = useState('teacher@teachloop.local')
@@ -42,16 +48,30 @@ export default function LoginPage() {
       <form className="card login-card" onSubmit={submit}>
         <h2>{t('login.title')}</h2>
         <div className="sub">{t('login.subtitle')}</div>
-        <label className="f"><b>{t('login.email')}</b>
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="username" required />
-        </label>
-        <label className="f"><b>{t('login.password')}</b>
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="current-password" required />
-        </label>
-        {error && <p className="inline-note">{error}</p>}
-        <button className="btn pri" type="submit" disabled={busy} style={{ width: '100%' }}>
-          {busy ? t('common.loading') : t('login.submit')}
-        </button>
+        <Field label={t('login.email')} required htmlFor="login-email">
+          <Input
+            id="login-email"
+            size="large"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="username"
+            status={error ? 'error' : undefined}
+          />
+        </Field>
+        <Field label={t('login.password')} required htmlFor="login-password">
+          <Password
+            id="login-password"
+            size="large"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+            status={error ? 'error' : undefined}
+          />
+        </Field>
+        {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 14 }} />}
+        <Button variant="primary" size="large" block busy={busy} htmlType="submit">
+          {t('login.submit')}
+        </Button>
         <div className="hint">{t('login.hint')}</div>
       </form>
     </div>
