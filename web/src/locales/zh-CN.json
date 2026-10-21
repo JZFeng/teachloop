@@ -668,7 +668,14 @@
       "tableSub": "默认按提交时间倒序",
       "tableTitle": "逐份状态",
       "title": "作业批改详情",
-      "toReview": "进入复核"
+      "toReview": "进入复核",
+      "stats": {
+        "done": "已批改",
+        "running": "批改中",
+        "pending": "待批改",
+        "failed": "失败"
+      },
+      "aiDispatching": "派发中…"
     },
     "grading": {
       "colClassCount": "班级数",

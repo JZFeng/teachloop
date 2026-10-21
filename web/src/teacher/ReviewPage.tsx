@@ -170,7 +170,7 @@ export default function ReviewPage() {
     { key: 'submissionId', title: t('review.submissionId'), value: (r) => r.submissionId, sortable: true, render: (r) => <span className="mono small">{r.submissionId.slice(0, 8)}</span> },
     { key: 'status', title: t('review.status'), value: (r) => r.status, sortable: true, render: (r) => <span className="tag amber">{t(`review.status_${r.status}`)}</span> },
     { key: 'createdAt', title: t('review.queuedAt'), value: (r) => r.createdAt, sortable: true, render: (r) => <span className="small">{fmtDateTime(r.createdAt)}</span> },
-    { key: 'actions', title: t('review.open'), value: () => '', render: (r) => <Button size="small" variant="text" onClick={() => openSubmission(r.submissionId)}>{t('review.open')}</Button> },
+    { key: 'actions', title: t('review.open'), value: () => '', render: (r) => <Button size="small" onClick={() => openSubmission(r.submissionId)}>{t('review.open')}</Button> },
   ]
 
   return (

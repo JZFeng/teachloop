@@ -36,6 +36,7 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
+      <div className="login-panel">
       <div className="login-hero">
         <h1>{t('app.name')}</h1>
         <p className="sub">{t('app.tagline')}</p>
@@ -74,6 +75,7 @@ export default function LoginPage() {
         </Button>
         <div className="hint">{t('login.hint')}</div>
       </form>
+      </div>
     </div>
   )
 }

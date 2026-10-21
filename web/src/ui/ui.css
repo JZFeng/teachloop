@@ -215,3 +215,38 @@
 .tl-table-card .ant-table-cell .row {
   flex-wrap: nowrap;
 }
+
+/* 批改总览的进度格：数字 + 条 + 失败提示，一列说清「批到哪儿了」。 */
+.tl-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.tl-progress-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+.tl-progress-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+.tl-progress-bar > i {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+.tl-progress-note {
+  display: flex;
+  gap: 10px;
+  font-size: 11.5px;
+  color: var(--muted-2);
+}
+.tl-progress-failed {
+  color: var(--red);
+}

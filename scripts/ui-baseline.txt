@@ -169,13 +169,13 @@ web/src/teacher/ClassesPage.tsx|LEGACY_BTN_CLASS|4
 web/src/teacher/GradingDetailPage.tsx|ANTD_DIRECT|0
 web/src/teacher/GradingDetailPage.tsx|COLOR_LITERAL|0
 web/src/teacher/GradingDetailPage.tsx|EMOJI_ICON|0
-web/src/teacher/GradingDetailPage.tsx|INLINE_STYLE|4
-web/src/teacher/GradingDetailPage.tsx|LEGACY_BTN_CLASS|11
+web/src/teacher/GradingDetailPage.tsx|INLINE_STYLE|0
+web/src/teacher/GradingDetailPage.tsx|LEGACY_BTN_CLASS|0
 web/src/teacher/GradingOverviewPage.tsx|ANTD_DIRECT|0
 web/src/teacher/GradingOverviewPage.tsx|COLOR_LITERAL|0
 web/src/teacher/GradingOverviewPage.tsx|EMOJI_ICON|0
 web/src/teacher/GradingOverviewPage.tsx|INLINE_STYLE|0
-web/src/teacher/GradingOverviewPage.tsx|LEGACY_BTN_CLASS|3
+web/src/teacher/GradingOverviewPage.tsx|LEGACY_BTN_CLASS|0
 web/src/teacher/HomePage.tsx|ANTD_DIRECT|0
 web/src/teacher/HomePage.tsx|COLOR_LITERAL|0
 web/src/teacher/HomePage.tsx|EMOJI_ICON|0
@@ -223,6 +223,7 @@ web/src/ui/DataTable.tsx|COLOR_LITERAL|0
 web/src/ui/Field.tsx|COLOR_LITERAL|0
 web/src/ui/Input.tsx|COLOR_LITERAL|0
 web/src/ui/PageHeader.tsx|COLOR_LITERAL|0
+web/src/ui/Segmented.tsx|COLOR_LITERAL|0
 web/src/ui/StatCard.tsx|COLOR_LITERAL|0
 web/src/ui/States.tsx|COLOR_LITERAL|0
 web/src/ui/Tag.tsx|COLOR_LITERAL|0

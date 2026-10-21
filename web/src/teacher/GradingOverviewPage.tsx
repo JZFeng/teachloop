@@ -1,10 +1,9 @@
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime } from '../api/client'
 import type { ClassView, OfferingView } from '../api/types'
-import { DataTable } from '../components/DataTable'
-import type { Column } from '../components/DataTable'
-import { Empty, ErrorState, Loading, PageHeader, StatCard } from '../components/States'
+import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard, Segmented } from '../ui'
+import type { Column } from '../ui'
 import { useListState } from '../components/useListState'
 import {
   classNamesText,
@@ -27,8 +26,11 @@ const FILTERS = ['all', 'done', 'failed', 'pending', 'unsubmitted'] as const
 type Filter = (typeof FILTERS)[number]
 
 /**
- * T181 / AC-20.1–AC-20.7：统计卡片 + 作业级表格。
- * 过滤条件写进 URL（state），排序与分页由 useListState 写 URL。
+ * T181 / AC-20.1–AC-20.7：统计卡片 + 作业级表格，过滤条件写进 URL。
+ *
+ * 2026-10-21（UI 标准）：过滤条从一排 chip 换成 Segmented；每行原来并排 4 个
+ * 状态标签，改成「一个进度条 + 一个状态标签」——4 个标签在窄列里会折成两行，
+ * 反而看不出「批到哪儿了」。
  */
 export default function GradingOverviewPage() {
   const { t } = useTranslation('translation')
@@ -48,7 +50,7 @@ export default function GradingOverviewPage() {
   }, [])
 
   const filter = normalizeFilter(params.get('state'))
-  const setFilter = (next: Filter) => {
+  const setFilter = (next: Filter | 'running' | 'unpublished') => {
     setParams((prev) => {
       const updated = new URLSearchParams(prev)
       if (next === 'all') updated.delete('state')
@@ -114,38 +116,52 @@ export default function GradingOverviewPage() {
       key: 'kind',
       title: t('teacher.grading.colKind'),
       value: (o) => o.kind,
+      width: '92px',
       sortable: true,
-      render: (o) => (
-        <Tag tone={o.kind === 'EXAM' ? 'blue' : 'gray'}>{t(`teacher.kind.${o.kind}`)}</Tag>
-      ),
-    },
-    {
-      key: 'classCount',
-      title: t('teacher.grading.colClassCount'),
-      value: (o) => o.classCount,
-      sortable: true,
-      render: (o) => o.classCount,
+      render: (o) => <Tag tone={o.kind === 'EXAM' ? 'blue' : 'gray'}>{t(`teacher.kind.${o.kind}`)}</Tag>,
     },
     {
       key: 'dueAt',
       title: t('teacher.grading.colDue'),
       value: (o) => o.dueAt,
+      width: '150px',
       sortable: true,
       render: (o) => fmtDateTime(o.dueAt),
     },
     {
-      key: 'submitted',
+      key: 'progress',
       title: t('teacher.grading.colSubmitted'),
-      value: (o) => aggregates[o.id]?.submitted ?? 0,
+      value: (o) => {
+        const agg = aggregates[o.id]
+        return agg && agg.expected > 0 ? agg.submitted / agg.expected : 0
+      },
+      width: '150px',
       sortable: true,
       render: (o) => {
         const agg = aggregates[o.id]
-        return agg ? (
-          <span className="mono">
-            {agg.submitted} / {agg.expected}
-          </span>
-        ) : (
-          '—'
+        if (!agg) return '—'
+        const p = agg.progress
+        const percent = agg.expected > 0 ? Math.round((agg.submitted / agg.expected) * 100) : 0
+        return (
+          <div className="tl-progress">
+            <div className="tl-progress-head">
+              <span className="mono">
+                {agg.submitted} / {agg.expected}
+              </span>
+              <span className="small muted">{percent}%</span>
+            </div>
+            <div className="tl-progress-bar">
+              <i style={{ width: `${Math.min(100, percent)}%` }} />
+            </div>
+            {p.running > 0 || p.failed > 0 ? (
+              <div className="tl-progress-note">
+                {p.running > 0 && <span>{t('teacher.grading.runningN', { n: p.running })}</span>}
+                {p.failed > 0 && (
+                  <span className="tl-progress-failed">{t('teacher.grading.failedN', { n: p.failed })}</span>
+                )}
+              </div>
+            ) : null}
+          </div>
         )
       },
     },
@@ -153,51 +169,34 @@ export default function GradingOverviewPage() {
       key: 'state',
       title: t('teacher.grading.colState'),
       value: (o) => stateRank(aggregates[o.id]),
+      width: '120px',
       sortable: true,
       render: (o) => {
         const agg = aggregates[o.id]
         if (!agg) return '—'
-        const p = agg.progress
         return (
-          <div>
-            <div className="stat-row">
-              <Tag tone="green">
-                {t('teacher.grading.doneN', { n: p.done })}
-              </Tag>
-              <Tag tone={p.running > 0 ? 'blue' : 'gray'}>
-                {t('teacher.grading.runningN', { n: p.running })}
-              </Tag>
-              <Tag tone={p.pending > 0 ? 'amber' : 'gray'}>
-                {t('teacher.grading.pendingN', { n: p.pending })}
-              </Tag>
-              <Tag tone={p.failed > 0 ? 'red' : 'gray'}>
-                {t('teacher.grading.failedN', { n: p.failed })}
-              </Tag>
-            </div>
-            <div style={{ marginTop: 4 }}>
-              <OfferingStateTag
-                progress={p}
-                publishScores={o.publishScores}
-                expected={agg.expected}
-                rejected={agg.rejected}
-              />
-            </div>
-          </div>
+          <OfferingStateTag
+            progress={agg.progress}
+            publishScores={o.publishScores}
+            expected={agg.expected}
+            rejected={agg.rejected}
+          />
         )
       },
     },
     {
       key: 'actions',
       title: t('teacher.common.actions'),
+      width: '132px',
       value: () => '',
       render: (o) => (
         <div className="row" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
-          <Link className="btn sm" to={`/grading/${o.id}`}>
+          <Button size="small" onClick={() => navigate(`/grading/${o.id}`)}>
             {t('teacher.common.detail')}
-          </Link>
-          <Link className="btn sm" to={`/offerings/${o.id}/summary`}>
+          </Button>
+          <Button size="small" variant="text" onClick={() => navigate(`/offerings/${o.id}/summary`)}>
             {t('teacher.common.summary')}
-          </Link>
+          </Button>
         </div>
       ),
     },
@@ -216,27 +215,31 @@ export default function GradingOverviewPage() {
         <>
           <div className="stats">
             <StatCard
-              n={totalDone}
+              value={totalDone}
               label={t('teacher.grading.stats.done')}
               sub={totalRunning > 0 ? t('teacher.grading.stats.runningSub', { n: totalRunning }) : undefined}
-              onClick={() => setFilter('done')}
+              active={filter === 'done'}
+              onClick={() => setFilter(filter === 'done' ? 'all' : 'done')}
             />
             <StatCard
-              n={totalFailed}
+              value={totalFailed}
               label={t('teacher.grading.stats.failed')}
               sub={t('teacher.grading.stats.failedSub')}
-              onClick={() => setFilter('failed')}
+              active={filter === 'failed'}
+              onClick={() => setFilter(filter === 'failed' ? 'all' : 'failed')}
             />
             <StatCard
-              n={totalPending}
+              value={totalPending}
               label={t('teacher.grading.stats.pending')}
-              onClick={() => setFilter('pending')}
+              active={filter === 'pending'}
+              onClick={() => setFilter(filter === 'pending' ? 'all' : 'pending')}
             />
             <StatCard
-              n={totalUnsubmitted}
+              value={totalUnsubmitted}
               label={t('teacher.grading.stats.unsubmitted')}
               sub={t('teacher.grading.stats.unsubmittedSub')}
-              onClick={() => setFilter('unsubmitted')}
+              active={filter === 'unsubmitted'}
+              onClick={() => setFilter(filter === 'unsubmitted' ? 'all' : 'unsubmitted')}
             />
           </div>
 
@@ -251,35 +254,18 @@ export default function GradingOverviewPage() {
           <div className="card" style={{ padding: '10px 14px' }}>
             <div className="row">
               <span className="small muted">{t('teacher.grading.filterLabel')}</span>
-              {FILTERS.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`chip${filter === key ? ' on' : ''}`}
-                  onClick={() => setFilter(key)}
-                >
-                  {filterLabel(key)}
-                </button>
-              ))}
-              {filter === 'running' || filter === 'unpublished' ? (
-                <span className="tag blue">
-                  {t(`teacher.grading.filters.${filter}`)}
-                  <button
-                    type="button"
-                    className="btn sm"
-                    style={{ marginLeft: 6, padding: '0 6px' }}
-                    onClick={() => setFilter('all')}
-                  >
-                    ×
-                  </button>
-                </span>
-              ) : null}
+              <Segmented
+                size="small"
+                value={filter}
+                onChange={(value) => setFilter(value as Filter | 'running' | 'unpublished')}
+                options={FILTERS.map((key) => ({ value: key, label: filterLabel(key) }))}
+              />
               <span className="small muted" style={{ marginLeft: 'auto' }}>
                 {t('teacher.grading.filteredCount', { shown: filtered.length, total: offerings.length })}
               </span>
             </div>
             {filter !== 'all' && (
-              <div className="hint" style={{ marginTop: 4 }}>
+              <div className="hint" style={{ marginTop: 6 }}>
                 {t('teacher.grading.filterWritesUrl')}
               </div>
             )}

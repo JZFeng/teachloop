@@ -43,18 +43,55 @@ body { display: block; }
 }
 
 .login-page {
-  min-height: 100vh; display: grid; grid-template-columns: 1.1fr .9fr;
-  align-items: center; gap: 40px; padding: 48px; background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 24px;
+  background: var(--bg);
 }
+/* 一块面板装下「说明 + 表单」：避免两段内容各自漂在灰底上。 */
+.login-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  width: 100%;
+  max-width: 920px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+.login-hero {
+  padding: 44px 40px;
+  /* 品牌区用强调色的最浅一档，和右侧表单拉开层次（暗色下自动变深蓝）。 */
+  background: var(--accent-weak);
+  border-right: 1px solid var(--line);
+}
+.login-hero h1 { font-size: 32px; margin: 0 0 6px; letter-spacing: -0.02em; }
+.login-hero .sub { max-width: 380px; margin-bottom: 20px; font-size: 14px; }
+.login-hero ul { color: var(--muted); line-height: 1.9; padding-left: 18px; margin: 0; font-size: 13px; }
+.login-hero li { margin-bottom: 4px; }
+.login-card {
+  width: 100%;
+  margin: 0;
+  padding: 36px 32px 28px;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: var(--panel);
+}
+.login-card h2 { font-size: 18px; margin: 0 0 4px; }
 @media (max-width: 900px) {
-  .login-page { grid-template-columns: 1fr; padding: 24px; }
+  .login-page { padding: 24px 16px; }
+  .login-panel { grid-template-columns: 1fr; max-width: 480px; }
+  .login-hero { padding: 26px 24px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .login-hero h1 { font-size: 24px; }
+  .login-card { padding: 24px 20px 20px; }
   .app-sidebar { display: none; }
   .app-main { padding: 20px 16px 80px; }
   .app-topbar { padding: 10px 16px; }
 }
-.login-hero h1 { font-size: 34px; margin-bottom: 8px; }
-.login-hero ul { color: var(--muted); line-height: 2; padding-left: 20px; }
-.login-card { max-width: 420px; width: 100%; margin: 0 auto; }
 
 /* 考试作答页的两栏：目录树 + 单滚动区 */
 .exam-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; max-width: 1180px; margin: 0 auto; padding: 20px; }

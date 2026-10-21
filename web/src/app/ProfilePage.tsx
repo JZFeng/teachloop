@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import { LANGUAGES, changeLanguage } from '../i18n'
+import { Alert, Button, Field, Input, PageHeader, ThemeToggle } from '../ui'
 
 interface ProfileView {
   id: string
@@ -15,6 +16,7 @@ interface ProfileView {
 /**
  * T034：微信/首次登录后的资料补全；手机号与邮箱必填（空着就用红色标出来）。
  * T248：界面语言也在这里改。T250：保存后顶部「补全资料」提示立即消失，本页仍可随时修改。
+ * 2026-10-21（UI 标准）：改用组件层，偏好设置里补上亮/暗主题开关（计划 A2 说这里也要有）。
  */
 export default function ProfilePage() {
   const { t, i18n } = useTranslation('translation')
@@ -64,55 +66,79 @@ export default function ProfilePage() {
 
   return (
     <>
-      <div className="card">
-        <h2>{t('profile.title')}</h2>
-        <p className="small muted">{t('profile.sub')}</p>
-        {error && <div className="inline-note danger">{error}</div>}
-        {message && <div className="inline-note">{message}</div>}
-        {missingRequired && <div className="inline-note danger">{t('profile.requiredWarn')}</div>}
+      <PageHeader title={t('profile.title')} sub={t('profile.sub')} />
+
+      <div className="card" style={{ maxWidth: 720 }}>
+        {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 14 }} />}
+        {message && <Alert type="success" showIcon message={message} style={{ marginBottom: 14 }} />}
+        {missingRequired && <Alert type="warning" showIcon message={t('profile.requiredWarn')} style={{ marginBottom: 14 }} />}
+
         {profile && (
           <>
-            <label className="f"><b>{t('profile.name')}</b>
-              <input value={displayName} onChange={(e) => setDisplayName(e.target.value)} />
-            </label>
-            <label className="f"><b>{t('profile.phone')} <span className="required-mark">*</span></b>
-              <input
-                className={phoneMissing ? 'invalid' : undefined}
+            <Field label={t('profile.name')} htmlFor="profile-name">
+              <Input
+                id="profile-name"
+                value={displayName}
+                onChange={(e) => setDisplayName(e.target.value)}
+              />
+            </Field>
+
+            <Field
+              label={t('profile.phone')}
+              required
+              htmlFor="profile-phone"
+              error={phoneMissing ? t('profile.phoneRequired') : null}
+            >
+              <Input
+                id="profile-phone"
+                status={phoneMissing ? 'error' : undefined}
                 aria-invalid={phoneMissing}
                 value={phone}
                 placeholder="13800000000"
                 onChange={(e) => setPhone(e.target.value)}
               />
-              {phoneMissing && <span className="field-error">{t('profile.phoneRequired')}</span>}
-            </label>
-            <label className="f"><b>{t('profile.email')} <span className="required-mark">*</span></b>
-              <input
-                className={emailMissing ? 'invalid' : undefined}
-                aria-invalid={emailMissing}
+            </Field>
+
+            <Field
+              label={t('profile.email')}
+              required
+              htmlFor="profile-email"
+              error={emailMissing ? t('profile.emailRequired') : null}
+            >
+              <Input
+                id="profile-email"
                 type="email"
+                status={emailMissing ? 'error' : undefined}
+                aria-invalid={emailMissing}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
               />
-              {emailMissing && <span className="field-error">{t('profile.emailRequired')}</span>}
-            </label>
-            <button className="btn pri" disabled={missingRequired} onClick={() => void save()}>
+            </Field>
+
+            <Button variant="primary" disabled={missingRequired} onClick={() => void save()}>
               {t('profile.save')}
-            </button>
-            {missingRequired && <p className="small muted" style={{ marginBottom: 0 }}>{t('profile.saveBlocked')}</p>}
+            </Button>
+            {missingRequired && (
+              <p className="small muted" style={{ margin: '10px 0 0' }}>{t('profile.saveBlocked')}</p>
+            )}
           </>
         )}
       </div>
 
-      <div className="card" style={{ marginTop: 16 }}>
+      <div className="card" style={{ maxWidth: 720, marginTop: 16 }}>
         <h2>{t('profile.preferences')}</h2>
-        <label className="f"><b>{t('profile.language')}</b>
-          <select value={i18n.language} onChange={(e) => void changeLanguage(e.target.value)}>
+        <Field label={t('profile.language')} hint={t('profile.languageHint')} htmlFor="profile-language">
+          <select
+            id="profile-language"
+            value={i18n.language}
+            onChange={(e) => void changeLanguage(e.target.value)}
+          >
             {LANGUAGES.map((language) => (
               <option key={language.code} value={language.code}>{language.label}</option>
             ))}
           </select>
-        </label>
-        <p className="small muted" style={{ margin: 0 }}>{t('profile.languageHint')}</p>
+        </Field>
+        <ThemeToggle size="middle" />
       </div>
     </>
   )

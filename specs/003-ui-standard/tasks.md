@@ -19,6 +19,11 @@
 | T311 | `check-ui` 守卫 + Makefile 接入 + 反证 | T305 | `make check-ui` 通过；插入 `#ff0000` 时退出码 1（已实测） | 完成 |
 | T312 | 对比度守卫 `scripts/ui/contrast.py` | T303 | 改任一处令牌不改另一处时该脚本失败 | 完成 |
 | T313 | 文档回写：spec/plan/tasks/交付状态/AGENTS 路径 | T307 | 四份文档计数自检通过；`AGENTS.md` 的调研路径与仓库一致 | 完成 |
+| T314 | 合入 main（rebase 到 vocab 提交之后） | T313 | `git log` 线性；`tsc`/`build`/`check-ui`/`check-i18n` 全绿后再 ff 合并 | 完成 |
+| T315 | 修 3 处观感：复核「打开」按钮、登录页单面板布局、资料页主题开关 | T314 | 三处截图可对照，无新守卫违规 | 完成 |
+| T316 | 真改批改总览：4 张可点统计卡 + Segmented 过滤 + 进度条列 | T314 | 截图 `grading-overview.png`；行内 4 个状态标签收敛为「进度条 + 状态标签」 | 完成 |
+| T317 | 真改批改详情：统计卡替代 7 个标签、页头主次操作、Alert 回执、拒收表单用 Field、拒收理由并入状态 tooltip | T314 | 截图 `grading-detail.png`；表格一屏放下不再折行 | 完成 |
+| T318 | 资料页改用组件层 | T315 | 截图 `profile.png`；必填红框与字段错误由 Field 统一 | 完成 |
 
 ## 执行记录
 

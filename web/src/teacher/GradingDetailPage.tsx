@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime } from '../api/client'
 import type {
   ClassView,
@@ -11,10 +11,9 @@ import type {
   ProgressView,
 } from '../api/types'
 import { AuditDrawer } from '../components/AuditDrawer'
-import { DataTable } from '../components/DataTable'
-import type { Column } from '../components/DataTable'
-import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
 import { useListState } from '../components/useListState'
+import { Alert, Button, DataTable, Empty, ErrorState, Field, Input, Loading, PageHeader, StatCard, Segmented } from '../ui'
+import type { Column } from '../ui'
 import {
   errorMessage,
   fmtLate,
@@ -40,10 +39,14 @@ const FILTERS: FilterKey[] = ['all', 'done', 'running', 'pending', 'failed', 're
  * T182 / AC-20.5–AC-20.7：逐份提交表。
  * 派发回执直接显示在页面；拒收走行内表单（不使用 prompt/confirm）；
  * 「重试失败项」只把 FAILED 退回队列，运行中与已完成的不动。
+ *
+ * 2026-10-21（UI 标准）：顶部七枚标签改成 4 张可点统计卡（点数字即过滤），
+ * 5 个操作按钮按主次分到页头；回执与错误改用 Alert；拒收表单用 Field。
  */
 export default function GradingDetailPage() {
   const { t } = useTranslation('translation')
   const { offeringId = '' } = useParams()
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const { sort, page, pageSize, setSort, setPage } = useListState(
     { key: 'submittedAt', dir: 'desc' },
@@ -215,6 +218,7 @@ export default function GradingDetailPage() {
       key: 'attempt',
       title: t('teacher.detail.colAttempt'),
       value: (row) => row.attemptNo,
+      width: '72px',
       sortable: true,
       render: (row) => row.attemptNo,
     },
@@ -222,6 +226,7 @@ export default function GradingDetailPage() {
       key: 'submittedAt',
       title: t('teacher.detail.colSubmittedAt'),
       value: (row) => row.submittedAt ?? '',
+      width: '172px',
       sortable: true,
       render: (row) => fmtDateTime(row.submittedAt),
     },
@@ -229,6 +234,7 @@ export default function GradingDetailPage() {
       key: 'late',
       title: t('teacher.detail.colLate'),
       value: (row) => row.lateBySeconds,
+      width: '110px',
       sortable: true,
       render: (row) =>
         row.lateBySeconds > 0 ? (
@@ -241,137 +247,111 @@ export default function GradingDetailPage() {
       key: 'state',
       title: t('teacher.detail.colState'),
       value: (row) => row.gradingState,
+      width: '104px',
       sortable: true,
       render: (row) => (
-        <SubmissionStateTag
-          state={row.gradingState}
-          submittedAt={row.submittedAt}
-          rejectedAt={row.rejectedAt}
-        />
+        <span
+          title={
+            row.rejectedAt
+              ? `${fmtDateTime(row.rejectedAt)} · ${row.rejectReason || '—'}`
+              : undefined
+          }
+        >
+          <SubmissionStateTag
+            state={row.gradingState}
+            submittedAt={row.submittedAt}
+            rejectedAt={row.rejectedAt}
+          />
+        </span>
       ),
     },
     {
       key: 'objective',
       title: t('teacher.detail.colObjective'),
       value: (row) => Number(row.objectiveScore),
+      width: '84px',
       sortable: true,
       render: (row) =>
-        row.submittedAt ? (
-          <span className="mono">{fmtNum(row.objectiveScore)}</span>
-        ) : (
-          <span className="muted">—</span>
-        ),
+        row.submittedAt ? <span className="mono">{fmtNum(row.objectiveScore)}</span> : <span className="muted">—</span>,
     },
     {
       key: 'subjective',
       title: t('teacher.detail.colSubjective'),
       value: (row) => Number(row.subjectiveScore),
+      width: '84px',
       sortable: true,
       render: (row) =>
-        row.submittedAt ? (
-          <span className="mono">{fmtNum(row.subjectiveScore)}</span>
-        ) : (
-          <span className="muted">—</span>
-        ),
+        row.submittedAt ? <span className="mono">{fmtNum(row.subjectiveScore)}</span> : <span className="muted">—</span>,
     },
     {
       key: 'total',
       title: t('teacher.detail.colTotal'),
       value: (row) => Number(row.totalScore),
+      width: '84px',
       sortable: true,
       render: (row) =>
-        row.submittedAt ? (
-          <b className="mono">{fmtNum(row.totalScore)}</b>
-        ) : (
-          <span className="muted">—</span>
-        ),
-    },
-    {
-      key: 'reject',
-      title: t('teacher.detail.colReject'),
-      value: (row) => row.rejectReason ?? '',
-      sortable: true,
-      render: (row) =>
-        row.rejectedAt ? (
-          <div>
-            <div className="small mono">{fmtDateTime(row.rejectedAt)}</div>
-            <div className="small muted">{row.rejectReason || '—'}</div>
-          </div>
-        ) : (
-          <span className="muted">—</span>
-        ),
+        row.submittedAt ? <b className="mono">{fmtNum(row.totalScore)}</b> : <span className="muted">—</span>,
     },
     {
       key: 'actions',
       title: t('teacher.common.actions'),
+      width: '250px',
       value: () => '',
       render: (row) => {
         // D-15：已交卷且未拒收的提交（无论 AI 有没有派发/失败）都能直接进复核页人工判分。
         const canReject = Boolean(row.submittedAt) && !row.rejectedAt
         const canGrade = canReject
         return (
-          <div style={{ minWidth: 280 }}>
+          <div>
             <div className="row" style={{ gap: 6 }}>
-              <button
-                type="button"
-                className="btn sm"
+              {canGrade && (
+                <Button size="small" variant="primary" onClick={() => navigate(`/review?submissionId=${row.submissionId}`)}>
+                  {t('teacher.detail.grade')}
+                </Button>
+              )}
+              <Button
+                size="small"
+                disabled={!canAiDispatch(row) || aiDispatchingId === row.submissionId}
+                title={canAiDispatch(row) ? t('teacher.detail.aiDispatchHint') : t('teacher.detail.aiDispatchDisabled')}
+                onClick={() => void dispatchOneSubmission(row)}
+              >
+                {aiDispatchingId === row.submissionId ? t('teacher.detail.aiDispatching') : t('teacher.detail.aiDispatch')}
+              </Button>
+              <Button
+                size="small"
+                variant="text"
                 disabled={!canReject}
                 title={canReject ? undefined : t('teacher.detail.rejectDisabled')}
                 onClick={() => startReject(row)}
               >
                 {t('teacher.detail.reject')}
-              </button>
-              <button
-                type="button"
-                className="btn sm"
-                disabled={!canAiDispatch(row) || aiDispatchingId === row.submissionId}
-                title={canAiDispatch(row) ? t('teacher.detail.aiDispatchHint') : t('teacher.detail.aiDispatchDisabled')}
-                onClick={() => void dispatchOneSubmission(row)}
-              >
-                {aiDispatchingId === row.submissionId ? t('teacher.common.loading') : t('teacher.detail.aiDispatch')}
-              </button>
-              <button
-                type="button"
-                className="btn sm"
-                onClick={() => setAuditTarget(row)}
-              >
+              </Button>
+              <Button size="small" variant="text" onClick={() => setAuditTarget(row)}>
                 {t('teacher.common.audit')}
-              </button>
-              {canGrade && (
-                <Link className="btn sm" to={`/review?submissionId=${row.submissionId}`}>
-                  {t('teacher.detail.grade')}
-                </Link>
-              )}
+              </Button>
             </div>
             {rejectingId === row.submissionId && (
-              <div style={{ marginTop: 8 }}>
-                <label className="small" htmlFor={`reject-${row.submissionId}`}>
-                  {t('teacher.detail.rejectReasonLabel')}
-                </label>
-                <input
-                  id={`reject-${row.submissionId}`}
-                  value={rejectReason}
-                  onChange={(e) => setRejectReason(e.target.value)}
-                  placeholder={t('teacher.detail.rejectReasonPlaceholder')}
-                  style={{ marginTop: 4 }}
-                />
-                {rejectError && (
-                  <div className="hint" style={{ color: 'var(--red)' }}>
-                    {rejectError}
-                  </div>
-                )}
-                <div className="row" style={{ gap: 6, marginTop: 6 }}>
-                  <button
-                    type="button"
-                    className="btn sm pri"
-                    disabled={rejecting}
-                    onClick={() => void submitReject(row)}
-                  >
-                    {rejecting ? t('teacher.common.saving') : t('teacher.common.confirm')}
-                  </button>
-                  <button type="button" className="btn sm" onClick={cancelReject}>
+              <div style={{ marginTop: 10 }}>
+                <Field
+                  label={t('teacher.detail.rejectReasonLabel')}
+                  error={rejectError}
+                  htmlFor={`reject-${row.submissionId}`}
+                >
+                  <Input
+                    id={`reject-${row.submissionId}`}
+                    value={rejectReason}
+                    status={rejectError ? 'error' : undefined}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    placeholder={t('teacher.detail.rejectReasonPlaceholder')}
+                  />
+                </Field>
+                <div className="row" style={{ gap: 6 }}>
+                  <Button size="small" variant="danger" busy={rejecting} onClick={() => void submitReject(row)}>
+                    {t('teacher.common.confirm')}
+                  </Button>
+                  <Button size="small" variant="text" onClick={cancelReject}>
                     {t('teacher.common.cancel')}
-                  </button>
+                  </Button>
                 </div>
               </div>
             )}
@@ -401,133 +381,149 @@ export default function GradingDetailPage() {
                 .join('、'),
               count: expected,
             })}
+            actions={
+              <>
+                <Button
+                  size="small"
+                  onClick={() => void retryFailed()}
+                  busy={retrying}
+                  disabled={progress.failed === 0 && progress.running === 0}
+                  title={t('teacher.detail.retryHint')}
+                >
+                  {t('teacher.detail.retryFailed')}
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => void generateExplanations()}
+                  busy={explaining}
+                >
+                  {t('teacher.detail.generateExplanations')}
+                </Button>
+                <Button size="small" variant="text" onClick={() => navigate(`/review?offeringId=${offering.id}`)}>
+                  {t('teacher.detail.toReview')}
+                </Button>
+                <Button size="small" variant="text" onClick={() => navigate(`/offerings/${offering.id}/summary`)}>
+                  {t('teacher.common.summary')}
+                </Button>
+                <Button
+                  variant="primary"
+                  onClick={() => void dispatch()}
+                  busy={dispatching}
+                  title={t('teacher.detail.dispatchHint')}
+                >
+                  {t('teacher.detail.dispatch')}
+                </Button>
+              </>
+            }
           />
 
-          {offering.status === 'DRAFT' && (
-            <div className="inline-note">{t('teacher.detail.draftNote')}</div>
-          )}
+          {offering.status === 'DRAFT' && <Alert type="warning" showIcon message={t('teacher.detail.draftNote')} />}
+
+          <div className="stats">
+            <StatCard
+              value={progress.done}
+              label={t('teacher.detail.stats.done')}
+              active={filter === 'done'}
+              onClick={() => setFilter(filter === 'done' ? 'all' : 'done')}
+            />
+            <StatCard
+              value={progress.running}
+              label={t('teacher.detail.stats.running')}
+              active={filter === 'running'}
+              onClick={() => setFilter(filter === 'running' ? 'all' : 'running')}
+            />
+            <StatCard
+              value={progress.pending}
+              label={t('teacher.detail.stats.pending')}
+              active={filter === 'pending'}
+              onClick={() => setFilter(filter === 'pending' ? 'all' : 'pending')}
+            />
+            <StatCard
+              value={progress.failed}
+              label={t('teacher.detail.stats.failed')}
+              active={filter === 'failed'}
+              onClick={() => setFilter(filter === 'failed' ? 'all' : 'failed')}
+            />
+          </div>
 
           <div className="card">
-            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
-                <div className="stat-row">
-                  <Tag tone="green">
-                    {t('teacher.detail.statDone', { n: progress.done })}
-                  </Tag>
-                  <Tag tone={progress.running > 0 ? 'blue' : 'gray'}>
-                    {t('teacher.detail.statRunning', { n: progress.running })}
-                  </Tag>
-                  <Tag tone={progress.pending > 0 ? 'amber' : 'gray'}>
-                    {t('teacher.detail.statPending', { n: progress.pending })}
-                  </Tag>
-                  <Tag tone={progress.failed > 0 ? 'red' : 'gray'}>
-                    {t('teacher.detail.statFailed', { n: progress.failed })}
-                  </Tag>
-                  <Tag tone="gray">{t('teacher.detail.statUnsubmitted', { n: unsubmitted })}</Tag>
-                  <Tag tone={offering.status === 'PUBLISHED' ? 'green' : 'gray'}>
-                    {t(`teacher.offeringStatus.${offering.status}`)}
-                  </Tag>
-                  <Tag tone="blue">{t(`teacher.kind.${offering.kind}`)}</Tag>
-                </div>
-                <div className="hint">
-                  {t('teacher.detail.submittedSummary', {
-                    submitted: submittedStudents,
-                    expected,
-                  })}
-                  {offering.kind === 'EXAM' && (
-                    <>
-                      {' · '}
-                      {t('teacher.detail.duration', { minutes: offering.effectiveDurationMinutes })}
-                    </>
-                  )}
-                </div>
-              </div>
-              <div className="row" style={{ gap: 6 }}>
-                <button
-                  type="button"
-                  className="btn sm"
-                  disabled={retrying || (progress.failed === 0 && progress.running === 0)}
-                  title={t('teacher.detail.retryHint')}
-                  onClick={() => void retryFailed()}
-                >
-                  {retrying ? t('teacher.common.loading') : t('teacher.detail.retryFailed')}
-                </button>
-                <button
-                  type="button"
-                  className="btn sm"
-                  disabled={dispatching}
-                  title={t('teacher.detail.dispatchHint')}
-                  onClick={() => void dispatch()}
-                >
-                  {dispatching ? t('teacher.common.loading') : t('teacher.detail.dispatch')}
-                </button>
-                <button
-                  type="button"
-                  className="btn sm"
-                  disabled={explaining}
-                  onClick={() => void generateExplanations()}
-                >
-                  {explaining ? t('teacher.common.loading') : t('teacher.detail.generateExplanations')}
-                </button>
-                <Link className="btn sm" to={`/review?offeringId=${offering.id}`}>
-                  {t('teacher.detail.toReview')}
-                </Link>
-                <Link className="btn sm" to={`/offerings/${offering.id}/summary`}>
-                  {t('teacher.common.summary')}
-                </Link>
+            <div className="row" style={{ justifyContent: 'space-between' }}>
+              <div className="row">
+                <Tag tone={offering.status === 'PUBLISHED' ? 'green' : 'gray'}>
+                  {t(`teacher.offeringStatus.${offering.status}`)}
+                </Tag>
+                <Tag tone="blue">{t(`teacher.kind.${offering.kind}`)}</Tag>
+                <span className="small muted">
+                  {t('teacher.detail.submittedSummary', { submitted: submittedStudents, expected })}
+                </span>
+                {offering.kind === 'EXAM' && (
+                  <span className="small muted">
+                    {t('teacher.detail.duration', { minutes: offering.effectiveDurationMinutes })}
+                  </span>
+                )}
+                <span className="small muted">{t('teacher.detail.statUnsubmitted', { n: unsubmitted })}</span>
               </div>
             </div>
 
-
             {explainError && (
-              <div className="hint" style={{ color: 'var(--red)' }}>{explainError}</div>
+              <Alert type="error" showIcon style={{ marginTop: 12 }} message={explainError} />
             )}
             {explainResult && (
-              <div className="inline-note" style={{ marginTop: 12 }}>
-                <b>{t('teacher.detail.explanationReceipt')}</b>
-                <div className="small">
-                  {t('teacher.detail.explanationCounts', {
-                    generated: explainResult.generated,
-                    existing: explainResult.skippedExisting,
-                    noStem: explainResult.skippedNoStem,
-                    failed: explainResult.failed,
-                  })}
-                </div>
-                {explainResult.failed > 0 && (
-                  <div className="small muted">{t('teacher.detail.explanationFailedHint')}</div>
-                )}
-              </div>
+              <Alert
+                type="success"
+                showIcon
+                style={{ marginTop: 12 }}
+                message={t('teacher.detail.explanationReceipt')}
+                description={
+                  <>
+                    {t('teacher.detail.explanationCounts', {
+                      generated: explainResult.generated,
+                      existing: explainResult.skippedExisting,
+                      noStem: explainResult.skippedNoStem,
+                      failed: explainResult.failed,
+                    })}
+                    {explainResult.failed > 0 && <div>{t('teacher.detail.explanationFailedHint')}</div>}
+                  </>
+                }
+              />
             )}
             {retryNote && (
-              <div className="inline-note" style={{ marginTop: 8 }}>
-                {t('teacher.detail.retryDone', { retried: retryNote.retried, reclaimed: retryNote.reclaimed })}
-              </div>
+              <Alert
+                type="info"
+                showIcon
+                style={{ marginTop: 10 }}
+                message={t('teacher.detail.retryDone', { retried: retryNote.retried, reclaimed: retryNote.reclaimed })}
+              />
             )}
-            {aiDispatchNote && (
-              <div className="inline-note" style={{ marginTop: 10 }}>{aiDispatchNote}</div>
-            )}
-            {aiDispatchError && (
-              <div className="hint" style={{ color: 'var(--red)' }}>{aiDispatchError}</div>
-            )}
+            {aiDispatchNote && <Alert type="success" showIcon style={{ marginTop: 10 }} message={aiDispatchNote} />}
+            {aiDispatchError && <Alert type="error" showIcon style={{ marginTop: 10 }} message={aiDispatchError} />}
             {dispatchError && (
-              <div className="hint" style={{ color: 'var(--red)' }}>
-                {t('teacher.detail.dispatchFailed', { message: dispatchError })}
-              </div>
+              <Alert
+                type="error"
+                showIcon
+                style={{ marginTop: 10 }}
+                message={t('teacher.detail.dispatchFailed', { message: dispatchError })}
+              />
             )}
             {dispatchReceipt && (
-              <div className="inline-note ok" style={{ marginTop: 12 }}>
-                <b>{t('teacher.detail.dispatchReceipt')}</b>
-                <div className="small mono">runId: {dispatchReceipt.runId}</div>
-                <div className="small">
-                  {t('teacher.detail.receiptFirstDispatch', {
-                    value: dispatchReceipt.firstDispatch
-                      ? t('teacher.common.yes')
-                      : t('teacher.common.no'),
-                  })}
-                  {' · '}
-                  {t('teacher.detail.receiptEnqueued', { n: dispatchReceipt.enqueued })}
-                </div>
-              </div>
+              <Alert
+                type="success"
+                showIcon
+                style={{ marginTop: 10 }}
+                message={t('teacher.detail.dispatchReceipt')}
+                description={
+                  <>
+                    <div className="small mono">runId: {dispatchReceipt.runId}</div>
+                    <div className="small">
+                      {t('teacher.detail.receiptFirstDispatch', {
+                        value: dispatchReceipt.firstDispatch ? t('teacher.common.yes') : t('teacher.common.no'),
+                      })}
+                      {' · '}
+                      {t('teacher.detail.receiptEnqueued', { n: dispatchReceipt.enqueued })}
+                    </div>
+                  </>
+                }
+              />
             )}
           </div>
 
@@ -542,24 +538,17 @@ export default function GradingDetailPage() {
           <div className="card" style={{ padding: '10px 14px' }}>
             <div className="row">
               <span className="small muted">{t('teacher.detail.filterLabel')}</span>
-              {FILTERS.map((key) => (
-                <button
-                  key={key}
-                  type="button"
-                  className={`chip${filter === key ? ' on' : ''}`}
-                  onClick={() => setFilter(key)}
-                >
-                  {t(`teacher.detail.filters.${key}`)}
-                </button>
-              ))}
+              <Segmented
+                size="small"
+                value={filter}
+                onChange={(value) => setFilter(value as FilterKey)}
+                options={FILTERS.map((key) => ({ value: key, label: t(`teacher.detail.filters.${key}`) }))}
+              />
               <span className="small muted" style={{ marginLeft: 'auto' }}>
-                {t('teacher.detail.filteredCount', {
-                  shown: filtered.length,
-                  total: submissions.length,
-                })}
+                {t('teacher.detail.filteredCount', { shown: filtered.length, total: submissions.length })}
               </span>
             </div>
-            <div className="hint" style={{ marginTop: 4 }}>
+            <div className="hint" style={{ marginTop: 6 }}>
               {t('teacher.detail.filterHint')}
             </div>
           </div>
