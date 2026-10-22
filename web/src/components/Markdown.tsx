@@ -9,9 +9,10 @@ export interface MarkdownProps {
 }
 
 /*
- * 为什么手写而不用库：仓库明确不引第三方 Markdown 编辑器/渲染器
- * （理由见 `web/src/components/RichTextEditor.tsx` 顶部注释：多一个依赖就多一份
- * XSS 面与升级负担，而这里只需要一个很小的子集）。
+ * 为什么手写而不用库：这里的用途是**只读渲染**，只需要一个很小的子集；
+ * 多一个依赖就多一份 XSS 面与升级负担（同类理由见 `RichTextEditor.tsx` 顶部注释）。
+ * 编辑侧的决策不同：新建作业的两个字段已换成 Vditor IR（T339 / 决策 004），
+ * 但学生端仍然只走这个组件——它不产生 HTML 字符串，也不使用 dangerouslySetInnerHTML。
  *
  * 安全边界：本文件**不产生任何 HTML 字符串**，全程解析成 React 元素，
  * 因此链接、图片、原生 HTML 标签（<a>/<img>/<script>…）天然只会变成文字，

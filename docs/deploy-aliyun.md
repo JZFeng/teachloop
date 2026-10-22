@@ -55,6 +55,13 @@ server {
   client_max_body_size 100m;          # 与 T061 的 100MB 上限一致
   ssl_certificate     /etc/letsencrypt/live/teachloop.example.com/fullchain.pem;
   ssl_certificate_key /etc/letsencrypt/live/teachloop.example.com/privkey.pem;
+  # 前端静态资源由 nginx 压缩：Vditor 的 Lute 引擎是 3.74 MB 的单文件，
+  # 不压的话打开「新建作业」要多传约 3 MB。
+  gzip on;
+  gzip_comp_level 5;
+  gzip_min_length 1024;
+  gzip_types text/css application/javascript application/json image/svg+xml;
+
   location / {
     proxy_pass http://127.0.0.1:8010;
     proxy_set_header Host $host;

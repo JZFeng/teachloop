@@ -1,0 +1,462 @@
+{
+  "v": 1,
+  "surveyId": "f24de75f-2b0e-4659-8e5f-d05f9b33d6cc",
+  "sessionId": "session-a2cb56a8-4f66-4c3d-9c2b-2baca19c9064",
+  "outcome": "answered",
+  "settledAt": 1792701930306,
+  "title": "Markdown 编辑器：要不要换成 Typora 式所见即所得",
+  "answers": [
+    {
+      "id": "q_editor",
+      "selected": [],
+      "custom": "我不是很明白这几个选项你解释一下几个选项区别。另外，啥叫中文要自己天一份词表？我的系统中文用户使用的比较多。"
+    },
+    {
+      "id": "q_source",
+      "selected": [
+        "a"
+      ]
+    },
+    {
+      "id": "q_scope",
+      "selected": [
+        "b"
+      ]
+    },
+    {
+      "id": "q_verify",
+      "selected": [
+        "a"
+      ]
+    }
+  ],
+  "path": [
+    "q_editor",
+    "q_source",
+    "q_scope",
+    "q_verify"
+  ],
+  "spec": {
+    "title": "Markdown 编辑器：要不要换成 Typora 式所见即所得",
+    "intro": "两个 Markdown 输入框（题目要求 / 评分标准）的「太小」问题已经在本轮解决：加了放大按钮，放大后铺满右侧内容区、默认并排编辑与预览、可再进浏览器原生全屏，Esc 收起。QA 5174 已实测，截图在 `docs/reports/t337-editor-expand/`。\n\n这一轮要拍的是第二件事：**现在的编辑器是什么、要不要换成 Typora 式所见即所得、换成哪一个**。先回答你的疑问——现在用的是仓库自己写的组件 `web/src/components/MarkdownEditor.tsx`，不是第三方模块：textarea + 自绘工具条 + 编辑/预览两个 tab + 自维护撤销栈，没有任何 npm 依赖；只读渲染也是自研的 `Markdown.tsx`（纯 React 元素，不用 dangerouslySetInnerHTML）。当初不引第三方编辑器的理由写在 `RichTextEditor.tsx:10-16`：多一个依赖就多一份 XSS 面与升级负担。\n\n我调研了 11 个方案，用 esbuild 实测了打包体积，并用仓库里两份真实 rubric 做了 Markdown 往返实验；完整证据在 `docs/research/2026-10-22-markdown-editor.md`。下面 4 个问题决定换不换、换哪个、换多大范围。约 3 分钟。",
+    "entry": "q_editor",
+    "questions": {
+      "q_editor": {
+        "prompt": "换成哪一种「边写边看」的编辑体验？下面每个选项的体积都是 2026-10-22 在本机实测的 minified+gzip，只算编辑器本身（React 外置）。作为参照：项目当前业务 chunk 是 112.8 kB gzip，antd chunk 是 299.9 kB gzip。",
+        "header": "编辑器方案",
+        "options": [
+          {
+            "key": "a",
+            "label": "MDXEditor（React 组件，Markdown 原生）",
+            "description": "引入 @mdxeditor/editor：工具条、表格、代码块、源码切换都是现成的，体积 +176.6 kB gzip JS 与 8.9 kB CSS，中文要自己填一份词表。",
+            "insight": "- **Proven at:** MDXEditor 4.3.3（2026-10-13 发布，周下载 78 万）是 React 生态里少见的 Markdown 原生所见即所得组件，官方 demo 覆盖表格、代码块与源码切换；内部用 mdast 解析与序列化，和仓库现有 rubric 解析栈同源。\n- **Breaks when:** 它只有英文默认文案，`translation` 接口要逐项填中文；不填就是英文工具条，过不了仓库对中文界面的要求（`scripts/check-i18n.py`）。\n- **Here now:** 当前编辑器 0 依赖（`web/src/components/MarkdownEditor.tsx`），`RichTextEditor.tsx:10-16` 明确写过不引第三方编辑器的理由；换它等于推翻那条记录，必须先落一份决策文档。\n- **Cost:** +176.6 kB gzip 是现有业务 chunk 的 1.6 倍，要在 `vite.config.ts` 里单独成 chunk 并懒加载，否则首屏从 412 kB 涨到约 590 kB。",
+            "sources": [
+              "https://github.com/mdx-editor/editor",
+              "https://mdxeditor.dev/",
+              "docs/research/2026-10-22-markdown-editor.md"
+            ],
+            "next": "q_source"
+          },
+          {
+            "key": "b",
+            "label": "Vditor IR 模式（最像 Typora、内置中文）",
+            "description": "引入 vditor 4.0.1：光标所在行显示 Markdown 源码、其余行实时渲染，和 Typora 同一种即时渲染模型；主包 +71.0 kB gzip 与 8.3 kB CSS，资源需自托管。",
+            "insight": "- **Proven at:** Vditor 由 B3log 团队维护，4.0.1 于 2026-10-18 发布，周下载 2.2 万；IR 模式就是 Typora 的即时渲染，内置 zh_CN 词表，另有 katex、图表等可选资源。\n- **Breaks when:** 它的运行时资源（lute 引擎、i18n、图标、主题）默认从 CDN 按需加载；内网或离线环境必须把 `dist/` 自托管并把 `cdn` 指向本地，自托管目录 23 MB，且它的 CSS 变量与仓库 `styles/tokens.css` 是两套体系。\n- **Here now:** 主包 71.0 kB gzip 是四个候选里最轻的；但它是命令式 API（`new Vditor(el, options)`），要自己写 React 包装、受控同步与卸载清理，还要让 `scripts/check-ui.py` 的「颜色只来自令牌」规则过得去。\n- **Cost:** 集成量介于 MDXEditor 和 TipTap 之间；最大风险是资源自托管与暗色主题对齐，必须逐屏验暗色。",
+            "sources": [
+              "https://github.com/Vanessa219/vditor",
+              "https://vditor.b3log.org/",
+              "docs/research/2026-10-22-markdown-editor.md"
+            ],
+            "next": "q_source"
+          },
+          {
+            "key": "c",
+            "label": "Milkdown Crepe（手感最像 Typora，体积最重）",
+            "description": "引入 @milkdown/crepe 7.22.3：开箱即用的 Typora 式所见即所得，工具条、表格、代码块、slash 菜单齐全，体积 +925.0 kB gzip。",
+            "insight": "- **Proven at:** Milkdown 是 ProseMirror 的 Markdown 原生封装，Crepe 是它的官方开箱即用编辑器；7.22.3 于 2026-10-10 发布，周下载 28.6 万。\n- **Breaks when:** 实测 925.0 kB gzip，是现有 antd chunk（299.9 kB）的 3 倍、业务 chunk（112.8 kB）的 8 倍；`@milkdown/crepe` 的依赖里含 `vue`、`katex`、`codemirror`，靠 tree-shaking 甩不掉。\n- **Here now:** 当前首屏总量已约 413 kB gzip；再加 925 kB 会把首屏下载翻倍，移动端与弱网不可接受，除非只给「放大态」按需加载。\n- **Cost:** 还有中文问题：工具条没有内置词表，要逐项配 `boldLabel` 这类文案；手感和体积要用户明确接受才值得。",
+            "sources": [
+              "https://milkdown.dev/",
+              "https://github.com/Milkdown/milkdown",
+              "docs/research/2026-10-22-markdown-editor.md"
+            ],
+            "next": "q_source"
+          },
+          {
+            "key": "d",
+            "label": "TipTap 3 + Markdown 扩展（自拼工具条）",
+            "description": "引入 @tiptap/react + starter-kit + @tiptap/markdown：体积 +142.4 kB gzip，编辑器内核与 Markdown 进出都有，但工具条、快捷键、源码视图、中文文案全要自己写。",
+            "insight": "- **Proven at:** TipTap 是 ProseMirror 的商业支持封装，@tiptap/react 周下载 1134 万；3.32.0（2026-10-13）提供官方 Markdown 扩展，可以直接导入/导出 Markdown。\n- **Breaks when:** 它只给内核。工具条、浮动菜单、源码视图、中文文案、快捷键提示都要自建；更关键的是软换行（段内换行）在 ProseMirror 里没有对应节点，教师「一条评分项一行」的写法可能被并成一段，必须先用真实 rubric 做往返测试。\n- **Here now:** 体积 +142.4 kB gzip 排第二轻；但工作量最大，等于把 MDXEditor 已有的一整条工具条重写约 300–500 行并补测试。\n- **Cost:** 控制力最强，适合以后做 Notion 式块编辑；本轮只想解决「所见即所得」的话属于过度投入。",
+            "sources": [
+              "https://tiptap.dev/",
+              "https://github.com/ueberdosis/tiptap",
+              "docs/research/2026-10-22-markdown-editor.md"
+            ],
+            "next": "q_source"
+          },
+          {
+            "key": "e",
+            "label": "保持自研，只做并排实时预览（零依赖）",
+            "description": "不引库：保留 textarea 与现有渲染器，把放大态的并排编辑/预览做成一等公民，可选把常规输入框加宽；体积 0 新增。",
+            "insight": "- **Proven at:** 路径已经实现并实测（T337）：放大态默认并排、实时渲染；QA 5174 输入 Markdown 后预览立即出现标题、列表、加粗，Esc 收起内容保留。\n- **Breaks when:** 语法标记始终可见，不是 Typora 的「隐藏标记」体验；教师仍要懂 `**`、`#`、`-`，长 rubric 的阅读负担没有消失。\n- **Here now:** `web/src/components/MarkdownEditor.tsx` 已有自维护撤销栈与快捷键（T336），只读渲染 `Markdown.tsx` 是纯 React 元素、无 XSS 面；再改只动样式与布局，0 新依赖、0 体积、0 迁移风险。\n- **Cost:** 解决「看不到结果」，不解决「不想看语法」；如果目标就是 Typora 那种「不用懂 Markdown」，这条不够。",
+            "sources": [
+              "web/src/components/MarkdownEditor.tsx",
+              "web/src/components/Markdown.tsx",
+              "docs/reports/t337-editor-expand/README.md"
+            ],
+            "next": "q_scope"
+          }
+        ],
+        "next": "q_source"
+      },
+      "q_source": {
+        "prompt": "换掉编辑器之后，还要不要能直接编辑 Markdown 原文？AI 判分和评分标准校验读的都是 Markdown 原文：后端 RubricValidator 按行解析标题、列表与编号（`teachloop-sitting/src/main/java/com/teachloop/sitting/service/RubricValidator.java:29-31`）。所见即所得编辑器每次改动都会把内部模型重新序列化成 Markdown，往返可能改写结构。",
+        "header": "源码兜底",
+        "options": [
+          {
+            "key": "a",
+            "label": "两种视图都保留，默认所见即所得，一键切源码",
+            "description": "教师平时用所见即所得；需要核对 Markdown 结构时切到源码视图，切回来内容与评分项不变。",
+            "insight": "- **Proven at:** Typora 本身就是「源码/预览同一份文档」；MDXEditor 与 Vditor 都把源码视图做成内置功能，不是外挂。\n- **Breaks when:** 两个视图共用一份 Markdown 就必须保证「所见即所得改完 → 切源码」不丢行、不并段；这要靠金标往返测试而不是肉眼。\n- **Here now:** 现有编辑器天然就是源码视图，`Markdown.tsx` 提供只读预览；换库后源码视图要重新接一遍 i18n 与放大态布局。\n- **Cost:** 多一个视图切换与一份文案，但把「AI 读到什么」这件事始终摊在教师眼前。",
+            "sources": [
+              "docs/research/2026-10-22-markdown-editor.md",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/RubricValidator.java"
+            ],
+            "next": "q_scope"
+          },
+          {
+            "key": "b",
+            "label": "只在「评分标准」保留源码视图",
+            "description": "题目要求用纯所见即所得（反正 AI 只读正文）；评分标准因为要按行解析分值，保留源码入口。",
+            "insight": "- **Proven at:** 评分标准是唯一会被 `RubricValidator` 逐行解析的字段；题目要求只进提示词，不参与结构校验。\n- **Breaks when:** 教师在题目要求里写了 `- 一条一条` 的清单，所见即所得会把它们渲染成列表再序列化；结构虽然变了，但 AI 仍能读懂，风险低于评分标准。\n- **Here now:** 两个字段现在共用同一个 `MarkdownEditor` 与同一套 `editorLabels`；按字段分叉要新增一个 prop 与一组文案。\n- **Cost:** 少一个通用开关，但界面出现两种编辑行为，教师要在两处学两套规则。",
+            "sources": [
+              "docs/research/2026-10-22-markdown-editor.md",
+              "web/src/teacher/AssignmentCreatePage.tsx"
+            ],
+            "next": "q_scope"
+          },
+          {
+            "key": "c",
+            "label": "只在放大态提供源码视图",
+            "description": "常规输入框只给所见即所得；点「放大」后可以切源码、并排对照，把结构核对变成一次正式动作。",
+            "insight": "- **Proven at:** 这正是本轮 T337 已经落地的结构——放大态有「编辑 / 并排 / 预览」三选一，再挂一个「源码」就不会挤小窗。\n- **Breaks when:** 教师不点放大就永远看不到源码；遇到保存后格式变了，第一反应会是「系统改了我的字」。\n- **Here now:** `MarkdownEditor` 放大态已经是独立子树（portal），加一个视图选项即可，改动面最小。\n- **Cost:** 省界面复杂度，但把「核对 Markdown」藏进二级入口。",
+            "sources": [
+              "web/src/components/MarkdownEditor.tsx",
+              "docs/reports/t337-editor-expand/README.md"
+            ],
+            "next": "q_scope"
+          },
+          {
+            "key": "d",
+            "label": "不给源码视图，只靠往返测试兜底",
+            "description": "教师永远只看所见即所得；Markdown 结构由自动化测试保证，出问题由开发者修序列化逻辑。",
+            "insight": "- **Proven at:** Notion、Google Docs 都不让用户看底层格式；MDXEditor 的 source 模式是可选的，不是必须。\n- **Breaks when:** 教师写了「一条评分项一行」但不加列表符号，编辑器会把它当一段；后端只解析出 1 条评分项，教师在界面上看不出差别，发布时才被拒。\n- **Here now:** 现有 rubric 真实文件（`docs/rubrics/Rubric.md`、`Overall_Assignment_Rubric.txt`）往返后评分项不变，但「无列表符号的手写 rubric」是已知风险，测试必须覆盖。\n- **Cost:** 界面最干净，但排错成本全部转移到开发者与日志上。",
+            "sources": [
+              "docs/research/2026-10-22-markdown-editor.md",
+              "docs/rubrics/Rubric.md"
+            ],
+            "next": "q_scope"
+          },
+          {
+            "key": "e",
+            "label": "先试点一页，再决定要不要源码视图",
+            "description": "先在新建作业的两个字段上观察教师真实用法，一周后再定源码入口放哪、给谁。",
+            "insight": "- **Proven at:** 仓库此前的决策也都是先小范围实测再全量（T324–T328 一批反馈修复都是先在 QA 5174 验）。\n- **Breaks when:** 试点期间没有埋点或反馈渠道，一周后仍然只能靠感觉决定。\n- **Here now:** 前端没有测试框架，也没有使用埋点；试点只能靠 QA 环境与教师口头反馈。\n- **Cost:** 推迟决定，但避免一次性把错误交互推给所有教师。",
+            "sources": [
+              "docs/reports/t337-editor-expand/README.md",
+              "specs/002-v2-platform/tasks.md"
+            ],
+            "next": "q_scope"
+          }
+        ],
+        "next": "q_scope"
+      },
+      "q_scope": {
+        "prompt": "这一轮做到哪一步？换编辑器不只是换一个输入框：教师端还有试卷导入、复核页题干、通知等 Markdown 输入/渲染位置，学生端作业页也用 `Markdown.tsx` 只读渲染。",
+        "header": "落地范围",
+        "options": [
+          {
+            "key": "a",
+            "label": "只出选型报告与验收标准，先不改代码",
+            "description": "这一轮停在文档与决策记录；等你确认后再开实现任务。",
+            "insight": "- **Proven at:** 仓库的 spec-first 规则就是「规范没确认前不写业务代码」，此前 v1 抢跑被叫停。\n- **Breaks when:** 拖太久，教师端的编辑体验问题继续存在；放大/全屏已经缓解了「窗口小」，但语法可见的问题没解决。\n- **Here now:** 调研文档已落盘（`docs/research/2026-10-22-markdown-editor.md`），决策记录还没写；任务表已登记 T338 为「待拍板」。\n- **Cost:** 零风险，零进度。",
+            "sources": [
+              "AGENTS.md",
+              "docs/research/2026-10-22-markdown-editor.md"
+            ],
+            "next": null
+          },
+          {
+            "key": "b",
+            "label": "先在「新建作业」两个字段试点",
+            "description": "只换题目要求与评分标准两个输入框，学生端渲染与其他页面不动；试点稳定后再推广。",
+            "insight": "- **Proven at:** 仓库的 UI 改造一直按「高频 5 屏先落、其余随迭代」推进，避免一次改 21 屏。\n- **Breaks when:** 两个字段用的是同一个 `MarkdownEditor`，其他页面也在用（作业页草稿、复核页说明等）；只改两个字段要么加 prop 分叉，要么留两条编辑器实现。\n- **Here now:** `MarkdownEditor` 目前只被 `AssignmentCreatePage` 使用（全仓 2 处调用，都在这一页），试点面很小。\n- **Cost:** 一周能出结果；风险是试点页与后续页面长得不一样。",
+            "sources": [
+              "web/src/teacher/AssignmentCreatePage.tsx",
+              "docs/research/2026-10-22-markdown-editor.md"
+            ],
+            "next": "q_verify"
+          },
+          {
+            "key": "c",
+            "label": "所有教师端 Markdown 输入一次换完",
+            "description": "新建作业、试卷导入、复核页说明等所有教师可编辑的 Markdown 位置统一换，学生端只读渲染不动。",
+            "insight": "- **Proven at:** 统一组件能避免两套编辑行为；仓库 UI 标准（spec 003）就是先建组件层再逐屏迁移。\n- **Breaks when:** 不同位置的 Markdown 用途不同（评分标准要逐行解析、试卷导入是整卷文本），一个组件很难同时合适；改动面一大，回归成本高。\n- **Here now:** 全仓 `MarkdownEditor` 只有 2 处调用；其余教师输入多是纯文本或 `TextArea`，真正要换的面比听起来小。\n- **Cost:** 一次到位，但要一轮全量回归 + 每个位置单独验往返。",
+            "sources": [
+              "specs/003-ui-standard/spec.md",
+              "web/src/components/MarkdownEditor.tsx"
+            ],
+            "next": "q_verify"
+          },
+          {
+            "key": "d",
+            "label": "连学生端只读渲染一起换成同一套组件",
+            "description": "编辑与渲染同源：教师端所见即所得、学生端用同一编辑器内核只读渲染，减少「编辑时好看、学生端不对」的差异。",
+            "insight": "- **Proven at:** 同源渲染是富文本产品（Notion、Google Docs）的常规做法；能消除两套解析器的行为差异。\n- **Breaks when:** 学生端只需要只读、安全渲染，引入编辑器内核会把 100 kB+ 的编辑依赖带进学生首屏；且现有 `Markdown.tsx` 不用 `dangerouslySetInnerHTML`，XSS 面最小。\n- **Here now:** 学生作业页、反馈页都用 `Markdown.tsx`；它不支持 GFM 表格以外的扩展，但符合当前内容。\n- **Cost:** 学生端体积与安全面都会变差，除非按路由懒加载。",
+            "sources": [
+              "web/src/components/Markdown.tsx",
+              "web/src/exam/AssignmentPage.tsx"
+            ],
+            "next": "q_verify"
+          },
+          {
+            "key": "e",
+            "label": "先试点，两周反馈后再决定全量",
+            "description": "试点一页 + 固定观察期，期满带数据再拍全量范围。",
+            "insight": "- **Proven at:** 仓库上一轮「首轮教师反馈 10 条」就是在 QA 环境按教师真实用法收敛的。\n- **Breaks when:** 没有量化的观察指标（保存后结构变化次数、发布被拒次数、编辑时长）时，两周后仍是主观判断。\n- **Here now:** 前端目前没有埋点框架，能量化的只有后端 `RubricValidator` 的拒绝日志。\n- **Cost:** 最稳，但需要两周等待。",
+            "sources": [
+              "docs/reports/first-feedback-2026-10-22/README.md",
+              "docs/research/2026-10-22-markdown-editor.md"
+            ],
+            "next": "q_verify"
+          }
+        ],
+        "next": "q_verify"
+      },
+      "q_verify": {
+        "prompt": "怎么验收「评分标准没有被编辑器改坏」？后端校验要求每项有显式分值、名称不重复、合计等于作业总分；我实测 mdast 往返在仓库两份真实 rubric 上评分项不变，但「一条一行、不带列表符号」的手写 rubric 是已知风险。",
+        "header": "验收与回滚",
+        "options": [
+          {
+            "key": "a",
+            "label": "金标往返 + 试点后全量（推荐）",
+            "description": "先把两份真实 rubric 做成前后端共用的金标用例：进编辑器 → 出 Markdown → 解析结果逐项相等；试点页通过后再全量。",
+            "insight": "- **Proven at:** 仓库已有同样的做法：`GradingQualityEvalTest` 用 10 份 golden set 验提示词，`docs/rubrics/Rubric.md` 是现成的真实样本。\n- **Breaks when:** 金标只覆盖存量 rubric，教师现场写的新格式仍可能触发；所以还要保留「发布前校验」与源码入口。\n- **Here now:** 后端 `RubricValidatorTest` 6 条、前端 `rubric.ts` 与 Java 逐字段对齐；只需再加一组「往返后解析结果相等」的断言。\n- **Cost:** 多写 1 个测试文件与 2 份夹具，换掉「换完才发现评分项被合并」的风险。",
+            "sources": [
+              "docs/rubrics/Rubric.md",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/RubricValidator.java",
+              "web/src/components/rubric.ts"
+            ],
+            "next": null
+          },
+          {
+            "key": "b",
+            "label": "只跑后端 RubricValidator 校验通过",
+            "description": "不写新的往返测试；保存时后端拒绝就说明改坏了，教师按提示改。",
+            "insight": "- **Proven at:** 后端校验已经是发布前的硬闸门（合计不对直接 400），确实能兜住「最后一步」。\n- **Breaks when:** 它只告诉你「合计不对」，说不出哪一行被合并；教师会反复改同一处，体验比现在更差。\n- **Here now:** 校验发生在提交时，编辑器里没有实时反馈；`AssignmentCreatePage` 只在底部显示一条错误。\n- **Cost:** 省测试，但把错误成本转给教师。",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/RubricValidator.java",
+              "web/src/teacher/AssignmentCreatePage.tsx"
+            ],
+            "next": null
+          },
+          {
+            "key": "c",
+            "label": "不写自动化测试，人工逐份看",
+            "description": "换完后用真实课件的 rubric 手工过一遍，看解析项与合计对不对。",
+            "insight": "- **Proven at:** 本轮 T337 的验收就是人工 + 浏览器实测，对一个纯布局改动是够的。\n- **Breaks when:** 换编辑器是数据模型变更，手工只能覆盖当天试的那几份；之后任何一次依赖升级都可能悄悄改掉序列化。\n- **Here now:** 仓库 `make test` 已 243 条、但前端没有测试框架；加往返测试要新建前端测试栈或放进后端集成测试。\n- **Cost:** 最省事，也最容易被下一次升级打回原形。",
+            "sources": [
+              "Makefile",
+              "docs/research/2026-10-22-markdown-editor.md"
+            ],
+            "next": null
+          },
+          {
+            "key": "d",
+            "label": "灰度开关：按教师或环境开启",
+            "description": "新编辑器放在开关后，先在 QA/管理员环境打开，稳定后再默认开启。",
+            "insight": "- **Proven at:** 仓库已有环境隔离（`scripts/env.sh deploy qa`，8011/5174 独立库），天然适合灰度。\n- **Breaks when:** 开关长期不删会变成两套编辑器维护；且教师端按人开关会让「同一份作业两人看到不同界面」的排障变复杂。\n- **Here now:** 前端没有 feature flag 框架；最轻的做法是读一个构建期环境变量或后端配置。\n- **Cost:** 多一个开关与清理任务，换来随时可退回。",
+            "sources": [
+              "scripts/env.sh",
+              "docs/deploy-aliyun.md"
+            ],
+            "next": null
+          },
+          {
+            "key": "e",
+            "label": "先在 /ui-kit 做对比页，手工验收后再合并",
+            "description": "在现有组件展示页放并排对比（现编辑器 vs 候选），你亲手点一遍再决定合不合。",
+            "insight": "- **Proven at:** `/ui-kit` 就是仓库为「改一处样式只能靠肉眼比」建的展示页（T306），适合这种选型验收。\n- **Breaks when:** 展示页不是真实表单上下文（没有字段标签、总分联动、导入 .md），体感与真实页面会有差距。\n- **Here now:** `/ui-kit` 路由存在、只对教师/管理员可见；加一个编辑器对比块成本很低。\n- **Cost:** 多一次手工验收，但能在装依赖之前就排除不合适的方案。",
+            "sources": [
+              "web/src/app/UiKitPage.tsx",
+              "specs/003-ui-standard/tasks.md"
+            ],
+            "next": null
+          }
+        ],
+        "next": null
+      }
+    },
+    "quick": [
+      {
+        "key": "a",
+        "label": "稳稳来：MDXEditor + 双视图 + 只试点两个字段 + 金标往返（推荐）",
+        "description": "体积 +176.6 kB gzip，React 组件开箱即用，先在新建作业两个字段上验证。",
+        "recommended": true,
+        "insight": "- **Sets up:** 换 MDXEditor，默认所见即所得、一键切源码；只动题目要求与评分标准。\n- **Proven at:** MDXEditor 周下载 78 万，2026-10 仍在发版；mdast 往返在仓库两份真实 rubric 上评分项不变。\n- **Breaks when:** 中文词表要自己填；如果不填，工具条是英文，过不了 check-i18n。\n- **Here now:** `MarkdownEditor` 全仓只有 2 处调用，都在 `AssignmentCreatePage.tsx`，试点面可控。",
+        "answers": {
+          "q_editor": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_source": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_verify": {
+            "selected": [
+              "a"
+            ]
+          }
+        }
+      },
+      {
+        "key": "b",
+        "label": "要 Typora 手感：Vditor IR + 双视图 + 试点 + 金标往返",
+        "description": "主包 +71 kB gzip、内置中文、IR 即时渲染最像 Typora；资源要自托管。",
+        "insight": "- **Sets up:** 换 Vditor IR，光标行显源码、其余实时渲染，与 Typora 同一模型。\n- **Proven at:** B3log 维护，4.0.1 于 2026-10-18 发布；内置 zh_CN。\n- **Breaks when:** 运行时资源默认走 CDN，26 MB 目录要自托管；主题与 tokens.css 两套变量。\n- **Here now:** 现在 0 依赖、放大态已铺满右侧，Vditor 只替换编辑器内核，不必重做布局。",
+        "answers": {
+          "q_editor": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_source": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_verify": {
+            "selected": [
+              "a"
+            ]
+          }
+        }
+      },
+      {
+        "key": "c",
+        "label": "零依赖：保留自研 + 并排实时预览",
+        "description": "不新增任何依赖，只把放大态的并排编辑/预览做成一等公民。",
+        "insight": "- **Sets up:** 维持 textarea + 自研渲染，放大态默认并排；可选加宽常规输入框。\n- **Proven at:** T337 已在 QA 5174 实测并排实时渲染与 Esc 收起。\n- **Breaks when:** 语法标记仍可见，不是 Typora 的隐藏标记体验。\n- **Here now:** `MarkdownEditor.tsx` 已有撤销栈与快捷键，渲染器无 XSS 面；新增 0 kB。",
+        "answers": {
+          "q_editor": {
+            "selected": [
+              "e"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_verify": {
+            "selected": [
+              "a"
+            ]
+          }
+        }
+      },
+      {
+        "key": "d",
+        "label": "先不动代码：只出对比报告与验收标准",
+        "description": "这一轮停在文档，等你确认后再开实现任务。",
+        "insight": "- **Sets up:** 只落选型报告与决策记录，不安装依赖、不改组件。\n- **Proven at:** 仓库 spec-first 规则：规范未确认前不写业务代码。\n- **Breaks when:** 教师端体验问题继续存在；放大/全屏只解决了窗口小。\n- **Here now:** 调研文档已落盘，T338 已登记为「待拍板」。",
+        "answers": {
+          "q_editor": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_source": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "a"
+            ]
+          }
+        }
+      },
+      {
+        "key": "e",
+        "label": "一次换完：MDXEditor + 所有教师端 Markdown 输入",
+        "description": "不试点，教师端所有可编辑 Markdown 统一换成 MDXEditor，学生端渲染不动。",
+        "insight": "- **Sets up:** 全教师端统一组件，避免两套编辑行为。\n- **Proven at:** 仓库 UI 标准先建组件层再逐屏迁移（spec 003）。\n- **Breaks when:** 试卷导入与评分标准用途不同，一个组件难同时合适；回归面大。\n- **Here now:** 当前编辑器只有 2 处调用，其余教师输入多为纯文本。",
+        "answers": {
+          "q_editor": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_source": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "c"
+            ]
+          },
+          "q_verify": {
+            "selected": [
+              "a"
+            ]
+          }
+        }
+      },
+      {
+        "key": "f",
+        "label": "手感优先、不管体积：Milkdown Crepe + 试点",
+        "description": "接受 +925 kB gzip，换最接近 Typora 的开箱即用体验，先在两个字段试点。",
+        "insight": "- **Sets up:** 换 Milkdown Crepe，最接近 Typora 的开箱即用编辑器。\n- **Proven at:** 周下载 28.6 万，2026-10 仍在发版；官方 Crepe 内置表格/代码块/slash 菜单。\n- **Breaks when:** 925 kB gzip 让首屏翻倍；工具条无中文词表。\n- **Here now:** 当前首屏约 413 kB gzip，需要单独 chunk + 懒加载才勉强可接受。",
+        "answers": {
+          "q_editor": {
+            "selected": [
+              "c"
+            ]
+          },
+          "q_source": {
+            "selected": [
+              "a"
+            ]
+          },
+          "q_scope": {
+            "selected": [
+              "b"
+            ]
+          },
+          "q_verify": {
+            "selected": [
+              "a"
+            ]
+          }
+        }
+      }
+    ]
+  },
+  "workspaceRecord": true
+}

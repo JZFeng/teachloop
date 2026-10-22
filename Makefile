@@ -5,7 +5,7 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help status dev build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status
+.PHONY: help status dev build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-test web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -60,7 +60,7 @@ check-ui:
 build:
 	@$(MVN) -q -DskipTests package
 
-test: check-deps check-boundaries check-i18n check-ui
+test: check-deps check-boundaries check-i18n check-ui web-test
 	@$(MVN) -q test
 
 test-ai:
@@ -68,6 +68,10 @@ test-ai:
 
 web-install:
 	@cd web && pnpm install --store-dir .pnpm-store
+
+# 前端金标往返测试（Vditor IR：Markdown 进 → 出，评分项与合计不变）
+web-test:
+	@cd web && pnpm test
 
 web-build:
 	@cd web && pnpm run build

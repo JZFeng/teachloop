@@ -165,7 +165,17 @@
     "edit": "Edit",
     "preview": "Preview",
     "previewEmpty": "Nothing here yet. Switch to Edit and write something.",
-    "markdownPlaceholder": "Markdown supported: # heading, - list, **bold**"
+    "markdownPlaceholder": "Markdown supported: # heading, - list, **bold**",
+    "collapse": "Collapse",
+    "expand": "Expand",
+    "exitFullscreen": "Exit full screen",
+    "fullscreen": "Full screen",
+    "split": "Side by side",
+    "imageUnsupported": "Images are not supported yet",
+    "loading": "Loading editor…",
+    "source": "Source",
+    "sourceHint": "Edit the Markdown source directly",
+    "backToEdit": "Back to editor"
   },
   "exam": {
     "answeredBadge": "Answered",

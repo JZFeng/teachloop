@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ChangeEvent, CompositionEvent, FormEvent, KeyboardEvent, ReactNode } from 'react'
+import { createPortal } from 'react-dom'
+import {
+  CompressOutlined,
+  ExpandAltOutlined,
+  FullscreenExitOutlined,
+  FullscreenOutlined,
+  Segmented,
+} from '../ui'
 import { Markdown } from './Markdown'
 
 export interface MarkdownEditorLabels {
@@ -13,6 +21,15 @@ export interface MarkdownEditorLabels {
   preview: string
   empty: string
   placeholder: string
+  /** 放大到覆盖右侧内容区（侧栏保留）。 */
+  expand: string
+  /** 从放大态收起。 */
+  collapse: string
+  /** 浏览器原生全屏。 */
+  fullscreen: string
+  exitFullscreen: string
+  /** 放大态里编辑与预览并排。 */
+  split: string
 }
 
 export interface MarkdownEditorProps {
@@ -24,9 +41,18 @@ export interface MarkdownEditorProps {
   labels: MarkdownEditorLabels
   disabled?: boolean
   footer?: ReactNode
+  /**
+   * 打开放大态：编辑器覆盖右侧内容区（侧栏还在），编辑与预览可并排。
+   * 不传时保持原来的「工具栏 + 编辑/预览 tab」小窗，嵌入式编辑器不受影响。
+   */
+  expandable?: boolean
+  /** 放大态顶部显示的名字，通常是字段标签（题目要求 / 评分标准）。 */
+  heading?: string
 }
 
 type EditorMode = 'edit' | 'preview'
+/** 放大态的三选一：只编辑、并排、只预览。默认并排，方便边改边看排版。 */
+type OverlayView = 'edit' | 'split' | 'preview'
 type ToolbarAction = 'bold' | 'italic' | 'heading' | 'unorderedList' | 'orderedList'
 
 /** 一次编辑的结果：新全文 + 编辑后应当恢复的选区（相对新全文的偏移）。 */
@@ -128,6 +154,11 @@ function editKindOf(nativeEvent: Event): EditKind {
 /**
  * 轻量 Markdown 编辑器：工具栏 + 编辑/预览两个 tab。
  *
+ * <p>T339 起，新建作业的「题目要求 / 评分标准」改用 Vditor IR（决策 004，
+ * `web/src/components/VditorMarkdown.tsx`）；本组件**当前没有调用点**，保留它是因为
+ * 它是零依赖的回退路径：Vditor 方案若回退，把 `AssignmentCreatePage` 两处换回来即可，
+ * 而 T335/T336 的撤销栈与快捷键不需要重写。
+ *
  * 不引第三方编辑器（理由见 RichTextEditor.tsx 顶部注释），所有界面文字都由
  * 调用方通过 `labels` 传入 —— 本文件里没有任何中文字面量，i18n 由页面负责。
  * 工具栏动作直接读写 textarea 的 selectionStart/selectionEnd，不维护自己的
@@ -148,9 +179,20 @@ export function MarkdownEditor({
   labels,
   disabled = false,
   footer,
+  expandable = false,
+  heading,
 }: MarkdownEditorProps) {
   const [mode, setMode] = useState<EditorMode>('edit')
+  /** 放大态：覆盖右侧内容区，侧栏仍然可见。 */
+  const [expanded, setExpanded] = useState(false)
+  /** 放大态默认并排，正好服务「一边改一边看排版」这个需求。 */
+  const [overlayView, setOverlayView] = useState<OverlayView>('split')
+  const [nativeFullscreen, setNativeFullscreen] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement | null>(null)
+  const overlayRef = useRef<HTMLDivElement | null>(null)
+  const expandButtonRef = useRef<HTMLButtonElement | null>(null)
+  /** 收起后要把焦点还给「放大」按钮，而不是掉到 body 上。 */
+  const restoreFocusRef = useRef(false)
   const pendingSelection = useRef<{ start: number; end: number } | null>(null)
 
   // ---- 撤销/重做历史 ----
@@ -297,6 +339,78 @@ export function MarkdownEditor({
     previousPropsRef.current = element.value
   }
 
+  // 放大期间锁住页面滚动；Esc 收起（原生全屏时先由浏览器退出全屏）；全屏状态跟着同步。
+  useEffect(() => {
+    if (!expanded) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape' || document.fullscreenElement) return
+      event.stopPropagation()
+      closeExpanded()
+    }
+    const syncFullscreen = () => setNativeFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('fullscreenchange', syncFullscreen)
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('fullscreenchange', syncFullscreen)
+      setNativeFullscreen(false)
+      if (document.fullscreenElement) {
+        void document.exitFullscreen().catch(() => undefined)
+      }
+    }
+  }, [expanded])
+
+  // 放大/收起会换掉整棵编辑区，焦点与选区得手动接回来。
+  useEffect(() => {
+    if (expanded) {
+      const element = textareaRef.current
+      if (!element) return
+      const pending = pendingSelection.current
+      pendingSelection.current = null
+      element.focus()
+      if (pending) element.setSelectionRange(pending.start, pending.end)
+      return
+    }
+    if (restoreFocusRef.current) {
+      restoreFocusRef.current = false
+      expandButtonRef.current?.focus()
+    }
+  }, [expanded])
+
+  function openExpanded() {
+    if (!expandable || expanded) return
+    const element = textareaRef.current
+    pendingSelection.current = element
+      ? { start: element.selectionStart, end: element.selectionEnd }
+      : null
+    setExpanded(true)
+  }
+
+  function closeExpanded() {
+    if (!expanded) return
+    restoreFocusRef.current = true
+    setExpanded(false)
+  }
+
+  function toggleNativeFullscreen() {
+    const element = overlayRef.current
+    if (!element) return
+    if (document.fullscreenElement) {
+      closeNativeFullscreen()
+      return
+    }
+    const request = element.requestFullscreen?.()
+    if (request) void request.catch(() => undefined)
+  }
+
+  function closeNativeFullscreen() {
+    const request = document.exitFullscreen?.()
+    if (request) void request.catch(() => undefined)
+  }
+
   function applyToolbar(action: ToolbarAction) {
     const element = textareaRef.current
     if (!element || disabled) return
@@ -372,6 +486,128 @@ export function MarkdownEditor({
     { action: 'orderedList', label: labels.orderedList, glyph: '1.' },
   ]
 
+  const textareaElement = (fill: boolean) => (
+    <textarea
+      ref={textareaRef}
+      id={id}
+      className={fill ? 'md-input md-input-fill' : 'md-input'}
+      rows={rows}
+      value={value}
+      placeholder={placeholder ?? labels.placeholder}
+      readOnly={disabled}
+      aria-disabled={disabled || undefined}
+      spellCheck={false}
+      onBeforeInput={handleBeforeInput}
+      onChange={handleChange}
+      onCompositionStart={handleCompositionStart}
+      onCompositionEnd={handleCompositionEnd}
+      onKeyDown={handleKeyDown}
+    />
+  )
+
+  const previewBody = value.trim() ? (
+    <Markdown text={value} />
+  ) : (
+    <div className="md-empty">{labels.empty}</div>
+  )
+
+  const renderTools = () => (
+    <>
+      {tools.map((tool) => {
+        const shortcut = shortcutOf(tool.action)
+        return (
+          <button
+            key={tool.action}
+            type="button"
+            className="md-tool"
+            title={shortcut ? `${tool.label} (${shortcut})` : tool.label}
+            aria-label={tool.label}
+            disabled={disabled}
+            onClick={() => applyToolbar(tool.action)}
+          >
+            {tool.glyph}
+          </button>
+        )
+      })}
+    </>
+  )
+
+  // 放大态：覆盖右侧内容区（不盖侧栏）。编辑/并排/预览三选一，Esc 收起，
+  // 里面的「全屏」再调浏览器原生 Fullscreen API，得到真正占满整块屏幕的编辑面。
+  if (expanded) {
+    const showEdit = overlayView !== 'preview'
+    const showPreview = overlayView !== 'edit'
+    return createPortal(
+      <div
+        className="md-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label={heading ?? labels.toolbar}
+      >
+        <div className="md-overlay-panel" ref={overlayRef}>
+          <div className="md-overlay-head">
+            {heading ? <div className="md-overlay-title">{heading}</div> : null}
+            <Segmented
+              size="small"
+              value={overlayView}
+              onChange={(next) => setOverlayView(next as OverlayView)}
+              options={[
+                { label: labels.edit, value: 'edit' },
+                { label: labels.split, value: 'split' },
+                { label: labels.preview, value: 'preview' },
+              ]}
+            />
+            {showEdit ? (
+              <div className="md-actions" role="toolbar" aria-label={labels.toolbar}>
+                {renderTools()}
+              </div>
+            ) : null}
+            <div className="md-overlay-grow" />
+            <button
+              type="button"
+              className="md-tool md-tool-text"
+              title={nativeFullscreen ? labels.exitFullscreen : labels.fullscreen}
+              aria-label={nativeFullscreen ? labels.exitFullscreen : labels.fullscreen}
+              aria-pressed={nativeFullscreen}
+              onClick={toggleNativeFullscreen}
+            >
+              {nativeFullscreen ? <FullscreenExitOutlined aria-hidden="true" /> : <FullscreenOutlined aria-hidden="true" />}
+              <span>{nativeFullscreen ? labels.exitFullscreen : labels.fullscreen}</span>
+            </button>
+            <button
+              type="button"
+              className="md-tool md-tool-text"
+              title={labels.collapse}
+              aria-label={labels.collapse}
+              onClick={closeExpanded}
+            >
+              <CompressOutlined aria-hidden="true" />
+              <span>{labels.collapse}</span>
+            </button>
+          </div>
+          <div className={showEdit && showPreview ? 'md-overlay-body split' : 'md-overlay-body'}>
+            {showEdit ? (
+              <div className="md-pane">
+                {showPreview ? <div className="md-pane-head">{labels.edit}</div> : null}
+                {textareaElement(true)}
+              </div>
+            ) : null}
+            {showPreview ? (
+              <div className="md-pane">
+                {showEdit ? <div className="md-pane-head">{labels.preview}</div> : null}
+                <div className="md-preview md-preview-fill">
+                  <div className="md-preview-inner">{previewBody}</div>
+                </div>
+              </div>
+            ) : null}
+          </div>
+          {footer ? <div className="md-footer md-footer-fill">{footer}</div> : null}
+        </div>
+      </div>,
+      document.body,
+    )
+  }
+
   return (
     <div className="md-editor">
       <div className="md-toolbar">
@@ -397,48 +633,26 @@ export function MarkdownEditor({
             {labels.preview}
           </button>
         </div>
-        {mode === 'edit' ? (
-          <div className="md-actions" role="toolbar" aria-label={labels.toolbar}>
-            {tools.map((tool) => {
-              const shortcut = shortcutOf(tool.action)
-              return (
-                <button
-                  key={tool.action}
-                  type="button"
-                  className="md-tool"
-                  title={shortcut ? `${tool.label} (${shortcut})` : tool.label}
-                  aria-label={tool.label}
-                  disabled={disabled}
-                  onClick={() => applyToolbar(tool.action)}
-                >
-                  {tool.glyph}
-                </button>
-              )
-            })}
-          </div>
-        ) : null}
+        <div className="md-actions" role="toolbar" aria-label={labels.toolbar}>
+          {mode === 'edit' ? renderTools() : null}
+          {expandable ? (
+            <button
+              type="button"
+              ref={expandButtonRef}
+              className="md-tool md-expand"
+              title={labels.expand}
+              aria-label={labels.expand}
+              onClick={openExpanded}
+            >
+              <ExpandAltOutlined aria-hidden="true" />
+            </button>
+          ) : null}
+        </div>
       </div>
       {mode === 'edit' ? (
-        <textarea
-          ref={textareaRef}
-          id={id}
-          className="md-input"
-          rows={rows}
-          value={value}
-          placeholder={placeholder ?? labels.placeholder}
-          readOnly={disabled}
-          aria-disabled={disabled || undefined}
-          spellCheck={false}
-          onBeforeInput={handleBeforeInput}
-          onChange={handleChange}
-          onCompositionStart={handleCompositionStart}
-          onCompositionEnd={handleCompositionEnd}
-          onKeyDown={handleKeyDown}
-        />
+        textareaElement(false)
       ) : (
-        <div className="md-preview">
-          {value.trim() ? <Markdown text={value} /> : <div className="md-empty">{labels.empty}</div>}
-        </div>
+        <div className="md-preview">{previewBody}</div>
       )}
       {footer ? <div className="md-footer">{footer}</div> : null}
     </div>

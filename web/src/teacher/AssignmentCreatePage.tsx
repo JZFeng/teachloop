@@ -1,12 +1,14 @@
-import { useRef, useState } from 'react'
+import { lazy, Suspense, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassView, OfferingView } from '../api/types'
 import { Alert, Button, ErrorState, Field, Input, Loading, PageHeader, TextArea, UploadOutlined } from '../ui'
-import { MarkdownEditor } from '../components/MarkdownEditor'
 import { summarizeRubric } from '../components/rubric'
 import { errorMessage, fromLocalInput, TeacherPage, useApiData } from './common'
+
+/** T339：Vditor 只在打开这一页时加载（含 Lute 引擎），不要把 600 kB 的编辑器塞进首屏。 */
+const VditorMarkdown = lazy(() => import('../components/VditorMarkdown'))
 
 
 /**
@@ -42,19 +44,6 @@ export default function AssignmentCreatePage() {
   const [formError, setFormError] = useState<string | null>(null)
 
   const classes = data ?? []
-
-  const editorLabels = {
-    toolbar: t('editor.toolbar'),
-    bold: t('editor.bold'),
-    italic: t('editor.italic'),
-    heading: t('editor.heading'),
-    unorderedList: t('editor.unorderedList'),
-    orderedList: t('editor.orderedList'),
-    edit: t('editor.edit'),
-    preview: t('editor.preview'),
-    empty: t('editor.previewEmpty'),
-    placeholder: t('editor.markdownPlaceholder'),
-  }
 
   const toggleClass = (classId: string) => {
     setSelectedClassIds((current) =>
@@ -166,14 +155,17 @@ export default function AssignmentCreatePage() {
             hint={t('teacher.assignmentCreate.instructionsHint')}
             htmlFor="assign-instructions"
           >
-            <MarkdownEditor
-              id="assign-instructions"
-              rows={6}
-              value={instructions}
-              onChange={setInstructions}
-              placeholder={t('teacher.assignmentCreate.instructionsPlaceholder')}
-              labels={editorLabels}
-            />
+            <Suspense fallback={<div className="md-editor md-editor-loading">{t('editor.loading')}</div>}>
+              <VditorMarkdown
+                id="assign-instructions"
+                rows={6}
+                value={instructions}
+                onChange={setInstructions}
+                placeholder={t('teacher.assignmentCreate.instructionsPlaceholder')}
+                expandable
+                heading={t('teacher.assignmentCreate.fieldInstructions')}
+              />
+            </Suspense>
           </Field>
 
           <Field
@@ -208,20 +200,23 @@ export default function AssignmentCreatePage() {
               </Button>
             )}
           >
-            <MarkdownEditor
-              id="assign-rubric"
-              rows={9}
-              value={rubricMarkdown}
-              onChange={setRubricMarkdown}
-              placeholder={t('teacher.assignmentCreate.rubricPlaceholder')}
-              labels={editorLabels}
-              footer={(
-                <RubricPreview
-                  rubric={rubricMarkdown}
-                  totalPoints={Number(totalPoints)}
-                />
-              )}
-            />
+            <Suspense fallback={<div className="md-editor md-editor-loading">{t('editor.loading')}</div>}>
+              <VditorMarkdown
+                id="assign-rubric"
+                rows={9}
+                value={rubricMarkdown}
+                onChange={setRubricMarkdown}
+                placeholder={t('teacher.assignmentCreate.rubricPlaceholder')}
+                expandable
+                heading={t('teacher.assignmentCreate.fieldRubric')}
+                footer={(
+                  <RubricPreview
+                    rubric={rubricMarkdown}
+                    totalPoints={Number(totalPoints)}
+                  />
+                )}
+              />
+            </Suspense>
             <input
               ref={fileInputRef}
               type="file"

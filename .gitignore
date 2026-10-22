@@ -79,3 +79,4 @@ teachloop-app/logs/
 # DSH 问卷草稿与输入（作者侧临时产物；已定稿的记录在 .dsh/surveys/ 里入库）
 .dsh/survey-drafts/
 .dsh/survey-input/
+web/public/vditor/

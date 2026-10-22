@@ -2,6 +2,10 @@
 body { display: block; }
 #root { min-height: 100vh; }
 
+/* 放大编辑遮罩从侧栏右边开始，宽度只在这里定义一次（侧栏本身的 238px 在 mockup.css 的 aside）。 */
+:root { --app-sidebar-w: 238px; }
+@media (max-width: 900px) { :root { --app-sidebar-w: 0px; } }
+
 .app-shell {
   display: flex;
   min-height: 100vh;
