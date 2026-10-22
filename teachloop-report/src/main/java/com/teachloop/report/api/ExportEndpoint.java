@@ -2,6 +2,7 @@ package com.teachloop.report.api;
 
 import com.teachloop.report.service.export.OfferingExportService;
 import com.teachloop.shared.error.ApiException;
+import com.teachloop.shared.port.Ports;
 import com.teachloop.shared.security.CurrentUser;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -35,9 +36,22 @@ public class ExportEndpoint {
             "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
 
     private final OfferingExportService export;
+    /** T329：导出按场次 id 取数，先确认这场属于调用者。 */
+    private final Ports.OfferingOwnership ownership;
 
-    public ExportEndpoint(OfferingExportService export) {
+    public ExportEndpoint(OfferingExportService export, Ports.OfferingOwnership ownership) {
         this.export = export;
+        this.ownership = ownership;
+    }
+
+    /** 越权导出与「不存在」同一个 404，不泄漏这场是否真的存在。 */
+    private void requireOwned(UUID offeringId, CurrentUser me) {
+        if (me.is("ADMIN")) {
+            return;
+        }
+        if (!ownership.ownedOfferingIds(java.util.List.of(offeringId), me.id()).contains(offeringId)) {
+            throw ApiException.notFound("error.report.noAccess");
+        }
     }
 
     /** {@code GET /api/offerings/{id}/export/summary.md} */
@@ -45,6 +59,7 @@ public class ExportEndpoint {
     public ResponseEntity<byte[]> summaryMarkdown(@PathVariable UUID offeringId,
                                                   @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me, "学生不能导出班级汇总");
+        requireOwned(offeringId, me);
         byte[] body = export.summaryMarkdown(offeringId).getBytes(StandardCharsets.UTF_8);
         return ResponseEntity.ok()
                 .contentType(MARKDOWN_UTF8)
@@ -59,6 +74,7 @@ public class ExportEndpoint {
                                               @RequestParam(required = false) String lang,
                                               @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me, "学生不能导出班级汇总");
+        requireOwned(offeringId, me);
         byte[] body = export.summaryXlsx(offeringId, lang);
         return ResponseEntity.ok()
                 .contentType(XLSX)
@@ -73,6 +89,7 @@ public class ExportEndpoint {
                                               @RequestParam(required = false) String lang,
                                               @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me, "学生不能导出班级汇总");
+        requireOwned(offeringId, me);
         byte[] body = export.summaryDocx(offeringId, lang);
         return ResponseEntity.ok()
                 .contentType(DOCX)
@@ -86,6 +103,7 @@ public class ExportEndpoint {
     public ResponseEntity<byte[]> feedbackZip(@PathVariable UUID offeringId,
                                               @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me, "学生不能导出逐份反馈");
+        requireOwned(offeringId, me);
         byte[] body = export.feedbackZip(offeringId);
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType("application/zip"))
@@ -100,6 +118,7 @@ public class ExportEndpoint {
                                               @RequestParam(required = false) String lang,
                                               @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me, "学生不能导出逐份反馈");
+        requireOwned(offeringId, me);
         byte[] body = export.feedbackPdf(offeringId, lang);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_PDF)

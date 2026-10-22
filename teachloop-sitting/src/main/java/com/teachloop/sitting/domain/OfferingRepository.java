@@ -9,6 +9,10 @@ import org.springframework.data.jpa.repository.Query;
 
 public interface OfferingRepository extends JpaRepository<Offering, UUID> {
 
+    /** T329：这批布置里哪些是这位老师的（报表归属校验）。 */
+    @Query("select o.id from Offering o where o.createdBy = :teacherId and o.id in :ids")
+    List<UUID> findOwnedIds(java.util.Collection<UUID> ids, UUID teacherId);
+
     List<Offering> findByStatusOrderByDueAtDesc(OfferingStatus status);
 
     List<Offering> findByPaperId(UUID paperId);

@@ -192,6 +192,9 @@ public final class Ports {
         List<UUID> classIdsOf(UUID studentId);
 
         List<UUID> membersOf(UUID classId);
+
+        /** T329：这批班级里哪些属于该教师（报表按班级取数时的归属校验）。 */
+        java.util.Set<UUID> classIdsOwnedBy(java.util.Collection<UUID> classIds, UUID teacherId);
     }
 
     /** 管理员/教师保存的 AI 配置；key 不随端口返回给业务方以外的接口。 */
@@ -230,6 +233,22 @@ public final class Ports {
 
     public interface ClassSubmissionStats {
         List<ClassSubmissionCount> submissionCounts(UUID classId);
+    }
+
+    /**
+     * 归属查询（T329）：阅卷模块不读 sitting 的表，只能问「这些提交归不归这位老师」。
+     *
+     * <p>没有这个端口，复核队列、复核详情与批量通过就只能是「同角色即可看/可改」，
+     * 教师首页「待复核」会混进别的老师的提交，知道 id 就能改别人的分数。
+     */
+    public interface OfferingOwnership {
+        /** 在一批提交里挑出属于该教师自己布置的（一次查询）。 */
+        java.util.Set<java.util.UUID> ownedSubmissionIds(java.util.Collection<java.util.UUID> submissionIds,
+                                                         java.util.UUID teacherId);
+
+        /** 在一批布置里挑出该教师自己布置的（报表按 id 列表取数时用）。 */
+        java.util.Set<java.util.UUID> ownedOfferingIds(java.util.Collection<java.util.UUID> offeringIds,
+                                                       java.util.UUID teacherId);
     }
 
     /** 复核结论的只读投影：学生反馈用，不暴露教师身份。 */

@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,6 +51,8 @@ public class ReviewEndpoint {
     private static final Logger log = LoggerFactory.getLogger(ReviewEndpoint.class);
 
     private final ReviewRepository reviews;
+    /** T329：复核队列与详情只能看/改自己布置的提交；归属由 sitting 通过端口回答。 */
+    private final Ports.OfferingOwnership ownership;
     private final Ports.SittingLedger ledger;
     private final Ports.GradingOutcome outcome;
     private final Ports.NotificationPort notifications;
@@ -59,10 +62,12 @@ public class ReviewEndpoint {
     private final AuditPort audit;
     private final Clock clock;
 
-    public ReviewEndpoint(ReviewRepository reviews, Ports.SittingLedger ledger,
+    public ReviewEndpoint(ReviewRepository reviews, Ports.OfferingOwnership ownership,
+                          Ports.SittingLedger ledger,
                           Ports.GradingOutcome outcome, Ports.NotificationPort notifications,
                           AuditPort audit, Clock clock) {
         this.reviews = reviews;
+        this.ownership = ownership;
         this.ledger = ledger;
         this.outcome = outcome;
         this.notifications = notifications;
@@ -171,8 +176,26 @@ public class ReviewEndpoint {
     @GetMapping("/grading/queue")
     public List<ReviewView> queue(@RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
-        return reviews.findByStatusOrderByCreatedAtAsc(ReviewStatus.PENDING).stream()
+        List<Review> pending = reviews.findByStatusOrderByCreatedAtAsc(ReviewStatus.PENDING);
+        if (me.is("ADMIN")) {
+            return pending.stream().map(ReviewEndpoint::view).toList();
+        }
+        // 教师只看自己布置的提交：以前这里返回全站待复核，首页「待复核」数字是错的（T329）
+        Set<UUID> owned = ownership.ownedSubmissionIds(
+                pending.stream().map(Review::getSubmissionId).toList(), me.id());
+        return pending.stream()
+                .filter(r -> owned.contains(r.getSubmissionId()))
                 .map(ReviewEndpoint::view).toList();
+    }
+
+    /** 越权一律 404：不让别的老师知道「这份提交存在」。ADMIN 例外。 */
+    private void requireOwned(UUID submissionId, CurrentUser me) {
+        if (me.is("ADMIN")) {
+            return;
+        }
+        if (!ownership.ownedSubmissionIds(List.of(submissionId), me.id()).contains(submissionId)) {
+            throw ApiException.notFound("error.review.notFound");
+        }
     }
 
     /** T243：任何已交卷提交都能打开复核详情；没有复核行时懒建（AI 未参与）。 */
@@ -180,6 +203,7 @@ public class ReviewEndpoint {
     public ReviewDetail get(@PathVariable UUID submissionId,
                             @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
+        requireOwned(submissionId, me);
         Ports.SubmissionScores scores = scoresOf(submissionId);
         Review review = reviewOrCreate(submissionId);
         Ports.WorkItem item = ledger.load(submissionId);
@@ -211,6 +235,7 @@ public class ReviewEndpoint {
     public ReviewView decide(@PathVariable UUID submissionId, @RequestBody @Valid Decision body,
                              @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
+        requireOwned(submissionId, me);
         if (body.status() == ReviewStatus.PENDING) {
             throw ApiException.badRequest("复核结论只能是通过、改后通过或弃用重批");
         }
@@ -238,6 +263,7 @@ public class ReviewEndpoint {
     public ReviewView edit(@PathVariable UUID submissionId, @RequestBody @Valid EditRequest body,
                            @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
+        requireOwned(submissionId, me);
         Ports.SubmissionScores scores = scoresOf(submissionId);
         Review r = reviewOrCreate(submissionId);
         if (r.isPublished()) {
@@ -278,6 +304,7 @@ public class ReviewEndpoint {
     public ReviewView publish(@PathVariable UUID submissionId,
                               @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
+        requireOwned(submissionId, me);
         Review r = reviews.findBySubmissionId(submissionId)
                 .orElseThrow(() -> ApiException.notFound("这份提交还没有复核记录"));
         if (r.isPublished()) {
@@ -316,6 +343,7 @@ public class ReviewEndpoint {
     public ReviewView withdraw(@PathVariable UUID submissionId,
                                @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
+        requireOwned(submissionId, me);
         Review r = reviews.findBySubmissionId(submissionId)
                 .orElseThrow(() -> ApiException.notFound("这份提交还没有复核记录"));
         if (!r.isPublished()) {
@@ -343,11 +371,16 @@ public class ReviewEndpoint {
                                                  @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
         List<UUID> ids = body == null || body.submissionIds() == null ? List.of() : body.submissionIds();
+        Set<UUID> owned = me.is("ADMIN") ? Set.copyOf(ids) : ownership.ownedSubmissionIds(ids, me.id());
         int approvable = 0;
         BigDecimal min = null;
         BigDecimal max = null;
         List<BulkApproveSkip> skippedItems = new ArrayList<>();
         for (UUID submissionId : ids) {
+            if (!owned.contains(submissionId)) {
+                skippedItems.add(new BulkApproveSkip(submissionId.toString(), "not_owner"));
+                continue;
+            }
             String reason = bulkSkipReason(submissionId, true);
             if (reason != null) {
                 skippedItems.add(new BulkApproveSkip(submissionId.toString(), reason));
@@ -369,9 +402,14 @@ public class ReviewEndpoint {
                                          @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
         List<UUID> ids = body == null || body.submissionIds() == null ? List.of() : body.submissionIds();
+        Set<UUID> owned = me.is("ADMIN") ? Set.copyOf(ids) : ownership.ownedSubmissionIds(ids, me.id());
         int approved = 0;
         int skipped = 0;
         for (UUID submissionId : ids) {
+            if (!owned.contains(submissionId)) {
+                skipped++;
+                continue;
+            }
             try {
                 String reason = bulkSkipReason(submissionId, false);
                 if (reason != null) {

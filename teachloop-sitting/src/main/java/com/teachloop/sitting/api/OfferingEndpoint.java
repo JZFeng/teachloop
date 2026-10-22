@@ -241,6 +241,7 @@ public class OfferingEndpoint {
             throw ApiException.forbidden("学生不能发布考试");
         }
         Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
+        requireVisible(o, me);
         publishInternal(o, me);
         return view(o);
     }
@@ -254,6 +255,7 @@ public class OfferingEndpoint {
             throw ApiException.forbidden("学生不能发布成绩");
         }
         Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
+        requireVisible(o, me);
         o.setPublishScores(true);
         notifications.notifyScoresPublished(o.getId());
         notifyStudents(o, "scores_published",
@@ -294,7 +296,10 @@ public class OfferingEndpoint {
      * QUEUED（已交卷、还没派发）计进 pending，否则派发前进度会全是 0。
      */
     @GetMapping("/{id}/progress")
-    public SittingDtos.ProgressView progress(@PathVariable UUID id) {
+    public SittingDtos.ProgressView progress(@PathVariable UUID id,
+                                             @RequestAttribute("currentUser") CurrentUser me) {
+        Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
+        requireVisible(o, me);
         SubmissionRepository.GradingProgress p = submissions.progressOf(id);
         return new SittingDtos.ProgressView((int) p.getTotal(), p.getDone(), p.getRunning(),
                 p.getPending(), p.getFailed());
@@ -310,6 +315,7 @@ public class OfferingEndpoint {
         if (me.is("STUDENT")) {
             throw ApiException.forbidden("学生不能派发批改");
         }
+        requireVisible(offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在")), me);
         OfferingGradingDispatcher.DispatchResult result = dispatcher.dispatchNow(id, me.id());
         return new SittingDtos.GradingDispatchView(result.offeringId().toString(),
                 result.runId().toString(), result.firstDispatch(), result.enqueued());
@@ -326,6 +332,7 @@ public class OfferingEndpoint {
         if (me.is("STUDENT")) {
             throw ApiException.forbidden("学生不能派发批改");
         }
+        requireVisible(offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在")), me);
         OfferingGradingDispatcher.SubmissionDispatch result =
                 dispatcher.dispatchSubmission(id, submissionId, me.id());
         return new SittingDtos.SubmissionDispatchView(result.offeringId().toString(),
@@ -344,6 +351,7 @@ public class OfferingEndpoint {
             throw ApiException.forbidden("学生不能重试批改");
         }
         Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
+        requireVisible(o, me);
         int retried = submissions.retryFailed(o.getId());
         // T234：卡在 RUNNING 的项同样要能手动救回来（定时清扫要等 5 分钟，教师不该干等）
         int reclaimed = submissions.reclaimStaleRunning(o.getId(),

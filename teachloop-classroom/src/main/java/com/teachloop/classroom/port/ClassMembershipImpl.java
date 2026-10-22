@@ -1,8 +1,11 @@
 package com.teachloop.classroom.port;
 
 import com.teachloop.classroom.domain.ClassMemberRepository;
+import com.teachloop.classroom.domain.ClassRepository;
 import com.teachloop.shared.port.Ports;
+import java.util.Collection;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Component;
 
@@ -10,9 +13,11 @@ import org.springframework.stereotype.Component;
 public class ClassMembershipImpl implements Ports.ClassMembership {
 
     private final ClassMemberRepository members;
+    private final ClassRepository classes;
 
-    public ClassMembershipImpl(ClassMemberRepository members) {
+    public ClassMembershipImpl(ClassMemberRepository members, ClassRepository classes) {
         this.members = members;
+        this.classes = classes;
     }
 
     @Override
@@ -23,5 +28,13 @@ public class ClassMembershipImpl implements Ports.ClassMembership {
     @Override
     public List<UUID> membersOf(UUID classId) {
         return members.findByClassId(classId).stream().map(m -> m.getStudentId()).toList();
+    }
+
+    @Override
+    public Set<UUID> classIdsOwnedBy(Collection<UUID> classIds, UUID teacherId) {
+        if (classIds == null || classIds.isEmpty() || teacherId == null) {
+            return Set.of();
+        }
+        return Set.copyOf(classes.findOwnedIds(classIds, teacherId));
     }
 }

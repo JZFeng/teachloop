@@ -73,6 +73,10 @@
 - 顺带：粘贴文本导入改成与文件导入同一套预处理（剥 Markdown 记号），否则整卷 md 粘进去时「第X节」认不出来，
   会重现同一类题号串号问题。
 
+## 验证（第二轮复跑）
+
+- T329 新增用例后：`make test` 242/0/0/0；`check-boundaries`（25 表 / 13 外键 / 7 端口）与 `check-deps` 通过。
+
 ## 验证
 
 - `make test` 退出码 0：**242 tests / 0 failures / 0 errors / 0 skipped**；`check-deps` / `check-boundaries` /
@@ -82,8 +86,12 @@
   新建作业页导入 `评分标准2.md` 后 2/6/3/3 合计 14 与总分一致；班级「成员」显示 Allen / 学生02 与提交数；
   暗色主题下新编辑器正常；`AI立即.md` 文件导入与粘贴导入都导入 14 题且答案齐全（验证用的临时试卷已删除）。
 
-## 已知遗留（本轮没做）
+## 遗留（T329 已补，2026-10-22 第二轮）
 
-- `GET /api/grading/queue`、复核详情、报表仍是「同角色即可看」，没有按布置归属收口——首页「待复核」数字
-  可能是别的老师提交的。要修需要 grading → sitting 的归属端口，属于结构改动，先记录不动。
-- `publish` / `scores/publish` / `retry-failed` / `progress` / dispatch 也没有归属校验（列表与详情已收口）。
+- ~~`GET /api/grading/queue`、复核详情、报表仍是「同角色即可看」~~ → 已收口：新增
+  `Ports.OfferingOwnership`（sitting 实现）与 `Ports.ClassMembership.classIdsOwnedBy`（classroom 实现），
+  待复核队列、复核详情/结论、批量通过、报表（按作业 / 学生 / 班级）与导出都只认自己的数据，越权 404。
+- ~~`publish` / `scores/publish` / `retry-failed` / `progress` / dispatch 没有归属校验~~ → 已用
+  `requireVisible` 覆盖（含单份「让 AI 先批」）。
+- 仍留一处：学生仍可读任意场次的 `/progress` 聚合数字（只读计数，不改数据）；要收口需要讨论
+  「学生是否应该看到别人班的提交数」，先记录。

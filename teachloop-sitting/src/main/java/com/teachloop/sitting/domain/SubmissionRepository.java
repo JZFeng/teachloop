@@ -12,6 +12,11 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
 
     List<Submission> findByOfferingIdOrderByCreatedAtDesc(UUID offeringId);
 
+    /** T329：这批提交里哪些属于该老师自己布置的场次（阅卷归属校验用）。 */
+    @Query("select s.id from Submission s, Offering o "
+            + "where s.offeringId = o.id and o.createdBy = :teacherId and s.id in :ids")
+    List<UUID> findOwnedIds(java.util.Collection<UUID> ids, UUID teacherId);
+
     Optional<Submission> findByOfferingIdAndStudentIdAndActiveTrue(UUID offeringId, UUID studentId);
 
     List<Submission> findByOfferingIdAndStudentIdOrderByAttemptNoDesc(UUID offeringId, UUID studentId);

@@ -2,6 +2,7 @@ package com.teachloop;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.teachloop.grading.service.GradingWorker;
 import com.teachloop.identity.domain.User;
 import com.teachloop.identity.domain.UserRepository;
 import com.teachloop.identity.domain.UserRole;
@@ -52,6 +53,9 @@ class ClassAccessTest {
 
     @Autowired
     PasswordEncoder encoder;
+
+    @Autowired
+    GradingWorker worker;
 
     private final HttpClient client = HttpClient.newHttpClient();
 
@@ -114,8 +118,10 @@ class ClassAccessTest {
         // 每个测试方法自己建班：不依赖另一个方法的执行顺序。
         String classAId = String.valueOf(Json.parse(request(base, teacher1, "POST", "/api/classes",
                 Map.of("name", "归属校验 A 班")).body()).get("id"));
-        String classBId = String.valueOf(Json.parse(request(base, teacher2, "POST", "/api/classes",
-                Map.of("name", "归属校验 B 班")).body()).get("id"));
+        Map<String, Object> classBBody = Json.parse(request(base, teacher2, "POST", "/api/classes",
+                Map.of("name", "归属校验 B 班")).body());
+        String classBId = String.valueOf(classBBody.get("id"));
+        String classBInvite = String.valueOf(classBBody.get("inviteCode"));
         assertThat(classAId).isNotEqualTo(classBId);
 
         // teacher2 在 classB 建一份独立作业（总分 10 = 两项各 5 分）并直接发布。
@@ -148,6 +154,85 @@ class ClassAccessTest {
                 .isEqualTo(404);
         assertThat(request(base, teacher2, "GET", "/api/offerings/" + offeringId, null).statusCode())
                 .isEqualTo(200);
+
+        // ③ 写接口与进度：别人的场次一律 404，布置人自己可用（T329）。
+        //    带副作用的接口（发布成绩 / 重试 / 派发）必须先被拦下：能改别人数据比能看危险得多。
+        List<String> guardedWrites = List.of(
+                "/api/offerings/" + offeringId + "/publish",
+                "/api/offerings/" + offeringId + "/scores/publish",
+                "/api/offerings/" + offeringId + "/grading/retry-failed",
+                "/api/offerings/" + offeringId + "/grading/dispatch");
+        for (String path : guardedWrites) {
+            assertThat(request(base, teacher1, "POST", path, Map.of()).statusCode())
+                    .withFailMessage("越权调用 " + path + " 必须 404").isEqualTo(404);
+        }
+        assertThat(request(base, teacher1, "GET", "/api/offerings/" + offeringId + "/progress", null)
+                .statusCode()).isEqualTo(404);
+        assertThat(request(base, teacher1, "GET", "/api/offerings/" + offeringId + "/submissions", null)
+                .statusCode()).isEqualTo(404);
+        assertThat(request(base, teacher1, "GET", "/api/offerings/" + offeringId + "/class-summary", null)
+                .statusCode()).isEqualTo(404);
+
+        // 布置人自己：进度与提交表可读，发布成绩/重试/派发可调用（无提交时都是空操作）。
+        for (String path : List.of("/progress", "/submissions", "/class-summary")) {
+            assertThat(request(base, teacher2, "GET", "/api/offerings/" + offeringId + path, null)
+                    .statusCode()).withFailMessage("布置人自己应可读 " + path).isEqualTo(200);
+        }
+        for (String path : List.of("/scores/publish", "/grading/retry-failed", "/grading/dispatch", "/publish")) {
+            assertThat(request(base, teacher2, "POST", "/api/offerings/" + offeringId + path, Map.of())
+                    .statusCode()).withFailMessage("布置人自己应可调用 " + path).isEqualTo(200);
+        }
+
+        // ④ 复核队列 / 详情 / 结论：教师只能看与改自己布置的提交（T329）。
+        String student = login(base, "student@teachloop.local");
+        request(base, student, "POST", "/api/classes/join", Map.of("inviteCode", classBInvite));
+        request(base, student, "POST", "/api/offerings/" + offeringId + "/start", Map.of());
+        Map<String, Object> submitted = Json.parse(request(base, student, "POST",
+                "/api/offerings/" + offeringId + "/submissions",
+                Map.of("contentText", "My favourite season is autumn because the air is crisp and the leaves turn gold."))
+                .body());
+        String submissionId = String.valueOf(submitted.get("submissionId"));
+        request(base, teacher2, "POST", "/api/offerings/" + offeringId + "/grading/dispatch", Map.of());
+        worker.processBatch(10);
+
+        List<String> teacher2Queue = submissionIds(Json.parseList(
+                request(base, teacher2, "GET", "/api/grading/queue", null).body()));
+        List<String> teacher1Queue = submissionIds(Json.parseList(
+                request(base, teacher1, "GET", "/api/grading/queue", null).body()));
+        assertThat(teacher2Queue).as("布置人应能在待复核队列里看到自己的提交").contains(submissionId);
+        assertThat(teacher1Queue).as("别的老师不能在自己的队列里看到这份提交").doesNotContain(submissionId);
+
+        String reviewPath = "/api/submissions/" + submissionId + "/review";
+        assertThat(request(base, teacher1, "GET", reviewPath, null).statusCode())
+                .as("越权打开复核详情必须 404").isEqualTo(404);
+        assertThat(request(base, teacher2, "GET", reviewPath, null).statusCode()).isEqualTo(200);
+        assertThat(request(base, teacher1, "POST", reviewPath, Map.of("status", "APPROVED")).statusCode())
+                .as("越权通过复核必须 404").isEqualTo(404);
+        assertThat(request(base, teacher2, "POST", reviewPath, Map.of("status", "APPROVED")).statusCode())
+                .isEqualTo(200);
+
+        // ⑤ 报表与导出：按 id 列表/场次 id 取数，也只能取自己的（T329）。
+        assertThat(request(base, teacher1, "GET",
+                "/api/reports/offerings?offeringIds=" + offeringId, null).statusCode())
+                .as("别人的场次不能出现在我的报表里").isEqualTo(404);
+        assertThat(request(base, teacher2, "GET",
+                "/api/reports/offerings?offeringIds=" + offeringId, null).statusCode()).isEqualTo(200);
+        assertThat(request(base, teacher1, "GET",
+                "/api/reports/classes?classIds=" + classBId, null).statusCode())
+                .as("别人的班不能出现在我的报表里").isEqualTo(404);
+        assertThat(request(base, teacher2, "GET",
+                "/api/reports/classes?classIds=" + classBId, null).statusCode()).isEqualTo(200);
+        assertThat(request(base, teacher1, "GET",
+                "/api/offerings/" + offeringId + "/export/summary.md", null).statusCode())
+                .as("别人的场次不能导出").isEqualTo(404);
+        assertThat(request(base, teacher2, "GET",
+                "/api/offerings/" + offeringId + "/export/summary.md", null).statusCode()).isEqualTo(200);
+    }
+
+    private static List<String> submissionIds(List<?> rows) {
+        return rows.stream()
+                .map(o -> String.valueOf(((Map<?, ?>) o).get("submissionId")))
+                .toList();
     }
 
     private static List<String> names(List<?> rows) {

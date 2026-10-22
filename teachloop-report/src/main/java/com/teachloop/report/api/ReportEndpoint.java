@@ -5,6 +5,7 @@ import com.teachloop.report.service.WrongItemsReportService;
 import com.teachloop.report.service.export.AggregateExportWriter;
 import com.teachloop.report.service.export.PdfFontProbe;
 import com.teachloop.shared.error.ApiException;
+import com.teachloop.shared.port.Ports;
 import com.teachloop.shared.security.CurrentUser;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
@@ -35,12 +36,18 @@ public class ReportEndpoint {
     private final WrongItemsReportService wrongItems;
     private final AggregateReportService aggregate;
     private final PdfFontProbe pdfFont;
+    /** T329：报表按 id 列表取数，必须先确认这些布置/班级属于调用者。 */
+    private final Ports.OfferingOwnership ownership;
+    private final Ports.ClassMembership membership;
 
     public ReportEndpoint(WrongItemsReportService wrongItems, AggregateReportService aggregate,
-                          PdfFontProbe pdfFont) {
+                          PdfFontProbe pdfFont, Ports.OfferingOwnership ownership,
+                          Ports.ClassMembership membership) {
         this.wrongItems = wrongItems;
         this.aggregate = aggregate;
         this.pdfFont = pdfFont;
+        this.ownership = ownership;
+        this.membership = membership;
     }
 
     /** T151：按作业报表 XLSX。 */
@@ -48,7 +55,7 @@ public class ReportEndpoint {
     public org.springframework.http.ResponseEntity<byte[]> offeringsXlsx(
             @RequestParam String offeringIds, @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
-        byte[] body = AggregateExportWriter.offeringsXlsx(aggregate.byOffering(requiredIds(offeringIds)));
+        byte[] body = AggregateExportWriter.offeringsXlsx(aggregate.byOffering(ownedOfferings(offeringIds, me)));
         return org.springframework.http.ResponseEntity.ok()
                 .header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
                 .header("Content-Disposition", "attachment; filename=report-offerings.xlsx")
@@ -64,7 +71,7 @@ public class ReportEndpoint {
             throw new ApiException(com.teachloop.shared.error.ErrorCode.UNAVAILABLE, "PDF 中文字体不可用");
         }
         byte[] body = AggregateExportWriter.offeringsPdf(
-                aggregate.byOffering(requiredIds(offeringIds)), pdfFont.font());
+                aggregate.byOffering(ownedOfferings(offeringIds, me)), pdfFont.font());
         return org.springframework.http.ResponseEntity.ok()
                 .header("Content-Type", "application/pdf")
                 .header("Content-Disposition", "attachment; filename=report-offerings.pdf")
@@ -76,7 +83,7 @@ public class ReportEndpoint {
     public List<AggregateReportService.OfferingRow> byOffering(
             @RequestParam String offeringIds, @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
-        return aggregate.byOffering(requiredIds(offeringIds));
+        return aggregate.byOffering(ownedOfferings(offeringIds, me));
     }
 
     /** T150：按班级聚合。 */
@@ -84,7 +91,7 @@ public class ReportEndpoint {
     public List<AggregateReportService.ClassRow> byClass(
             @RequestParam String classIds, @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
-        return aggregate.byClass(requiredIds(classIds));
+        return aggregate.byClass(ownedClasses(classIds, me));
     }
 
     /** T150：按学生聚合；分母是该生参与的场次。 */
@@ -92,7 +99,34 @@ public class ReportEndpoint {
     public List<AggregateReportService.StudentRow> byStudent(
             @RequestParam String offeringIds, @RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
-        return aggregate.byStudent(requiredIds(offeringIds));
+        return aggregate.byStudent(ownedOfferings(offeringIds, me));
+    }
+
+    /** 只保留调用者自己的布置；一个都不剩就 404（不告诉他「这些 id 存在但不归你」）。 */
+    private List<UUID> ownedOfferings(String raw, CurrentUser me) {
+        List<UUID> ids = requiredIds(raw);
+        if (me.is("ADMIN")) {
+            return ids;
+        }
+        Set<UUID> owned = ownership.ownedOfferingIds(ids, me.id());
+        List<UUID> visible = ids.stream().filter(owned::contains).toList();
+        if (visible.isEmpty()) {
+            throw ApiException.notFound("error.report.noAccess");
+        }
+        return visible;
+    }
+
+    private List<UUID> ownedClasses(String raw, CurrentUser me) {
+        List<UUID> ids = requiredIds(raw);
+        if (me.is("ADMIN")) {
+            return ids;
+        }
+        Set<UUID> owned = membership.classIdsOwnedBy(ids, me.id());
+        List<UUID> visible = ids.stream().filter(owned::contains).toList();
+        if (visible.isEmpty()) {
+            throw ApiException.notFound("error.report.noAccess");
+        }
+        return visible;
     }
 
     private static void requireStaff(CurrentUser me) {

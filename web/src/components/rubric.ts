@@ -171,8 +171,8 @@ function add(out: ParsedCriterion[], raw: string): void {
     name = withoutNumber.slice(0, points.index)
   }
   name = cleanName(name)
-  // 名称上限与 Java 的 MAX_NAME_LENGTH 一致：200，够放整句问句，还能挡住整段散文。
-  if (!name || name.length > 200 || isIgnored(name.toLowerCase()) || isDecision(name)) return
+  // 名称上限与 Java 的 MAX_NAME_LENGTH 一致：500，只有整段散文才会撞线。
+  if (!name || name.length > 500 || isIgnored(name.toLowerCase()) || isDecision(name)) return
   out.push({ name, points: value })
 }
 
