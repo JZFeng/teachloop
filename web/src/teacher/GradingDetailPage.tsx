@@ -418,6 +418,9 @@ export default function GradingDetailPage() {
           />
 
           {offering.status === 'DRAFT' && <Alert type="warning" showIcon message={t('teacher.detail.draftNote')} />}
+          {offering.kind === 'ASSIGNMENT' && (
+            <div className="inline-note">{t('teacher.detail.nightlyGrading')}</div>
+          )}
 
           <div className="stats">
             <StatCard

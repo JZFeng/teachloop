@@ -398,7 +398,6 @@
   },
   "review": {
     "actions": "批改与发布",
-    "adoptAi": "采用 AI 建议分",
     "aiDraft": "AI 主观草稿",
     "aiNotInvolved": "AI 未参与",
     "aiReview": "AI 评估",
@@ -435,10 +434,8 @@
     "fullPoints": "满分",
     "itemSummary": "共 {{total}} 题：答对 {{correct}} 题、答错 {{wrong}} 题，客观得分 {{earned}} / {{full}}",
     "partialCount": "另有 {{count}} 题部分给分",
-    "studentAnswer": "学生作答",
     "answerSheet": "答题卡",
     "answerSheetSummary": "答对 {{correct}} 题 · 答错 {{wrong}} 题",
-    "aiDraftBadge": "AI 草稿",
     "aiPrefillHint": "AI 草稿已预填：建议主观分 {{score}} 分，评语、优点与建议已带入下方，可直接修改后发布。",
     "aiPrefillScoreOnly": "AI 草稿已预填建议主观分 {{score}} 分；AI 未产出评语文本，请老师补充评语后再发布。",
     "aiPrefillHintNoScore": "AI 已给出评语或分项意见；主观分请老师确认后填写。",
@@ -601,7 +598,7 @@
       "maxAttemptsHint": "允许学生重交的次数，超过后不能再提交。",
       "noClasses": "还没有班级，先创建班级。",
       "publish": "发布并通知",
-      "publishHint": "作业没有倒计时；过了截止时间仍可提交，会标记为迟交。发布后通知参与班级。",
+      "publishHint": "作业没有倒计时；过了截止时间仍可提交，会标记为迟交。批改每晚 02:30（北京时间）自动开始，也可在详情页立即派发。",
       "publishing": "发布中…",
       "rubricHint": "Markdown，一条评分项一行，分值写在行里；各项分值合计必须等于总分。",
       "sub": "标题、题目要求、总分与评分标准都写在这一页；发布后学生按这份标准被批改",
@@ -763,7 +760,8 @@
         "pending": "待批改",
         "failed": "失败"
       },
-      "aiDispatching": "派发中…"
+      "aiDispatching": "派发中…",
+      "nightlyGrading": "作业的 AI 批改每晚 02:30（北京时间）自动开始；急着要结果就点右上角「全部交给 AI 批改」。"
     },
     "grading": {
       "colClassCount": "班级数",

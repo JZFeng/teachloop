@@ -61,6 +61,10 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
             + "where s.offeringId = :offeringId and s.studentId = :studentId and s.active = true")
     int deactivateActive(UUID offeringId, UUID studentId);
 
+    /** T331：这批提交里仍然 active 的（重交后旧 attempt 会变 inactive，复核队列不该再列）。 */
+    @Query("select s.id from Submission s where s.active = true and s.id in :ids")
+    List<UUID> findActiveIds(java.util.Collection<UUID> ids);
+
     /** T092：派发时把这一场 QUEUED 的行批量放进队列；重复执行无副作用。 */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "update submissions set grading_state = 'PENDING' "

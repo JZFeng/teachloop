@@ -97,6 +97,34 @@ public class OfferingGradingDispatcher {
     }
 
     /**
+     * 作业的夜间批量派发（决策 003 / T330）：不看截止时间、不看峰谷，一晚一次。
+     *
+     * <p>作业的提交时间分散但成簇，AI 结果只是老师复核前的草稿，所以时间要求是「老师上班前准备好」，
+     * 而不是「交卷即出分」。这样既落在 DeepSeek 夜间折扣时段，也把「什么时候会批」变成一句可解释的话。
+     *
+     * <p>与自动派发共用同一套幂等：首次派发走条件更新建 run，已派发过的只把新到的 QUEUED 补进同一个 run。
+     *
+     * @return 本次真正完成首次派发的场次数
+     */
+    @Transactional
+    public int dispatchAssignments() {
+        Instant now = Instant.now(clock);
+        List<UUID> pending = offerings.findAssignmentsWithQueued();
+        int dispatched = 0;
+        for (UUID offeringId : pending) {
+            if (dispatchFirstTime(offeringId, now, null, "nightly") != null) {
+                dispatched++;
+                continue;
+            }
+            // 这一场早就派发过（可能有老师手动派过）：新提交补进同一个 run
+            gradingDispatch.dispatch(offeringId);
+            submissions.enqueueQueued(offeringId);
+        }
+        // 每场派发都已写审计事件（mode=nightly，含 runId 与 enqueued），这里不再重复打日志。
+        return dispatched;
+    }
+
+    /**
      * 手动派发（AC-9.3 / US-20「立即派发」）：不受峰谷限制、不受截止时间限制。
      *
      * <p>重复调用是幂等的：已派发的场次返回同一条 run，只把新产生的 QUEUED 提交补进队列。

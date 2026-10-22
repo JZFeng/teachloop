@@ -481,6 +481,10 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | T327 | **导入器：填空题顺推题号不能占用卷面已有题号**：真实卷「七选五 5 个空但只有 2 道题」时，顺推会吃掉后面完形的 9/10 与语法填空的 11，答案区「11. challenging」被当选择题答案而报错；改为先扫描卷面自带题号，填空分组遇到已被占用的题号即停并告警。 | T231 | 真实文件 `AI立即.md` 解析出 1–14 题、答案 `A B A C D B G A A B challenging/anxiety/to walk/impressive`、`missingAnswers` 为空、仅 1 条「还有 3 个空未成题」告警；`PaperTextParserTest` 23/23（新增该卷回归用例）。 |
 | T328 | **评分标准解析两处误杀（用户 14 分 rubric 被拒的真因）**：`是否…` 开头的问句式评分项被当成 Yes/No 判定行丢弃；超过 80 字符的整句评分项被静默丢弃，导致「合计 8 分 / 总分 14 分」。改为「是否」视为问句、名称上限放到 200；前端预览同步。 | T258,T322 | `RubricValidatorTest` 6/6（新增中文问句与 95 字符整句两条）；`评分标准2.md` 导入后 4 项合计 14；前端 `rubric.ts` 对同一文本逐字段一致。 |
 | T329 | **复核与报表按归属收口**：新增 `Ports.OfferingOwnership`（sitting 实现「这批提交 / 这批布置属不属于这位教师」），`Ports.ClassMembership` 增 `classIdsOwnedBy`；阅卷队列、复核详情与结论、批量通过、报表（按作业 / 学生 / 班级）与导出全部按归属过滤，越权 404。 | T324,T326 | `ClassAccessTest`：教师 A 看不到 / 改不了教师 B 的待复核提交、报表与导出 404，布置人自己正常；`make test` 242/0/0/0；`check-boundaries`（25 表 / 7 端口）、`check-deps` 通过。 |
+| T330 | **作业夜间批量批改（决策 003）**：`findDueForGrading` 限定 `kind='EXAM'`；新增 `findAssignmentsWithQueued()` 与 `OfferingGradingDispatcher.dispatchAssignments()`；`AssignmentGradingJob` 每晚 02:30（Asia/Shanghai）跑一次 + 启动补跑；配置 `assignment-cron` / `assignment-zone` / `assignment-catch-up`。 | T092,T093 | 作业提交当晚被派发并批完，不等 due；考试仍按 due+宽限派发；同一场重复跑只有一条 run；启动补跑可重复执行。 |
+| T331 | **复核队列只显示最新 attempt**：`Ports.OfferingOwnership` 增 `activeSubmissionIds`，队列过滤掉被重交取代的旧提交（旧复核行保留，不进队列）。 | T329,T330 | 学生重交两次后队列只有 1 条；旧提交仍可按 id 打开详情；批量通过不会作用到旧 attempt。 |
+| T332 | **界面说明**：新建作业页与批改详情页写清「作业每晚 02:30 自动批改，急用可立即派发」。 | T325,T330 | 两处文案 zh/en 对齐；`check-i18n` 通过。 |
+| T333 | **测试与 QA 验证**：夜间派发 4 条用例（作业当夜批、重复跑幂等、考试不受影响、队列去旧 attempt）。 | T330,T331 | `NightlyAssignmentGradingTest` 绿；`make test` 全绿；QA 实测一次夜间跑批。 |
 
 
 ---

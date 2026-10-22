@@ -177,14 +177,18 @@ public class ReviewEndpoint {
     public List<ReviewView> queue(@RequestAttribute("currentUser") CurrentUser me) {
         requireStaff(me);
         List<Review> pending = reviews.findByStatusOrderByCreatedAtAsc(ReviewStatus.PENDING);
+        List<UUID> submissionIds = pending.stream().map(Review::getSubmissionId).toList();
+        // T331：重交后旧 attempt 的复核行不再进队列——同一场同一个学生只复核最新一版。
+        Set<UUID> active = ownership.activeSubmissionIds(submissionIds);
         if (me.is("ADMIN")) {
-            return pending.stream().map(ReviewEndpoint::view).toList();
+            return pending.stream()
+                    .filter(r -> active.contains(r.getSubmissionId()))
+                    .map(ReviewEndpoint::view).toList();
         }
         // 教师只看自己布置的提交：以前这里返回全站待复核，首页「待复核」数字是错的（T329）
-        Set<UUID> owned = ownership.ownedSubmissionIds(
-                pending.stream().map(Review::getSubmissionId).toList(), me.id());
+        Set<UUID> owned = ownership.ownedSubmissionIds(submissionIds, me.id());
         return pending.stream()
-                .filter(r -> owned.contains(r.getSubmissionId()))
+                .filter(r -> active.contains(r.getSubmissionId()) && owned.contains(r.getSubmissionId()))
                 .map(ReviewEndpoint::view).toList();
     }
 

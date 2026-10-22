@@ -249,6 +249,12 @@ public final class Ports {
         /** 在一批布置里挑出该教师自己布置的（报表按 id 列表取数时用）。 */
         java.util.Set<java.util.UUID> ownedOfferingIds(java.util.Collection<java.util.UUID> offeringIds,
                                                        java.util.UUID teacherId);
+
+        /**
+         * 在一批提交里挑出仍然 active 的（学生重交后，旧 attempt 变 inactive）。
+         * 复核队列用它去掉被取代的旧草稿：同一场同一个学生只该复核最新一版。
+         */
+        java.util.Set<java.util.UUID> activeSubmissionIds(java.util.Collection<java.util.UUID> submissionIds);
     }
 
     /** 复核结论的只读投影：学生反馈用，不暴露教师身份。 */

@@ -186,7 +186,7 @@ class GradingDispatchTest {
         String invite = classInvite(classId);
         join(student, invite);
         // due = 09:00 北京（BASE+1h），grace 3h → 派发点 12:00 北京（BASE+4h，空闲时段）
-        String offeringId = createOffering(classId,
+        String offeringId = createExamOffering(classId,
                 BASE.plus(Duration.ofHours(1)).toString(), 3);
         String submissionId = submitAs(student, offeringId).get("submissionId").toString();
 
@@ -437,7 +437,7 @@ class GradingDispatchTest {
         assertThat(gradingDispatchedAt(manual)).isNotNull();
 
         // 场次 B：due 08:00 + grace 3h = 11:00（仍高峰）→ 12:00 空闲起点才自动派发
-        String deferred = createOffering(classId, BASE.toString(), 3);
+        String deferred = createExamOffering(classId, BASE.toString(), 3);
         assertThat(dispatcher.autoDispatch()).as("09:00 高峰").isZero();
         assertThat(gradingDispatchedAt(deferred)).isNull();
         assertThat(dispatcher.autoDispatch()).as("11:00 仍高峰").isZero();
@@ -455,7 +455,7 @@ class GradingDispatchTest {
         String invite = classInvite(classId);
         join(student, invite);
         // due 08:00 + grace 1h = 09:00（高峰时段）
-        String offeringId = createOffering(classId, BASE.toString(), 1);
+        String offeringId = createExamOffering(classId, BASE.toString(), 1);
         CLOCK.set(BASE.plus(Duration.ofHours(1)));
 
         // 用 peak-aware=false 的策略直接构造一个 dispatcher：自动派发不再等待空闲时段
@@ -489,6 +489,43 @@ class GradingDispatchTest {
 
     private void join(String cookie, String inviteCode) throws Exception {
         send(cookie, "POST", "/api/classes/join", Map.of("inviteCode", inviteCode));
+    }
+
+    /**
+     * 考试场次（决策 003 之后到期派发与峰谷调度只服务 EXAM）：
+     * 建一份只有 1 道作文题的试卷并发布，再按 paperId 布置。
+     */
+    private String createExamOffering(String classId, String dueAt, int graceHours) throws Exception {
+        Map<String, Object> paper = new HashMap<>();
+        paper.put("title", "T092 试卷");
+        paper.put("defaultDurationMinutes", 60);
+        String paperId = send(teacher, "POST", "/api/papers", paper).get("id").toString();
+
+        Map<String, Object> section = new HashMap<>();
+        section.put("title", "作文");
+        section.put("pointsPerItem", 10);
+        String sectionId = send(teacher, "POST", "/api/papers/" + paperId + "/sections", section)
+                .get("id").toString();
+
+        Map<String, Object> item = new HashMap<>();
+        item.put("number", 1);
+        item.put("questionType", "ESSAY");
+        item.put("stem", "写一段话介绍你的城市。");
+        item.put("points", 10);
+        item.put("sectionId", sectionId);
+        send(teacher, "POST", "/api/papers/" + paperId + "/items", item);
+        send(teacher, "POST", "/api/papers/" + paperId + "/publish", Map.of());
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("paperId", paperId);
+        body.put("timingMode", "INDIVIDUAL");
+        body.put("dueAt", dueAt);
+        body.put("graceHours", graceHours);
+        body.put("durationMinutes", 30);
+        body.put("classes", List.of(Map.of("classId", classId)));
+        String offeringId = send(teacher, "POST", "/api/offerings", body).get("id").toString();
+        send(teacher, "POST", "/api/offerings/" + offeringId + "/publish", Map.of());
+        return offeringId;
     }
 
     /** D-14：作业自带内容，不再建卷、不带 paperId、不设时长。 */

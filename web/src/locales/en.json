@@ -398,7 +398,6 @@
   },
   "review": {
     "actions": "Grade and publish",
-    "adoptAi": "Use AI score",
     "aiDraft": "AI subjective draft",
     "aiNotInvolved": "AI not involved",
     "aiReview": "AI review",
@@ -435,10 +434,8 @@
     "fullPoints": "Full marks",
     "itemSummary": "{{total}} items: {{correct}} correct, {{wrong}} wrong, earned {{earned}} / {{full}}",
     "partialCount": "{{count}} more items got partial credit",
-    "studentAnswer": "Student answer",
     "answerSheet": "Answer sheet",
     "answerSheetSummary": "{{correct}} correct · {{wrong}} wrong",
-    "aiDraftBadge": "AI draft",
     "aiPrefillHint": "The AI draft is prefilled: suggested subjective score {{score}}, with the comment, strengths, and suggestions loaded below. Edit them if needed, then publish.",
     "aiPrefillScoreOnly": "The AI draft prefilled the suggested subjective score {{score}}. The AI produced no comment text, so add a comment before publishing.",
     "aiPrefillHintNoScore": "The AI provided a comment or per-criterion feedback. Confirm the subjective score before publishing.",
@@ -601,7 +598,7 @@
       "maxAttemptsHint": "How many times a student may resubmit; submissions stop after that.",
       "noClasses": "No classes yet. Create one first.",
       "publish": "Publish and notify",
-      "publishHint": "Assignments have no countdown; a submission after the due date is still accepted and marked late. Publishing notifies the selected classes.",
+      "publishHint": "Assignments have no countdown; a submission after the due date is still accepted and marked late. Grading starts every night at 02:30 (Asia/Shanghai); you can also dispatch immediately from the detail page.",
       "publishing": "Publishing…",
       "rubricHint": "Markdown, one criterion per line with its points in the line. The points must add up to the total.",
       "sub": "Title, instructions, total points and rubric all live on this page; students are graded against the rubric",
@@ -763,7 +760,8 @@
         "pending": "Pending",
         "failed": "Failed"
       },
-      "aiDispatching": "Dispatching…"
+      "aiDispatching": "Dispatching…",
+      "nightlyGrading": "Assignment grading starts automatically every night at 02:30 (Asia/Shanghai). Need it sooner? Use \"Send all to AI grading\"."
     },
     "grading": {
       "colClassCount": "Classes",

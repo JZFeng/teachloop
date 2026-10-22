@@ -34,6 +34,14 @@ public class OfferingOwnershipImpl implements Ports.OfferingOwnership {
     }
 
     @Override
+    public Set<UUID> activeSubmissionIds(Collection<UUID> submissionIds) {
+        if (submissionIds == null || submissionIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(submissions.findActiveIds(submissionIds));
+    }
+
+    @Override
     public Set<UUID> ownedOfferingIds(Collection<UUID> offeringIds, UUID teacherId) {
         if (offeringIds == null || offeringIds.isEmpty() || teacherId == null) {
             return Set.of();
