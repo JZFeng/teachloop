@@ -261,14 +261,10 @@ input.invalid, input.invalid:focus {
 .review-items .answer-given.is-ungraded,
 .review-items .awarded.is-ungraded { color: var(--muted); }
 
-/* 教师判分区顶部的学生作答块：先看学生写了什么，再打分。 */
+/* 教师判分区：主观题题干与作答、客观题答题卡（学生正文只在上面渲染一次）。 */
 .grading-answer {
   border: 1px solid var(--line); background: var(--panel-2);
   border-radius: var(--radius-sm); padding: 12px 14px; margin-bottom: 14px;
-}
-.grading-answer-head {
-  display: flex; align-items: center; justify-content: space-between; gap: 10px;
-  margin-bottom: 8px;
 }
 .grading-answer-block + .grading-answer-block { margin-top: 12px; }
 .grading-answer-text {

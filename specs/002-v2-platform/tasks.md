@@ -485,6 +485,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | T331 | **复核队列只显示最新 attempt**：`Ports.OfferingOwnership` 增 `activeSubmissionIds`，队列过滤掉被重交取代的旧提交（旧复核行保留，不进队列）。 | T329,T330 | 学生重交两次后队列只有 1 条；旧提交仍可按 id 打开详情；批量通过不会作用到旧 attempt。 |
 | T332 | **界面说明**：新建作业页与批改详情页写清「作业每晚 02:30 自动批改，急用可立即派发」。 | T325,T330 | 两处文案 zh/en 对齐；`check-i18n` 通过。 |
 | T333 | **测试与 QA 验证**：夜间派发 4 条用例（作业当夜批、重复跑幂等、考试不受影响、队列去旧 attempt）。 | T330,T331 | `NightlyAssignmentGradingTest` 绿；`make test` 全绿；QA 实测一次夜间跑批。 |
+| T334 | **复核页去重 + 题干格式化 + 去掉「采用 AI 建议分」**：学生正文只在「学生正文」渲染一次，删掉「学生作答」块里重复的正文与「AI 草稿」标签；主观题题干改用学生答题页同一个 `Markdown` 组件渲染，标题、列表、加粗与换行按老师输入显示；删掉「采用 AI 建议分」按钮（主观分首次打开已预填 AI 分，该按钮只在老师改分后用于一键改回），并删掉不再使用的 `review.adoptAi` / `studentAnswer` / `aiDraftBadge` 文案 key。T323 的「教师判分区前置学生正文」中重复正文部分由本条取代。 | T323 | `pnpm typecheck` / `pnpm build` / `check-i18n`（1153 键）/ `check-ui` 通过；`make test` 退出码 0（surefire 243/0/0/0）；QA 5174 实测：正文只出现一次，题干按 `Instructions` 标题 + 加粗标题 + 4 条列表显示，AI 建议分旁无按钮；截图 `docs/reports/t334-review-cleanup/`。 |
 
 
 ---
@@ -662,3 +663,4 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | 2026-10-21 | T262 补：AI 溯源落库 | 完成 | `GradingResult` 增 `model/promptVersion/keySource`；`LlmClientProvider.source()` 由 `AiGradingConfig` 按 user/global/env 返回；`GradingWorker` 写 `reviews.ai_model/ai_prompt_version/ai_key_source`。实测重批后 `deepseek-flash / subjective-v2 / user`。 |
 | 2026-10-21 | T268 锚点（简化版） | 完成（简化） | V034 `offerings.anchor_examples`；创建作业可填 0–3 份匿名范文（文本字段）；`WorkItem`/`SubjectiveGradeRequest` 传递，`PromptBuilder` 在非空时注入「参考范文（教师确认、已匿名）」；作业创建页新增输入框。未做结构化逐份锚点、自动匿名化检查与专门编辑器。 |
 | 2026-10-21 | T323 复核页逐题判分可视化 + 学生作答前置 | 完成 | `Ports.AnswerRow` 增 `correct/awarded`，`SittingLedgerImpl` 按快照用 `ObjectiveScoring` 重算；`ReviewDetail.answers` 返回两字段。前端题项表拆「得分/满分」，对绿/错红/部分琥珀并给汇总；教师判分区前置学生正文、主观题作答、客观题答题卡与 AI 草稿预填提示。验证：`ReviewWorkflowTest` 通过（答对 10 / 答错 0）、`pnpm typecheck`/`pnpm build`/`check-i18n`/`check-ui` 通过；QA 5174 实测 75 题 33 对 42 错 48/120，作文页建议分 7.5 预填且提示不谎称有评语。 |
+| 2026-10-22 | T334 复核页去重 + 题干格式化 + 去「采用 AI 建议分」 | 完成 | 用户三处反馈：①「学生正文」与「学生作答」重复渲染同一正文——删掉「学生作答」块里的正文与「AI 草稿」标签，正文只在「学生正文」出现一次；②主观题题干原来按纯文本输出，Markdown 的 `#` / `- ` 与换行被 HTML 折叠成一行——改用学生答题页同一个 `Markdown` 组件（`components/Markdown.tsx`），`Instructions` 加粗、标题与 4 条列表按输入格式显示；③按用户拍板删除「采用 AI 建议分」按钮（首次打开主观分已预填 AI 分，按钮只在老师改分后用于改回），同步删掉 `review.adoptAi` / `studentAnswer` / `aiDraftBadge` 三个不再使用的 key。验证：`pnpm typecheck` 0、`pnpm build` 0、`check-i18n` 1153 键对齐、`check-ui` 无新增违规；QA 5174 实测（submissionId 00da6728）：正文只出现一次、题干按 `Instructions` 标题 + 加粗标题 + 4 条列表显示、AI 建议分旁无按钮；截图 `docs/reports/t334-review-cleanup/`；`make test` 退出码 0（surefire 243/0/0/0），T334 为前端改动。 |

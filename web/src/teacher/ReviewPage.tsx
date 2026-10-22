@@ -12,6 +12,7 @@ import type {
   ReviewView,
 } from '../api/types'
 import { AuditDrawer } from '../components/AuditDrawer'
+import { Markdown } from '../components/Markdown'
 import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard } from '../ui'
 import type { Column } from '../ui'
 
@@ -361,12 +362,6 @@ export default function ReviewPage() {
                       <span className="muted small">{t('review.aiSuggested')}</span>{' '}
                       <b className="mono" style={{ fontSize: 18 }}>{detail.aiSubjectiveDraft ?? '—'}</b>
                     </div>
-                    {detail.aiSubjectiveDraft != null && !detail.review.published && (
-                      <button type="button" className="btn sm"
-                        onClick={() => setForm({ ...form, subjectivePoints: String(detail.aiSubjectiveDraft) })}>
-                        {t('review.adoptAi')}
-                      </button>
-                    )}
                   </div>
                   {(detail.aiCriteria ?? []).length > 0 && (
                     <ul className="ai-criteria">
@@ -481,72 +476,59 @@ export default function ReviewPage() {
 
               <h3>{t('review.teacherGrading')}</h3>
               {aiGraded && <div className="inline-note ok">{aiScoreHint}</div>}
-              <div className="grading-answer">
-                <div className="grading-answer-head">
-                  <b>{t('review.studentAnswer')}</b>
-                  {aiGraded && <span className="tag blue">{t('review.aiDraftBadge')}</span>}
-                </div>
-                {hasContent && (
-                  <div className="grading-answer-block">
-                    <div className="small muted">{t('review.content')}</div>
-                    <div className="grading-answer-text">
-                      {detail.contentHtml?.trim() ? (
-                        <div className="rich-content" dangerouslySetInnerHTML={{ __html: detail.contentHtml }} />
-                      ) : (
-                        <div style={{ whiteSpace: 'pre-wrap' }}>{detail.contentText}</div>
-                      )}
-                    </div>
-                  </div>
-                )}
-                {essayRows.length > 0 && (
-                  <div className="grading-answer-block">
-                    <div className="small muted">{t('review.essayAnswers')}</div>
-                    {essayRows.map(({ item, answer }) => {
-                      const text = answer?.answer?.trim()
-                      return (
-                        <div className="essay-answer" key={item.number}>
-                          <div className="small">
-                            <b>{t('review.question', { number: item.number })}</b>{' '}
-                            {item.stem ?? ''}
+              {(essayRows.length > 0 || objectiveRows.length > 0) && (
+                <div className="grading-answer">
+                  {essayRows.length > 0 && (
+                    <div className="grading-answer-block">
+                      <div className="small muted">{t('review.essayAnswers')}</div>
+                      {essayRows.map(({ item, answer }) => {
+                        const text = answer?.answer?.trim()
+                        const stemText = item.stem ?? ''
+                        return (
+                          <div className="essay-answer" key={item.number}>
+                            <div className="small muted">
+                              {t('review.question', { number: item.number })}
+                            </div>
+                            {stemText.trim() ? <Markdown className="md-body" text={stemText} /> : null}
+                            <div className="grading-answer-text small">
+                              {text || (hasContent ? t('review.seeContentAbove') : t('review.unanswered'))}
+                            </div>
                           </div>
-                          <div className="grading-answer-text small">
-                            {text || (hasContent ? t('review.seeContentAbove') : t('review.unanswered'))}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-                {objectiveRows.length > 0 && (
-                  <div className="grading-answer-block">
-                    <div className="row" style={{ justifyContent: 'space-between' }}>
-                      <span className="small muted">{t('review.answerSheet')}</span>
-                      <span className="small muted">
-                        {t('review.answerSheetSummary', { correct: correctCount, wrong: wrongCount })}
-                      </span>
+                        )
+                      })}
                     </div>
-                    <div className="answer-sheet">
-                      {objectiveRows.map(({ item, answer, tone }) => (
-                        <span
-                          key={item.number}
-                          className={`answer-chip is-${tone}`}
-                          title={[t('review.question', { number: item.number }), item.stem]
-                            .filter(Boolean)
-                            .join(' · ')}
-                        >
-                          <b>{item.number}</b>
-                          <span>{displayAnswer(answer)}</span>
+                  )}
+                  {objectiveRows.length > 0 && (
+                    <div className="grading-answer-block">
+                      <div className="row" style={{ justifyContent: 'space-between' }}>
+                        <span className="small muted">{t('review.answerSheet')}</span>
+                        <span className="small muted">
+                          {t('review.answerSheetSummary', { correct: correctCount, wrong: wrongCount })}
                         </span>
-                      ))}
+                      </div>
+                      <div className="answer-sheet">
+                        {objectiveRows.map(({ item, answer, tone }) => (
+                          <span
+                            key={item.number}
+                            className={`answer-chip is-${tone}`}
+                            title={[t('review.question', { number: item.number }), item.stem]
+                              .filter(Boolean)
+                              .join(' · ')}
+                          >
+                            <b>{item.number}</b>
+                            <span>{displayAnswer(answer)}</span>
+                          </span>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
-                {!hasContent && reviewRows.length === 0 && (
-                  <p className="small muted" style={{ marginBottom: 0 }}>
-                    {t('review.noStudentAnswer')}
-                  </p>
-                )}
-              </div>
+                  )}
+                </div>
+              )}
+              {!hasContent && reviewRows.length === 0 && (
+                <p className="small muted" style={{ marginBottom: 0 }}>
+                  {t('review.noStudentAnswer')}
+                </p>
+              )}
               <div className="row" style={{ alignItems: 'flex-start' }}>
                 <label className="f" style={{ width: 120 }}><b>{t('review.subjective')} <span className="required-mark">*</span></b>
                   <input type="number" step="0.5" min={0} value={form.subjectivePoints}
