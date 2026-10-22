@@ -22,6 +22,13 @@ export interface ClassView {
   memberCount: number
 }
 
+/** T042：成员列表带姓名与提交数（`GET /api/classes/{id}/members`）。 */
+export interface ClassMemberView {
+  studentId: string
+  displayName: string
+  submissionCount: number
+}
+
 export interface PaperView {
   id: string
   title: string

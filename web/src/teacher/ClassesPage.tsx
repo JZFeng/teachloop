@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
-import type { ClassView } from '../api/types'
+import type { ClassMemberView, ClassView } from '../api/types'
 import { DataTable } from '../components/DataTable'
 import type { Column } from '../components/DataTable'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
@@ -39,7 +39,9 @@ export default function ClassesPage() {
   const [busy, setBusy] = useState(false)
   const [actionError, setActionError] = useState<string | null>(null)
   const [membersClassId, setMembersClassId] = useState<string | null>(null)
-  const [members, setMembers] = useState<string[] | null>(null)
+  // T042 后端返回 {studentId, displayName, submissionCount}；T325 之前这里按 string[] 渲染，
+  // 把对象当成 React 子节点，点「成员」直接整页白屏。
+  const [members, setMembers] = useState<ClassMemberView[] | null>(null)
   const [membersError, setMembersError] = useState<string | null>(null)
 
   const classes = data ?? []
@@ -104,8 +106,8 @@ export default function ClassesPage() {
     setMembers(null)
     setMembersError(null)
     try {
-      const ids = await api.get<string[]>(`/api/classes/${classId}/members`)
-      setMembers(ids)
+      const rows = await api.get<ClassMemberView[]>(`/api/classes/${classId}/members`)
+      setMembers(rows)
     } catch (err) {
       setMembersError(errorMessage(err))
     }
@@ -289,13 +291,26 @@ export default function ClassesPage() {
                   {members.length === 0 ? (
                     <p className="muted">{t('teacher.classes.noMembers')}</p>
                   ) : (
-                    <div className="member-ids">
-                      {members.map((id) => (
-                        <code key={id}>{id}</code>
-                      ))}
-                    </div>
+                    <table className="member-table">
+                      <thead>
+                        <tr>
+                          <th>{t('teacher.classes.colMemberName')}</th>
+                          <th>{t('teacher.classes.colMemberSubmissions')}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {members.map((member) => (
+                          <tr key={member.studentId}>
+                            <td>
+                              <b>{member.displayName || t('teacher.classes.unnamedStudent')}</b>
+                              <div className="small muted mono">{member.studentId}</div>
+                            </td>
+                            <td className="numeric">{member.submissionCount}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
-                  <div className="hint">{t('teacher.classes.memberIdHint')}</div>
                 </>
               )}
             </div>

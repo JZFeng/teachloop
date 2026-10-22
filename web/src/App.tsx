@@ -1,9 +1,12 @@
 import { useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { trackEvent } from './api/events'
 import { ensureCsrf } from './api/client'
 import { useAuth } from './api/auth'
 import { Loading } from './components/States'
+import { ErrorBoundary } from './components/ErrorBoundary'
+import { Button } from './ui'
 import { ExamFocusLayout, Shell } from './app/Shell'
 import LoginPage from './app/LoginPage'
 import NotificationsPage from './app/NotificationsPage'
@@ -44,9 +47,25 @@ function HomeRouter() {
 }
 
 function ShellLayout() {
+  const { t } = useTranslation('translation')
+  const location = useLocation()
   return (
     <Shell>
-      <Outlet />
+      {/* 按 pathname 复位：一页崩了不把故障带进下一页（T325）。 */}
+      <ErrorBoundary
+        key={location.pathname}
+        fallback={
+          <div className="card">
+            <h2>{t('app.crashTitle')}</h2>
+            <p className="muted">{t('app.crashBody')}</p>
+            <Button variant="primary" onClick={() => window.location.reload()}>
+              {t('app.crashReload')}
+            </Button>
+          </div>
+        }
+      >
+        <Outlet />
+      </ErrorBoundary>
     </Shell>
   )
 }

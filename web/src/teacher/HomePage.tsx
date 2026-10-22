@@ -91,7 +91,13 @@ export default function TeacherHomePage() {
       sortable: true,
       render: (o) => (
         <div>
-          <div>{classNamesText(o.classes.map((c) => c.classId), classNames)}</div>
+          <div>
+            {classNamesText(
+              o.classes.map((c) => c.classId),
+              classNames,
+              t('teacher.common.unknownClasses'),
+            )}
+          </div>
           <div className="small muted">
             {t('teacher.common.classCount', { count: o.classCount })}
           </div>

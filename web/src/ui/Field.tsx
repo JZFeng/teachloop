@@ -13,17 +13,27 @@ export interface FieldProps {
   hint?: ReactNode
   error?: string | null
   htmlFor?: string
+  /**
+   * 标签行右侧的动作位（导入 .md、插入模板这类「对这个字段做的事」）。
+   * 放在标签行而不是输入框下面：动作属于字段，不属于输入的内容。
+   */
+  extra?: ReactNode
   children: ReactNode
 }
 
-export function Field({ label, required, hint, error, htmlFor, children }: FieldProps) {
+export function Field({ label, required, hint, error, htmlFor, extra, children }: FieldProps) {
   return (
     <div className="tl-field">
-      {label && (
-        <label className="tl-field-label" htmlFor={htmlFor}>
-          {label}
-          {required && <span className="tl-field-required" aria-hidden="true">*</span>}
-        </label>
+      {(label || extra) && (
+        <div className="tl-field-head">
+          {label && (
+            <label className="tl-field-label" htmlFor={htmlFor}>
+              {label}
+              {required && <span className="tl-field-required" aria-hidden="true">*</span>}
+            </label>
+          )}
+          {extra && <div className="tl-field-extra">{extra}</div>}
+        </div>
       )}
       {children}
       {error ? (

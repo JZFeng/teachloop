@@ -47,10 +47,21 @@ export default function AssignmentsPage() {
     {
       key: 'classes',
       title: t('teacher.assignments.colClasses'),
-      value: (row) => classNamesText(row.classes.map((c) => c.classId), classNames),
+      value: (row) =>
+        classNamesText(
+          row.classes.map((c) => c.classId),
+          classNames,
+          t('teacher.common.unknownClasses'),
+        ),
       sortable: true,
       render: (row) => (
-        <span>{classNamesText(row.classes.map((c) => c.classId), classNames)}</span>
+        <span>
+          {classNamesText(
+            row.classes.map((c) => c.classId),
+            classNames,
+            t('teacher.common.unknownClasses'),
+          )}
+        </span>
       ),
     },
     {

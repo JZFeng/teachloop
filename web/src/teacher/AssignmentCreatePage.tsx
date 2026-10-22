@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassView, OfferingView } from '../api/types'
-import { Alert, Button, ErrorState, Field, Input, Loading, PageHeader, TextArea } from '../ui'
+import { Alert, Button, ErrorState, Field, Input, Loading, PageHeader, TextArea, UploadOutlined } from '../ui'
+import { MarkdownEditor } from '../components/MarkdownEditor'
+import { summarizeRubric } from '../components/rubric'
 import { errorMessage, fromLocalInput, TeacherPage, useApiData } from './common'
 
 
@@ -11,10 +13,15 @@ import { errorMessage, fromLocalInput, TeacherPage, useApiData } from './common'
  * T240 / D-14 严格版：新建作业。
  * 作业自带内容——标题、题目要求、总分、评分标准——不引用试卷，也没有部分、题号、标准答案、
  * 时长与计时模式。提交时只发作业自身的字段，kind 由后端按「无试卷」派生为 ASSIGNMENT。
+ *
+ * T325：评分标准一栏按教师反馈重做——不再预填示例（以前那段英文 2/4/4 rubric 与教师写的
+ * 作业毫无关系，还会被误当成 AI 真会看到的东西）、「导入 .md」升成真按钮并挪到标签旁、
+ * 两段长文本改成 Markdown 编辑器（AI 读的就是 Markdown，富文本会被后端白名单洗掉结构）。
  */
 export default function AssignmentCreatePage() {
   const { t } = useTranslation('translation')
   const navigate = useNavigate()
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const { data, loading, error, reload } = useApiData<ClassView[]>(
     () => api.get<ClassView[]>('/api/classes'),
@@ -24,8 +31,8 @@ export default function AssignmentCreatePage() {
   const [title, setTitle] = useState('')
   const [instructions, setInstructions] = useState('')
   const [totalPoints, setTotalPoints] = useState('')
-  // 默认是课程 2/4/4 rubric（篇幅 / 立场 / 解释与细节），教师可以直接改 Markdown。
-  const [rubricMarkdown, setRubricMarkdown] = useState(t('teacher.assignmentCreate.defaultRubric'))
+  // 空就是空：不预填任何 rubric。留空无法发布，提示里说清格式与「合计 = 总分」。
+  const [rubricMarkdown, setRubricMarkdown] = useState('')
   const [anchorExamples, setAnchorExamples] = useState('')
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([])
   const [dueAt, setDueAt] = useState('')
@@ -36,10 +43,30 @@ export default function AssignmentCreatePage() {
 
   const classes = data ?? []
 
+  const editorLabels = {
+    toolbar: t('editor.toolbar'),
+    bold: t('editor.bold'),
+    italic: t('editor.italic'),
+    heading: t('editor.heading'),
+    unorderedList: t('editor.unorderedList'),
+    orderedList: t('editor.orderedList'),
+    edit: t('editor.edit'),
+    preview: t('editor.preview'),
+    empty: t('editor.previewEmpty'),
+    placeholder: t('editor.markdownPlaceholder'),
+  }
+
   const toggleClass = (classId: string) => {
     setSelectedClassIds((current) =>
       current.includes(classId) ? current.filter((id) => id !== classId) : [...current, classId],
     )
+  }
+
+  const importMarkdown = (file: File | undefined) => {
+    if (!file) return
+    void file.text().then((text) => {
+      setRubricMarkdown(text.replace(/\r\n/g, '\n'))
+    })
   }
 
   const submit = async () => {
@@ -55,6 +82,10 @@ export default function AssignmentCreatePage() {
     const points = Number(totalPoints)
     if (!Number.isFinite(points) || points < 1 || points > 1000) {
       setFormError(t('teacher.assignmentCreate.errors.totalPoints'))
+      return
+    }
+    if (rubricMarkdown.trim() === '') {
+      setFormError(t('teacher.assignmentCreate.errors.rubric'))
       return
     }
     if (selectedClassIds.length === 0) {
@@ -135,12 +166,13 @@ export default function AssignmentCreatePage() {
             hint={t('teacher.assignmentCreate.instructionsHint')}
             htmlFor="assign-instructions"
           >
-            <TextArea
+            <MarkdownEditor
               id="assign-instructions"
               rows={6}
               value={instructions}
-              onChange={(e) => setInstructions(e.target.value)}
+              onChange={setInstructions}
               placeholder={t('teacher.assignmentCreate.instructionsPlaceholder')}
+              labels={editorLabels}
             />
           </Field>
 
@@ -163,34 +195,43 @@ export default function AssignmentCreatePage() {
 
           <Field
             label={t('teacher.assignmentCreate.fieldRubric')}
+            required
             hint={t('teacher.assignmentCreate.rubricHint')}
             htmlFor="assign-rubric"
-          >
-            <TextArea
-              id="assign-rubric"
-              rows={8}
-              value={rubricMarkdown}
-              onChange={(e) => setRubricMarkdown(e.target.value)}
-            />
-            <div className="row" style={{ gap: 8, marginTop: 6 }}>
-              <label className="small muted" style={{ cursor: 'pointer' }}>
+            extra={(
+              <Button
+                size="small"
+                icon={<UploadOutlined />}
+                onClick={() => fileInputRef.current?.click()}
+              >
                 {t('teacher.assignmentCreate.importMarkdown')}
-                <input
-                  type="file"
-                  accept=".md,.txt,text/markdown,text/plain"
-                  style={{ display: 'none' }}
-                  onChange={(e) => {
-                    const file = e.target.files?.[0]
-                    if (file) void file.text().then(setRubricMarkdown)
-                    e.target.value = ''
-                  }}
+              </Button>
+            )}
+          >
+            <MarkdownEditor
+              id="assign-rubric"
+              rows={9}
+              value={rubricMarkdown}
+              onChange={setRubricMarkdown}
+              placeholder={t('teacher.assignmentCreate.rubricPlaceholder')}
+              labels={editorLabels}
+              footer={(
+                <RubricPreview
+                  rubric={rubricMarkdown}
+                  totalPoints={Number(totalPoints)}
                 />
-              </label>
-            </div>
-            <details className="review-more" style={{ marginTop: 8 }}>
-              <summary>{t('teacher.assignmentCreate.aiPreview')}</summary>
-              <pre className="small" style={{ whiteSpace: 'pre-wrap' }}>{rubricMarkdown}</pre>
-            </details>
+              )}
+            />
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".md,.markdown,.txt,text/markdown,text/plain"
+              hidden
+              onChange={(e) => {
+                importMarkdown(e.target.files?.[0])
+                e.target.value = ''
+              }}
+            />
           </Field>
 
           <Field
@@ -202,8 +243,8 @@ export default function AssignmentCreatePage() {
               id="assign-anchors"
               rows={4}
               value={anchorExamples}
-              placeholder={t('teacher.assignmentCreate.anchorExamplesPlaceholder')}
               onChange={(e) => setAnchorExamples(e.target.value)}
+              placeholder={t('teacher.assignmentCreate.anchorExamplesPlaceholder')}
             />
           </Field>
 
@@ -282,5 +323,55 @@ export default function AssignmentCreatePage() {
         </div>
       )}
     </TeacherPage>
+  )
+}
+
+/**
+ * 「AI 将看到」：不再把 rubric 原文再打印一遍，而是按后端同一套规则解析出评分项与合计，
+ * 和总分对一下。教师写完立刻知道 AI 会照着哪几条打分、总分对不对得上。
+ */
+function RubricPreview({ rubric, totalPoints }: { rubric: string; totalPoints: number }) {
+  const { t } = useTranslation('translation')
+  const summary = summarizeRubric(rubric)
+  const expected = Number.isFinite(totalPoints) && totalPoints > 0 ? totalPoints : null
+  const matched = expected !== null && !summary.missingPoints && Math.abs(summary.total - expected) < 0.01
+
+  return (
+    <div className="rubric-preview">
+      <div className="rubric-preview-head">
+        <b>{t('teacher.assignmentCreate.aiPreview')}</b>
+        {summary.criteria.length > 0 && (
+          <span className="small muted">
+            {t('teacher.assignmentCreate.aiPreviewSum', {
+              total: summary.total,
+              expected: expected ?? '—',
+            })}
+          </span>
+        )}
+      </div>
+      {summary.criteria.length === 0 ? (
+        <div className="small muted">{t('teacher.assignmentCreate.aiPreviewEmpty')}</div>
+      ) : (
+        <>
+          <ol className="rubric-preview-list">
+            {summary.criteria.map((criterion, index) => (
+              <li key={`${criterion.name}-${index}`}>
+                <span>{criterion.name}</span>
+                <span className="mono">{criterion.points ?? '—'}</span>
+              </li>
+            ))}
+          </ol>
+          <div className="small muted">
+            {summary.missingPoints
+              ? t('teacher.assignmentCreate.aiPreviewMissingPoints')
+              : !summary.anyPoints
+                ? t('teacher.assignmentCreate.aiPreviewEvenSplit')
+                : matched
+                  ? t('teacher.assignmentCreate.aiPreviewMatched')
+                  : t('teacher.assignmentCreate.aiPreviewMismatch', { expected: expected ?? '—' })}
+          </div>
+        </>
+      )}
+    </div>
   )
 }

@@ -107,7 +107,11 @@ export default function GradingOverviewPage() {
         <div>
           <b>{o.paperTitle}</b>
           <div className="small muted">
-            {classNamesText(o.classes.map((c) => c.classId), classNames)}
+            {classNamesText(
+              o.classes.map((c) => c.classId),
+              classNames,
+              t('teacher.common.unknownClasses'),
+            )}
           </div>
         </div>
       ),

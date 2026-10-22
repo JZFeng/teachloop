@@ -291,3 +291,9 @@ input.invalid, input.invalid:focus {
 .answer-chip.is-partial { background: var(--amber-weak); color: var(--amber); border-color: transparent; }
 .answer-chip.is-wrong { background: var(--red-weak); color: var(--red); border-color: transparent; }
 .answer-chip.is-ungraded { background: var(--panel-2); color: var(--muted); }
+
+/* T325：工具栏里的斜体图标——纯斜体大写 I 在系统字体里像一根斜杠，加衬线才读得出来。 */
+.md-tool-italic {
+  font-family: Georgia, "Times New Roman", serif;
+  font-style: italic;
+}

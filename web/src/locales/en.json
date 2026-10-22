@@ -37,7 +37,10 @@
       "apiKeyHint": "Required for first setup; stored encrypted and only a mask is shown.",
       "apiKeyPlaceholder": "sk-..."
     },
-    "tagline": "Grading that serves teaching"
+    "tagline": "Grading that serves teaching",
+    "crashTitle": "This page hit an error",
+    "crashBody": "This section failed to render. Reload first; if it keeps happening, send the page address to the developer.",
+    "crashReload": "Reload"
   },
   "audit": {
     "attemptNo": "Attempt {{n}}",
@@ -158,7 +161,11 @@
     "placeholder": "Write your answer here…",
     "toolbar": "Formatting toolbar",
     "underline": "Underline",
-    "unorderedList": "Bulleted list"
+    "unorderedList": "Bulleted list",
+    "edit": "Edit",
+    "preview": "Preview",
+    "previewEmpty": "Nothing here yet. Switch to Edit and write something.",
+    "markdownPlaceholder": "Markdown supported: # heading, - list, **bold**"
   },
   "exam": {
     "answeredBadge": "Answered",
@@ -570,7 +577,6 @@
     "assignmentCreate": {
       "classes": "Classes",
       "classesHint": "Select one or more. Each selected class creates one assignment-class record.",
-      "defaultRubric": "# Overall Assignment Rubric\n\n## Scoring Rubric\n\n### 1. Required Length — 2 points\nWas it between 1–4 paragraphs (the greeting is merged into the opening paragraph)?\n- Yes: 2 points\n- No: 0 points\n\n### 2. Clear Position — 4 points\nDid the learner clearly express an opinion about the statement?\n- Yes: 4 points\n- No: 0 points\n\n### 3. Explanation and Supporting Details — 4 points\nDid the learner explain the opinion and incorporate relevant details supporting it?\n- Yes: 4 points\n- No: 0 points\n\n## Maximum Score\n10 points",
       "dueAt": "Due at",
       "errors": {
         "classes": "Select at least one class.",
@@ -579,7 +585,8 @@
         "instructions": "Enter the instructions.",
         "maxAttempts": "Maximum attempts must be a whole number, 1 or more.",
         "title": "Enter a title.",
-        "totalPoints": "Total points must be a number between 1 and 1000."
+        "totalPoints": "Total points must be a number between 1 and 1000.",
+        "rubric": "Enter the rubric."
       },
       "fieldInstructions": "Instructions",
       "fieldRubric": "Rubric",
@@ -596,7 +603,7 @@
       "publish": "Publish and notify",
       "publishHint": "Assignments have no countdown; a submission after the due date is still accepted and marked late. Publishing notifies the selected classes.",
       "publishing": "Publishing…",
-      "rubricHint": "Markdown; one criterion per line is best. The AI grades against this rubric.",
+      "rubricHint": "Markdown, one criterion per line with its points in the line. The points must add up to the total.",
       "sub": "Title, instructions, total points and rubric all live on this page; students are graded against the rubric",
       "title": "New assignment",
       "titleHint": "Students see exactly this title.",
@@ -605,9 +612,16 @@
       "totalPointsPlaceholder": "e.g. 25",
       "aiPreview": "What the AI will see",
       "importMarkdown": "Import .md",
-      "anchorExamples": "Anchor examples (optional)",
+      "anchorExamples": "Reference essays (optional)",
       "anchorExamplesHint": "Up to 3 teacher-approved exemplars with scores and comments; anonymize names/IDs/contacts first. Leave blank to skip.",
-      "anchorExamplesPlaceholder": "Example:\\n[Anchor 1] Student text...\\nScore: 10/10; Comment: ..."
+      "anchorExamplesPlaceholder": "Example:\n[Reference 1] Student text...\nScore: 10/10; Comment: ...",
+      "rubricPlaceholder": "1. Answers the prompt — 4 points\n2. Clear structure — 3 points\n3. Accurate language — 3 points",
+      "aiPreviewSum": "{{total}} points / {{expected}} total",
+      "aiPreviewEmpty": "No criteria yet. Write one per line, e.g. \"1. Answers the prompt — 4 points\".",
+      "aiPreviewMissingPoints": "A criterion has no points: it will not count towards the total.",
+      "aiPreviewEvenSplit": "No criterion states points, so the total is split evenly.",
+      "aiPreviewMatched": "Points add up to the total; ready to publish.",
+      "aiPreviewMismatch": "Points do not add up to the total ({{expected}}); publishing will be rejected."
     },
     "assignments": {
       "colClasses": "Classes",
@@ -647,7 +661,6 @@
       "joined": "Joined",
       "listTitle": "My classes",
       "memberCount": "Members",
-      "memberIdHint": "The class members endpoint returns student IDs only; names come from another service (not connected here).",
       "members": "Members",
       "membersTitle": "Members",
       "nameRequired": "Enter a class name.",
@@ -656,7 +669,10 @@
       "studentEmpty": "You have not joined any class yet. Use an invite code.",
       "studentSub": "See the classes you joined, or join a new one with an invite code",
       "sub": "Teachers create classes and rotate invite codes; students join with a code",
-      "title": "Classes"
+      "title": "Classes",
+      "colMemberName": "Student",
+      "colMemberSubmissions": "Submissions in this class",
+      "unnamedStudent": "No name set"
     },
     "common": {
       "actions": "Actions",
@@ -677,7 +693,8 @@
       "prev": "Previous",
       "saving": "Saving…",
       "summary": "Summary",
-      "yes": "Yes"
+      "yes": "Yes",
+      "unknownClasses": "Class names unavailable"
     },
     "detail": {
       "aiDispatch": "AI grade now",

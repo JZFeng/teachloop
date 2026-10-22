@@ -25,6 +25,14 @@ public final class RubricValidator {
     private static final Pattern NUMBERED = Pattern.compile("^\\s{0,3}\\d+[.)、]\\s+(.+?)\\s*$");
     private static final Pattern LEADING_NUMBER = Pattern.compile("^\\d+[.)、]\\s*");
 
+    /**
+     * 评分项名称的长度上限。原本是 80，但教师常用「整句问句」当评分项
+     * （例如 Did the learner include all the components…？ 共 95 字符），
+     * 超过 80 会被静默丢掉，最终报出「合计 8 分 / 总分 14 分」这种对不上号的错。
+     * 200 足够容纳整句问句，又还能挡住整段散文被当成评分项。
+     */
+    private static final int MAX_NAME_LENGTH = 200;
+
     private RubricValidator() {
     }
 
@@ -161,7 +169,7 @@ public final class RubricValidator {
             name = withoutNumber;
         }
         name = cleanName(name);
-        if (name.isEmpty() || name.length() > 80
+        if (name.isEmpty() || name.length() > MAX_NAME_LENGTH
                 || RubricVocabulary.isIgnored(name.toLowerCase(Locale.ROOT))
                 || RubricVocabulary.isDecision(name)) {
             return;

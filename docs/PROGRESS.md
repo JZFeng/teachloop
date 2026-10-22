@@ -1,10 +1,23 @@
 # TeachLoop 进度仪表盘
 
 > 每个批次结束时由 Lead 更新；`make status` 会打印下面的「当前」与「剩余」。
-> 最近一次更新：2026-10-21（T321 材料分组 + RubricValidator 文案 i18n；`make test` 225/0/0/0 全绿）
+> 最近一次更新：2026-10-22（T324–T328：布置按教师收口、新建作业页 Markdown 化、成员白屏、导入器题号占用、
+> rubric 两处误杀；`make test` 242/0/0/0 全绿）
 
 ## 当前
 
+- 已修复：**T324 布置按教师收口**——`GET /api/offerings` 只返回自己的布置，`detail`/`submissions`/
+  `class-summary` 越权 404，`V035` 回填 V030 之前的空 `created_by`。教师首页「最近作业」不再出现
+  别的老师的作业与解析不出名字的裸 UUID 班级
+- 已实现：**T325 新建作业页 Markdown 化**——评分标准不再预填英文示例、导入 .md 变成标签旁边的真按钮、
+  题目要求与评分标准都换成 Markdown 编辑器（工具栏 + 编辑/预览）、「AI 将看到」改成解析出的评分项与
+  合计对比；参考范文去掉「锚点」字样
+- 已修复：**T326「成员」白屏**——后端返回 `{studentId,displayName,submissionCount}` 而前端按 `string[]`
+  渲染对象，React 19 卸载整棵树；修类型与成员表，并加路由级 `ErrorBoundary`
+- 已修复：**T327 导入器题号占用**——七选五「5 个空但只有 2 道题」时填空顺推吃掉了完形 9/10 与语法填空 11，
+  答案区「11. challenging」被当选择题答案；现在遇到卷面已有题号即停并告警，`AI立即.md` 解析 1–14 题答案全对
+- 已修复：**T328 rubric 两处误杀**——`是否…` 问句式评分项被当 Yes/No 判定行、超过 80 字符的整句被静默丢弃，
+  这正是「评分项合计 8 分，作业总分 14 分」的真因；`评分标准2.md` 现在解析 2/6/3/3 = 14
 - 正在做：**评分质量 T255–T267 已实现并全量回归通过**；服务端 rubric 校验、AI 溯源两列、锚点简化版已补；剩按项编辑器与批量通过并发布
 - 已修复：**T320 答题页题干标签**——阅读材料标签 A–D 不再拼进题干，V032/V033 清理存量
   题干与已发布快照；QA 已部署到 v033，学生接口与页面不再出现孤立字母
@@ -22,8 +35,8 @@
 - 未提交 WIP：以 `git status` 为准（本行不再写快照，避免文档腐化）
 - 最近验证：真实 DeepSeek（教师个人 DB Key，不设环境变量）对 Maria/Mark 与 Iam/Alejandro 判分成功；
   golden set 逐项 exact 29/30、总分 9/10、契约失败 0、英文语言合规 10/10；
-  `pnpm typecheck` / `pnpm build` 0、`check-i18n` 1103 键、`check-ui` 通过；
-  **`make test` 退出码 0，surefire 225 tests / 0 failures / 0 errors / 0 skipped**；
+  `pnpm typecheck` / `pnpm build` 0、`check-i18n` 1155 键（zh/en 对齐）、`check-ui` 125 处零新增；
+  **`make test` 退出码 0，surefire 242 tests / 0 failures / 0 errors / 0 skipped**；
   `check-deps` / `check-boundaries` / `check-i18n`（后端基线 290）/ `check-ui` 全通过。
   T322 已把 `RubricValidator` 的校验文案改成消息 key，中文解析词表移到 `domain/RubricVocabulary`。
 

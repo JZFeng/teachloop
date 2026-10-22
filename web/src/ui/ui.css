@@ -39,12 +39,28 @@
   display: block;
   margin-bottom: 14px;
 }
+/* 标签行：左边是标签，右边是「对这个字段做的事」（导入 .md 等）。 */
+.tl-field-head {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
+  margin-bottom: 6px;
+}
 .tl-field-label {
   display: block;
   font-size: 13px;
   font-weight: 600;
   color: var(--muted);
   margin-bottom: 6px;
+}
+.tl-field-head .tl-field-label {
+  margin-bottom: 0;
+}
+.tl-field-extra {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .tl-field-required {
   color: var(--red);

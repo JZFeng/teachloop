@@ -111,8 +111,20 @@ export function fromLocalInput(value: string): string | null {
   return d.toISOString()
 }
 
-export function classNamesText(classIds: string[], names: Record<string, string>): string {
-  return classIds.map((id) => names[id] ?? id).join('、')
+/**
+ * 班级列文案：只用解析得出的班级名。
+ *
+ * T325：以前解析不到就退化成裸 UUID（首页「最近作业」里那一串 bd12ab5e-…），
+ * 既不像班级也不像人话。现在解析不到就退成一句人话，同时后端只返回「自己的布置」，
+ * 从源头保证每个 classId 都解析得出来。
+ */
+export function classNamesText(
+  classIds: string[],
+  names: Record<string, string>,
+  fallback: string,
+): string {
+  const known = classIds.map((id) => names[id]).filter((name): name is string => Boolean(name))
+  return known.length > 0 ? known.join('、') : fallback
 }
 
 export interface OfferingAggregate {

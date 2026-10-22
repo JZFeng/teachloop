@@ -138,6 +138,15 @@ public final class PaperTextParser {
         int answerStart = findAnswerZoneStart(lines);
         List<String> warnings = new ArrayList<>();
         Context ctx = new Context();
+        // 先记下卷面自带题号的题：七选五这类「材料里若干空、却只有部分空是题」的卷子，
+        // 填空题按空顺推题号会一路吃掉后面真正的题（2026-10-22：七选五 5 个空吃掉了
+        // 完形的 9/10 与语法填空的 11，答案区「11. challenging」因此报无法解析）。
+        for (int i = 0; i < answerStart; i++) {
+            Matcher numbered = NUMBER_LINE.matcher(strip(lines.get(i).text()));
+            if (numbered.matches()) {
+                ctx.explicitNumbers.add(parseNumber(numbered.group(1), lines.get(i).number()));
+            }
+        }
 
         List<ParsedSection> sections = new ArrayList<>();
         for (Block block : group(lines.subList(0, answerStart))) {
@@ -194,6 +203,8 @@ public final class PaperTextParser {
         private final Map<Integer, Integer> firstLine = new LinkedHashMap<>();
         private final List<ParsedItem> items = new ArrayList<>();
         private final Map<Integer, ParsedItem> byNumber = new LinkedHashMap<>();
+        /** 卷面上「自己写了题号」的题（1. / 2、这种），填空分组不能占用它们。 */
+        private final Set<Integer> explicitNumbers = new HashSet<>();
         private int lastNumber;
     }
 
@@ -476,6 +487,12 @@ public final class PaperTextParser {
         List<ParsedItem> out = new ArrayList<>();
         for (int i = 0; i < blanks; i++) {
             int number = ctx.lastNumber + 1;
+            if (ctx.explicitNumbers.contains(number)) {
+                // 这个题号卷面上已经另有一道题，空不再顺推，避免撞号与后面答案错位
+                warnings.add("「" + sub.title + "」还有 " + (blanks - i) + " 个空未成题：题号 " + number
+                        + " 已被卷面其他题目占用，请核对这一节的小题数");
+                break;
+            }
             ctx.lastNumber = number;
             int sourceLine = blankLine(i, content);
             // 每个空都标上题号，否则同一篇材料的 10 道题看起来一模一样

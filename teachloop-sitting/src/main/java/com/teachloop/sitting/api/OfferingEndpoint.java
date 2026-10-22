@@ -212,7 +212,11 @@ public class OfferingEndpoint {
         if (me.is("STUDENT")) {
             return published.stream().filter(o -> windows.isParticipant(o, me.id())).map(this::view).toList();
         }
-        return published.stream().map(this::view).toList();
+        if (me.is("ADMIN")) {
+            return published.stream().map(this::view).toList();
+        }
+        // 教师只看自己布置的；否则会看到别的老师作业与解析不出名字的班级
+        return published.stream().filter(o -> me.id().equals(o.getCreatedBy())).map(this::view).toList();
     }
 
     /** 布置详情：参与班级与按班覆盖（T201）。 */
@@ -225,6 +229,7 @@ public class OfferingEndpoint {
                 throw ApiException.notFound("布置不存在");
             }
         }
+        requireVisible(o, me);
         return view(o);
     }
 
@@ -270,6 +275,7 @@ public class OfferingEndpoint {
             throw ApiException.forbidden("学生不能查看全班提交表");
         }
         Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
+        requireVisible(o, me);
         List<Submission> all = submissions.findByOfferingIdOrderByCreatedAtDesc(o.getId());
         Set<UUID> ids = all.stream().map(Submission::getStudentId).collect(java.util.stream.Collectors.toSet());
         var names = directory.displayNames(ids);
@@ -357,6 +363,7 @@ public class OfferingEndpoint {
             throw ApiException.forbidden("学生不能查看班级汇总");
         }
         Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
+        requireVisible(o, me);
         List<Submission> all = submissions.findByOfferingIdOrderByCreatedAtDesc(id);
         Ports.PaperSnapshot snap = codec.read(o.getPaperSnapshot());
         List<SittingDtos.ClassSummaryView> out = new ArrayList<>();
@@ -465,6 +472,21 @@ public class OfferingEndpoint {
     }
 
     // ---------- internals ----------
+
+    /**
+     * 归属校验：非学生、非管理员的调用者只能看自己布置的那一场。
+     *
+     * <p>用 404 而不是 403：403 等于告诉别的老师「这个布置存在」，与列表里看不到它对不上；
+     * 学生的可见性另由发布状态 + 参与班判定（见 {@link #detail}）。
+     */
+    private static void requireVisible(Offering o, CurrentUser me) {
+        if (me.is("STUDENT") || me.is("ADMIN")) {
+            return;
+        }
+        if (!me.id().equals(o.getCreatedBy())) {
+            throw ApiException.notFound("布置不存在");
+        }
+    }
 
     private void publishInternal(Offering o, CurrentUser me) {
         if (o.getStatus() == OfferingStatus.PUBLISHED) {

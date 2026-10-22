@@ -13,6 +13,7 @@ import type {
   SubmitResponse,
 } from '../api/types'
 import { RichTextEditor } from '../components/RichTextEditor'
+import { Markdown } from '../components/Markdown'
 import { ErrorState, Loading, PageHeader } from '../components/States'
 import { countWrittenWords, fmtScore } from './examUtils'
 import './exam.css'
@@ -266,9 +267,11 @@ export default function AssignmentPage() {
                 {t('exam.points', { points: singleEssay.points })}
                 {singleEssay.sectionTitle ? ` · ${singleEssay.sectionTitle}` : ''}
               </div>
-              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.75, marginTop: 6 }}>
-                {singleEssay.stem?.trim() || t('exam.noStem')}
-              </div>
+              {singleEssay.stem?.trim() ? (
+                <Markdown className="md-body" text={singleEssay.stem} />
+              ) : (
+                <div className="inline-note">{t('exam.noStem')}</div>
+              )}
             </div>
           ) : (
             <ol className="assign-prompts" style={{ paddingLeft: 20, margin: 0 }}>
@@ -313,7 +316,7 @@ export default function AssignmentPage() {
       <div className="card">
         <h2>{t('exam.assignmentRubric')}</h2>
         {entry.rubric && entry.rubric.trim() ? (
-          <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.75 }}>{entry.rubric}</div>
+          <Markdown className="md-body" text={entry.rubric} />
         ) : (
           <div className="inline-note">{t('exam.rubricMissing')}</div>
         )}

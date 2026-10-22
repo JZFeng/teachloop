@@ -60,4 +60,38 @@ class RubricValidatorTest {
         assertThat(result.issues()).anyMatch(issue ->
                 issue.code().equals("error.rubric.duplicate") && issue.args().contains("内容要点"));
     }
+
+    @Test
+    @DisplayName("问句式评分项「是否…」不能被当成 Yes/No 判定行丢掉")
+    void keepsQuestionFormCriteria() {
+        RubricValidator.Result result = RubricValidator.validate("""
+                # 评分标准
+                1. 是否提交了与阅读相关的英文教案？（2 分）
+                2. 是否包含模板全部要素？（6 分）
+                3. 是否至少设计了一个精读活动？（3 分）
+                4. 是否至少设计了一个泛读活动？（3 分）
+                """, new BigDecimal("14"));
+
+        assertThat(result.valid()).withFailMessage(() -> result.issues().toString()).isTrue();
+        assertThat(result.criteria()).hasSize(4);
+        assertThat(result.total()).isEqualByComparingTo("14");
+    }
+
+    @Test
+    @DisplayName("整句问句当评分项（超过旧 80 字符上限）不能丢：2+6+3+3 必须等于 14")
+    void keepsLongQuestionCriteria() {
+        RubricValidator.Result result = RubricValidator.validate("""
+                # Did the learner submit a lesson plan related to a reading in English? （2 points）
+
+                # Did the learner include all the components as provided in the lesson plan template in English?  （6 points）
+
+                # Did the learner use at least one intensive reading activity in English?   (3 points)
+
+                # Did the learner use at least one extensive reading activity in English?   (3 points)
+                """, new BigDecimal("14"));
+
+        assertThat(result.valid()).withFailMessage(() -> result.issues().toString()).isTrue();
+        assertThat(result.criteria()).hasSize(4);
+        assertThat(result.total()).isEqualByComparingTo("14");
+    }
 }

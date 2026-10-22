@@ -37,7 +37,10 @@
       "apiKeyHint": "首次初始化必须填写；加密保存，只显示掩码。",
       "apiKeyPlaceholder": "sk-..."
     },
-    "tagline": "让批改回到教学"
+    "tagline": "让批改回到教学",
+    "crashTitle": "这个页面出错了",
+    "crashBody": "这一块没能渲染出来。先刷新试试；如果反复出现，把当前页面地址发给开发。",
+    "crashReload": "重新加载"
   },
   "audit": {
     "attemptNo": "第 {{n}} 次提交",
@@ -158,7 +161,11 @@
     "placeholder": "在这里写你的答案…",
     "toolbar": "格式工具条",
     "underline": "下划线",
-    "unorderedList": "无序列表"
+    "unorderedList": "无序列表",
+    "edit": "编辑",
+    "preview": "预览",
+    "previewEmpty": "还没有内容。切到「编辑」写一点。",
+    "markdownPlaceholder": "支持 Markdown：# 标题、- 列表、**加粗**"
   },
   "exam": {
     "answeredBadge": "已答",
@@ -570,7 +577,6 @@
     "assignmentCreate": {
       "classes": "参与班级",
       "classesHint": "可多选。勾几个班，就生成几条「参与班级」记录。",
-      "defaultRubric": "# Overall Assignment Rubric\n\n## Scoring Rubric\n\n### 1. Required Length — 2 points\nWas it between 1–4 paragraphs (the greeting is merged into the opening paragraph)?\n- Yes: 2 points\n- No: 0 points\n\n### 2. Clear Position — 4 points\nDid the learner clearly express an opinion about the statement?\n- Yes: 4 points\n- No: 0 points\n\n### 3. Explanation and Supporting Details — 4 points\nDid the learner explain the opinion and incorporate relevant details supporting it?\n- Yes: 4 points\n- No: 0 points\n\n## Maximum Score\n10 points",
       "dueAt": "截止时间",
       "errors": {
         "classes": "至少要选一个班级。",
@@ -579,7 +585,8 @@
         "instructions": "请填写题目要求。",
         "maxAttempts": "最多尝试次数必须是不小于 1 的整数。",
         "title": "请填写标题。",
-        "totalPoints": "总分必须是 1 到 1000 之间的数字。"
+        "totalPoints": "总分必须是 1 到 1000 之间的数字。",
+        "rubric": "请填写评分标准。"
       },
       "fieldInstructions": "题目要求",
       "fieldRubric": "评分标准",
@@ -596,7 +603,7 @@
       "publish": "发布并通知",
       "publishHint": "作业没有倒计时；过了截止时间仍可提交，会标记为迟交。发布后通知参与班级。",
       "publishing": "发布中…",
-      "rubricHint": "Markdown；建议一个评分项一行，AI 按这份标准判分。",
+      "rubricHint": "Markdown，一条评分项一行，分值写在行里；各项分值合计必须等于总分。",
       "sub": "标题、题目要求、总分与评分标准都写在这一页；发布后学生按这份标准被批改",
       "title": "新建作业",
       "titleHint": "学生端看到的就是这个标题。",
@@ -605,9 +612,16 @@
       "totalPointsPlaceholder": "例如：25",
       "aiPreview": "AI 将看到",
       "importMarkdown": "导入 .md",
-      "anchorExamples": "参考范文（可选，锚点）",
+      "anchorExamples": "参考范文（可选）",
       "anchorExamplesHint": "最多 3 份教师已批好的范文 + 分数 + 评语；请先匿名化（去姓名/学号/联系方式）。不填则不注入。",
-      "anchorExamplesPlaceholder": "示例：\\n【范文 1】学生正文…\\n分数：10/10；评语：…"
+      "anchorExamplesPlaceholder": "示例：\n【范文 1】学生正文…\n分数：10/10；评语：…",
+      "rubricPlaceholder": "1. 回应题目要求 — 4 points\n2. 结构清楚 — 3 points\n3. 语言准确 — 3 points",
+      "aiPreviewSum": "合计 {{total}} 分 / 总分 {{expected}} 分",
+      "aiPreviewEmpty": "还没有评分项。每条一行，例如「1. 回应题目要求 — 4 points」。",
+      "aiPreviewMissingPoints": "有评分项没写分值：这一条不会被算进合计。",
+      "aiPreviewEvenSplit": "评分项都没写分值，系统会把总分均分到各项。",
+      "aiPreviewMatched": "合计与总分一致，可以发布。",
+      "aiPreviewMismatch": "合计与总分不一致（总分 {{expected}} 分），发布会被拒绝。"
     },
     "assignments": {
       "colClasses": "班级",
@@ -647,7 +661,6 @@
       "joined": "已加入",
       "listTitle": "我的班级",
       "memberCount": "成员数",
-      "memberIdHint": "班级成员接口只返回学生 ID；姓名由其他接口提供（当前未接入）。",
       "members": "成员",
       "membersTitle": "成员",
       "nameRequired": "请填写班级名称。",
@@ -656,7 +669,10 @@
       "studentEmpty": "还没有加入任何班级，用邀请码加入。",
       "studentSub": "查看已加入的班级，或凭邀请码加入新班级",
       "sub": "教师建班、轮换邀请码；学生凭邀请码加入",
-      "title": "班级"
+      "title": "班级",
+      "colMemberName": "学生",
+      "colMemberSubmissions": "本班提交数",
+      "unnamedStudent": "未填写姓名"
     },
     "common": {
       "actions": "操作",
@@ -677,7 +693,8 @@
       "prev": "上一步",
       "saving": "保存中…",
       "summary": "汇总",
-      "yes": "是"
+      "yes": "是",
+      "unknownClasses": "班级信息未加载"
     },
     "detail": {
       "aiDispatch": "让 AI 先批",

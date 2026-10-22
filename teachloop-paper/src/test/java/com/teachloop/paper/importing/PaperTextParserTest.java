@@ -464,6 +464,72 @@ class PaperTextParserTest {
                 .isEqualTo("in ___(9)___ (2019) the school was founded");
     }
 
+    /**
+     * 七选五「材料里 5 个空、但只有 2 道题」：填空题顺推题号不能把后面真正的 9/10/11 吃掉。
+     *
+     * <p>2026-10-22 真实卷（AI立即.md）：七选五的 5 个空按顺推占用了 7–11，导致完形填空的
+     * 9/10 撞号、语法填空的 11 不存在，答案区「11. challenging」被当成选择题答案而报
+     * 「无法解析的答案行」。空只在没有卷面题号占用时才能成题。
+     */
+    @Test
+    void blankGroupStopsAtNumbersAlreadyWrittenOnThePaper() {
+        String text = """
+                第二部分 阅读理解
+                5. 阅读题一？
+                A. a
+                B. b
+                6. 阅读题二？
+                A. a
+                B. b
+
+                第二节 七选五
+                阅读下面短文，从短文后的选项中选出最佳选项。
+                第一处 ______ 第二处 ______ 第三处 ______ 第四处 ______ 第五处 ______
+
+                A. 选项甲
+                B. 选项乙
+                C. 选项丙
+                D. 选项丁
+                E. 选项戊
+                F. 选项己
+                G. 选项庚
+
+                第三部分 英语知识运用
+                第一节 完形填空
+                课文里有两个空 ______ ______
+                9. A. old  B. new
+                10. A. change  B. keep
+
+                第二节 语法填空
+                课文里两个空 ______ (11) (challenge) 与 ______ (12) (anxious)
+
+                第三节 单句语法填空
+                13. 单句 ______ (walk) 适合这里。
+                14. 单句 ______ (impress) 适合这里。
+
+                答案
+                5. A
+                6. B
+                7. G
+                8. A
+                9. A
+                10. B
+                11. challenging
+                12. anxiety
+                13. to walk
+                14. impressive
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::number)
+                .containsExactly(5, 6, 7, 8, 9, 10, 11, 12, 13, 14);
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::answerKey)
+                .containsExactly("A", "B", "G", "A", "A", "B", "challenging", "anxiety",
+                        "to walk", "impressive");
+        assertThat(result.missingAnswers()).isEmpty();
+    }
+
     /** 选择题写非字母答案仍然报错，不静默存成 "C"。 */
     @Test
     void stillRejectsWordAnswerForChoiceQuestion() {

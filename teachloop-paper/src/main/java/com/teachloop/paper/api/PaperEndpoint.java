@@ -436,14 +436,13 @@ public class PaperEndpoint {
         if (body.text() == null || body.text().isBlank()) {
             throw ApiException.badRequest("请粘贴试卷文字");
         }
-        List<DocumentTextExtractor.SourceLine> lines = new ArrayList<>();
-        String[] rows = body.text().replace("\r\n", "\n").split("\n", -1);
-        for (int i = 0; i < rows.length; i++) {
-            lines.add(new DocumentTextExtractor.SourceLine(i + 1, rows[i]));
-        }
+        // 与文件导入走同一套预处理：老师经常把整卷 .md 直接粘进来，不剥掉标题/加粗/表格记号，
+        // 「第X节」这类分节认不出来，题号就会串（2026-10-22 真实卷踩过）。
         PaperTextParser.Result parsed;
         try {
-            parsed = PaperTextParser.parse(lines);
+            DocumentTextExtractor.ExtractedDocument document = DocumentTextExtractor.extract(
+                    "pasted.md", body.text().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            parsed = PaperTextParser.parse(document.lines());
         } catch (ImportException ex) {
             return ResponseEntity.badRequest()
                     .body(new ApiError(ErrorCode.BAD_REQUEST.name(), "导入失败", ex.getMessage()));

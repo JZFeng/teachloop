@@ -45,9 +45,17 @@ public final class RubricVocabulary {
         return name != null && IGNORED.contains(name);
     }
 
-    /** Yes/No、是/否、部分/完整、无这类判断行，不是评分项。 */
+    /**
+     * Yes/No、是/否、部分/完整、无这类判断行，不是评分项。
+     *
+     * <p>例外：「是否…」是中文 rubric 里最常见的问句式评分项（如「是否切题（4 分）」），
+     * 它不是在写判定行。以前按「是」前缀一律丢掉，中文老师写的评分标准会被判成「没有评分项」。
+     */
     public static boolean isDecision(String name) {
         String lower = name == null ? "" : name.toLowerCase(Locale.ROOT).strip();
+        if (lower.startsWith("是否")) {
+            return false;
+        }
         return lower.equals("yes") || lower.equals("no") || lower.equals("true") || lower.equals("false")
                 || lower.startsWith("yes ") || lower.startsWith("no ")
                 || lower.startsWith("是") || lower.startsWith("否")

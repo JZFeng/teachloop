@@ -20,5 +20,6 @@ export {
   RobotOutlined,
   SunOutlined,
   TeamOutlined,
+  UploadOutlined,
   UserOutlined,
 } from '@ant-design/icons'
