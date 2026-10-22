@@ -10,8 +10,12 @@
 #   ./scripts/env.sh deploy qa    # 构建 + 复制快照 + 重启（做完一个特性时用）
 #   ./scripts/env.sh up qa        # 启动已有快照，不构建
 #   ./scripts/env.sh down qa      # 停掉
-#   ./scripts/env.sh status       # 8010/5173 与 8011/5174 的健康与版本
+#   ./scripts/env.sh status       # 8010/5173 与 8011/5174 的健康、版本与判分引擎
 #   ./scripts/env.sh logs qa      # 跟踪测试台后端日志
+#
+# 判分引擎默认 ai（与 application.yml 一致）：配好 Key 的测试台跑真实 AI 批改。
+# 只有「没 Key 也要看界面」的演示才用 TEACHLOOP_GRADING_ENGINE=stub ./scripts/env.sh up qa。
+# 引擎写进 .envs/<name>/engine，banner 与 status 都会显示，不再静默回退成替身。
 set -u
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -140,11 +144,20 @@ cmd_up() {
 
   mkdir -p "$UPLOADS"
 
-  say "启动后端 :${PORT}"
+  # 判分引擎：默认 ai，与 application.yml 一致；stub 只用于没 Key 的界面演示。
+  local engine="${TEACHLOOP_GRADING_ENGINE:-ai}"
+  case "$engine" in
+    ai|stub) ;;
+    *) die "TEACHLOOP_GRADING_ENGINE 只能是 ai 或 stub（当前：$engine）" ;;
+  esac
+  echo "$engine" > "$ENV_DIR/engine"
+  [ "$engine" = "stub" ] && warn "判分引擎是 stub：批改结果不是真实 AI 评分，别拿去发布"
+
+  say "启动后端 :${PORT}（判分引擎 ${engine}）"
   DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" \
   DB_USER=teachloop DB_PASSWORD=teachloop \
   STORAGE_LOCAL_DIR="$UPLOADS" \
-  PORT="$PORT" TEACHLOOP_GRADING_ENGINE="${TEACHLOOP_GRADING_ENGINE:-stub}" \
+  PORT="$PORT" TEACHLOOP_GRADING_ENGINE="$engine" \
     "$JAVA" -jar "$JAR" > "$ENV_DIR/backend.log" 2>&1 &
   echo $! > "$BACK_PID_FILE"
 
@@ -193,6 +206,7 @@ cmd_up() {
   数据    ${DB_CONTAINER}:${DB_PORT}/${DB_NAME}
   附件    ${UPLOADS}
   版本    $(head -1 "$VERSION_FILE" 2>/dev/null | cut -d' ' -f2-)
+  引擎    ${engine}$([ "$engine" = "ai" ] && echo "（真实 AI 批改，用配好的 DeepSeek Key）" || echo "（替身引擎，不是真实评分）")
 
   停掉    ./scripts/env.sh down ${NAME}
 
@@ -236,6 +250,15 @@ cmd_status() {
   done
   echo
   if [ -f "$VERSION_FILE" ]; then sed 's/^/  /' "$VERSION_FILE"; echo; fi
+  # 判分引擎记录在 .envs/<name>/engine：后端是 up/deploy 起的就一定有，便于回答「为什么不是真实 AI」。
+  if [ -f "$ENV_DIR/engine" ]; then
+    local engine_now; engine_now="$(cat "$ENV_DIR/engine")"
+    [ -n "$(port_pid "$PORT")" ] \
+      && printf '  判分引擎：%s\n\n' "$engine_now" \
+      || printf '  判分引擎：%s（上次启动；后端当前未运行）\n\n' "$engine_now"
+  else
+    printf '  判分引擎：未知（当前进程不是本脚本启动的）\n\n'
+  fi
 }
 
 cmd_logs() { tail -n 80 -f "$ENV_DIR/backend.log"; }
