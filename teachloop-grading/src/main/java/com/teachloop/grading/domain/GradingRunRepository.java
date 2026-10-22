@@ -22,4 +22,19 @@ public interface GradingRunRepository extends JpaRepository<GradingRun, UUID> {
             + "values (:id, :offeringId, :engine, :startedAt, 'running') "
             + "on conflict (offering_id) where offering_id is not null do nothing", nativeQuery = true)
     int insertIfAbsent(UUID id, UUID offeringId, String engine, Instant startedAt);
+
+    /**
+     * T335：一场批改跑完就收尾；之后再来提交（重交 / 迟交 / 重试失败）会重新打开。
+     * 条件更新保证重复执行无副作用。
+     */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "update grading_runs set state = 'done', finished_at = :now "
+            + "where offering_id = :offeringId and state = 'running'", nativeQuery = true)
+    int finishIfRunning(UUID offeringId, Instant now);
+
+    /** T335：有新工作进队时把已收尾的 run 重新打开（一场仍然只有一条 run）。 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "update grading_runs set state = 'running', finished_at = null "
+            + "where offering_id = :offeringId and state = 'done'", nativeQuery = true)
+    int reopenIfDone(UUID offeringId);
 }

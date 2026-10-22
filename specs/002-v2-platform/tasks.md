@@ -486,6 +486,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | T332 | **界面说明**：新建作业页与批改详情页写清「作业每晚 02:30 自动批改，急用可立即派发」。 | T325,T330 | 两处文案 zh/en 对齐；`check-i18n` 通过。 |
 | T333 | **测试与 QA 验证**：夜间派发 4 条用例（作业当夜批、重复跑幂等、考试不受影响、队列去旧 attempt）。 | T330,T331 | `NightlyAssignmentGradingTest` 绿；`make test` 全绿；QA 实测一次夜间跑批。 |
 | T334 | **复核页去重 + 题干格式化 + 去掉「采用 AI 建议分」**：学生正文只在「学生正文」渲染一次，删掉「学生作答」块里重复的正文与「AI 草稿」标签；主观题题干改用学生答题页同一个 `Markdown` 组件渲染，标题、列表、加粗与换行按老师输入显示；删掉「采用 AI 建议分」按钮（主观分首次打开已预填 AI 分，该按钮只在老师改分后用于一键改回），并删掉不再使用的 `review.adoptAi` / `studentAnswer` / `aiDraftBadge` 文案 key。T323 的「教师判分区前置学生正文」中重复正文部分由本条取代。 | T323 | `pnpm typecheck` / `pnpm build` / `check-i18n`（1153 键）/ `check-ui` 通过；`make test` 退出码 0（surefire 243/0/0/0）；QA 5174 实测：正文只出现一次，题干按 `Instructions` 标题 + 加粗标题 + 4 条列表显示，AI 建议分旁无按钮；截图 `docs/reports/t334-review-cleanup/`。 |
+| T335 | **批改 run 收尾**：`grading_runs.state` 原来永远停在 `running`、`finished_at` 永远为空（实体有 `finish()` 但全仓无调用点）。新增 `GradingRunLifecycle`：worker 每批跑完后，若该场没有未完成工作项（PENDING/RUNNING/QUEUED）就把 run 收尾；派发时把已收尾的 run 重新打开（一场仍只有一条 run）。`Ports.GradingWorkQueue` 增 `hasOpenWork`。 | T330 | `NightlyAssignmentGradingTest` 断言：批完 → `state=done` 且 `finished_at` 非空；重交进队 → 重新 `running`；再批完 → `done`。`make test` 243/0/0/0。 |
 
 
 ---

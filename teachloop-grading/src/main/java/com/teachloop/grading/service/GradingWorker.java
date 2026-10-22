@@ -10,7 +10,9 @@ import com.teachloop.grading.prompt.PromptBuilder;
 import com.teachloop.shared.port.Ports;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,14 +43,17 @@ public class GradingWorker {
 
     private final GradingEngine engine;
     private final ReviewRepository reviews;
+    /** T335：一批跑完后把这一场的 run 收尾（有新工作进队时由派发侧重新打开）。 */
+    private final GradingRunLifecycle runLifecycle;
     private final Clock clock;
 
     public GradingWorker(Ports.SittingLedger ledger, Ports.GradingWorkQueue queue, GradingEngine engine,
-                         ReviewRepository reviews, Clock clock) {
+                         ReviewRepository reviews, GradingRunLifecycle runLifecycle, Clock clock) {
         this.ledger = ledger;
         this.queue = queue;
         this.engine = engine;
         this.reviews = reviews;
+        this.runLifecycle = runLifecycle;
         this.clock = clock;
     }
 
@@ -60,14 +65,16 @@ public class GradingWorker {
     public int processBatch(int limit) {
         List<UUID> waiting = queue.pendingIds(limit);
         int done = 0;
+        Set<UUID> touchedOfferings = new LinkedHashSet<>();
         for (UUID id : waiting) {
+            Ports.WorkItem item = null;
             try {
                 // T243 / D-15：老师已经人工判分或复核已发布 → AI 不得再认领这一份。
                 if (teacherLocked(id)) {
                     log.info("grading skipped {}: teacher already graded or review published", id);
                     continue;
                 }
-                Ports.WorkItem item = ledger.load(id);
+                item = ledger.load(id);
                 queue.markRunning(id);
                 log.debug("grading claimed {}", id);
                 Ports.GradingResult result = engine.grade(item);
@@ -122,7 +129,15 @@ public class GradingWorker {
                 } catch (Throwable marking) {
                     log.error("grading failed AND mark-failed failed for {}", id, marking);
                 }
+            } finally {
+                if (item != null) {
+                    touchedOfferings.add(item.offeringId());
+                }
             }
+        }
+        // T335：这一批涉及的场次，如果已经没有排队工作就收尾 run。
+        for (UUID offeringId : touchedOfferings) {
+            runLifecycle.closeIfDrained(offeringId);
         }
         return done;
     }

@@ -120,6 +120,9 @@ class NightlyAssignmentGradingTest {
         worker.processBatch(10);
         assertThat(submissionState(offeringId)).isEqualTo("DONE");
         assertThat(reviewCount(offeringId)).isEqualTo(1);
+        // T335：这一场跑完了，run 收尾（state=done + finished_at 落库）
+        assertThat(runState(offeringId)).isEqualTo("done");
+        assertThat(runFinishedAt(offeringId)).isNotNull();
 
         // ③ 再跑一次夜跑：已经批完的不再入队，run 也不会多。
         job.nightly();
@@ -130,7 +133,10 @@ class NightlyAssignmentGradingTest {
         resubmit(base, student, offeringId, "My city is small but lively, and the food is great.");
         assertThat(pendingSubmissions(offeringId)).isEqualTo(1);
         job.nightly();
+        // T335：有新工作进队，已收尾的 run 重新打开
+        assertThat(runState(offeringId)).isEqualTo("running");
         worker.processBatch(10);
+        assertThat(runState(offeringId)).isEqualTo("done");
 
         List<String> queueSubmissionIds = getList(base, teacher, "/api/grading/queue").stream()
                 .map(o -> String.valueOf(((Map<?, ?>) o).get("submissionId")))
@@ -170,6 +176,16 @@ class NightlyAssignmentGradingTest {
                 "select count(*) from submissions where offering_id = ? and grading_state = 'QUEUED'",
                 Integer.class, java.util.UUID.fromString(offeringId));
         return n == null ? 0 : n;
+    }
+
+    private String runState(String offeringId) {
+        return jdbc.queryForObject("select state from grading_runs where offering_id = ?",
+                String.class, java.util.UUID.fromString(offeringId));
+    }
+
+    private java.sql.Timestamp runFinishedAt(String offeringId) {
+        return jdbc.queryForObject("select finished_at from grading_runs where offering_id = ?",
+                java.sql.Timestamp.class, java.util.UUID.fromString(offeringId));
     }
 
     private int runCount(String offeringId) {

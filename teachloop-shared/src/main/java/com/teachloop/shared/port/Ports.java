@@ -167,6 +167,12 @@ public final class Ports {
         void markDone(UUID submissionId, GradingResult result);
 
         void markFailed(UUID submissionId, String error);
+
+        /**
+         * 这场布置还有没有没跑完的提交（PENDING / RUNNING，以及还没派发的 QUEUED）。
+         * T335：worker 用它判断「这一批跑完了没有」，跑完了就把 grading_runs 收尾。
+         */
+        boolean hasOpenWork(UUID offeringId);
     }
 
     /**

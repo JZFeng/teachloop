@@ -97,6 +97,12 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public boolean hasOpenWork(UUID offeringId) {
+        return submissions.countOpenWork(offeringId) > 0;
+    }
+
+    @Override
     @Transactional
     public void markFailed(UUID submissionId, String error) {
         Submission s = submissions.findById(submissionId).orElseThrow();

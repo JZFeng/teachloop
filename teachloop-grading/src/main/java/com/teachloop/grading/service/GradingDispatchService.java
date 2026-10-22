@@ -30,10 +30,12 @@ public class GradingDispatchService implements Ports.GradingDispatch {
     private static final String RUN_ENGINE = "offering";
 
     private final GradingRunRepository runs;
+    private final GradingRunLifecycle lifecycle;
     private final Clock clock;
 
-    public GradingDispatchService(GradingRunRepository runs, Clock clock) {
+    public GradingDispatchService(GradingRunRepository runs, GradingRunLifecycle lifecycle, Clock clock) {
         this.runs = runs;
+        this.lifecycle = lifecycle;
         this.clock = clock;
     }
 
@@ -42,6 +44,8 @@ public class GradingDispatchService implements Ports.GradingDispatch {
     public UUID dispatch(UUID offeringId) {
         Instant now = Instant.now(clock);
         runs.insertIfAbsent(UUID.randomUUID(), offeringId, RUN_ENGINE, now);
+        // T335：这一场可能上一批已经收尾，又来了新提交（重交 / 迟交 / 重试失败）
+        lifecycle.reopen(offeringId);
         return runs.findByOfferingId(offeringId)
                 .map(GradingRun::getId)
                 .orElseThrow(() -> ApiException.notFound("派发记录未创建：" + offeringId));
