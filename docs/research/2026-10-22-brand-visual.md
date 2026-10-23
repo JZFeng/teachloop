@@ -1,6 +1,6 @@
 # 品牌视觉落地调研：logo 色板、暗色与判分状态色
 
-日期：2026-10-22　目的：给新 logo 的品牌色板定一套能进令牌、能过对比度脚本的落地规则。本文只写方案与依据，不改代码。**落地范围以 `specs/005-brand-visual/spec.md` 为准；第 8 节是建议清单，不是本轮任务。**
+日期：2026-10-22　目的：给新 logo 的品牌色板定一套能进令牌、能过对比度脚本的落地规则。本文只写方案与依据，不改代码。**落地范围以 `specs/006-brand-visual/spec.md` 为准；第 8 节是建议清单，不是本轮任务。**
 
 ## 背景与口径
 
@@ -212,7 +212,7 @@
 
 1. `web/src/ui/tokens.ts` 新增独立 `brand` 常量（不塞进 antd 的 token 对象，避免 ThemeConfig 类型溢出），`tokens.css` 加同名变量；4 个色相 × `fill / tint / ink`，亮暗各一份，键集合完全一致；`contrast.py` 解析该常量并覆盖成对键。
 2. 亮色 `colorPrimary` 改 `#1A63E0`，暗色改 `#2A6FD6`；暗色 `colorLink` 单独 `#7DB1FF`。三个值都进 `contrast.py`（白字、暗底两种底）。
-3. `scripts/ui/contrast.py` 从 16 组扩到 40 组（最终值见 `specs/005-brand-visual/spec.md`）：现有 16 组不变，新增 5 组亮色 feature ink×tint、5 组暗色 feature ink×tint、3 组亮色 status 字×浅底、3 组暗色 status 字×浅底、3 组亮色 status 字×白、3 组暗色 status 字×面板、1 组暗色 accent-text×面板、1 组暗色 accent-text×accent-weak；任一不达标退出码为 1。
+3. `scripts/ui/contrast.py` 从 16 组扩到 40 组（最终值见 `specs/006-brand-visual/spec.md`）：现有 16 组不变，新增 5 组亮色 feature ink×tint、5 组暗色 feature ink×tint、3 组亮色 status 字×浅底、3 组暗色 status 字×浅底、3 组亮色 status 字×白、3 组暗色 status 字×面板、1 组暗色 accent-text×面板、1 组暗色 accent-text×accent-weak；任一不达标退出码为 1。
 4. `tokens.ts` 新增独立 `status` 常量（同样不塞进 ThemeConfig），`tokens.css` 同步 `--status-pass` 等变量及 `-bg`，亮暗各一套；页面不得出现 `#17703F`、`#8A5A00`、`#B42338` 字面量。
 5. `scripts/check-ui.py` 增加三条禁令：页面出现品牌或状态色字面量（含 5 个 fill 的 hex）；`status-*` 用在非判分装饰上；判分 Tag 自闭合（没有文字与图标）。
 6. `web/src/ui/Tag` 的判分 tone 只允许 `pass / partial / fail` 三个值，组件内部强制渲染图标与文字；「部分对」图标固定为半圆，不接受只换颜色。
