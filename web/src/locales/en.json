@@ -1223,7 +1223,10 @@
       "titleReadOnly": "Title and default duration cannot be changed after creation (the backend has no paper update endpoint, not connected).",
       "totalMatch": "Totals match: {{total}} points.",
       "totalMismatch": "Totals differ: local {{local}}, server {{server}}. Fix it and sync again; publishing is blocked until they match.",
-      "unsaved": "To sync"
+      "unsaved": "To sync",
+      "rubricPreview": "Detected criteria",
+      "rubricPreviewTotal": "{{total}} points total",
+      "rubricPreviewHint": "Parsed line by line for checking; publishing the paper does not validate this total."
     }
   },
   "ui": {

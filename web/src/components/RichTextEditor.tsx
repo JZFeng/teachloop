@@ -1,6 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ClipboardEvent, KeyboardEvent, MouseEvent } from 'react'
 import { useTranslation } from 'react-i18next'
+import {
+  CompressOutlined,
+  ExpandAltOutlined,
+  FullscreenExitOutlined,
+  FullscreenOutlined,
+} from '../ui'
 
 interface RichTextEditorProps {
   /** 挂载时灌入的 HTML（切走再切回来时恢复草稿）；编辑过程中不再由 React 覆盖 DOM。 */
@@ -9,6 +15,11 @@ interface RichTextEditorProps {
   placeholder?: string
   /** 每次输入/格式变化回调：html 用于提交，text 用于字数统计。 */
   onChange: (html: string, text: string) => void
+  /**
+   * T341：加「放大 / 全屏」。只改摆放（CSS fixed + 铺满右侧内容区），不移动 DOM、
+   * 不重建 contentEditable，所以正文、选区和撤销栈都保持原样。
+   */
+  expandable?: boolean
 }
 
 /**
@@ -67,10 +78,78 @@ function copyAllowed(source: Node, target: Element, doc: Document): void {
  * <p>T252：补上 Cmd/Ctrl + B / I / U 快捷键；粘贴自动清掉外部样式（灰底、字号、颜色）；
  * 编辑器底色固定白色、聚焦不再有阴影。
  */
-export function RichTextEditor({ initialHtml, disabled, placeholder, onChange }: RichTextEditorProps) {
+export function RichTextEditor({
+  initialHtml,
+  disabled,
+  placeholder,
+  onChange,
+  expandable = false,
+}: RichTextEditorProps) {
   const { t } = useTranslation('translation')
   const bodyRef = useRef<HTMLDivElement>(null)
   const [empty, setEmpty] = useState(!initialHtml.trim())
+  const [expanded, setExpanded] = useState(false)
+  const [fullscreen, setFullscreen] = useState(false)
+  const wrapRef = useRef<HTMLDivElement | null>(null)
+  const expandButtonRef = useRef<HTMLButtonElement | null>(null)
+  const restoreFocusRef = useRef(false)
+
+  // 放大期间锁页面滚动；Esc 收起（原生全屏时先由浏览器退出全屏）。
+  useEffect(() => {
+    if (!expanded) return
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      if (event.key !== 'Escape' || document.fullscreenElement) return
+      closeExpanded()
+    }
+    const syncFullscreen = () => setFullscreen(Boolean(document.fullscreenElement))
+    document.addEventListener('keydown', onKeyDown)
+    document.addEventListener('fullscreenchange', syncFullscreen)
+    bodyRef.current?.focus()
+    return () => {
+      document.body.style.overflow = previousOverflow
+      document.removeEventListener('keydown', onKeyDown)
+      document.removeEventListener('fullscreenchange', syncFullscreen)
+      setFullscreen(false)
+      if (document.fullscreenElement) {
+        const exit = document.exitFullscreen?.()
+        if (exit) void exit.catch(() => undefined)
+      }
+    }
+  }, [expanded])
+
+  // 收起后把焦点还给「放大」按钮。
+  useEffect(() => {
+    if (expanded) return
+    if (restoreFocusRef.current) {
+      restoreFocusRef.current = false
+      expandButtonRef.current?.focus()
+    }
+  }, [expanded])
+
+  function openExpanded() {
+    if (!expandable || expanded) return
+    setExpanded(true)
+  }
+
+  function closeExpanded() {
+    if (!expanded) return
+    restoreFocusRef.current = true
+    setExpanded(false)
+  }
+
+  function toggleFullscreen() {
+    const element = wrapRef.current
+    if (!element) return
+    if (document.fullscreenElement) {
+      const exit = document.exitFullscreen?.()
+      if (exit) void exit.catch(() => undefined)
+      return
+    }
+    const request = element.requestFullscreen?.()
+    if (request) void request.catch(() => undefined)
+  }
 
   // 只在挂载时写一次 innerHTML：之后光标和选区完全交给浏览器，React 不参与。
   useEffect(() => {
@@ -130,7 +209,7 @@ export function RichTextEditor({ initialHtml, disabled, placeholder, onChange }:
   const keepSelection = (event: MouseEvent) => event.preventDefault()
 
   return (
-    <div className="rich-editor">
+    <div ref={wrapRef} className={`rich-editor${expanded ? ' rich-editor--expanded' : ''}`}>
       <div className="rich-toolbar" role="toolbar" aria-label={t('editor.toolbar')}>
         <button type="button" title={t('editor.bold')} aria-label={t('editor.bold')}
           onMouseDown={keepSelection} onClick={() => exec('bold')}><b>B</b></button>
@@ -147,6 +226,41 @@ export function RichTextEditor({ initialHtml, disabled, placeholder, onChange }:
           onMouseDown={keepSelection} onClick={() => exec('formatBlock', 'h3')}>H</button>
         <button type="button" title={t('editor.paragraph')} aria-label={t('editor.paragraph')}
           onMouseDown={keepSelection} onClick={() => exec('formatBlock', 'p')}>¶</button>
+        <span className="rich-toolbar-spacer" aria-hidden="true" />
+        {expanded ? (
+          <>
+            <button
+              type="button"
+              className="rich-toolbar-action"
+              title={fullscreen ? t('editor.exitFullscreen') : t('editor.fullscreen')}
+              aria-label={fullscreen ? t('editor.exitFullscreen') : t('editor.fullscreen')}
+              aria-pressed={fullscreen}
+              onClick={toggleFullscreen}
+            >
+              {fullscreen ? <FullscreenExitOutlined aria-hidden="true" /> : <FullscreenOutlined aria-hidden="true" />}
+            </button>
+            <button
+              type="button"
+              className="rich-toolbar-action"
+              title={t('editor.collapse')}
+              aria-label={t('editor.collapse')}
+              onClick={closeExpanded}
+            >
+              <CompressOutlined aria-hidden="true" />
+            </button>
+          </>
+        ) : expandable ? (
+          <button
+            type="button"
+            ref={expandButtonRef}
+            className="rich-toolbar-action"
+            title={t('editor.expand')}
+            aria-label={t('editor.expand')}
+            onClick={openExpanded}
+          >
+            <ExpandAltOutlined aria-hidden="true" />
+          </button>
+        ) : null}
       </div>
       <div className="rich-body-wrap">
         <div

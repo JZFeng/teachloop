@@ -427,6 +427,7 @@ export default function AssignmentPage() {
               <RichTextEditor
                 initialHtml={richHtml}
                 placeholder={t('exam.richPlaceholder')}
+                expandable
                 onChange={(html, text) => {
                   setRichHtml(html)
                   setContent(text)

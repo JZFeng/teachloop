@@ -1223,7 +1223,10 @@
       "titleReadOnly": "标题与默认时长在创建后不可修改（后端未提供试卷更新接口，未接入）。",
       "totalMatch": "总分一致：{{total}} 分。",
       "totalMismatch": "总分不一致：本地 {{local}}，后端 {{server}}。请检查后重新同步；一致前不能发布。",
-      "unsaved": "待同步"
+      "unsaved": "待同步",
+      "rubricPreview": "解析出的评分项",
+      "rubricPreviewTotal": "合计 {{total}} 分",
+      "rubricPreviewHint": "按行解析的结果，仅供检查；试卷发布不校验这里的合计。"
     }
   },
   "ui": {
