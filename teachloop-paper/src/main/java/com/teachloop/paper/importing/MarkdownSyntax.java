@@ -29,6 +29,15 @@ final class MarkdownSyntax {
     private static final Pattern TABLE_ROW = Pattern.compile("^\\s*\\|.*\\|\\s*$");
     /** 表格分隔行里的单元格：{@code ---} / {@code :---:}。 */
     private static final Pattern TABLE_SEPARATOR_CELL = Pattern.compile("^:?-{1,}:?$");
+    /**
+     * HTML 下划线标签：{@code <u>} / {@code <ins>}。
+     *
+     * <p>下划线只是排版，不是试卷内容。老师在编辑器里给空里的题号加下划线
+     * （{@code ______<u>(7)</u>}）时，标签会跟着 Markdown 一起粘进来；
+     * 不剥掉的话题号认不出来，学生会看到 {@code ___ (36) ___ <u>(7)</u>} 的双写。</p>
+     */
+    private static final Pattern UNDERLINE_TAG = Pattern.compile(
+            "</?(?:u|ins)\\b[^>]*>", Pattern.CASE_INSENSITIVE);
 
     private MarkdownSyntax() {
     }
@@ -50,6 +59,8 @@ final class MarkdownSyntax {
             text = BULLET.matcher(text).replaceFirst("");
             // 加粗/斜体/行内代码的标记本身没有语义，去掉；** 先于 *
             text = text.replace("**", "").replace("`", "");
+            // 下划线标签也去掉；下划线本身（______）是空，动不得
+            text = UNDERLINE_TAG.matcher(text).replaceAll("");
             // 空行保留：行号要跟原文对得上，解析器自己会跳过空行
             out.add(new DocumentTextExtractor.SourceLine(line.number(), text));
         }

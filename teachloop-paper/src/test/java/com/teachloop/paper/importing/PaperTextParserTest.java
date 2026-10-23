@@ -465,6 +465,121 @@ class PaperTextParserTest {
     }
 
     /**
+     * 下划线绕到题号两边时还是一个空（2026-10-22 用户实测）：{@code ______(7)___} 曾按两段下划线
+     * 数成两个空，七选五 5 个空变成 6 道题，题号与答案区整体错位。
+     */
+    @Test
+    void countsOneBlankWhenUnderscoresSurroundTheQuestionNumber() {
+        String text = """
+                阅读下面短文，从短文后的选项中选出最佳选项。
+                Keeping up with teachers is a good way. ______(7)___ Keep a notebook to record mistakes.
+
+                A. Don't let your friendships die.
+                B. Your friends are good for your study.
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.items().get(0).number()).isEqualTo(7);
+        assertThat(result.items().get(0).stem())
+                .isEqualTo("Keeping up with teachers is a good way. ___(7)___ Keep a notebook to record mistakes.");
+    }
+
+    /** 「(7) 带下划线」的另一种写法 {@code __(7)__}：只有两段下划线，也认成一个空并取题号 7。 */
+    @Test
+    void acceptsUnderlinedQuestionNumberWithTwoUnderscores() {
+        String text = """
+                阅读下面短文，从短文后的选项中选出最佳选项。
+                Keeping up with teachers is a good way. __(7)__ Keep a notebook to record mistakes.
+                The school life may be hard, but you're not alone. __(8)__
+
+                A. Don't let your friendships die.
+                B. Your friends are good for your study.
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::number).containsExactly(7, 8);
+        assertThat(result.items().get(0).stem()).contains("___(7)___");
+        assertThat(result.items().get(1).stem()).contains("___(8)___");
+    }
+
+    /** HTML 下划线标签 {@code <u>(7)</u>} 是排版，导入时要剥掉标签、照常认成一个空。 */
+    @Test
+    void acceptsUnderlineTagsAroundTheQuestionNumber() {
+        String text = """
+                阅读下面短文，从短文后的选项中选出最佳选项。
+                Keeping up with teachers is a good way. ______<u>(7)</u>___ Keep a notebook to record mistakes.
+
+                A. Don't let your friendships die.
+                B. Your friends are good for your study.
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.items().get(0).number()).isEqualTo(7);
+        assertThat(result.items().get(0).stem()).contains("___(7)___").doesNotContain("<u>").doesNotContain("</u>");
+    }
+
+    /**
+     * 用户原样的七选五片段：7、8 两个空写了题号，后三个空没写；应得到 7–11 共 5 题，
+     * 而不是 6 题（第一个空被数成两段）。
+     */
+    @Test
+    void numbersTheSevenOutOfSevenFragmentByItsWrittenNumbers() {
+        String text = """
+                How can English be learned well? In my view, keeping up with teachers is a good way.
+                But remember to work in a way that suits you. ______(7) Keep a notebook to make a record.
+
+                The school life may be hard, but you're not alone. ___(8)
+
+                Going to bed no later than 11:30 pm is important. ______ You needn't follow a special diet.
+
+                ______ Having a lot of schoolwork doesn't mean having to quit other activities.
+
+                Besides taking the College Entrance Examination, you have other choices for college. ______
+
+                A. Don't let your friendships die.
+                B. Your friends are good for your study.
+                C. If you took notes in class, re-read them.
+                D. The person who plays well studies well.
+                E. It puts you in the right state for the next day.
+                F. Some students even apply for studying abroad.
+                G. It's important to learn from past mistakes as well.
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::number)
+                .containsExactly(7, 8, 9, 10, 11);
+        for (PaperTextParser.ParsedItem item : result.items()) {
+            assertThat(item.stem()).contains("___(" + item.number() + ")___");
+        }
+        // 同一段材料在每道题里各存一份：没轮到的空要收成统一写法，答题页才能认出是同一篇材料
+        assertThat(result.items().get(0).stem()).contains("______ (8)");
+        assertThat(result.items().get(1).stem()).contains("______ (7)");
+    }
+
+    /** 括号里是四位年份时不能和空并成一个（否则两个空会少算一个）。 */
+    @Test
+    void doesNotMergeFourDigitParenthesizedTextIntoTheBlank() {
+        String text = """
+                阅读下面短文，在空白处填入适当内容。
+                The school ______ (2019) was founded, and the library ______ was built later.
+
+                A. 甲
+                B. 乙
+                """;
+
+        PaperTextParser.Result result = parseMarkdown(text);
+
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::number).containsExactly(1, 2);
+        assertThat(result.items().get(0).stem()).contains("(2019)");
+    }
+
+    /**
      * 七选五「材料里 5 个空、但只有 2 道题」：填空题顺推题号不能把后面真正的 9/10/11 吃掉。
      *
      * <p>2026-10-22 真实卷（AI立即.md）：七选五的 5 个空按顺推占用了 7–11，导致完形填空的

@@ -108,8 +108,24 @@ public final class PaperTextParser {
             "^(?:听下面|听第五段|听第[一二三四五六七八九十\\d]+段|听每段"
                     + "|阅读下面|阅读下列|阅读材料"
                     + "|在句子空白处|从每题所给|从短文后|请将答案|将答案写|选出可以|选出最佳)");
-    /** 填空：3 个以上下划线。 */
-    private static final Pattern BLANK = Pattern.compile("_{3,}");
+    /**
+     * 一个空。
+     *
+     * <p>裸空是 3 个以上下划线；卷面把题号写进空里时，下划线可能绕到题号两边
+     * （{@code ______(7)___}、{@code __(7)__}、{@code (7)______}），这几段要当成**同一个空**，
+     * 否则一个空会被数成两个、凭空多出一道题（2026-10-22 用户实测：
+     * {@code ______(7)} 正常，{@code ______(7)___} 会多出一道）。</p>
+     *
+     * <p>括号里只认 1–3 位数字，{@code ______ (2019)} 这种正文里的年份不会被并进空。
+     * 三个分支的捕获组 1 / 2 是卷面写的题号（裸空没有题号）。</p>
+     */
+    private static final Pattern BLANK = Pattern.compile(
+            // 空 + 括号题号 + 紧贴的下划线尾巴：______(7)___ / __(7)__
+            "_{1,}[ \\t]*[(（][ \\t]*(\\d{1,3})[ \\t]*[)）]_{0,}"
+                    // 括号题号 + 空：(7)______
+                    + "|[(（][ \\t]*(\\d{1,3})[ \\t]*[)）][ \\t]*_{3,}"
+                    // 裸空：______
+                    + "|_{3,}");
     /**
      * 一行的「题号 + 答案」对；题号区间写成 {@code 36-40}；答案可以是 {@code AB} 这种多选。
      *
@@ -486,14 +502,17 @@ public final class PaperTextParser {
         }
         List<ParsedItem> out = new ArrayList<>();
         for (int i = 0; i < blanks; i++) {
-            int number = ctx.lastNumber + 1;
-            if (ctx.explicitNumbers.contains(number)) {
+            // 卷面把题号写进了空里（______(7)___）就以卷面为准：老师手写的编号才对应答案区，
+            // 顺推编号只用于没写题号的空（2026-10-22 用户实测）。
+            Integer printed = blankNumber(joined, i);
+            int number = printed == null ? ctx.lastNumber + 1 : printed;
+            if (ctx.explicitNumbers.contains(number) || ctx.byNumber.containsKey(number)) {
                 // 这个题号卷面上已经另有一道题，空不再顺推，避免撞号与后面答案错位
                 warnings.add("「" + sub.title + "」还有 " + (blanks - i) + " 个空未成题：题号 " + number
                         + " 已被卷面其他题目占用，请核对这一节的小题数");
                 break;
             }
-            ctx.lastNumber = number;
+            ctx.lastNumber = Math.max(ctx.lastNumber, number);
             int sourceLine = blankLine(i, content);
             // 每个空都标上题号，否则同一篇材料的 10 道题看起来一模一样
             String stem = labelBlank(joined, i, number);
@@ -828,31 +847,51 @@ public final class PaperTextParser {
     }
 
     /**
-     * 把第 {@code index} 个空换成 {@code ___(题号)___}。
+     * 把第 {@code index} 个空换成 {@code ___(题号)___}，其余空收成统一写法。
      *
-     * <p>卷面通常已经带了题号（{@code ______ (7)} / {@code （7）______}）。标记自带题号，所以
-     * 紧邻的同号括号要一并吸收，否则快照里会留下 {@code ___(7)___ (7)}，学生端就会看到
-     * 「控件 7 + 正文 (7)」的双写（2026-10-21 修）。只吸收与本次题号相同的括号，
-     * {@code ______ (2019)} 这种正文不会被误吃。</p>
+     * <p>卷面通常已经带了题号（{@code ______ (7)} / {@code （7）______} / {@code ______(7)___}）。
+     * 整个「空 + 括号题号 + 下划线」都算同一个空（见 {@link #BLANK}），所以整段一起换掉：
+     * 快照里既不会留下 {@code ___(7)___ (7)}，也不会留下题号两边多出来的下划线
+     * （2026-10-21 / 10-22 修）。括号里不是题号时（{@code ______ (2019)}）不会被并进来。</p>
+     *
+     * <p>没轮到的空也收成 {@code ______} / {@code ______ (8)}：同一段材料在每道题的题干里各存一份，
+     * 只有统一写法，答题页才能把材料认出「同一篇」并只渲染一次（{@code MaterialGrouper}）；
+     * 题号两边多出来的下划线如果留着，空数会被数多，分组直接退化成每题重复一遍材料。</p>
      */
     static String labelBlank(String material, int index, int number) {
+        Matcher matcher = BLANK.matcher(material);
+        StringBuilder out = new StringBuilder(material.length());
+        int seen = 0;
+        int cursor = 0;
+        while (matcher.find()) {
+            out.append(material, cursor, matcher.start());
+            String printed = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+            if (seen == index) {
+                out.append("___(").append(number).append(")___");
+            } else if (printed != null) {
+                // 别人题号保留成提示，MaterialGrouper 靠它把同一篇材料对齐
+                out.append("______ (").append(printed).append(')');
+            } else {
+                out.append("______");
+            }
+            cursor = matcher.end();
+            seen++;
+        }
+        return out.append(material.substring(cursor)).toString();
+    }
+
+    /** 第 {@code index} 个空自带的题号；卷面没写题号时返回 {@code null}。 */
+    private static Integer blankNumber(String material, int index) {
         Matcher matcher = BLANK.matcher(material);
         int seen = 0;
         while (matcher.find()) {
             if (seen == index) {
-                String marker = "___(" + number + ")___";
-                String labeled = material.substring(0, matcher.start()) + marker
-                        + material.substring(matcher.end());
-                // 括号在后：___(7)___ (7)
-                String after = "___\\(" + number + "\\)___\\s*[(（]\\s*" + number + "\\s*[)）]";
-                // 括号在前：(7) ___(7)___
-                String before = "[(（]\\s*" + number + "\\s*[)）]\\s*___\\(" + number + "\\)___";
-                return labeled.replaceAll(after, Matcher.quoteReplacement(marker))
-                        .replaceAll(before, Matcher.quoteReplacement(marker));
+                String raw = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+                return raw == null ? null : Integer.valueOf(raw);
             }
             seen++;
         }
-        return material;
+        return null;
     }
 
     private static int countBlanks(String text) {
