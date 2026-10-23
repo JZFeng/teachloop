@@ -1270,7 +1270,16 @@
       "demoRow1": "Class 10-3 · Midterm mock",
       "demoRow2": "Class 10-3 · Writing task",
       "demoRow3": "Class 11-1 · Quick quiz",
-      "typeSample": "Body 14 / 1.65 — Chinese needs a looser line height than English."
+      "typeSample": "Body 14 / 1.65 — Chinese needs a looser line height than English.",
+      "sectionBrand": "Brand palette and feature slots",
+      "brandFeatures": "Four feature slots (ink × tint)",
+      "brandStatus": "Grading states",
+      "brandRaw": "Raw brand colors (fills only)",
+      "brandNote": "Feature hues are for icon chips, eyebrows and charts. Grading states always carry text. Raw brand colors are fills only and never carry body text.",
+      "brandContrast": "Contrast (light / dark)",
+      "statusPass": "Pass",
+      "statusPartial": "Partial",
+      "statusFail": "Fail"
     },
     "navKit": "UI kit"
   },

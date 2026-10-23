@@ -376,3 +376,48 @@
 .tl-brand-lockup-dark .tl-brand-mark { height: calc(var(--tl-lockup-word) * 1.35); }
 :root[data-theme='dark'] .tl-brand-lockup-img { display: none; }
 :root[data-theme='dark'] .tl-brand-lockup-dark { display: inline-flex; }
+
+/* /ui-kit 品牌色板：功能位胶囊、状态标签、原色块。颜色全部来自令牌。 */
+.tl-brand-kit { display: flex; flex-direction: column; gap: 10px; }
+.tl-brand-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.tl-brand-row-label { flex: 0 0 190px; font-size: 12px; color: var(--muted-2); }
+.tl-brand-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  font-size: 12px;
+  color: var(--text);
+}
+.tl-brand-chip-ico {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tl-weak);
+  color: var(--tl-ink);
+  font-size: 13px;
+}
+.tl-brand-chip[data-feature='create'] { --tl-weak: var(--create-weak); --tl-ink: var(--create); }
+.tl-brand-chip[data-feature='assess'] { --tl-weak: var(--assess-weak); --tl-ink: var(--assess); }
+.tl-brand-chip[data-feature='practice'] { --tl-weak: var(--practice-weak); --tl-ink: var(--practice); }
+.tl-brand-chip[data-feature='insights'] { --tl-weak: var(--insights-weak); --tl-ink: var(--insights); }
+.tl-brand-swatch { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+.tl-brand-swatch i {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  border: 1px solid var(--line);
+  display: inline-block;
+}
+.tl-brand-swatch[data-brand='navy'] i { background: var(--brand-navy); }
+.tl-brand-swatch[data-brand='azure'] i { background: var(--brand-azure); }
+.tl-brand-swatch[data-brand='teal'] i { background: var(--brand-teal); }
+.tl-brand-swatch[data-brand='yellow'] i { background: var(--brand-yellow); }
+.tl-brand-swatch[data-brand='rose'] i { background: var(--brand-rose); }
+.tl-brand-ratio { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }

@@ -52,7 +52,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const studentNav: NavItem[] = [
     { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true },
     { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined /> },
-    { to: '/feedback', label: t('nav.feedback'), icon: <CommentOutlined /> },
+    { to: '/feedback', label: t('nav.feedback'), icon: <CommentOutlined />, tone: 'assess' },
   ]
   const items = me?.role === 'STUDENT' ? studentNav : teacherNav
 

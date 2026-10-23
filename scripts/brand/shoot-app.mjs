@@ -8,6 +8,9 @@
  * 用法：
  *   BASE=http://localhost:5173 node scripts/brand/shoot-app.mjs
  * 依赖：本机 Chrome + 一个跑着的 dev server（`pnpm dev`，代理到有数据的后端）。
+ *
+ * 教师账号：teacher@teachloop.local / teachloop123
+ * 学生账号：student02@teachloop.local / teachloop123（学生页单独登出再登入）
  */
 import { spawn } from 'node:child_process'
 import { mkdirSync, writeFileSync } from 'node:fs'
@@ -21,26 +24,32 @@ const BASE = process.env.BASE ?? 'http://localhost:5173'
 const OUT = path.join(ROOT, 'docs/reports/brand-app-2026-10-22')
 const PROFILE = path.join(ROOT, '.cache/chrome-app')
 const CDP = 'http://127.0.0.1:9333'
-const EMAIL = 'teacher@teachloop.local'
-const PASSWORD = 'teachloop123'
 
-/** 截哪些页：文件名、路由、主题。登录页单独处理（要先登出）。 */
-const ROUTES = [
+const TEACHER = { email: 'teacher@teachloop.local', password: 'teachloop123' }
+const STUDENT = { email: 'student02@teachloop.local', password: 'teachloop123' }
+
+/** [文件名, 路由, 主题, 视口高度] */
+const TEACHER_ROUTES = [
   ['home-light', '/', 'light'],
   ['home-dark', '/', 'dark'],
+  ['classes-light', '/classes', 'light'],
+  ['classes-dark', '/classes', 'dark'],
+  ['assignments-light', '/assignments', 'light'],
+  ['assignments-dark', '/assignments', 'dark'],
   ['papers-light', '/papers', 'light'],
   ['papers-dark', '/papers', 'dark'],
-  ['new-assignment-light', '/assignments/new', 'light'],
-  ['new-assignment-dark', '/assignments/new', 'dark'],
+  ['new-assignment-light', '/assignments/new', 'light', 1500],
+  ['new-assignment-dark', '/assignments/new', 'dark', 1500],
+  ['grading-light', '/grading', 'light'],
+  ['grading-dark', '/grading', 'dark'],
   ['review-light', '/review', 'light'],
   ['review-dark', '/review', 'dark'],
   ['reports-light', '/reports', 'light'],
-  ['grading-light', '/grading', 'light'],
-  ['classes-light', '/classes', 'light'],
-  ['assignments-light', '/assignments', 'light'],
-  ['ui-kit-light', '/ui-kit', 'light'],
+  ['reports-dark', '/reports', 'dark'],
   ['profile-light', '/profile', 'light'],
   ['notifications-light', '/notifications', 'light'],
+  ['ui-kit-light', '/ui-kit', 'light', 2600],
+  ['ui-kit-dark', '/ui-kit', 'dark', 2600],
 ]
 
 mkdirSync(OUT, { recursive: true })
@@ -84,10 +93,18 @@ async function evaluate(expression) {
   return result?.result?.value
 }
 
+async function setViewport(height) {
+  await send('Emulation.setDeviceMetricsOverride', {
+    width: 1440,
+    height,
+    deviceScaleFactor: 2,
+    mobile: false,
+  })
+}
+
 async function navigate(route) {
   await send('Page.navigate', { url: `${BASE}${route}` })
   await sleep(1600)
-  // 等 React 切换到目标屏，避免截到上一页的骨架。
   await evaluate('document.fonts?.ready ? document.fonts.ready.then(() => true) : true')
   await sleep(400)
 }
@@ -103,6 +120,15 @@ async function setTheme(theme) {
   await evaluate(`localStorage.setItem('teachloop.theme', '${theme}')`)
 }
 
+async function login(user) {
+  const status = await evaluate(
+    `fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: ${JSON.stringify(
+      JSON.stringify(user),
+    )} }).then(r => r.status)`,
+  )
+  return status
+}
+
 async function waitForChrome() {
   for (let i = 0; i < 60; i += 1) {
     try {
@@ -114,6 +140,15 @@ async function waitForChrome() {
     await sleep(250)
   }
   throw new Error('Chrome 未在 15 秒内启动 remote debugging')
+}
+
+async function capture(routes) {
+  for (const [name, route, theme, height = 900] of routes) {
+    await setViewport(height)
+    await setTheme(theme)
+    await navigate(route)
+    await shot(name)
+  }
 }
 
 async function main() {
@@ -138,14 +173,9 @@ async function main() {
 
   await send('Page.enable')
   await send('Runtime.enable')
-  await send('Emulation.setDeviceMetricsOverride', {
-    width: 1440,
-    height: 900,
-    deviceScaleFactor: 2,
-    mobile: false,
-  })
 
   // 登录页：先登出，再分别截亮/暗（主题从 localStorage 读，导航时生效）。
+  await setViewport(900)
   await navigate('/login')
   await evaluate(`fetch('/api/auth/logout', { method: 'POST' }).then(r => r.status)`)
   for (const theme of ['light', 'dark']) {
@@ -154,18 +184,48 @@ async function main() {
     await shot(`login-${theme}`)
   }
 
-  // 登录：在页面里发请求，cookie 会落在 localhost:5173（Vite 代理到后端）。
-  const loginStatus = await evaluate(
-    `fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: ${JSON.stringify(
-      JSON.stringify({ email: EMAIL, password: PASSWORD }),
-    )} }).then(r => r.status)`,
-  )
-  if (loginStatus !== 200) throw new Error(`登录失败：HTTP ${loginStatus}`)
+  if ((await login(TEACHER)) !== 200) throw new Error('教师登录失败')
+  const offerings = await evaluate(`fetch('/api/offerings').then(r => r.json())`)
+  await capture(TEACHER_ROUTES)
 
-  for (const [name, route, theme] of ROUTES) {
-    await setTheme(theme)
-    await navigate(route)
-    await shot(name)
+  const assignmentId = offerings?.find((item) => item.kind === 'ASSIGNMENT')?.id
+  if (assignmentId) {
+    await capture([
+      ['grading-detail-light', `/grading/${assignmentId}`, 'light', 1600],
+      ['class-summary-light', `/offerings/${assignmentId}/summary`, 'light', 1400],
+      ['paper-wizard-light', '/papers/new', 'light', 1600],
+      ['paper-import-light', '/papers/import', 'light', 1400],
+    ])
+  }
+
+  // 学生页：登出 → 用学生账号登录 → 截首页 / 班级 / 反馈 / 作业 / 考试入口。
+  await evaluate(`fetch('/api/auth/logout', { method: 'POST' }).then(r => r.status)`)
+  const studentStatus = await login(STUDENT)
+  if (studentStatus === 200) {
+    const studentOfferings = await evaluate(`fetch('/api/offerings').then(r => r.json())`)
+    const studentAssignmentId = studentOfferings?.find((item) => item.kind === 'ASSIGNMENT')?.id
+    const studentExamId = studentOfferings?.find((item) => item.kind === 'EXAM')?.id
+    const studentRoutes = [
+      ['student-home-light', '/', 'light'],
+      ['student-home-dark', '/', 'dark'],
+      ['student-classes-light', '/classes', 'light'],
+      ['student-feedback-light', '/feedback', 'light'],
+    ]
+    if (studentAssignmentId) {
+      studentRoutes.push(['student-assignment-light', `/assignments/${studentAssignmentId}`, 'light', 1500])
+    }
+    if (studentExamId) {
+      studentRoutes.push(['student-exam-entry-light', `/exams/${studentExamId}`, 'light'])
+    }
+    await capture(studentRoutes)
+
+    const feedback = await evaluate(`fetch('/api/feedback').then(r => r.json())`)
+    const feedbackOfferingId = feedback?.[0]?.offeringId
+    if (feedbackOfferingId) {
+      await capture([['student-feedback-detail-light', `/feedback/${feedbackOfferingId}`, 'light', 1500]])
+    }
+  } else {
+    console.warn(`[shoot-app] 学生登录失败（HTTP ${studentStatus}），跳过学生页`)
   }
 
   console.log(`[shoot-app] 输出到 ${path.relative(ROOT, OUT)}/`)

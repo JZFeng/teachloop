@@ -1270,7 +1270,16 @@
       "demoRow1": "高一（3）班 · 期中模拟卷",
       "demoRow2": "高一（3）班 · 写作作业",
       "demoRow3": "高二（1）班 · 随堂测",
-      "typeSample": "正文 14 / 1.65 —— 中文行高比英文松一档，长段正文才不挤。"
+      "typeSample": "正文 14 / 1.65 —— 中文行高比英文松一档，长段正文才不挤。",
+      "sectionBrand": "品牌色板与功能位",
+      "brandFeatures": "四个功能位（ink × tint）",
+      "brandStatus": "判分三态",
+      "brandRaw": "品牌原色（只做填充）",
+      "brandNote": "功能色只做图标胶囊、eyebrow 与图表；判分三态用状态标签，始终带文字。品牌原色只做填充，不承担正文。",
+      "brandContrast": "对比度（亮 / 暗）",
+      "statusPass": "对",
+      "statusPartial": "部分对",
+      "statusFail": "错"
     },
     "navKit": "组件标准"
   },
