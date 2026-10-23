@@ -43,7 +43,7 @@ public class AiSettingsEndpoint {
     public AiSettingsService.ModelsResult models(@RequestAttribute("currentUser") CurrentUser me,
                                                  @RequestBody AiSettingsService.TestRequest body) {
         requireAdmin(me);
-        return service.listModels(null, body);
+        return service.listModels(body);
     }
 
     private static void requireAdmin(CurrentUser me) {

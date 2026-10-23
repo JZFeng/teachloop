@@ -138,7 +138,7 @@ public class AiGradingConfig {
                 }
                 if (envApiKey == null || envApiKey.isBlank()) {
                     throw new LlmCallException(
-                            "NO_KEY: 未配置 AI Key，请在个人资料或 /admin/ai 中设置 DeepSeek API Key");
+                            "NO_KEY: 未配置 AI 模型，请管理员在 /admin/ai 添加 provider 并选择当前模型");
                 }
                 return new Ports.AiSettings("deepseek", envBaseUrl, envModel, envApiKey,
                         envTemperature, true, "env");

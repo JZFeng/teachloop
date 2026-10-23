@@ -479,25 +479,45 @@ export interface BulkApprovePreview {
   skippedItems: BulkApproveSkip[]
 }
 
-export interface ProfileAiSettings {
-  provider: string
+export interface AiProviderView {
+  id: string
+  providerId: string
   displayName: string
   baseUrl: string
+  protocol: string
   model: string
-  temperature: string
-  configured: boolean
   apiKeySet: boolean
   apiKeyMasked: string | null
-  source: 'user' | 'global' | 'none'
-  globalConfigured: boolean
-  updatedAt: string | null
-  restartRequired: boolean
+  active: boolean
+  updatedAt: string
 }
 
-export interface AiModelsResult {
+export interface AiProviderRequest {
+  providerId: string
+  displayName: string
+  baseUrl: string
+  protocol: string
+  apiKey: string | null
+  model: string
+}
+
+export interface AiModelOption {
+  providerId: string
+  displayName: string
+  model: string
+  label: string
+}
+
+export interface AiModelsView {
+  options: AiModelOption[]
+  currentProviderId: string | null
+}
+
+export interface AiTestResult {
   ok: boolean
-  models: string[]
+  latencyMs: number
   message: string
+  model: string
 }
 
 /** 教师级作业批改时机（决策 010）。 */
@@ -508,13 +528,6 @@ export interface GradingPreference {
   catchUp: boolean
   lastFixedRunAt: string | null
   updatedAt: string | null
-}
-
-export interface AiTestResult {
-  ok: boolean
-  latencyMs: number
-  message: string
-  model: string
 }
 
 export interface AuditView {

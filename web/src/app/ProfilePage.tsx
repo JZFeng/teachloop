@@ -6,7 +6,7 @@ import { api } from '../api/client'
 import { LANGUAGES, changeLanguage } from '../i18n'
 import { Alert, Button, Field, Input, PageHeader, ThemeToggle } from '../ui'
 import { UiKitPanel } from './UiKitPanel'
-import type { AiModelsResult, AiTestResult, GradingPreference, ProfileAiSettings } from '../api/types'
+import type { AiModelOption, AiModelsView, GradingPreference } from '../api/types'
 
 interface ProfileView {
   id: string
@@ -20,13 +20,6 @@ const TIME_ZONES = [
   'Asia/Shanghai', 'Asia/Tokyo', 'Asia/Singapore', 'Asia/Kolkata',
   'UTC', 'Europe/London', 'Europe/Berlin', 'America/New_York',
   'America/Chicago', 'America/Los_Angeles', 'Australia/Sydney',
-]
-
-const PRESETS = [
-  { key: 'ollama', label: 'Ollama', provider: 'ollama', baseUrl: 'http://localhost:11434/v1' },
-  { key: 'lmstudio', label: 'LM Studio', provider: 'lmstudio', baseUrl: 'http://localhost:1234/v1' },
-  { key: 'vllm', label: 'vLLM', provider: 'vllm', baseUrl: 'http://localhost:8000/v1' },
-  { key: 'deepseek', label: 'DeepSeek', provider: 'deepseek', baseUrl: 'https://api.deepseek.com' },
 ]
 
 /**
@@ -45,13 +38,9 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const [ai, setAi] = useState<ProfileAiSettings | null>(null)
-  const [aiProvider, setAiProvider] = useState('openai-compatible')
-  const [aiDisplayName, setAiDisplayName] = useState('')
-  const [aiBaseUrl, setAiBaseUrl] = useState('')
-  const [aiModel, setAiModel] = useState('')
-  const [aiKey, setAiKey] = useState('')
-  const [aiModels, setAiModels] = useState<string[]>([])
+  const [aiOptions, setAiOptions] = useState<AiModelOption[]>([])
+  const [aiCurrent, setAiCurrent] = useState<string | null>(null)
+  const [aiSelected, setAiSelected] = useState('')
   const [aiMessage, setAiMessage] = useState<string | null>(null)
   const [aiError, setAiError] = useState<string | null>(null)
 
@@ -102,12 +91,10 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!canConfigureAi) return
-    api.get<ProfileAiSettings>('/api/profile/ai-settings').then((value) => {
-      setAi(value)
-      setAiProvider(value.provider || 'openai-compatible')
-      setAiDisplayName(value.displayName || value.provider || '')
-      setAiBaseUrl(value.baseUrl)
-      setAiModel(value.model)
+    api.get<AiModelsView>('/api/ai-models').then((value) => {
+      setAiOptions(value.options)
+      setAiCurrent(value.currentProviderId)
+      setAiSelected(value.currentProviderId || value.options[0]?.providerId || '')
     }).catch((e: Error) => setAiError(e.message))
   }, [canConfigureAi])
 
@@ -145,63 +132,14 @@ export default function ProfilePage() {
     setAiError(null)
     setAiMessage(null)
     try {
-      const saved = await api.put<ProfileAiSettings>('/api/profile/ai-settings', {
-        provider: aiProvider,
-        displayName: aiDisplayName,
-        baseUrl: aiBaseUrl,
-        model: aiModel,
-        apiKey: aiKey.trim() || null,
-      })
-      setAi(saved)
-      setAiProvider(saved.provider || 'openai-compatible')
-      setAiDisplayName(saved.displayName || '')
-      setAiBaseUrl(saved.baseUrl)
-      setAiModel(saved.model)
-      setAiKey('')
+      const saved = await api.put<AiModelsView>('/api/ai-models/current', { providerId: aiSelected })
+      setAiOptions(saved.options)
+      setAiCurrent(saved.currentProviderId)
+      setAiSelected(saved.currentProviderId || aiSelected)
       setAiMessage(t('profile.aiSaved'))
     } catch (e) {
       setAiError((e as Error).message)
     }
-  }
-
-  const testAi = async () => {
-    setAiError(null)
-    setAiMessage(null)
-    try {
-      const result = await api.post<AiTestResult>('/api/profile/ai-settings/test', {
-        baseUrl: aiBaseUrl,
-        model: aiModel,
-        apiKey: aiKey.trim() || null,
-      })
-      if (result.ok) setAiMessage(t('profile.aiTestOk', { ms: result.latencyMs }))
-      else setAiError(t('profile.aiTestFail', { message: result.message }))
-    } catch (e) {
-      setAiError((e as Error).message)
-    }
-  }
-
-  const loadModels = async () => {
-    setAiError(null)
-    setAiMessage(null)
-    try {
-      const result = await api.post<AiModelsResult>('/api/profile/ai-settings/models', {
-        baseUrl: aiBaseUrl,
-        model: '',
-        apiKey: aiKey.trim() || null,
-      })
-      setAiModels(result.models)
-      if (result.ok) setAiMessage(t('profile.aiModelsLoaded', { count: result.models.length }))
-      else setAiError(t('profile.aiModelsFailed', { message: result.message }))
-    } catch (e) {
-      setAiError((e as Error).message)
-    }
-  }
-
-  const applyPreset = (preset: typeof PRESETS[number]) => {
-    setAiProvider(preset.provider)
-    setAiDisplayName(preset.label)
-    setAiBaseUrl(preset.baseUrl)
-    setAiModels([])
   }
 
   const saveGrading = async () => {
@@ -304,51 +242,29 @@ export default function ProfilePage() {
           <p className="small muted">{t('profile.aiSub')}</p>
           {aiError && <Alert type="error" showIcon message={aiError} style={{ marginBottom: 12 }} />}
           {aiMessage && <Alert type="success" showIcon message={aiMessage} style={{ marginBottom: 12 }} />}
-          {ai && (
-            <p className="small muted">
-              {ai.source === 'user' ? t('profile.aiSourceUser')
-                : ai.source === 'global' ? t('profile.aiSourceGlobal')
-                  : t('profile.aiSourceNone')}
-              {' · '}{ai.configured ? t('profile.aiConfigured') : t('profile.aiNotConfigured')}
-              {ai.apiKeyMasked ? ` · ${t('profile.aiMasked', { masked: ai.apiKeyMasked })}` : ''}
-            </p>
+          {aiOptions.length === 0 ? (
+            <div className="inline-note">{t('profile.aiNoOptions')}</div>
+          ) : (
+            <>
+              <Field label={t('profile.aiChoose')} hint={t('profile.aiChooseHint')} htmlFor="teacher-ai-model">
+                <select id="teacher-ai-model" value={aiSelected}
+                  onChange={(e) => setAiSelected(e.target.value)}>
+                  {aiOptions.map((option) => (
+                    <option key={option.providerId} value={option.providerId}>{option.label}</option>
+                  ))}
+                </select>
+              </Field>
+              <div className="row" style={{ gap: 8 }}>
+                <Button variant="primary" onClick={() => void saveAi()}>{t('profile.aiSave')}</Button>
+              </div>
+              <p className="small muted" style={{ marginTop: 10 }}>
+                {aiCurrent
+                  ? t('profile.aiCurrent', { model: aiOptions.find((o) => o.providerId === aiCurrent)?.label ?? aiCurrent })
+                  : t('profile.aiNoCurrent')}
+              </p>
+            </>
           )}
-
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginBottom: 12 }}>
-            <span className="small muted">{t('profile.aiPresets')}</span>
-            {PRESETS.map((preset) => (
-              <Button key={preset.key} size="small" onClick={() => applyPreset(preset)}>{preset.label}</Button>
-            ))}
-          </div>
-
-          <Field label={t('profile.aiProviderId')} hint={t('profile.aiProviderHint')} htmlFor="ai-provider">
-            <Input id="ai-provider" value={aiProvider} onChange={(e) => setAiProvider(e.target.value)}
-              placeholder="ollama / lmstudio / openai-compatible" />
-          </Field>
-          <Field label={t('profile.aiDisplayName')} hint={t('profile.aiDisplayNameHint')} htmlFor="ai-display-name">
-            <Input id="ai-display-name" value={aiDisplayName} onChange={(e) => setAiDisplayName(e.target.value)}
-              placeholder={t('profile.aiDisplayNamePlaceholder')} />
-          </Field>
-          <Field label={t('profile.aiBaseUrl')} hint={t('profile.aiLocalHint')} htmlFor="ai-base-url">
-            <Input id="ai-base-url" value={aiBaseUrl} onChange={(e) => setAiBaseUrl(e.target.value)}
-              placeholder="http://localhost:11434/v1" />
-          </Field>
-          <Field label={t('profile.aiModel')} hint={t('profile.aiModelHint')} htmlFor="ai-model"
-            extra={<Button size="small" onClick={() => void loadModels()}>{t('profile.aiLoadModels')}</Button>}>
-            <Input id="ai-model" list="ai-model-options" value={aiModel} onChange={(e) => setAiModel(e.target.value)}
-              placeholder="qwen3:8b" />
-            <datalist id="ai-model-options">
-              {aiModels.map((model) => <option key={model} value={model} />)}
-            </datalist>
-          </Field>
-          <Field label={t('profile.aiKey')} hint={t('profile.aiKeyOptional')} htmlFor="ai-key">
-            <Input id="ai-key" type="password" value={aiKey} placeholder={t('profile.aiKeyPlaceholder')}
-              onChange={(e) => setAiKey(e.target.value)} autoComplete="off" />
-          </Field>
-          <div className="row" style={{ gap: 8 }}>
-            <Button variant="primary" onClick={() => void saveAi()}>{t('profile.aiSave')}</Button>
-            <Button onClick={() => void testAi()}>{t('profile.aiTest')}</Button>
-          </div>
+          <p className="small muted" style={{ marginTop: 10 }}>{t('profile.aiAdminHint')}</p>
         </div>
       )}
 

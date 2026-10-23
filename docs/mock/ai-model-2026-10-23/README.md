@@ -18,4 +18,4 @@
 
 截图：`admin-list.png` / `admin-add.png` / `admin-models.png` / `teacher.png`。
 
-**状态**：仅 mock，不是产品代码；代码里现有的「教师自定义 provider」表单在确认后会被这版替换。
+**状态**：2026-10-23 用户按此方向确认（管理员 provider 列表 + 教师全局下拉）；代码已按这版替换旧的自定义 provider 表单。

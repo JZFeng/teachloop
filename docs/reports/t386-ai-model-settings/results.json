@@ -1,0 +1,62 @@
+[
+  {
+    "name": "管理员创建 provider 并自动成为当前模型",
+    "ok": true,
+    "detail": "{\"id\":\"87e92a5c-ab60-416b-b54a-7a223a977e4f\",\"providerId\":\"qaval\",\"displayName\":\"Local Qwen\",\"baseUrl\":\"http://127.0.0.1:11434/v1\",\"protocol\":\"openai\",\"model\":\"qwen3.8\",\"apiKeySet\":false,\"apiKeyMasked\":null,\"active\":true,\"updatedAt\":\"2026-10-23T22:29:08.114672Z\"}"
+  },
+  {
+    "name": "管理员页显示 provider 列表与当前标记",
+    "ok": true,
+    "detail": "{\"hasLocal\":true,\"hasAdd\":true,\"hasActive\":true,\"hasProviderKeyField\":false}"
+  },
+  {
+    "name": "管理员页有添加入口",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "provider 表单有 ID/地址/协议/Key/模型字段",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "教师登录",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "教师页只看到模型下拉",
+    "ok": true,
+    "detail": "{\"options\":[\"Local Qwen · qwen3.8\"],\"hasOldProviderFields\":false,\"hasGrading\":true,\"current\":\"Local Qwen · qwen3.8\"}"
+  },
+  {
+    "name": "教师页仍有批改时机",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "教师保存后全站当前模型为 qaval",
+    "ok": true,
+    "detail": "{\"options\":[{\"providerId\":\"qaval\",\"displayName\":\"Local Qwen\",\"model\":\"qwen3.8\",\"label\":\"Local Qwen · qwen3.8\"}],\"currentProviderId\":\"qaval\"}"
+  },
+  {
+    "name": "学生登录",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "学生看到账号与语言",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "学生看不到 AI 模型",
+    "ok": true,
+    "detail": ""
+  },
+  {
+    "name": "清理测试 provider",
+    "ok": true,
+    "detail": "[]"
+  }
+]

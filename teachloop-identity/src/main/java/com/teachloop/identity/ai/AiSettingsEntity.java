@@ -34,6 +34,10 @@ public class AiSettingsEntity {
     @Column(name = "updated_by")
     private UUID updatedBy;
 
+    /** 决策 010 修订：当前全站使用的 provider；为空时回退下面四个旧字段。 */
+    @Column(name = "active_provider_id")
+    private UUID activeProviderId;
+
     protected AiSettingsEntity() {
     }
 
@@ -45,6 +49,7 @@ public class AiSettingsEntity {
     public BigDecimal getTemperature() { return temperature; }
     public Instant getUpdatedAt() { return updatedAt; }
     public UUID getUpdatedBy() { return updatedBy; }
+    public UUID getActiveProviderId() { return activeProviderId; }
 
     public void setProvider(String provider) { this.provider = provider; }
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
@@ -53,4 +58,5 @@ public class AiSettingsEntity {
     public void setTemperature(BigDecimal temperature) { this.temperature = temperature; }
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public void setUpdatedBy(UUID updatedBy) { this.updatedBy = updatedBy; }
+    public void setActiveProviderId(UUID activeProviderId) { this.activeProviderId = activeProviderId; }
 }

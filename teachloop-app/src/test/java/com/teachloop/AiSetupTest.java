@@ -89,21 +89,29 @@ class AiSetupTest {
         assertThat(after.get("needsAdmin")).isEqualTo(false);
         assertThat(after.get("aiConfigured")).isEqualTo(true);
 
-        // D-16：教师可以在 profile 配自己的 Key；GET 只回掩码，学生 403。
-        Map<String, Object> own = Json.parse(request(base, teacher, "PUT", "/api/profile/ai-settings",
-                Map.of("provider", "deepseek", "baseUrl", "https://api.deepseek.com",
-                        "model", "deepseek-flash", "apiKey", "sk-teacher-9999")).body());
-        assertThat(own.get("source")).isEqualTo("user");
-        assertThat(own.get("apiKeyMasked")).isEqualTo("sk-****9999");
-        assertThat(own.toString()).doesNotContain("sk-teacher-9999");
-        java.util.UUID teacherId = jdbc.queryForObject(
-                "select id from users where email = 'teacher@teachloop.local'", java.util.UUID.class);
-        String userCipher = jdbc.queryForObject(
-                "select api_key_cipher from user_ai_settings where user_id = ?", String.class, teacherId);
-        assertThat(userCipher).isNotBlank().doesNotContain("sk-teacher-9999");
+        // D-30：管理员维护全局 provider；第一个 provider 自动成为当前模型。
+        Map<String, Object> provider = Json.parse(request(base, admin, "POST", "/api/admin/ai-providers",
+                Map.of("providerId", "local", "displayName", "Local Qwen",
+                        "baseUrl", "http://127.0.0.1:8080/v1", "protocol", "openai",
+                        "apiKey", "sk-provider-9999", "model", "qwen3.8")).body());
+        assertThat(provider.get("providerId")).isEqualTo("local");
+        assertThat(provider.get("active")).isEqualTo(true);
+        assertThat(provider.get("apiKeyMasked")).isEqualTo("sk-****9999");
+        assertThat(provider.toString()).doesNotContain("sk-provider-9999");
+        String providerCipher = jdbc.queryForObject(
+                "select api_key_cipher from ai_providers where provider_key = 'local'", String.class);
+        assertThat(providerCipher).isNotBlank().doesNotContain("sk-provider-9999");
+
+        // 教师只看到下拉选项并切换全局模型；学生 403。
+        Map<String, Object> options = Json.parse(request(base, teacher, "GET", "/api/ai-models", null).body());
+        assertThat(options.get("currentProviderId")).isEqualTo("local");
+        assertThat(options.toString()).contains("Local Qwen");
+        Map<String, Object> switched = Json.parse(request(base, teacher, "PUT", "/api/ai-models/current",
+                Map.of("providerId", "local")).body());
+        assertThat(switched.get("currentProviderId")).isEqualTo("local");
 
         String student = login(base, "student@teachloop.local");
-        assertThat(request(base, student, "GET", "/api/profile/ai-settings", null).statusCode()).isEqualTo(403);
+        assertThat(request(base, student, "GET", "/api/ai-models", null).statusCode()).isEqualTo(403);
     }
 
     private String login(String base, String email) throws Exception {

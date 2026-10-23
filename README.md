@@ -53,7 +53,7 @@
 ## 技术栈
 
 - 后端：Java 21 + Spring Boot 4.1.1（Spring Framework 7）+ Jackson 3（`tools.jackson`）+ Spring Data JPA / Hibernate 7 + Flyway + PostgreSQL 16
-- 模型：任意 OpenAI 兼容端点（DeepSeek / Ollama / LM Studio / vLLM），经 Spring AI 2.0.1 `ChatClient` 调用；`teachloop.ai.client=http` 保留 JDK HttpClient 回退。教师可在 `/profile` 自定义 provider（ID/显示名/Base URL/可空 Key/模型发现）；解析顺序是「教师个人 → 全局 → `DEEPSEEK_API_KEY`」，无可用配置 / 调用失败不出假分
+- 模型：任意 OpenAI 兼容端点（DeepSeek / Ollama / LM Studio / vLLM），经 Spring AI 2.0.1 `ChatClient` 调用；`teachloop.ai.client=http` 保留 JDK HttpClient 回退。管理员在 `/admin/ai` 维护全局 provider 列表（ID/显示名/Base URL/可空 Key/模型发现），教师在 `/profile` 从下拉里选当前模型（v1 全站一个模型）；无可用配置 / 调用失败不出假分
 - 前端：`web/`，React 19.3 + TypeScript 7 + Vite 8.3 + antd 6 + i18next 26；Markdown 编辑器用 Vditor 4.0.1
 - 队列：不引入消息队列。提交行就是工作项，SQL 条件更新领取；`@Scheduled` + 数据库条件更新。考试到期派发、作业夜间批量、僵尸清扫、到点自动交卷都在这里
 - 部署：单镜像（内置 Noto CJK 与 ffprobe）→ compose 起 app + worker + postgres，无 Redis

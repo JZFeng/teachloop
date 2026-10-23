@@ -102,3 +102,14 @@ Sources:
 6. **Role split is a layout decision, not a security boundary.** The backend already returns 403
    for students on `/api/profile/ai-settings`; the remaining work is to stop showing the teacher
    block to students and to give the teacher settings a clear home.
+
+
+---
+
+## Postscript (2026-10-23, after the clickable mock)
+
+The user rejected the first per-teacher provider form as too confusing. v1 now follows the mock in
+`docs/mock/ai-model-2026-10-23/`: an ADMIN maintains an `ai_providers` list, and teachers only pick
+one global model from `/profile`; v1 uses one global model and does not support per-assignment or
+per-exam overrides. The research above still explains why blank keys and local endpoints must work,
+but the "teacher fills provider fields" implication is superseded by decision 010 (revised).

@@ -22,7 +22,7 @@ import {
   UserOutlined,
 } from '../ui'
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
-import type { ProfileAiSettings } from '../api/types'
+import type { AiModelsView } from '../api/types'
 
 type NavTone = 'create' | 'assess' | 'insights' | 'home' | 'classes'
 interface NavItem { to: string; label: string; icon: ReactNode; end?: boolean; tone?: NavTone }
@@ -32,7 +32,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [unread, setUnread] = useState(0)
-  const [aiSource, setAiSource] = useState<'user' | 'global' | 'none' | null>(null)
+  const [aiMissing, setAiMissing] = useState(false)
 
   // 三个功能位（作业/试卷 create、批改/复核 assess、报表/我的反馈 insights）之外，
   // 首页与班级作为「空间位」各有一个颜色：home 海军蓝、classes 淡紫（决策 006 2026-10-23 修订）。
@@ -77,13 +77,13 @@ export function Shell({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (me?.role !== 'TEACHER' && me?.role !== 'ADMIN') {
-      setAiSource(null)
+      setAiMissing(false)
       return
     }
     let alive = true
-    api.get<ProfileAiSettings>('/api/profile/ai-settings')
-      .then((value) => { if (alive) setAiSource(value.source) })
-      .catch(() => { if (alive) setAiSource(null) })
+    api.get<AiModelsView>('/api/ai-models')
+      .then((value) => { if (alive) setAiMissing(!value.currentProviderId) })
+      .catch(() => { if (alive) setAiMissing(false) })
     return () => { alive = false }
   }, [me?.id, me?.role])
 
@@ -129,7 +129,7 @@ export function Shell({ children }: { children: ReactNode }) {
                 {t('profile.completeAction')}
               </Button>
             )}
-            {aiSource === 'none' && (
+            {aiMissing && (
               <Button size="small" variant="primary" onClick={() => navigate('/profile')}>
                 {t('profile.aiMissingAction')}
               </Button>
