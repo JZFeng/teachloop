@@ -27,7 +27,7 @@ OUT_DIR=.cache/brand-app-empty node scripts/brand/shoot-app.mjs
 | 壳层与首页 | `home-light` / `home-dark` / `home-en` / `focus-papers-light` | 侧栏品牌区、导航功能色胶囊、页头 eyebrow、键盘焦点环 |
 | 教师 | `classes-*`、`assignments-*`、`papers-*`、`new-assignment-*`、`grading-*`、`review-*`、`reports-*` | 全站令牌继承 + 模块 eyebrow（CREATE/ASSESS/INSIGHTS） |
 | 深层教师 | `grading-detail-light`、`class-summary-light`、`paper-wizard-light`、`paper-import-light` | 表单、表格、统计卡、步骤条在新令牌下不变形 |
-| 学生 | `student-home-*`、`student-classes-light`、`student-feedback-light`、`student-assignment-light`、`student-exam-entry-light` | 学生端配色与教师端一致；作答须知用 ASSESS 青 |
+| 学生 | `student-home-*`、`student-classes-light`、`student-feedback-light`、`student-feedback-detail-light`、`student-assignment-light`、`student-exam-entry-light`、`student-exam-live-light` | 学生端配色与教师端一致；作答须知用 ASSESS 青；live 页是专注布局 |
 | 其他 | `profile-light`、`notifications-light`、`admin-ai-light`、`setup-light`、`ui-kit-*` | 中性页不上功能色；组件页含品牌色板 |
 
 ## 数据口径
@@ -36,9 +36,15 @@ OUT_DIR=.cache/brand-app-empty node scripts/brand/shoot-app.mjs
   用户 2026-10-22 已把 QA 库清空准备重建，重建后重跑脚本即可刷新。
 - 空态版本（清库后）在 `.cache/brand-app-empty/`，未入库；它证明空态/零值样式正常。
 
+## 两张需要数据的图怎么来的
+
+- `student-feedback-detail-light.png`：学生端 `/feedback/:offeringId`，取 `feedbackPublished=true` 的场次。
+- `student-exam-live-light.png`：用户建的考试窗口在创建时就已过期（`startAt 02:56Z / dueAt 03:00Z`），
+  入口页没有「开始答题」。为了截 live 页，临时把 `due_at` 延后 3 小时、经
+  `POST /api/offerings/{id}/attempts` 开了一次作答，截完**删掉该 attempt 并把 `due_at` 还原**。
+  这不动任何产品代码；脚本现在的逻辑是：已有进行中的 session 就复用，否则点「开始答题」，
+  再否则才调 attempts 接口。
+
 ## 未验证
 
-- **考试作答 live 页**：需要一场「可以开始」的考试；脚本已支持自动点「开始答题」，
-  数据重建后会自动补 `student-exam-live-light.png`。
-- **反馈详情页**：需要一条有反馈的提交。
 - **跨浏览器**：只在 Chrome（headless 1440×900 @2x）验证。

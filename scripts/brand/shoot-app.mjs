@@ -26,7 +26,10 @@ const PROFILE = path.join(ROOT, '.cache/chrome-app')
 const CDP = 'http://127.0.0.1:9333'
 
 const TEACHER = { email: 'teacher@teachloop.local', password: 'teachloop123' }
-const STUDENT = { email: 'student02@teachloop.local', password: 'teachloop123' }
+const STUDENT = {
+  email: process.env.STUDENT_EMAIL ?? 'student@teachloop.local',
+  password: process.env.STUDENT_PASSWORD ?? 'teachloop123',
+}
 
 /** [文件名, 路由, 主题, 视口高度] */
 const TEACHER_ROUTES = [
@@ -260,26 +263,53 @@ async function main() {
     }
     await capture(studentRoutes)
 
-    // 作答 live 页：只有在考试可以开始时才截得到（点「开始答题」会真的建一次作答）。
+    // 作答 live 页：优先复用已开始的 session；没有就点「开始答题」；还不行才直接开新 attempt。
     if (studentExamId) {
       await setViewport(900)
       await setTheme('light')
-      await navigate(`/exams/${studentExamId}`)
-      const started = await evaluate(
-        `(() => { const b = [...document.querySelectorAll('button')].find(x => (x.textContent || '').includes('开始答题')); if (!b) return false; b.click(); return true })()`,
+      const session = await evaluate(
+        `fetch('/api/offerings/${studentExamId}/session').then(r => r.ok ? r.json() : null)`,
       )
-      if (started) {
-        await sleep(2500)
+      let live = Boolean(session?.started && !session?.submitted)
+      if (!live) {
+        await navigate(`/exams/${studentExamId}`)
+        live = await evaluate(
+          `(() => { const b = [...document.querySelectorAll('button')].find(x => (x.textContent || '').includes('开始答题')); if (!b) return false; b.click(); return true })()`,
+        )
+        if (live) await sleep(2000)
+      }
+      if (!live) {
+        const status = await evaluate(
+          `fetch('/api/offerings/${studentExamId}/attempts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }).then(r => r.status)`,
+        )
+        if (status === 200 || status === 201) {
+          await sleep(1500)
+          live = true
+        }
+      }
+      if (live) {
+        await navigate(`/exams/${studentExamId}/live`)
         await shot('student-exam-live-light')
       } else {
         console.warn('[shoot-app] 这场考试当前不可开始，跳过 live 页')
       }
     }
 
-    const feedback = await evaluate(`fetch('/api/feedback').then(r => r.json())`)
-    const feedbackOfferingId = feedback?.[0]?.offeringId
+    // 反馈详情：找一场 feedbackPublished=true 的场次（`/api/feedback` 不存在，走 my-feedback）。
+    let feedbackOfferingId = null
+    for (const offering of studentOfferings ?? []) {
+      const feedback = await evaluate(
+        `fetch('/api/offerings/${offering.id}/my-feedback').then(r => r.ok ? r.json() : null)`,
+      )
+      if (feedback?.feedbackPublished) {
+        feedbackOfferingId = offering.id
+        break
+      }
+    }
     if (feedbackOfferingId) {
-      await capture([['student-feedback-detail-light', `/feedback/${feedbackOfferingId}`, 'light', 1500]])
+      await capture([['student-feedback-detail-light', `/feedback/${feedbackOfferingId}`, 'light', 1800]])
+    } else {
+      console.warn('[shoot-app] 没有已发布反馈的场次，跳过反馈详情页')
     }
   } else {
     console.warn(`[shoot-app] 学生登录失败（HTTP ${studentStatus}），跳过学生页`)

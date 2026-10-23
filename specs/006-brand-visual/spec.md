@@ -184,12 +184,15 @@ Practice 的紫色是淡紫底的同族延伸，不是原图取样值；logo 里
 
 登录（亮/暗/英文/焦点）、初始化；教师：首页（亮/暗/英文/焦点）、班级、作业、作业新建、试卷、试卷新建（亮/暗）、
 导入、批改总览、批改详情、复核、报表、班级汇总、资料、通知、组件标准、管理员 AI 设置；
-学生：首页（亮/暗）、班级、反馈、作业、作答须知。完整清单见 `docs/reports/brand-app-2026-10-22/README.md`。
+学生：首页（亮/暗）、班级、反馈、反馈详情、作业、作答须知、考试作答 live。完整清单见
+`docs/reports/brand-app-2026-10-22/README.md`。
 
 ### 6.2 明确未验证（不许写成已优化）
 
-- **考试作答 live 页**：需要真实开始一次作答（会写 QA 数据），本轮未重截；样式继承令牌，结构未改。
-- **反馈详情页**：QA 清库后没有可定位的 offering，未截到（数据恢复后补）。
+- 考试 live 页与反馈详情页已补截（`student-exam-live-light.png`、`student-feedback-detail-light.png`）。
+  live 页的取图方式：用户建的考试窗口在创建时就已过期（startAt 02:56Z / dueAt 03:00Z），
+  临时把 `due_at` 延后 3 小时、经 `POST /api/offerings/{id}/attempts` 开了一次作答，截完删掉该 attempt
+  并把 `due_at` 还原；这不改变任何产品代码。
 - **管理员 AI 设置页**与**初始化 `/setup`** 已截图（`admin-ai-light.png`、`setup-light.png`）：
   教师打开管理员页会看到 API 403 的 Alert，但版式与令牌继承正常；这是权限行为，不是视觉问题。
 - **静态检查已做**：`AdminAiPage` / `FeedbackDetailPage` / `SetupPage` 无颜色字面量，全部走令牌与组件；
