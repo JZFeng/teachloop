@@ -11,44 +11,74 @@
  *   - tokens.ts 给 antd 组件；
  *   - 本文件给未迁移页面的 `.card` / `.btn` / `table` 等手写样式。
  * `scripts/ui/contrast.py` 会解析两边的值并断言一致、且对比度达标，改一边不改另一边会红。
+ *
+ * 品牌层（2026-10-22）：
+ *   - `--brand-*` 是 logo 原始色，主题无关，只放 :root；
+ *   - `--create/--assess/--practice/--insights` 是功能位的深字，`-weak` 是粉彩底；
+ *   - `--green/--amber/--red` 是判分三态，与功能色分开，页面不得混用；
+ *   - `--accent-text` 是链接/次级蓝字：暗色必须比 `--accent`（按钮底）更亮。
  */
 
 :root {
   color-scheme: light;
 
-  --bg: #f5f6f8;
+  --bg: #f6f8fc;
   --panel: #ffffff;
-  --panel-2: #f5f7fa;
-  --line: #e4e7ec;
-  --line-2: #eef0f4;
-  --line-strong: #8c8c8c;
+  --panel-2: #eff4fb;
+  --line: #dce4f2;
+  --line-2: #ebf0f8;
+  --line-strong: #7c8ba3;
 
-  --text: #141414;
-  --muted: #595959;
-  --muted-2: #6b6b6b;
+  --text: #0e2340;
+  --muted: #41536e;
+  --muted-2: #55677f;
 
-  --accent: #1d5fbf;
-  --accent-2: #1554ad;
-  --accent-weak: #eaf1fb;
+  --accent: #1a63e0;
+  --accent-2: #1450bc;
+  --accent-weak: #e8effd;
+  --accent-text: #1a63e0;
   --on-accent: #ffffff;
 
-  --green: #237804;
-  --green-weak: #edf7ea;
-  --amber: #a35c00;
-  --amber-weak: #fbf1e2;
-  --red: #cf1322;
-  --red-weak: #fbeaea;
+  /* logo 原始色：只做图形与插画，不做文字。 */
+  --brand-navy: #0e3676;
+  --brand-azure: #1f8dfd;
+  --brand-teal: #20b998;
+  --brand-yellow: #febf41;
+  --brand-rose: #a63960;
 
-  --done: #1d5fbf;
-  --done-bg: #eaf1fb;
+  /* 四个功能位：深字 + 粉彩底。 */
+  --create: #1957e7;
+  --create-weak: #e8effd;
+  --assess: #0e7066;
+  --assess-weak: #dbf4ee;
+  --practice: #5b3ac4;
+  --practice-weak: #eae0fd;
+  --insights: #a63960;
+  --insights-weak: #fde2e7;
+
+  /* 判分三态：与功能色分开命名。 */
+  --green: #17703f;
+  --green-weak: #e6f5ec;
+  --amber: #8a5a00;
+  --amber-weak: #fff3d6;
+  --red: #b42338;
+  --red-weak: #fde6e8;
+
+  --done: #1a63e0;
+  --done-bg: #e8effd;
   --on-done: #ffffff;
-  --done-line: #a8c4e8;
+  --done-line: #a9c1f5;
 
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 1px 3px rgba(16, 24, 40, 0.06);
-  --shadow-lg: 0 4px 16px rgba(16, 24, 40, 0.08);
+  /* 字标文字：亮色用压深一档的蓝 / 青，位图只用于大字位。 */
+  --logo-navy: #0e3676;
+  --logo-blue-text: #1957e7;
+  --logo-teal-text: #0e7066;
 
-  --radius: 8px;
-  --radius-sm: 6px;
+  --shadow: 0 1px 2px rgba(14, 54, 118, 0.05), 0 1px 3px rgba(14, 54, 118, 0.07);
+  --shadow-lg: 0 18px 44px rgba(14, 54, 118, 0.12);
+
+  --radius: 12px;
+  --radius-sm: 8px;
 
   --font-head: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
@@ -57,33 +87,47 @@
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  --bg: #141414;
-  --panel: #1f1f1f;
-  --panel-2: #1a1a1a;
-  --line: #303030;
-  --line-2: #262626;
-  --line-strong: #6b6b6b;
+  --bg: #0a1120;
+  --panel: #101a2c;
+  --panel-2: #16223a;
+  --line: #24334d;
+  --line-2: #1b2740;
+  --line-strong: #5e7391;
 
-  --text: #d9d9d9;
-  --muted: #a6a6a6;
-  --muted-2: #8c8c8c;
+  --text: #e8eef9;
+  --muted: #b3c0d4;
+  --muted-2: #93a4bd;
 
   --accent: #2a6fd6;
-  --accent-2: #3a7bd5;
-  --accent-weak: #16233a;
+  --accent-2: #2463c4;
+  --accent-weak: #14233b;
+  --accent-text: #7db1ff;
   --on-accent: #ffffff;
 
-  --green: #73d13d;
-  --green-weak: #12261d;
-  --amber: #ffc53d;
-  --amber-weak: #2a2114;
-  --red: #ff7875;
-  --red-weak: #2b161a;
+  --create: #6fb4ff;
+  --create-weak: #14233b;
+  --assess: #3fd6b4;
+  --assess-weak: #0f2c28;
+  --practice: #a78bfa;
+  --practice-weak: #1e1a3a;
+  --insights: #e58bb0;
+  --insights-weak: #33141e;
+
+  --green: #6ee7a5;
+  --green-weak: #0c2a1d;
+  --amber: #ffc85c;
+  --amber-weak: #2a2110;
+  --red: #ff7d8a;
+  --red-weak: #331218;
 
   --done: #2a6fd6;
-  --done-bg: #16233a;
+  --done-bg: #14233b;
   --on-done: #ffffff;
   --done-line: #2a4a78;
+
+  --logo-navy: #e8eef9;
+  --logo-blue-text: #6fb4ff;
+  --logo-teal-text: #3fd6b4;
 
   --shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
   --shadow-lg: 0 6px 24px rgba(0, 0, 0, 0.5);

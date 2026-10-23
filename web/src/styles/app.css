@@ -37,7 +37,7 @@ body { display: block; }
   margin-bottom: 1px; transition: background .12s;
 }
 .nav-link:hover { background: var(--panel-2); }
-.nav-link.on { background: var(--accent-weak); color: var(--accent); font-weight: 650; }
+.nav-link.on { background: var(--accent-weak); color: var(--accent-text); font-weight: 650; }
 
 /* 导航图标：未选中低调、悬停跟文字、当前项用强调色；16px 落在字号六档内（12/13/14/16/20/24）。 */
 .nav-ico {
@@ -46,16 +46,16 @@ body { display: block; }
   color: var(--muted-2); transition: color .12s;
 }
 .nav-link:hover .nav-ico { color: var(--text); }
-.nav-link.on .nav-ico { color: var(--accent); }
+.nav-link.on .nav-ico { color: var(--accent-text); }
 
 /* 侧栏是主流程入口，键盘焦点必须有可见环（宪法第十五条）。 */
 .nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /*
- * 暗色下当前项文字不能继续用 --accent：实测只有 3.25:1，低于正文要求的 4.5:1。
- * 改用正文色（11.14:1），强调色只留在图标与底色上。
+ * 当前项文字用 --accent-text 而不是 --accent：
+ * 亮色 4.66:1、暗色 7.20:1，两套都过 4.5；具体色值只在 tokens.* 里。
+ * --accent 只保留给按钮底、焦点环与边框（3:1 的图形用途）。
  */
-:root[data-theme='dark'] .nav-link.on { color: var(--text); }
 
 .exam-focus { min-height: 100vh; background: var(--bg); color: var(--text); }
 .exam-focus-top {
@@ -190,8 +190,8 @@ input.invalid, input.invalid:focus {
   display: inline-flex; align-items: center; justify-content: center;
   font-size: 13px; line-height: 1; color: var(--muted-2);
 }
-.sidebar-user:hover { color: var(--accent); background: var(--accent-weak); }
-.sidebar-user:hover .foot-ico { color: var(--accent); }
+.sidebar-user:hover { color: var(--accent-text); background: var(--accent-weak); }
+.sidebar-user:hover .foot-ico { color: var(--accent-text); }
 
 /* 富文本编辑器（T250）：工具条 + 可编辑区 + 空态占位。 */
 .rich-editor { border: 1px solid var(--line); border-radius: var(--radius-sm); background: var(--panel); }
@@ -239,7 +239,7 @@ input.invalid, input.invalid:focus {
   color: var(--muted); font-size: 12.5px; text-decoration: none;
   padding: 4px 8px; border-radius: var(--radius-sm); white-space: nowrap;
 }
-.topbar-user:hover { color: var(--accent); background: var(--accent-weak); }
+.topbar-user:hover { color: var(--accent-text); background: var(--accent-weak); }
 .ai-criteria { list-style: none; padding: 0; margin: 12px 0; display: grid; gap: 8px; }
 .ai-criteria > li {
   border: 1px solid var(--line); background: var(--panel); border-radius: var(--radius-sm);
