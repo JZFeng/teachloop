@@ -212,7 +212,7 @@ class AiGradingEngineTest {
     }
 
     @Test
-    @DisplayName("默认比例可配置：70% 内容 → 10.5 + 4.5")
+    @DisplayName("默认比例可配置：70% 内容 → 11 + 4（10.5 四舍五入）")
     void usesConfiguredWeightForDefaultRubric() {
         FakeLlmClient llm = FakeLlmClient.responding(response(DEFAULT_ESSAY_JSON_70, 100, 30, 100));
         AiGradingEngine engine = engine(llm, new EssayRubricWeights(70));
@@ -220,10 +220,10 @@ class AiGradingEngineTest {
         Ports.GradingResult result = engine.grade(essayWithoutRubric());
 
         assertThat(result.criteria()).extracting(Ports.CriterionScore::maxPoints)
-                .containsExactly(new BigDecimal("10.5"), new BigDecimal("4.5"));
+                .containsExactly(new BigDecimal("11"), new BigDecimal("4"));
         assertThat(llm.requests.get(0).system())
-                .contains("- 内容与任务完成（10.5 分）")
-                .contains("- 语法与拼写（4.5 分）");
+                .contains("- 内容与任务完成（11 分）")
+                .contains("- 语法与拼写（4 分）");
     }
 
     @Test
@@ -278,8 +278,8 @@ class AiGradingEngineTest {
             "total":15,"overall":"文章完整回应了题目，语言基本准确。","strength":"用“My class is great”直接点题。","suggestion":"补充一个具体的课堂活动例子。"}""";
 
     private static final String DEFAULT_ESSAY_JSON_70 = """
-            {"criteria":[{"name":"内容与任务完成","points":10.5,"comment":"正文写了“My class is great”，并说明每天一起学英语，覆盖了题目要求的要点。"},
-            {"name":"语法与拼写","points":4.5,"comment":"使用了“We learn English together every day”，语法与拼写基本正确。"}],
+            {"criteria":[{"name":"内容与任务完成","points":11,"comment":"正文写了“My class is great”，并说明每天一起学英语，覆盖了题目要求的要点。"},
+            {"name":"语法与拼写","points":4,"comment":"使用了“We learn English together every day”，语法与拼写基本正确。"}],
             "total":15,"overall":"文章完整回应了题目，语言基本准确。","strength":"用“My class is great”直接点题。","suggestion":"补充一个具体的课堂活动例子。"}""";
 
     /** 没有 rubric 的考试作文：正文在 contentText，题项与试卷都没有评分标准。 */

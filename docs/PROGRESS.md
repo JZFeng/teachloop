@@ -176,7 +176,7 @@
   前端 28/28；`check-deps` / `check-boundaries`（25 表 / 13 外键 / 7 端口）/ `check-i18n` / `check-ui` 全过。
   新增 `FlowIntegrationTest.twoEssaysAreGradedPerItem`：两道写作题各自 rubric 进快照 → 学生按
   `answers[]` 交两篇 → 逐篇判分合并 → 复核 `ai_criteria` 带题号 15/16、主观分 22.6（stub 0.75×30）。
-- **追加（当晚）D-28**：没有 rubric 的作文改为「内容 80% + 语法与拼写 20%」判分，比例走配置
+- **追加（2026-10-23）D-28**：没有 rubric 的作文改为「内容 80% + 语法与拼写 20%」判分（内容四舍五入取整，14 分 → 11+3、70% → 11+4），比例走配置
   `teachloop.grading.essay-default-rubric.content-percent`（默认 80，env `TEACHLOOP_ESSAY_CONTENT_PERCENT`）；
   老师的题项级/试卷级 rubric 永远优先；题目全文完整进 prompt；向导第 4 步回显当前比例
   （`PaperDetail.essayContentPercent`）。`EssayRubricWeightsTest` 6/6、

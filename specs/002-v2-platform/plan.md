@@ -632,7 +632,7 @@ GradingWorker 领取 submission
 
 7. **没有 rubric 的默认判分（D-28）**：题项级、试卷级 rubric 都为空时，不在这里造默认文本，
    由判分侧按 `teachloop.grading.essay-default-rubric.content-percent`（默认 80）合成两项：
-   内容与任务完成 X%、语法与拼写 100−X%，分值按本题满分拆分（15 分 → 12 + 3，14 分 → 11.2 + 2.8）。
+   内容与任务完成 X%、语法与拼写 100−X%，分值按本题满分拆分（内容四舍五入取整：15 分 → 12 + 3，14 分 → 11 + 3，70% → 11 + 4）。
    英文反馈时用英文文案。题目全文（stem）始终在 prompt 的「题目要求」里；参考范文仍不进 prompt。
    `PaperCatalogImpl` 不再编制「没有分值」的默认 rubric（否则会被均分成 50/50）；
    旧快照里那段系统伪造文本由 `EssayRubricWeights.isLegacyDefault` 识别为「没有 rubric」，

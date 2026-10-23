@@ -49,10 +49,11 @@
 百分比做成 config。」
 
 - 题项级 rubric 与试卷级 rubric 都为空时，判分侧按配置合成两项：**内容与任务完成**（X%）+
-  **语法与拼写**（100−X%），默认 **80/20**；分值按本题满分拆（15 → 12+3，14 → 11.2+2.8），两项相加等于满分。
+  **语法与拼写**（100−X%），默认 **80/20**；分值按本题满分拆（内容四舍五入取整：15 → 12+3，14 → 11+3，70% → 11+4），两项相加等于满分。
 - 配置：`teachloop.grading.essay-default-rubric.content-percent`（application.yml，默认 80；env
   `TEACHLOOP_ESSAY_CONTENT_PERCENT`）。只留一个旋钮，语法取其余；1–99 之外启动失败。
-- 老师写了 rubric（题项级或试卷级）→ 永远优先，不会被默认比例覆盖。
+- 老师写了 rubric（题项级或试卷级）→ 永远优先，不会被默认比例覆盖。题项级在同一步每道写作题里填
+  （`PUT /items/{n}`），试卷级在同一步最下方「试卷默认 rubric」（`PUT /papers/{id}/rubric`）。
 - 题目全文（`stem`）始终完整进 prompt 的「题目要求」，不截断；英文反馈时 rubic 文案用英文。
 - 移除了 `PaperCatalogImpl` 里「伪造一份无分值默认 rubric」的旧逻辑（那会盖住默认并被 50/50 均分）。
 - 向导第 4 步回显当前比例（`PaperDetail.essayContentPercent`），空 rubric 的题目提示「按系统默认

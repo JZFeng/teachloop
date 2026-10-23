@@ -31,11 +31,16 @@ public record EssayRubricWeights(int contentPercent) {
         return 100 - contentPercent;
     }
 
-    /** 按比例拆本题满分：内容取大头，语法与拼写取余数（保证两项相加等于满分）。 */
+    /**
+     * 按比例拆本题满分：内容四舍五入取整，语法与拼写取余数（保证两项相加等于满分）。
+     *
+     * <p>取整口径是用户 2026-10-23 明确要求的：14 分 80% = 11.2 → 11，语法 3；
+     * 15 分 70% = 10.5 → 11（四舍五入），语法 4。不要给出 11.2 / 2.8 这种小数分。</p>
+     */
     public BigDecimal contentPoints(BigDecimal total) {
         BigDecimal safe = total == null ? BigDecimal.ZERO : total;
         return safe.multiply(BigDecimal.valueOf(contentPercent))
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+                .divide(BigDecimal.valueOf(100), 0, RoundingMode.HALF_UP);
     }
 
     public BigDecimal languagePoints(BigDecimal total) {

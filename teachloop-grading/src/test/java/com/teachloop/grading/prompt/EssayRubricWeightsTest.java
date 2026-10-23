@@ -28,29 +28,29 @@ class EssayRubricWeightsTest {
     }
 
     @Test
-    @DisplayName("小数满分不丢分：14 分 → 11.2 + 2.8，两项相加等于满分")
+    @DisplayName("四舍五入：14 分 → 11 + 3，两项相加等于满分")
     void roundsWithoutLosingPoints() {
         EssayRubricWeights weights = EssayRubricWeights.DEFAULT;
 
         BigDecimal content = weights.contentPoints(new BigDecimal("14"));
         BigDecimal language = weights.languagePoints(new BigDecimal("14"));
 
-        assertThat(content).isEqualByComparingTo("11.2");
-        assertThat(language).isEqualByComparingTo("2.8");
+        assertThat(content).isEqualByComparingTo("11");
+        assertThat(language).isEqualByComparingTo("3");
         assertThat(content.add(language)).isEqualByComparingTo("14");
     }
 
     @Test
-    @DisplayName("比例可配置：70% 内容 → 10.5 + 4.5")
+    @DisplayName("比例可配置：70% 内容 → 11 + 4（10.5 四舍五入）")
     void configurablePercent() {
         EssayRubricWeights weights = new EssayRubricWeights(70);
 
         assertThat(weights.languagePercent()).isEqualTo(30);
-        assertThat(weights.contentPoints(new BigDecimal("15"))).isEqualByComparingTo("10.5");
-        assertThat(weights.languagePoints(new BigDecimal("15"))).isEqualByComparingTo("4.5");
+        assertThat(weights.contentPoints(new BigDecimal("15"))).isEqualByComparingTo("11");
+        assertThat(weights.languagePoints(new BigDecimal("15"))).isEqualByComparingTo("4");
         assertThat(weights.defaultMarkdown(new BigDecimal("15"), false))
-                .contains("- 内容与任务完成（10.5 分）")
-                .contains("- 语法与拼写（4.5 分）");
+                .contains("- 内容与任务完成（11 分）")
+                .contains("- 语法与拼写（4 分）");
     }
 
     @Test
