@@ -26,7 +26,6 @@ import GradingDetailPage from './teacher/GradingDetailPage'
 import ReviewPage from './teacher/ReviewPage'
 import ReportsPage from './teacher/ReportsPage'
 import ClassSummaryPage from './teacher/ClassSummaryPage'
-import UiKitPage from './app/UiKitPage'
 import StudentHomePage from './student/HomePage'
 import FeedbackListPage from './student/FeedbackListPage'
 import FeedbackDetailPage from './student/FeedbackDetailPage'
@@ -109,7 +108,8 @@ export default function App() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="admin/ai" element={<AdminAiPage />} />
           <Route path="profile" element={<ProfilePage />} />
-          <Route path="ui-kit" element={<UiKitPage />} />
+          {/* 组件标准不再单独成页：旧链接到资料页偏好设置里的面板，不再占侧栏入口。 */}
+          <Route path="ui-kit" element={<Navigate to="/profile?panel=ui-kit" replace />} />
         </Route>
         <Route path="/exams/:offeringId" element={<Shell><ExamEntryPage /></Shell>} />
         <Route path="/exams/:offeringId/live" element={<ExamFocusLayout><ExamLivePage /></ExamFocusLayout>} />

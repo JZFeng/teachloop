@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import {
-  AppstoreOutlined,
   AuditOutlined,
   BarChartOutlined,
   BellOutlined,
@@ -43,8 +42,6 @@ export function Shell({ children }: { children: ReactNode }) {
     { to: '/grading', label: t('nav.grading'), icon: <HighlightOutlined />, tone: 'assess' },
     { to: '/review', label: t('nav.review'), icon: <AuditOutlined />, tone: 'assess' },
     { to: '/reports', label: t('nav.reports'), icon: <BarChartOutlined />, tone: 'insights' },
-    // UI 标准的展示页：只有教师与管理员看得到，学生端不需要。
-    { to: '/ui-kit', label: t('ui.navKit'), icon: <AppstoreOutlined /> },
     ...(me?.role === 'ADMIN'
       ? [{ to: '/admin/ai', label: t('nav.aiSettings'), icon: <RobotOutlined /> }]
       : []),

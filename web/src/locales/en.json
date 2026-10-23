@@ -390,6 +390,10 @@
     "phone": "Phone",
     "phoneRequired": "Enter your phone number",
     "preferences": "Preferences",
+    "designTitle": "Interface standard (components & styles)",
+    "designHint": "The single reference for components and tokens. Expand it only when checking styles; it stays collapsed so it does not take a nav slot.",
+    "designShow": "Show interface standard",
+    "designHide": "Hide interface standard",
     "requiredWarn": "Phone and email are required; complete and save them before using the rest of the app.",
     "save": "Save",
     "saveBlocked": "Fill in both phone and email to save.",
@@ -1246,7 +1250,7 @@
     },
     "kit": {
       "title": "Components & styles",
-      "sub": "The single reference page for the UI standard: every component state lives here.",
+      "sub": "The single reference for the UI standard: every component state lives here, so change styles here first.",
       "sectionButton": "Buttons",
       "sectionField": "Form fields",
       "sectionStat": "Stat cards",
@@ -1268,7 +1272,7 @@
       "demoError": "Loading failed, you can retry",
       "demoRetry": "Retry",
       "demoEmpty": "No data yet",
-      "note": "This page is display-only and never touches business data.",
+      "note": "This panel is display-only and never touches business data.",
       "noteIcon": "Icons come from @ant-design/icons through the component layer. No emoji: their weight and baseline follow the operating system font.",
       "demoRow1": "Class 10-3 · Midterm mock",
       "demoRow2": "Class 10-3 · Writing task",
@@ -1283,8 +1287,7 @@
       "statusPass": "Pass",
       "statusPartial": "Partial",
       "statusFail": "Fail"
-    },
-    "navKit": "UI kit"
+    }
   },
   "eyebrow": {
     "home": "DASHBOARD",
@@ -1300,7 +1303,6 @@
     "exam": "ASSESS · Answer",
     "profile": "ACCOUNT",
     "notifications": "INBOX",
-    "uiKit": "DESIGN SYSTEM",
     "adminAi": "ADMIN"
   }
 }

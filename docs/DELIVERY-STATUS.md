@@ -93,7 +93,8 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
     视觉：蓝主色 `#1D5FBF`（白字 6.10:1）、实边框、圆角 12→6、中文行高 1.65、表头去 uppercase、
     主按钮去渐变与彩色投影；亮/暗两套主题，开关在侧栏底部，选择记在本机。
     组件：`web/src/ui/` 16 个文件（Button/Field/Input/Alert/Segmented/PageHeader/StatCard/Tag/DataTable/
-    States/ThemeProvider/ThemeToggle/tokens/ui.css/index/icons），页面只从 `ui/` 引；`/ui-kit` 是唯一参考页。
+    States/ThemeProvider/ThemeToggle/tokens/ui.css/index/icons），页面只从 `ui/` 引；组件参考页
+    收在资料页「偏好设置 → 界面标准」（2026-10-22 T356 从侧栏移入，旧链接 `/ui-kit` 跳到展开态）。
     侧栏导航：15 个图标统一经 `ui/icons.tsx` 出口（T319）；当前项暗色文字由 3.25:1 修到 11.14:1。
     守卫：`scripts/check-ui.py`（5 条规则 + 125 处基线）与 `scripts/ui/contrast.py`（16 组对比度 +
     两处令牌一致）已进 `make test`。反证：插入 `#ff0000` 时退出码 1。
@@ -106,7 +107,7 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
     **2026-10-22 更新（决策 006 / `specs/006-brand-visual/`）**：调色板与圆角被品牌层取代——
     主色 `#1A63E0`（白字 5.38:1）、暗色 `#2A6FD6` + 暗底 `#0A1120`、圆角 8/12/6、页标题 24px；
     新增四个功能位（Create / Assess / Practice / Insights）与判分三态两个命名空间、`--accent-text`
-    （暗色 `#7DB1FF`，7.96:1）、`Brand` 组件、侧栏功能色胶囊、全站页头 eyebrow、`/ui-kit` 品牌色板；
+    （暗色 `#7DB1FF`，7.96:1）、`Brand` 组件、侧栏功能色胶囊、全站页头 eyebrow、资料页界面标准面板的品牌色板；
     品牌资产由 `scripts/brand/build-assets.py` 生成；`contrast.py` 16 → **40 组**，check-ui 基线 **123 处**；
     回归 `make test` **255/0/0/0** + 前端 **14/14**。真页面截图
     `docs/reports/brand-app-2026-10-22/`（30 张，含学生页）。

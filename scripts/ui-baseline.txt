@@ -52,11 +52,11 @@ web/src/app/Shell.tsx|COLOR_LITERAL|0
 web/src/app/Shell.tsx|EMOJI_ICON|0
 web/src/app/Shell.tsx|INLINE_STYLE|0
 web/src/app/Shell.tsx|LEGACY_BTN_CLASS|0
-web/src/app/UiKitPage.tsx|ANTD_DIRECT|0
-web/src/app/UiKitPage.tsx|COLOR_LITERAL|0
-web/src/app/UiKitPage.tsx|EMOJI_ICON|0
-web/src/app/UiKitPage.tsx|INLINE_STYLE|1
-web/src/app/UiKitPage.tsx|LEGACY_BTN_CLASS|0
+web/src/app/UiKitPanel.tsx|ANTD_DIRECT|0
+web/src/app/UiKitPanel.tsx|COLOR_LITERAL|0
+web/src/app/UiKitPanel.tsx|EMOJI_ICON|0
+web/src/app/UiKitPanel.tsx|INLINE_STYLE|1
+web/src/app/UiKitPanel.tsx|LEGACY_BTN_CLASS|0
 web/src/components/AuditDrawer.tsx|ANTD_DIRECT|0
 web/src/components/AuditDrawer.tsx|COLOR_LITERAL|1
 web/src/components/AuditDrawer.tsx|EMOJI_ICON|0

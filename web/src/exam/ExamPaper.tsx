@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ExamPaperItem } from '../api/types'
-import { FlagOutlined, Popover } from '../ui'
+import { FlagOutlined, Popover, useEscapeClose } from '../ui'
 import {
   buildPaperNodes,
   countWrittenWords,
@@ -143,6 +143,8 @@ function BlankGroup({ node, ...rest }: GroupProps & { node: Extract<PaperNode, {
   const from = node.items[0].item.number
   const to = node.items[node.items.length - 1].item.number
   const choice = inlineChoice(node.items[0].item)
+  // T355：按空位序号落位；材料里的空可以比本卷的题多（七选五只导入其中几题）。
+  const byBlank = new Map(node.items.map((member) => [member.blankIndex, member]))
   let cursor = 0
   return (
     <div className="exam-material-group" data-group={node.key}>
@@ -157,9 +159,13 @@ function BlankGroup({ node, ...rest }: GroupProps & { node: Extract<PaperNode, {
         <div className="exam-material-body inline">
           {node.material.split(/(_{3,})/).map((chunk, index) => {
             if (!/^_{3,}$/.test(chunk)) return <span key={`t-${index}`}>{chunk}</span>
-            const member = node.items[cursor]
+            const blankIndex = cursor
             cursor += 1
-            if (!member) return null
+            const member = byBlank.get(blankIndex)
+            // 原文里有、本卷却没有对应题目的空：保留横线，不生成作答控件。
+            if (!member) {
+              return <span className="inline-blank-gap" key={`gap-${index}`} aria-hidden="true">{chunk}</span>
+            }
             return (
               <InlineBlank
                 key={`b-${index}-${member.item.number}`}
@@ -194,6 +200,9 @@ function InlineBlank({
   const value = answers[number] ?? ''
   const isMarked = marked.has(number)
   const isCurrent = current === number
+
+  // T354：完形/七选五的空会弹 A–G 选项，这也是一层弹层，Esc 收起。
+  useEscapeClose(open && !disabled, () => setOpen(null))
 
   if (!choice) {
     return (

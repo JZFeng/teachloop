@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, fmtDateTime } from '../api/client'
 import type { AuditView } from '../api/types'
+import { useEscapeClose } from '../ui'
 import { ErrorState, Loading } from './States'
 
 type Translate = ReturnType<typeof useTranslation>['t']
@@ -34,6 +35,9 @@ export function AuditDrawer({ open, onClose, targetType, targetId, title }: {
   const [rows, setRows] = useState<AuditView[] | null>(null)
   const [error, setError] = useState<Error | null>(null)
 
+  // T354：抽屉是弹层，Esc 必须能关；和其他弹层共用一套栈，嵌套时只关最上面那层。
+  useEscapeClose(open, onClose)
+
   useEffect(() => {
     if (!open) return
     setRows(null)
@@ -60,6 +64,8 @@ export function AuditDrawer({ open, onClose, targetType, targetId, title }: {
         style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 480, maxWidth: '92vw',
           background: 'var(--panel)', padding: 20, overflowY: 'auto', boxShadow: 'var(--shadow-lg)' }}
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
         aria-label={t('audit.timeline')}
       >
         <div className="row" style={{ justifyContent: 'space-between' }}>

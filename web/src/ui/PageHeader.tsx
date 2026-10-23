@@ -31,7 +31,6 @@ const EYEBROW_RULES: EyebrowRule[] = [
   { test: /^\/classes$/, key: 'classes', tone: 'neutral' },
   { test: /^\/profile$/, key: 'profile', tone: 'neutral' },
   { test: /^\/notifications$/, key: 'notifications', tone: 'neutral' },
-  { test: /^\/ui-kit$/, key: 'uiKit', tone: 'neutral' },
   { test: /^\/admin\/ai$/, key: 'adminAi', tone: 'neutral' },
   { test: /^\/$/, key: 'home', tone: 'neutral' },
 ]

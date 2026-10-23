@@ -25,6 +25,8 @@
 | T317 | 真改批改详情：统计卡替代 7 个标签、页头主次操作、Alert 回执、拒收表单用 Field、拒收理由并入状态 tooltip | T314 | 截图 `grading-detail.png`；表格一屏放下不再折行 | 完成 |
 | T318 | 资料页改用组件层 | T315 | 截图 `profile.png`；必填红框与字段错误由 Field 统一 | 完成 |
 | T319 | 侧栏导航图标（含 `/ui-kit` 图标清单、暗色当前项文字对比修正） | T305 | 截图 `nav-icons-{light,dark}.png`、`ui-kit-icons-{light,dark}.png`、`nav-focus-dark.png`；`check-ui` 125 处；`check-i18n` 1067 键；`contrast.py` 16 组；`tsc`/`build` 0；`make test` 209/0/0/0 | 完成 |
+| T354 | 所有弹层 Esc 可关（统一弹层栈） | T305 | 审计抽屉、放大编辑器（MarkdownEditor / VditorMarkdown）、交卷前检查、窄屏目录、完形/七选五选项都接 `ui/useEscapeClose`；栈逻辑单测 8/8；CDP 真键盘实测审计抽屉与放大编辑器 Esc 关闭、路由与表格不动（`docs/reports/t354-esc-dismiss/`）；`tsc`/`build`/`check-ui`/`check-i18n`/`contrast` 全绿 | 完成 |
+| T356 | 界面标准从侧栏导航收进资料页「偏好设置」（旧链接 `/ui-kit` 跳展开态） | T305 | 侧栏不再有 `/ui-kit` 入口（教师 7 项）；资料页偏好设置默认收起、可展开，`?panel=ui-kit` 可深链；`/ui-kit` 前端重定向到展开态；学生看不到该行；`tsc`/`build`/`check-ui`/`check-i18n`/`contrast` 全绿；CDP 实测 11 项 + 亮暗截图（`docs/reports/t356-ui-kit-in-profile/`） | 完成 |
 
 ## 执行记录
 
@@ -42,6 +44,8 @@
 | 2026-10-21 | T313 | 完成 | 计数自检见交付报告 |
 | 2026-10-21 | T318 | 完成 | `profile.png`；Field 统一必填红框 |
 | 2026-10-21 | T319 | 完成 | 侧栏 15 个图标经 `ui/icons.tsx` 唯一出口；`check-ui` 125、`check-i18n` 1067、`contrast.py` 16 组；截图见交付报告第 10 节 |
+| 2026-10-22 | T354 | 完成 | 用户反馈审计弹层按 Esc 无反应。新增 `web/src/ui/escapeStack.ts`（纯逻辑 LIFO 栈）+ `useEscapeClose.ts`（document 级监听、`canClose` 拦截），接入 6 处弹层并给审计抽屉补 `role="dialog"`/`aria-modal`；`web/tests/escape-stack.test.mjs` 8/8；`make test` 退出码 0（surefire 255/0/0/0、前端 28/28）、`typecheck`/`build` 0；CDP 实测（dev 5173）审计抽屉与放大编辑器 Esc 关闭、路由/表格不动、无控制台异常，截图 `docs/reports/t354-esc-dismiss/`；`check-ui`/`check-i18n`（1200 键）/`contrast` 40 组/`check-deps`/`check-boundaries` 全过 |
+| 2026-10-22 | T356 | 完成 | 用户反馈「组件标准不该放首页/导航」。`UiKitPage.tsx` → `UiKitPanel.tsx`（去掉页头与 Appstore 图标行），侧栏删 `/ui-kit`；资料页偏好设置加「界面标准」行（默认收起、`?panel=ui-kit` 深链、`aria-expanded`/`aria-controls`），`/ui-kit` 重定向 `Navigate` 到展开态；学生看不到该行。验证：CDP（dev 5173）11/11——导航 7 项且无入口、默认收起、展开 10 个分区、URL 同步、旧链接跳转、收起、无控制台异常、学生无该行；截图 `docs/reports/t356-ui-kit-in-profile/`（亮/暗/收起）；`typecheck`/`build` 0、`check-ui` 0 新增、`check-i18n` 1202 键对齐 |
 
 ## 已知缺口
 

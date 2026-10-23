@@ -390,6 +390,10 @@
     "phone": "手机号",
     "phoneRequired": "请填写手机号",
     "preferences": "偏好设置",
+    "designTitle": "界面标准（组件与样式）",
+    "designHint": "组件与令牌的唯一参考，只在核对样式时展开；平时收着，不占导航入口。",
+    "designShow": "展开界面标准",
+    "designHide": "收起界面标准",
     "requiredWarn": "手机号和邮箱是必填项；补全并保存后才能使用其他功能。",
     "save": "保存",
     "saveBlocked": "补全手机号和邮箱后才能保存。",
@@ -1246,7 +1250,7 @@
     },
     "kit": {
       "title": "组件与样式",
-      "sub": "UI 标准的唯一参考页：每个组件的每种状态都摆在这里，改样式先改这一页。",
+      "sub": "UI 标准的唯一参考：每个组件的每种状态都摆在这里，改样式先改这一处。",
       "sectionButton": "按钮",
       "sectionField": "表单字段",
       "sectionStat": "统计卡",
@@ -1268,7 +1272,7 @@
       "demoError": "加载失败，可以重试",
       "demoRetry": "重试",
       "demoEmpty": "这里还没有数据",
-      "note": "这页只是展示，不改业务数据。",
+      "note": "这里只是展示，不改业务数据。",
       "noteIcon": "图标统一来自 @ant-design/icons，经组件层引出；不用 emoji——emoji 的字重与基线随系统字体变。",
       "demoRow1": "高一（3）班 · 期中模拟卷",
       "demoRow2": "高一（3）班 · 写作作业",
@@ -1283,8 +1287,7 @@
       "statusPass": "对",
       "statusPartial": "部分对",
       "statusFail": "错"
-    },
-    "navKit": "组件标准"
+    }
   },
   "eyebrow": {
     "home": "DASHBOARD",
@@ -1300,7 +1303,6 @@
     "exam": "ASSESS · 作答",
     "profile": "ACCOUNT",
     "notifications": "INBOX",
-    "uiKit": "DESIGN SYSTEM",
     "adminAi": "ADMIN"
   }
 }

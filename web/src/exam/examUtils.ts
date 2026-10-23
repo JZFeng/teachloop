@@ -316,8 +316,15 @@ function makeGroup(key: string, members: ExamPaperItem[]): PaperNode | null {
   const sorted = members
     .map((item) => ({ item, blankIndex: Number(item.blankIndex) }))
     .sort((a, b) => a.blankIndex - b.blankIndex)
-  if (blankCount(material) !== sorted.length) return null
-  if (sorted.some((member, position) => member.blankIndex !== position)) return null
+  // T355：材料里的空可以比题多（七选五只导入其中几题），控件按空位落位、其余空位保持横线；
+  // 但一个空不能放两道题，序号也不能跳出材料。
+  const blanks = blankCount(material)
+  if (blanks < 2 || sorted.length > blanks) return null
+  if (sorted.some((member) => !Number.isInteger(member.blankIndex)
+    || member.blankIndex < 0 || member.blankIndex >= blanks)) return null
+  if (sorted.some((member, position) => position > 0 && member.blankIndex <= sorted[position - 1].blankIndex)) {
+    return null
+  }
   return { kind: 'blank', key, material, items: sorted }
 }
 

@@ -13,6 +13,7 @@ import {
   ExpandAltOutlined,
   FullscreenExitOutlined,
   FullscreenOutlined,
+  useEscapeClose,
 } from '../ui'
 
 /** `rich` = Vditor 的即时渲染（Typora 同款：光标行露 Markdown 标记）；`src` = 纯 Markdown 源码。 */
@@ -264,21 +265,22 @@ export function VditorMarkdown({
   }, [value, ready])
 
   // 放大期间锁页面滚动、Esc 收起；原生全屏由浏览器管，这里只管遮罩。
+  // T354：Esc 走组件层的弹层栈；焦点在 Vditor 自己的面板里或浏览器全屏时，这层只拦截不关闭。
+  useEscapeClose(expanded, closeExpanded, {
+    canClose: () => {
+      if (document.fullscreenElement) return false
+      const active = document.activeElement as HTMLElement | null
+      return !active?.closest('.vditor-panel')
+    },
+  })
   useEffect(() => {
     if (!expanded) return
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== 'Escape' || document.fullscreenElement) return
-      if ((event.target as HTMLElement | null)?.closest('.vditor-panel')) return
-      closeExpanded()
-    }
     const syncFullscreen = () => setFullscreen(Boolean(document.fullscreenElement))
-    document.addEventListener('keydown', onKeyDown)
     document.addEventListener('fullscreenchange', syncFullscreen)
     return () => {
       document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('fullscreenchange', syncFullscreen)
       setFullscreen(false)
       if (document.fullscreenElement) {

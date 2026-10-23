@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useEscapeClose } from '../ui'
 import type { ExamPart } from './examUtils'
 
 interface SubmitCheckDialogProps {
@@ -20,13 +20,8 @@ export function SubmitCheckDialog({
 }: SubmitCheckDialogProps) {
   const { t } = useTranslation()
 
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !submitting) onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [onClose, submitting])
+  // T354：弹层统一走弹层栈；提交中不接受关闭，但仍由这层拦住 Esc。
+  useEscapeClose(true, onClose, { canClose: () => !submitting })
 
   const groups = parts
     .map((part) => ({

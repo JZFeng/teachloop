@@ -7,6 +7,7 @@ import {
   FullscreenExitOutlined,
   FullscreenOutlined,
   Segmented,
+  useEscapeClose,
 } from '../ui'
 import { Markdown } from './Markdown'
 
@@ -340,21 +341,16 @@ export function MarkdownEditor({
   }
 
   // 放大期间锁住页面滚动；Esc 收起（原生全屏时先由浏览器退出全屏）；全屏状态跟着同步。
+  // T354：Esc 走组件层的弹层栈，和其他弹层共用「只关最上层」的规则。
+  useEscapeClose(expanded, closeExpanded, { canClose: () => !document.fullscreenElement })
   useEffect(() => {
     if (!expanded) return
     const previousOverflow = document.body.style.overflow
     document.body.style.overflow = 'hidden'
-    const onKeyDown = (event: globalThis.KeyboardEvent) => {
-      if (event.key !== 'Escape' || document.fullscreenElement) return
-      event.stopPropagation()
-      closeExpanded()
-    }
     const syncFullscreen = () => setNativeFullscreen(Boolean(document.fullscreenElement))
-    document.addEventListener('keydown', onKeyDown)
     document.addEventListener('fullscreenchange', syncFullscreen)
     return () => {
       document.body.style.overflow = previousOverflow
-      document.removeEventListener('keydown', onKeyDown)
       document.removeEventListener('fullscreenchange', syncFullscreen)
       setNativeFullscreen(false)
       if (document.fullscreenElement) {

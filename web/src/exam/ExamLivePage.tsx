@@ -11,6 +11,7 @@ import type {
   SubmitResponse,
 } from '../api/types'
 import { ErrorState, Loading } from '../components/States'
+import { useEscapeClose } from '../ui'
 import { ExamTree } from './ExamTree'
 import { ExamPaper } from './ExamPaper'
 import { SubmitCheckDialog } from './SubmitCheckDialog'
@@ -65,6 +66,9 @@ export default function ExamLivePage() {
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitResult, setSubmitResult] = useState<SubmitResponse | null>(null)
   const [attempts, setAttempts] = useState<MyAttemptsView | null>(null)
+
+  // T354：窄屏目录是抽屉式弹层，Esc 与点遮罩都能关；和其他弹层共用一套栈。
+  useEscapeClose(drawerOpen, () => setDrawerOpen(false))
 
   const nodesRef = useRef(new Map<number, HTMLElement>())
   const suppressSpyRef = useRef(0)
