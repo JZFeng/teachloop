@@ -87,6 +87,9 @@ export interface PaperDetail {
   paper: PaperView
   sections: PaperSection[]
   criteriaNames: string[]
+  /** 试卷级 rubric（考试判分用）；向导打开时要回填，否则编辑器永远是空的。 */
+  rubricMarkdown: string | null
+  gradingPromptTemplate: string | null
 }
 
 export type OfferingKind = 'EXAM' | 'ASSIGNMENT'

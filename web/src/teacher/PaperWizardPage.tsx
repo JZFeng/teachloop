@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
@@ -10,6 +10,7 @@ import type {
   PaperView,
 } from '../api/types'
 import { ErrorState, Loading, PageHeader } from '../components/States'
+import { RubricPreview } from '../components/RubricPreview'
 import {
   errorMessage,
   fmtNum,
@@ -21,6 +22,9 @@ type QType = 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'FILL_BLANK' | 'ESSAY'
 type ScoringStrategy = 'ALL_OR_NOTHING' | 'PARTIAL'
 
 const QUESTION_TYPES: QType[] = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'FILL_BLANK', 'ESSAY']
+
+/** T341：与新建作业共用 Vditor 编辑器 chunk，只在打开试卷向导时需要评分标准时加载。 */
+const VditorMarkdown = lazy(() => import('../components/VditorMarkdown'))
 
 interface DraftItem {
   key: string
@@ -131,6 +135,8 @@ function fromDetail(detail: PaperDetail): Draft {
     })),
     legacyCriteriaNames: detail.criteriaNames,
     existingCriteriaTotal: criteriaTotal,
+    rubricMarkdown: detail.rubricMarkdown ?? '',
+    gradingPromptTemplate: detail.gradingPromptTemplate ?? '',
     serverTotalPoints: Number(detail.paper.totalPoints),
     locked: detail.paper.status === 'PUBLISHED',
   }
@@ -243,6 +249,11 @@ function mergeDetailIntoDraft(draft: Draft, detail: PaperDetail): Draft {
   return {
     ...draft,
     sections,
+    // 重新拉详情时同步 rubric：老师正在改（rubricTouched）就不覆盖编辑器内容。
+    rubricMarkdown: draft.rubricTouched ? draft.rubricMarkdown : (detail.rubricMarkdown ?? ''),
+    gradingPromptTemplate: draft.rubricTouched
+      ? draft.gradingPromptTemplate
+      : (detail.gradingPromptTemplate ?? ''),
     serverTotalPoints: Number(detail.paper.totalPoints),
     locked: detail.paper.status === 'PUBLISHED',
   }
@@ -2180,22 +2191,33 @@ export default function PaperWizardPage() {
             <h3 style={{ fontSize: 14, margin: '16px 0 8px' }}>
               {t('teacher.wizard.rubricTitle')}
             </h3>
-            <label className="f">
+            <div className="f">
               <b>{t('teacher.wizard.rubricMarkdown')}</b>
-              <textarea
-                rows={5}
-                value={draft.rubricMarkdown}
-                disabled={locked}
-                placeholder={t('teacher.wizard.rubricPlaceholder')}
-                onChange={(e) =>
-                  update((current) => ({
-                    ...current,
-                    rubricMarkdown: e.target.value,
-                    rubricTouched: true,
-                  }))
-                }
-              />
-            </label>
+              <Suspense fallback={<div className="md-editor md-editor-loading">{t('editor.loading')}</div>}>
+                <VditorMarkdown
+                  rows={8}
+                  value={draft.rubricMarkdown}
+                  onChange={(next) =>
+                    update((current) => ({
+                      ...current,
+                      rubricMarkdown: next,
+                      rubricTouched: true,
+                    }))
+                  }
+                  placeholder={t('teacher.wizard.rubricPlaceholder')}
+                  disabled={locked}
+                  expandable
+                  heading={t('teacher.wizard.rubricMarkdown')}
+                  footer={(
+                    <RubricPreview
+                      rubric={draft.rubricMarkdown}
+                      showTotalCheck={false}
+                      title={t('teacher.wizard.rubricPreview')}
+                    />
+                  )}
+                />
+              </Suspense>
+            </div>
             <label className="f">
               <b>{t('teacher.wizard.gradingPrompt')}</b>
               <textarea

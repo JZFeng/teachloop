@@ -4,8 +4,8 @@ import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassView, OfferingView } from '../api/types'
 import { Alert, Button, ErrorState, Field, Input, Loading, PageHeader, TextArea, UploadOutlined } from '../ui'
-import { summarizeRubric } from '../components/rubric'
 import { errorMessage, fromLocalInput, TeacherPage, useApiData } from './common'
+import { RubricPreview } from '../components/RubricPreview'
 
 /** T339：Vditor 只在打开这一页时加载（含 Lute 引擎），不要把 600 kB 的编辑器塞进首屏。 */
 const VditorMarkdown = lazy(() => import('../components/VditorMarkdown'))
@@ -318,63 +318,5 @@ export default function AssignmentCreatePage() {
         </div>
       )}
     </TeacherPage>
-  )
-}
-
-/**
- * 「AI 将看到」：不再把 rubric 原文再打印一遍，而是按后端同一套规则解析出评分项与合计，
- * 和总分对一下。教师写完立刻知道 AI 会照着哪几条打分、总分对不对得上。
- */
-function RubricPreview({ rubric, totalPoints }: { rubric: string; totalPoints: number }) {
-  const { t } = useTranslation('translation')
-  const summary = summarizeRubric(rubric)
-  const expected = Number.isFinite(totalPoints) && totalPoints > 0 ? totalPoints : null
-  const matched = expected !== null && !summary.missingPoints && Math.abs(summary.total - expected) < 0.01
-
-  return (
-    <div className="rubric-preview">
-      <div className="rubric-preview-head">
-        <b>{t('teacher.assignmentCreate.aiPreview')}</b>
-        {summary.criteria.length > 0 && (
-          <span className="small muted">
-            {t('teacher.assignmentCreate.aiPreviewSum', {
-              total: summary.total,
-              expected: expected ?? '—',
-            })}
-          </span>
-        )}
-      </div>
-      {summary.criteria.length === 0 ? (
-        <div className="small muted">{t('teacher.assignmentCreate.aiPreviewEmpty')}</div>
-      ) : (
-        <>
-          <ol className="rubric-preview-list">
-            {summary.criteria.map((criterion, index) => (
-              <li key={`${criterion.name}-${index}`}>
-                <span>{criterion.name}</span>
-                <span className="mono">{criterion.points ?? '—'}</span>
-              </li>
-            ))}
-          </ol>
-          <div className="small muted">
-            {summary.missingPoints
-              ? t('teacher.assignmentCreate.aiPreviewMissingPoints')
-              : !summary.anyPoints
-                ? t('teacher.assignmentCreate.aiPreviewEvenSplit')
-                : matched
-                  ? t('teacher.assignmentCreate.aiPreviewMatched')
-                  : t('teacher.assignmentCreate.aiPreviewMismatch', { expected: expected ?? '—' })}
-          </div>
-          {summary.ignored.length > 0 ? (
-            <div
-              className="small muted rubric-preview-note"
-              title={summary.ignored.map((criterion) => criterion.name).join('\n')}
-            >
-              {t('teacher.assignmentCreate.aiPreviewIgnored', { count: summary.ignored.length })}
-            </div>
-          ) : null}
-        </>
-      )}
-    </div>
   )
 }

@@ -112,7 +112,8 @@ public class PaperEndpoint {
     public record SectionView(String id, String title, int position, BigDecimal pointsPerItem, List<ItemView> items) {
     }
 
-    public record PaperDetail(PaperView paper, List<SectionView> sections, List<String> criteriaNames) {
+    public record PaperDetail(PaperView paper, List<SectionView> sections, List<String> criteriaNames,
+                              String rubricMarkdown, String gradingPromptTemplate) {
     }
 
     public record ImportedItem(int number, String stem, String options, String answerKey,
@@ -208,7 +209,7 @@ public class PaperEndpoint {
                                 .toList()))
                 .toList();
         List<String> crit = criteria.findByPaperIdOrderByPosition(id).stream().map(SectionCriteria::getName).toList();
-        return new PaperDetail(view(p), secs, crit);
+        return new PaperDetail(view(p), secs, crit, p.getRubricMarkdown(), p.getGradingPromptTemplate());
     }
 
     @PostMapping("/{id}/sections")

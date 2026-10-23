@@ -376,3 +376,53 @@ input.invalid, input.invalid:focus {
   font-family: Georgia, "Times New Roman", serif;
   font-style: italic;
 }
+
+/*
+ * T341：学生富文本作答的放大 / 全屏。
+ * 不移动 DOM（contentEditable 的正文与选区都保留），只把外层固定到右侧内容区；
+ * 侧栏在窄屏隐藏时 --app-sidebar-w 为 0，自动铺满整屏。
+ */
+.rich-toolbar-spacer {
+  flex: 1;
+}
+
+.rich-toolbar .rich-toolbar-action {
+  color: var(--muted);
+}
+
+.rich-toolbar .rich-toolbar-action:hover {
+  color: var(--accent);
+}
+
+.rich-toolbar .rich-toolbar-action .anticon {
+  font-size: 14px;
+}
+
+.rich-editor--expanded {
+  position: fixed;
+  inset: 0 0 0 var(--app-sidebar-w, 0px);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  border: 0;
+  border-radius: 0;
+  background: var(--panel);
+  box-shadow: var(--shadow-lg);
+}
+
+.rich-editor--expanded .rich-toolbar {
+  border-radius: 0;
+}
+
+.rich-editor--expanded .rich-body-wrap {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.rich-editor--expanded .rich-body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  border-radius: 0;
+}
