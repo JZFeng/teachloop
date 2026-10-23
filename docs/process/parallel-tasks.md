@@ -1,7 +1,7 @@
 # 并行任务：worktree + 短命分支 + 一个属主
 
 > 2026-10-23 复盘产物。适用于「同时推进多个互不依赖的任务」。
-> 一句话：**一个 task 一个工作目录（worktree）+ 一条从 main 拉出的短命分支 + 一个属主**；分支当天合回。
+> 一句话：**一个任务一个工作目录（worktree）+ 一条从 main 拉出的短命分支 + 一个属主**；分支当天合回。
 
 ## 1. branch 和 worktree 不是一回事
 
@@ -11,7 +11,7 @@
 
 多个 agent 能同时干活，靠的是**多个工作目录**；只建分支、仍在同一个目录里，两个 agent 会互相抢 checkout 和暂存区。
 
-## 2. 开工（Lead 或你自己执行一次）
+## 2. 开工（负责人或你自己执行一次）
 
 ```bash
 # 在 teachloop 根目录
@@ -36,22 +36,22 @@ cp -R .envs ../teachloop-wt/$slug/ 2>/dev/null || true
 分支：feat/<slug>（已基于 main 建好；不要切分支、不要 merge 到 main）
 
 你拥有：<目录/文件清单，越具体越好>
-不要动（Lead 改）：AGENTS.md、docs/PROGRESS.md、specs/**/tasks.md、
+不要动（负责人改）：AGENTS.md、docs/PROGRESS.md、specs/**/tasks.md、
   web/src/locales/**、docs/decisions/**、Makefile、*.sql 迁移
-数据库：不要自己加迁移；确实需要就停下来问 Lead 要 V 号
+数据库：不要自己加迁移；确实需要就停下来问负责人要 V 号
 
 验收：<命令 + 预期结果>；跑完贴真实输出（通过/失败数、退出码）
       没做浏览器验收就写「仅结构校验」
 提交：只 add 你拥有的文件，不 git add -A；一个可测单元一个 commit；
       message = "feat(scope): 做了什么（Txxx）"
-汇报：自上一条文字后连续 5 次工具调用、或要跑 >60s 的命令、或完成一个单元，
+汇报：自上一条文字后连续 8 次工具调用、或要跑 >120 秒的命令、或完成一个单元，
       发三行【刚做完 / 正在做 / 卡住】
-合并：不要自己 merge 到 main；做完告诉 Lead，由 Lead 按顺序合 + 跑全量
+合并：不要自己 merge 到 main；做完告诉负责人，由负责人按顺序合 + 跑全量
 冲突：万一撞了，列出每个冲突文件 + 你选哪边 + 为什么；不许静默丢弃任一边；
-      如果发现两边改的是同一个默认值/上限/规则，停下来问 Lead
+      如果发现两边改的是同一个默认值/上限/规则，停下来问负责人
 ```
 
-## 4. 合并与清理（Lead）
+## 4. 合并与清理（负责人）
 
 ```bash
 git switch main
@@ -68,8 +68,8 @@ git worktree remove ../teachloop-wt/<slug>   # 有未提交改动时加 --force
 ## 5. 属主与共享物
 
 - **一个属主**：每个文件、每条业务规则，同一时刻只有一个人写；不是「没有冲突」，是「不用靠合并决定谁说了算」；
-- 共享物归 Lead：`AGENTS.md`、`docs/PROGRESS.md`、`specs/**/tasks.md`、`web/src/locales/*.json`、`docs/decisions/**`、`Makefile`、依赖锁文件、迁移号；
-- 数据库迁移是**全局 V 序号**（六个模块共用），并行时由 Lead 串行发放。
+- 共享物归负责人：`AGENTS.md`、`docs/PROGRESS.md`、`specs/**/tasks.md`、`web/src/locales/*.json`、`docs/decisions/**`、`Makefile`、依赖锁文件、迁移号；
+- 数据库迁移是**全局 V 序号**（六个模块共用），并行时由负责人串行发放。
 
 ## 6. 验证的现实约束
 
