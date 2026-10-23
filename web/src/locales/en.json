@@ -627,8 +627,9 @@
       "aiPreviewEmpty": "No criteria yet. Write one per line, e.g. \"1. Answers the prompt — 4 points\".",
       "aiPreviewMissingPoints": "A criterion has no points: it will not count towards the total.",
       "aiPreviewEvenSplit": "No criterion states points, so the total is split evenly.",
-      "aiPreviewMatched": "Points add up to the total; ready to publish.",
-      "aiPreviewMismatch": "Points do not add up to the total ({{expected}}); publishing will be rejected."
+      "aiPreviewMatched": "The total matches the assignment total.",
+      "aiPreviewMismatch": "Points do not add up to the total ({{expected}}); publishing will be rejected.",
+      "aiPreviewIgnored": "{{count}} more lines have no points and are not counted as criteria"
     },
     "assignments": {
       "colClasses": "Classes",

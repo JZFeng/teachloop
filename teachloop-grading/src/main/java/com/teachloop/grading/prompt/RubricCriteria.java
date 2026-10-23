@@ -19,7 +19,8 @@ import java.util.regex.Pattern;
  *   <li>{@code - **内容要点**（15 分）：...}</li>
  *   <li>{@code - 内容要点：...}（无分值）</li>
  * </ul>
- * 缺失分值时会按剩余满分均分，并做一次确定性修正，保证各项满分之和等于主观题满分。
+ * T340 起与 {@code RubricValidator} 共用选择规则：有带分值的标题/列表项时，只取带分值的条目；
+ * 没有分值的分组标题与说明行不算评分项。只有全文都没有分值时，才按满分均分。
  * 这是**过渡实现**：结构化评分项进端口后应改为直接读取。
  */
 final class RubricCriteria {
@@ -102,7 +103,20 @@ final class RubricCriteria {
             }
         }
 
-        List<Parsed> parsed = headings.isEmpty() ? bullets : headings;
+        // T340：与 RubricValidator / 前端同一套选择规则（分组标题、说明行不算评分项）：
+        //   1. 有带分值的标题 → 只取带分值的标题；
+        //   2. 否则有带分值的列表项 → 只取带分值的列表项；
+        //   3. 全文无分值 → 维持旧行为（标题优先，否则列表），由 allocate 均分。
+        List<Parsed> pointedHeadings = headings.stream().filter(p -> p.maxPoints() != null).toList();
+        List<Parsed> pointedBullets = bullets.stream().filter(p -> p.maxPoints() != null).toList();
+        List<Parsed> parsed;
+        if (!pointedHeadings.isEmpty()) {
+            parsed = pointedHeadings;
+        } else if (!pointedBullets.isEmpty()) {
+            parsed = pointedBullets;
+        } else {
+            parsed = headings.isEmpty() ? bullets : headings;
+        }
         if (parsed.isEmpty()) {
             return List.of(new SubjectiveGradeRequest.Criterion(fallbackName, subjectiveMax));
         }
@@ -125,7 +139,7 @@ final class RubricCriteria {
             name = withoutNumber;
         }
         name = cleanName(name);
-        if (name.isEmpty() || name.length() > 80) {
+        if (name.isEmpty() || name.length() > 500) {
             return;
         }
         if (IGNORED.contains(name.toLowerCase(Locale.ROOT))) {
@@ -151,6 +165,10 @@ final class RubricCriteria {
     /** 二元 rubric 的“是/否”行、档位行不是评分项；旧 rubric 没有标题时靠这条过滤。 */
     private static boolean isDecisionRule(String name) {
         String lower = name.toLowerCase(Locale.ROOT).strip();
+        // 「是否…」是中文 rubric 里最常见的问句式评分项，不是 Yes/No 判定行（与 RubricVocabulary 一致）。
+        if (lower.startsWith("是否")) {
+            return false;
+        }
         return lower.equals("yes") || lower.equals("no") || lower.equals("true") || lower.equals("false")
                 || lower.startsWith("yes ") || lower.startsWith("no ")
                 || lower.startsWith("是") || lower.startsWith("否")

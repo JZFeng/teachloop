@@ -25,11 +25,16 @@ export interface RubricCriterion {
 export interface RubricSummary {
   /** 解析出的评分项，顺序与原文一致（不合并重名项，重名是后端校验的事）。 */
   criteria: RubricCriterion[]
+  /**
+   * 被当作非评分项的「没有分值」条目（分组标题 / 说明行）。
+   * 与后端 RubricValidator 的 ignored 同一套规则：只用于提示，不参与校验、不阻断发布。
+   */
+  ignored: RubricCriterion[]
   /** 有分值的评分项之和。 */
   total: number
   /** 是否至少有一项写了分值。 */
   anyPoints: boolean
-  /** 是否有评分项没写分值。 */
+  /** 是否有评分项没写分值（新规则下 ignored 不算，正常为 false）。 */
   missingPoints: boolean
 }
 
@@ -179,9 +184,11 @@ function add(out: ParsedCriterion[], raw: string): void {
 /**
  * 与 Java 的 parse(...) 一致：
  *   - 全文有 start 标题时，只收 start 之后、end 之前的条目；没有 start 标题就全文收；
- *   - 标题条目优先，一条标题条目都没有时才退回到列表条目（`- ` / `1. `）。
+ *   - 有带分值的标题 → 只取带分值的标题；否则有带分值的列表项 → 只取带分值的列表项；
+ *   - 全文没有任何分值 → 标题优先，否则列表（均分交给后端/判分侧）。
+ * 没有分值、也没被选中的条目进 ignored（分组标题、说明行），不再当成「缺分值的评分项」。
  */
-function parse(markdown: string): ParsedCriterion[] {
+function parse(markdown: string): { criteria: ParsedCriterion[]; ignored: ParsedCriterion[] } {
   const lines = markdown.split(/\r\n|\r|\n/)
   const hasStart = lines.some((line) => isStart(headingName(line)))
   const headings: ParsedCriterion[] = []
@@ -214,7 +221,24 @@ function parse(markdown: string): ParsedCriterion[] {
     if (numbered) add(bullets, numbered[1])
   }
 
-  return headings.length > 0 ? headings : bullets
+  const pointedHeadings = headings.filter((c) => c.points !== null)
+  const pointedBullets = bullets.filter((c) => c.points !== null)
+  if (pointedHeadings.length > 0) {
+    return {
+      criteria: pointedHeadings,
+      ignored: [
+        ...headings.filter((c) => c.points === null),
+        ...bullets.filter((c) => c.points === null),
+      ],
+    }
+  }
+  if (pointedBullets.length > 0) {
+    return {
+      criteria: pointedBullets,
+      ignored: [...bullets.filter((c) => c.points === null), ...headings],
+    }
+  }
+  return { criteria: headings.length > 0 ? headings : bullets, ignored: [] }
 }
 
 /** 合计保留两位小数，避免 0.1 + 0.2 这类浮点噪声（Java 侧是 BigDecimal）。 */
@@ -225,14 +249,14 @@ function roundTotal(value: number): number {
 /**
  * 把 rubric 原文摘要成前端预览。
  *
- * 不做后端那套校验（重名、缺分、合计是否等于总分）：这里只回答
- * 「AI 会看到哪些评分项、每项多少分、加起来多少」。
+ * 不做后端那套校验（重名、合计是否等于总分）：这里只回答
+ * 「解析器读到哪些评分项、每项多少分、加起来多少、哪些行被当成非评分项」。
  */
 export function summarizeRubric(markdown: string): RubricSummary {
   if (!markdown || !markdown.trim()) {
-    return { criteria: [], total: 0, anyPoints: false, missingPoints: false }
+    return { criteria: [], ignored: [], total: 0, anyPoints: false, missingPoints: false }
   }
-  const criteria = parse(markdown)
+  const { criteria, ignored } = parse(markdown)
   let total = 0
   let anyPoints = false
   let missingPoints = false
@@ -244,5 +268,5 @@ export function summarizeRubric(markdown: string): RubricSummary {
     anyPoints = true
     total += criterion.points
   }
-  return { criteria, total: roundTotal(total), anyPoints, missingPoints }
+  return { criteria, ignored, total: roundTotal(total), anyPoints, missingPoints }
 }

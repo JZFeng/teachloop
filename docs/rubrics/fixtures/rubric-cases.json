@@ -1,0 +1,119 @@
+{
+  "cases": [
+    {
+      "name": "lesson-plan-heading-labels",
+      "rubric": "# Did the learner submit a lesson plan related to a reading in English? （2 points）\n\n# Did the learner include all the components as provided in the lesson plan template in English? （6 points）\n\n# Lesson Plan Components\n\n# If any part is missing, you'll be asked to edit and resubmit.\n\n# Did the learner use at least one intensive reading activity in English? （3 points）\n\n# Did the learner use at least one extensive reading activity in English? （3 points）\n",
+      "totalPoints": 14,
+      "valid": true,
+      "issues": [],
+      "parsed": [
+        { "name": "Did the learner submit a lesson plan related to a reading in English?", "points": 2 },
+        { "name": "Did the learner include all the components as provided in the lesson plan template in English?", "points": 6 },
+        { "name": "Did the learner use at least one intensive reading activity in English?", "points": 3 },
+        { "name": "Did the learner use at least one extensive reading activity in English?", "points": 3 }
+      ],
+      "allocated": [
+        { "name": "Did the learner submit a lesson plan related to a reading in English?", "points": 2 },
+        { "name": "Did the learner include all the components as provided in the lesson plan template in English?", "points": 6 },
+        { "name": "Did the learner use at least one intensive reading activity in English?", "points": 3 },
+        { "name": "Did the learner use at least one extensive reading activity in English?", "points": 3 }
+      ],
+      "ignored": [
+        "Lesson Plan Components",
+        "If any part is missing, you'll be asked to edit and resubmit."
+      ]
+    },
+    {
+      "name": "section-heading-plus-pointed-bullets",
+      "rubric": "## 评分标准\n\n### 内容与结构\n\n- 论点清晰（6 分）\n- 论据充分（4 分）\n",
+      "totalPoints": 10,
+      "valid": true,
+      "issues": [],
+      "parsed": [
+        { "name": "论点清晰", "points": 6 },
+        { "name": "论据充分", "points": 4 }
+      ],
+      "allocated": [
+        { "name": "论点清晰", "points": 6 },
+        { "name": "论据充分", "points": 4 }
+      ],
+      "ignored": ["内容与结构"]
+    },
+    {
+      "name": "no-points-even-split",
+      "rubric": "# 评分标准\n\n- 内容\n- 结构\n",
+      "totalPoints": 10,
+      "valid": true,
+      "issues": [],
+      "parsed": [
+        { "name": "内容", "points": null },
+        { "name": "结构", "points": null }
+      ],
+      "allocated": [
+        { "name": "内容", "points": 5 },
+        { "name": "结构", "points": 5 }
+      ],
+      "ignored": []
+    },
+    {
+      "name": "missing-points-line-is-ignored",
+      "rubric": "# 评分标准\n\n1. 内容要点（6 分）\n2. 语言准确性\n",
+      "totalPoints": 6,
+      "valid": true,
+      "issues": [],
+      "parsed": [{ "name": "内容要点", "points": 6 }],
+      "allocated": [{ "name": "内容要点", "points": 6 }],
+      "ignored": ["语言准确性"]
+    },
+    {
+      "name": "duplicate-criteria",
+      "rubric": "# 评分标准\n\n- 内容要点（5 分）\n- 内容要点（5 分）\n",
+      "totalPoints": 10,
+      "valid": false,
+      "issues": ["error.rubric.duplicate"],
+      "parsed": [
+        { "name": "内容要点", "points": 5 },
+        { "name": "内容要点", "points": 5 }
+      ],
+      "allocated": [
+        { "name": "内容要点", "points": 5 },
+        { "name": "内容要点", "points": 5 }
+      ],
+      "ignored": []
+    },
+    {
+      "name": "sum-mismatch",
+      "rubric": "# 评分标准\n\n- 内容要点（6 分）\n- 语言准确性（5 分）\n",
+      "totalPoints": 10,
+      "valid": false,
+      "issues": ["error.rubric.sumMismatch"],
+      "parsed": [
+        { "name": "内容要点", "points": 6 },
+        { "name": "语言准确性", "points": 5 }
+      ],
+      "allocated": [
+        { "name": "内容要点", "points": 6 },
+        { "name": "语言准确性", "points": 5 }
+      ],
+      "ignored": []
+    },
+    {
+      "name": "course-rubric-file",
+      "file": "docs/rubrics/Rubric.md",
+      "totalPoints": 10,
+      "valid": true,
+      "issues": [],
+      "parsed": [
+        { "name": "Required Length", "points": 2 },
+        { "name": "Clear Position", "points": 4 },
+        { "name": "Explanation and Supporting Details", "points": 4 }
+      ],
+      "allocated": [
+        { "name": "Required Length", "points": 2 },
+        { "name": "Clear Position", "points": 4 },
+        { "name": "Explanation and Supporting Details", "points": 4 }
+      ],
+      "ignored": []
+    }
+  ]
+}
