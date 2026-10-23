@@ -42,11 +42,14 @@ body { display: block; }
 /* 导航图标：未选中低调、悬停跟文字、当前项用强调色；16px 落在字号六档内（12/13/14/16/20/24）。 */
 .nav-ico {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; flex: 0 0 16px; font-size: 16px; line-height: 1;
-  color: var(--muted-2); transition: color .12s;
+  width: 26px; height: 26px; flex: 0 0 26px; font-size: 16px; line-height: 1;
+  border-radius: 7px; color: var(--muted-2); transition: color .12s, background .12s;
 }
 .nav-link:hover .nav-ico { color: var(--text); }
-.nav-link.on .nav-ico { color: var(--accent-text); }
+.nav-link.on .nav-ico { background: transparent; color: var(--accent-text); }
+.nav-link[data-tone="create"] .nav-ico { background: var(--create-weak); color: var(--create); }
+.nav-link[data-tone="assess"] .nav-ico { background: var(--assess-weak); color: var(--assess); }
+.nav-link[data-tone="insights"] .nav-ico { background: var(--insights-weak); color: var(--insights); }
 
 /* 侧栏是主流程入口，键盘焦点必须有可见环（宪法第十五条）。 */
 .nav-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
@@ -69,47 +72,123 @@ body { display: block; }
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 48px 24px;
+  padding: 34px 24px 26px;
   background: var(--bg);
+  position: relative;
+  overflow: hidden;
 }
-/* 一块面板装下「说明 + 表单」：避免两段内容各自漂在灰底上。 */
-.login-panel {
+/* 三团极浅的品牌色光：蓝 / 青 / 黄，只做气氛，不承载信息。 */
+.login-page::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(680px 420px at 6% -10%, color-mix(in srgb, var(--accent) 10%, transparent), transparent 70%),
+    radial-gradient(560px 420px at 100% 8%, color-mix(in srgb, var(--assess) 12%, transparent), transparent 70%),
+    radial-gradient(520px 360px at 68% 108%, color-mix(in srgb, var(--brand-yellow) 14%, transparent), transparent 70%);
+}
+:root[data-theme='dark'] .login-page::before { opacity: .55; }
+
+.login-shell {
+  position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 400px;
+  grid-template-columns: minmax(0, 1fr) 424px;
   width: 100%;
-  max-width: 920px;
+  max-width: 1060px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 16px;
   box-shadow: var(--shadow-lg);
   overflow: hidden;
 }
 .login-hero {
-  padding: 44px 40px;
-  /* 品牌区用强调色的最浅一档，和右侧表单拉开层次（暗色下自动变深蓝）。 */
-  background: var(--accent-weak);
+  min-height: 560px;
+  padding: 44px 42px 38px;
   border-right: 1px solid var(--line);
+  background: linear-gradient(155deg, var(--panel) 0%, var(--bg) 60%, color-mix(in srgb, var(--assess-weak) 55%, var(--bg)) 100%);
+  display: flex;
+  flex-direction: column;
 }
-.login-hero h1 { font-size: 32px; margin: 0 0 6px; letter-spacing: -0.02em; }
-.login-hero .sub { max-width: 380px; margin-bottom: 20px; font-size: 14px; }
-.login-hero ul { color: var(--muted); line-height: 1.9; padding-left: 18px; margin: 0; font-size: 13px; }
-.login-hero li { margin-bottom: 4px; }
+.login-tagline { margin-top: 18px; font-size: 16px; font-weight: 650; color: var(--text); }
+.login-subtagline { margin-top: 3px; font-size: 13px; color: var(--muted); }
+.login-points { list-style: none; padding: 0; margin: 22px 0 0; display: flex; flex-direction: column; gap: 11px; }
+.login-points li { display: flex; gap: 10px; align-items: flex-start; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.login-check {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 20px;
+  margin-top: 1px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--assess-weak);
+  color: var(--assess);
+  font-size: 12px;
+}
+.login-pillars { display: flex; flex-wrap: wrap; gap: 8px; margin-top: auto; padding-top: 26px; }
+.login-pillar {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  font-size: 12px;
+}
+.login-pillar small { font-size: 12px; color: var(--muted-2); }
+.login-pillar small::before { content: "·"; margin: 0 4px; }
+.login-pillar-ico {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--pc-weak);
+  color: var(--pc);
+  font-size: 14px;
+}
+.login-pillar[data-f="create"] { --pc: var(--create); --pc-weak: var(--create-weak); }
+.login-pillar[data-f="assess"] { --pc: var(--assess); --pc-weak: var(--assess-weak); }
+.login-pillar[data-f="practice"] { --pc: var(--practice); --pc-weak: var(--practice-weak); }
+.login-pillar[data-f="insights"] { --pc: var(--insights); --pc-weak: var(--insights-weak); }
+.login-plan-note { margin-top: 9px; font-size: 12px; color: var(--muted-2); }
+.login-hero-foot { margin-top: 14px; font-size: 12px; color: var(--muted-2); }
 .login-card {
   width: 100%;
   margin: 0;
-  padding: 36px 32px 28px;
+  padding: 40px 36px 34px;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
-.login-card h2 { font-size: 18px; margin: 0 0 4px; }
+.login-card h2 { font-size: 20px; font-weight: 750; letter-spacing: -0.02em; margin: 0; }
+.login-card .sub { margin: 5px 0 22px; font-size: 13px; color: var(--muted); }
+.login-card .tl-field { margin-bottom: 14px; }
+.login-card .ant-btn-primary { margin-top: 4px; }
+.login-hint {
+  margin-top: 14px;
+  padding: 9px 11px;
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--muted-2);
+}
 @media (max-width: 900px) {
   .login-page { padding: 24px 16px; }
-  .login-panel { grid-template-columns: 1fr; max-width: 480px; }
-  .login-hero { padding: 26px 24px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .login-hero h1 { font-size: 24px; }
-  .login-card { padding: 24px 20px 20px; }
+  .login-shell { grid-template-columns: 1fr; max-width: 520px; }
+  .login-hero { min-height: 0; padding: 28px 24px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .login-card { padding: 28px 24px; }
+  .login-pillars { padding-top: 18px; }
   .app-sidebar { display: none; }
   .app-main { padding: 20px 16px 80px; }
   .app-topbar { padding: 10px 16px; }

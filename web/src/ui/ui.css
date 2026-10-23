@@ -288,3 +288,80 @@
 .tl-progress-failed {
   color: var(--red);
 }
+
+/* ---------------------------------------------------------------------------
+ * 品牌组件：mark / text / lockup 三种形态与四档尺寸。
+ * 颜色只来自 tokens.css 的 --logo-*；位图只用于亮色大字位。
+ * ------------------------------------------------------------------------- */
+.tl-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+.tl-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--tl-gap);
+  min-width: 0;
+  vertical-align: middle;
+}
+.tl-brand-sm { --tl-word: 14px; --tl-mark-h: 21px; --tl-gap: 8px; --tl-lockup-w: 180px; --tl-lockup-word: 22px; }
+.tl-brand-md { --tl-word: 17px; --tl-mark-h: 26px; --tl-gap: 10px; --tl-lockup-w: 230px; --tl-lockup-word: 28px; }
+.tl-brand-lg { --tl-word: 22px; --tl-mark-h: 32px; --tl-gap: 12px; --tl-lockup-w: 290px; --tl-lockup-word: 34px; }
+.tl-brand-xl { --tl-word: 34px; --tl-mark-h: 44px; --tl-gap: 16px; --tl-lockup-w: 344px; --tl-lockup-word: 40px; }
+
+.tl-brand-mark {
+  display: block;
+  height: var(--tl-mark-h);
+  width: auto;
+  flex: 0 0 auto;
+}
+.tl-brand-copy {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.tl-brand-word {
+  font-family: var(--font-head);
+  font-size: var(--tl-word);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--logo-navy);
+  white-space: nowrap;
+}
+.tl-brand-word-l { color: var(--logo-blue-text); }
+.tl-brand-word-oop { color: var(--logo-teal-text); }
+.tl-brand-tagline {
+  margin-top: 4px;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.02em;
+  color: var(--muted-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tl-brand-lockup-img {
+  display: block;
+  width: var(--tl-lockup-w);
+  max-width: 100%;
+  height: auto;
+}
+.tl-brand-lockup-dark {
+  display: none;
+  align-items: center;
+  gap: 18px;
+}
+.tl-brand-lockup-dark .tl-brand-word { font-size: var(--tl-lockup-word); }
+.tl-brand-lockup-dark .tl-brand-mark { height: calc(var(--tl-lockup-word) * 1.35); }
+:root[data-theme='dark'] .tl-brand-lockup-img { display: none; }
+:root[data-theme='dark'] .tl-brand-lockup-dark { display: inline-flex; }

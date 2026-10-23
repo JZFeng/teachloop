@@ -37,10 +37,12 @@
       "apiKeyHint": "Required for first setup; stored encrypted and only a mask is shown.",
       "apiKeyPlaceholder": "sk-..."
     },
-    "tagline": "Grading that serves teaching",
+    "tagline": "Better Practice. More Insights.",
     "crashTitle": "This page hit an error",
     "crashBody": "This section failed to render. Reload first; if it keeps happening, send the page address to the developer.",
-    "crashReload": "Reload"
+    "crashReload": "Reload",
+    "descriptor": "AI teaching platform",
+    "brandLine": "Better Practice. More Insights."
   },
   "audit": {
     "attemptNo": "Attempt {{n}}",
@@ -343,7 +345,14 @@
     "password": "Password",
     "submit": "Sign in",
     "subtitle": "Email and password for now; WeChat sign-in comes later",
-    "title": "Sign in"
+    "title": "Sign in",
+    "pillars": "Features",
+    "pillarCreate": "Create",
+    "pillarAssess": "Assess",
+    "pillarPractice": "Practice",
+    "pillarInsights": "Insights",
+    "planned": "Planned",
+    "practiceNote": "Practice is planned and not live yet."
   },
   "nav": {
     "aiSettings": "AI settings",

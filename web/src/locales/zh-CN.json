@@ -16,7 +16,7 @@
       "testResult": "测试：{{result}} · {{message}} · {{ms}}ms",
       "title": "AI 大模型设置"
     },
-    "name": "AI 批改平台",
+    "name": "TeachLoop",
     "setup": {
       "adminDone": "管理员已创建。",
       "adminName": "管理员姓名",
@@ -37,10 +37,12 @@
       "apiKeyHint": "首次初始化必须填写；加密保存，只显示掩码。",
       "apiKeyPlaceholder": "sk-..."
     },
-    "tagline": "让批改回到教学",
+    "tagline": "练得更好，看得更清。",
     "crashTitle": "这个页面出错了",
     "crashBody": "这一块没能渲染出来。先刷新试试；如果反复出现，把当前页面地址发给开发。",
-    "crashReload": "重新加载"
+    "crashReload": "重新加载",
+    "descriptor": "AI 教学平台",
+    "brandLine": "Better Practice. More Insights."
   },
   "audit": {
     "attemptNo": "第 {{n}} 次提交",
@@ -343,7 +345,14 @@
     "password": "密码",
     "submit": "登录",
     "subtitle": "开发期用邮箱密码登录；微信扫码在接入后启用",
-    "title": "登录"
+    "title": "登录",
+    "pillars": "功能",
+    "pillarCreate": "Create 组卷",
+    "pillarAssess": "Assess 批改",
+    "pillarPractice": "Practice 错题",
+    "pillarInsights": "Insights 报告",
+    "planned": "规划中",
+    "practiceNote": "Practice 为规划中模块，暂未上线。"
   },
   "nav": {
     "aiSettings": "AI 设置",

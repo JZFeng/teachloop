@@ -10,6 +10,7 @@ import {
   BarChartOutlined,
   BellOutlined,
   BookOutlined,
+  Brand,
   Button,
   CommentOutlined,
   FileTextOutlined,
@@ -24,7 +25,8 @@ import {
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
 import type { ProfileAiSettings } from '../api/types'
 
-interface NavItem { to: string; label: string; icon: ReactNode; end?: boolean }
+type NavTone = 'create' | 'assess' | 'insights'
+interface NavItem { to: string; label: string; icon: ReactNode; end?: boolean; tone?: NavTone }
 
 export function Shell({ children }: { children: ReactNode }) {
   const { me, logout, profileComplete } = useAuth()
@@ -36,11 +38,11 @@ export function Shell({ children }: { children: ReactNode }) {
   const teacherNav: NavItem[] = [
     { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true },
     { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined /> },
-    { to: '/assignments', label: t('nav.assignments'), icon: <BookOutlined /> },
-    { to: '/papers', label: t('nav.papers'), icon: <FileTextOutlined /> },
-    { to: '/grading', label: t('nav.grading'), icon: <HighlightOutlined /> },
-    { to: '/review', label: t('nav.review'), icon: <AuditOutlined /> },
-    { to: '/reports', label: t('nav.reports'), icon: <BarChartOutlined /> },
+    { to: '/assignments', label: t('nav.assignments'), icon: <BookOutlined />, tone: 'create' },
+    { to: '/papers', label: t('nav.papers'), icon: <FileTextOutlined />, tone: 'create' },
+    { to: '/grading', label: t('nav.grading'), icon: <HighlightOutlined />, tone: 'assess' },
+    { to: '/review', label: t('nav.review'), icon: <AuditOutlined />, tone: 'assess' },
+    { to: '/reports', label: t('nav.reports'), icon: <BarChartOutlined />, tone: 'insights' },
     // UI 标准的展示页：只有教师与管理员看得到，学生端不需要。
     { to: '/ui-kit', label: t('ui.navKit'), icon: <AppstoreOutlined /> },
     ...(me?.role === 'ADMIN'
@@ -87,13 +89,14 @@ export function Shell({ children }: { children: ReactNode }) {
   return (
     <div className="app-shell">
       <aside className="app-sidebar">
-        <div className="brand">{t('app.name')}<span>{t('app.tagline')}</span></div>
+        <div className="brand"><Brand variant="text" size="md" tagline /></div>
         <nav id="nav">
           {items.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
+              data-tone={item.tone}
               className={({ isActive }) => `nav-link${isActive ? ' on' : ''}`}
             >
               <span className="nav-ico" aria-hidden="true">{item.icon}</span>
