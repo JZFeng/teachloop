@@ -46,6 +46,7 @@ const TEACHER_ROUTES = [
   ['review-dark', '/review', 'dark'],
   ['reports-light', '/reports', 'light'],
   ['reports-dark', '/reports', 'dark'],
+  ['admin-ai-light', '/admin/ai', 'light', 1200],
   ['profile-light', '/profile', 'light'],
   ['notifications-light', '/notifications', 'light'],
   ['ui-kit-light', '/ui-kit', 'light', 2600],
@@ -183,6 +184,10 @@ async function main() {
     await navigate('/login')
     await shot(`login-${theme}`)
   }
+  // 初始化页：环境已初始化时会跳转，截出来是什么就记什么。
+  await setTheme('light')
+  await navigate('/setup')
+  await shot('setup-light')
 
   if ((await login(TEACHER)) !== 200) throw new Error('教师登录失败')
   const offerings = await evaluate(`fetch('/api/offerings').then(r => r.json())`)
@@ -194,6 +199,7 @@ async function main() {
       ['grading-detail-light', `/grading/${assignmentId}`, 'light', 1600],
       ['class-summary-light', `/offerings/${assignmentId}/summary`, 'light', 1400],
       ['paper-wizard-light', '/papers/new', 'light', 1600],
+  ['paper-wizard-dark', '/papers/new', 'dark', 1600],
       ['paper-import-light', '/papers/import', 'light', 1400],
     ])
   }
