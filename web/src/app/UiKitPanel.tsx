@@ -195,6 +195,7 @@ export function UiKitPanel() {
             <span className="tl-brand-swatch" data-brand="rose"><i />--brand-rose</span>
           </div>
           <p className="small muted">{t('ui.kit.brandNote')}</p>
+          <p className="small muted">{t('ui.kit.navToneNote')}</p>
           <div className="tl-brand-ratio">
             <span>{t('ui.kit.brandContrast')}</span>
             <span className="mono small">--accent {CONTRAST_NOTES.light.colorPrimary} / {CONTRAST_NOTES.dark.colorPrimary}</span>

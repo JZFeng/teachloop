@@ -1,6 +1,7 @@
 # 决策 006 — 前端视觉换成 TeachLoop 新 logo 的品牌层
 
 日期：2026-10-22　状态：已实现，待用户验收视觉　相关：`specs/006-brand-visual/`、
+`docs/brand/`（两张源图与用途，唯一存放处）、
 `docs/research/2026-10-22-brand-visual.md`、`docs/mock/brand-2026-10-22/`、
 `docs/reports/brand-app-2026-10-22/`
 
@@ -46,6 +47,13 @@
 | 页头 | `PageHeader` 按路由前缀出 eyebrow（CREATE/ASSESS/INSIGHTS/中性），页面不手写颜色 |
 | 落地范围 | 全站 24 条路由继承令牌；登录页重排；导航加功能色胶囊；`/ui-kit` 加品牌色板；30 张真页面截图 |
 | 守卫 | `contrast.py` 16 → 40 组；`check-ui` 与 `check-i18n` 基线不上升 |
+
+> **导航着色口径（2026-10-22 明确）**：功能色只标注三个**已上线**功能位——作业·试卷 `create`、
+> 批改·复核 `assess`、报表·我的反馈 `insights`；首页、班级、资料、通知、管理员 AI 是**中性导航**，
+> 刻意不配 `tone`，图标用 `--muted-2`（`Shell.tsx` 的 `NavItem`、`PageHeader.tsx` 的路由映射、
+> AC-31.2 三处一致）。Practice 紫色只占位（模块未上线），不借给导航项。
+> 理由：功能色是「模块身份」编码，不是装饰；给中性项硬配颜色会造出第五条语义，或提前消费未上线的
+> Practice，同时让「功能色只出现在胶囊/eyebrow/功能位/图表」的 AC-31.4 边界变模糊。
 
 ### 用户拍板的三件事
 

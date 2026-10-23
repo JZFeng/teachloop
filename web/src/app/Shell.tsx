@@ -34,6 +34,9 @@ export function Shell({ children }: { children: ReactNode }) {
   const [unread, setUnread] = useState(0)
   const [aiSource, setAiSource] = useState<'user' | 'global' | 'none' | null>(null)
 
+  // 中性导航（首页、班级、资料、通知、管理员 AI）刻意不配 tone：功能色只标注已上线的三个功能位
+  // （作业/试卷 create、批改/复核 assess、报表/我的反馈 insights）。这是决策 006 / AC-31.2 的口径，
+  // 不要给中性项补色当成漏做；Practice 紫只占位，不借给导航。
   const teacherNav: NavItem[] = [
     { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true },
     { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined /> },
@@ -46,6 +49,7 @@ export function Shell({ children }: { children: ReactNode }) {
       ? [{ to: '/admin/ai', label: t('nav.aiSettings'), icon: <RobotOutlined /> }]
       : []),
   ]
+  // 学生端同理：只有反馈（assess）带功能色，首页与班级保持中性。
   const studentNav: NavItem[] = [
     { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true },
     { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined /> },

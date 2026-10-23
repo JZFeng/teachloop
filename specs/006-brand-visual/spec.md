@@ -69,7 +69,7 @@
 #### US-31 品牌一致
 
 - [ ] AC-31.1 登录页 `/login` 在 1440×900 亮/暗两套下：左侧显示整标（亮色位图 / 暗色 mark + 文本字标）、`Better Practice. More Insights.`、中文 tagline、三条卖点、四个功能位（Create / Assess / Practice / Insights，Practice 带「规划中」脚注）；证据 `docs/reports/brand-app-2026-10-22/login-{light,dark}.png`。
-- [ ] AC-31.2 侧栏品牌区使用 `Brand` 组件的 mark + 文本字标（不是位图字标）；作业/试卷蓝、批改/复核青、报表/我的反馈玫红的导航胶囊可见；证据 `home-{light,dark}.png`、`papers-light.png`。
+- [ ] AC-31.2 侧栏品牌区使用 `Brand` 组件的 mark + 文本字标（不是位图字标）；作业/试卷蓝、批改/复核青、报表/我的反馈玫红的导航胶囊可见；首页、班级、资料、通知、管理员 AI 为中性导航、无胶囊；证据 `home-{light,dark}.png`、`papers-light.png`。
 - [ ] AC-31.3 每一条使用 `PageHeader` 的路由都有 eyebrow，颜色按模块：`/papers*` CREATE 蓝、`/assignments` 与 `/assignments/new` CREATE 蓝、`/grading*` 与 `/review` ASSESS 青、`/reports` 与 `/offerings/:id/summary` INSIGHTS 玫红、`/feedback*` 与 `/exams/:id` ASSESS 青、其余中性灰；截图覆盖至少 20 条路由。
 - [ ] AC-31.4 四个功能色只出现在导航胶囊、eyebrow、登录页/UI kit 的功能位与图表；判分状态只出现在带文字的状态标签；同一个元素不同时使用两者。
 - [ ] AC-31.5 品牌命名统一：`app.name = TeachLoop`（zh/en）、tagline 与 brandLine 入 i18n、`index.html` 标题为 `TeachLoop · AI 教学平台`、favicon/apple-touch-icon 存在；`check-i18n` 前端 zh/en 键数一致。
@@ -150,6 +150,11 @@
 | Insights | `#A63960` / `#FDE2E7` | 5.10 | `#E58BB0` / `#33141E` | 6.87 |
 
 Practice 的紫色是淡紫底的同族延伸，不是原图取样值；logo 里该图标本身是海军蓝。Practice 模块未上线，登录页与导航只作占位/预留。
+
+**导航着色口径**：功能色只标注三个已上线功能位——作业/试卷 = Create、批改/复核 = Assess、报表/我的反馈 = Insights；
+首页、班级、资料、通知、管理员 AI 是中性导航，图标用 `--muted-2`，刻意不配功能色。
+Practice 紫色不借给导航项（模块未上线）。依据 `Shell.tsx` 的 `NavItem`、`PageHeader.tsx` 的路由映射与 AC-31.2；
+中性页面想「补色」时先改这条口径，不要在页面里临时加色。
 
 ### 5.4 判分三态
 

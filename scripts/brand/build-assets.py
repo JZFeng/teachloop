@@ -10,9 +10,13 @@
 
 用法：
   python3 scripts/brand/build-assets.py            # 生成到 web/public/brand/
-  python3 scripts/brand/build-assets.py --check    # 只校验现有产物与源图一致
+  python3 scripts/brand/build-assets.py --check    # 校验两张源图指纹 + 产物齐全
 
-退出码：0 成功；1 源图/裁切框/产物校验失败。
+源图都在 docs/brand/（唯一存放处，不要复制/改名/删除）：
+  teachloop-logo-source.png  构建源（本脚本裁出 9 个前端资产）
+  teachloop-brand-sheet.png  四功能位参考页（不参与构建，但指纹一并校验）
+
+退出码：0 成功；1 源图/参考图指纹、裁切框或产物校验失败。
 """
 from __future__ import annotations
 
@@ -27,8 +31,12 @@ from PIL import Image, ImageDraw
 
 ROOT = Path(__file__).resolve().parents[2]
 SOURCE = ROOT / "docs" / "brand" / "teachloop-logo-source.png"
+BRAND_SHEET = ROOT / "docs" / "brand" / "teachloop-brand-sheet.png"
 OUT = ROOT / "web" / "public" / "brand"
 EXPECTED_SHA = "93f02fd1b7d92da6a22d144117e0bf65ae2142d8fe072f401d1f344728c84484"
+# 四功能位参考页（Create/Assess/Practice/Insights）。不参与构建，但它是品牌交接与以后
+# 做品牌页/关于页的原图；指纹写死，删了、改名了或被随手替换都会在 --check 里报错。
+EXPECTED_BRAND_SHEET_SHA = "910864125359a89086b2ed7c6b8fefa88bd5a8b38901b60082425fea221bf3bb"
 
 # 原图像素坐标（由 scripts/brand/probe-logo.py 量出；±8px 内允许，超出视为换了图）
 EXPECTED_BOXES = {
@@ -239,11 +247,20 @@ def main() -> int:
             "换图请改脚本里的 EXPECTED_SHA 与裁切框"
         )
 
+    if not BRAND_SHEET.exists():
+        raise SystemExit(f"[brand] 缺少四功能位参考图：{BRAND_SHEET.relative_to(ROOT)}")
+    sheet_digest = sha256(BRAND_SHEET)
+    if sheet_digest != EXPECTED_BRAND_SHEET_SHA:
+        raise SystemExit(
+            f"[brand] 四功能位参考图指纹不一致：{sheet_digest[:12]}…，"
+            f"期望 {EXPECTED_BRAND_SHEET_SHA[:12]}…；换图请同步 docs/brand/README.md 与脚本常量"
+        )
+
     if args.check:
         missing = [p for p in ("logo-mark-512.png", "logo-lockup-960.png", "favicon-32.png") if not (OUT / p).exists()]
         if missing:
             raise SystemExit(f"[brand] 产物缺失：{', '.join(missing)}")
-        print("[brand] 校验通过：产物齐全")
+        print("[brand] 校验通过：两张源图指纹一致、产物齐全")
         return 0
 
     img = Image.open(SOURCE).convert("RGB")
