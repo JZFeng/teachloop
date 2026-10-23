@@ -27,14 +27,16 @@ class RubricValidatorTest {
     }
 
     @Test
-    @DisplayName("缺分值：拒绝，不再静默平均分")
-    void rejectsMissingPoints() {
+    @DisplayName("没有分值的条目：当非评分项忽略，不再阻断（T340）")
+    void ignoresUnpointedLines() {
         RubricValidator.Result result = RubricValidator.validate(
                 "# 评分标准\n- 内容要点（10 分）：是否切题。\n- 语言准确性：语法与用词。", new BigDecimal("10"));
 
-        assertThat(result.valid()).isFalse();
-        assertThat(result.issues()).anyMatch(issue ->
-                issue.code().equals("error.rubric.missingPoints") && issue.args().contains("语言准确性"));
+        assertThat(result.valid()).isTrue();
+        assertThat(result.issues()).isEmpty();
+        assertThat(result.criteria()).extracting(RubricValidator.Criterion::name)
+                .containsExactly("内容要点");
+        assertThat(result.ignored()).containsExactly("语言准确性");
     }
 
     @Test

@@ -264,18 +264,6 @@
   gap: 8px;
   margin-bottom: 6px;
 }
-.teacher-page .rubric-preview-list {
-  margin: 0 0 6px;
-  padding-left: 20px;
-  font-size: 13px;
-  line-height: 1.7;
-}
-.teacher-page .rubric-preview-list li {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-}
 
 /* T325：班级成员表——姓名是主信息，ID 缩在下面做核对用。 */
 .teacher-page .member-table {
@@ -299,4 +287,33 @@
 .teacher-page .member-table td.numeric {
   text-align: right;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+/* T340：预览改成编号清单（原有的 li display:flex 会把列表标记吃掉，用 counter 补回来）。 */
+.teacher-page .rubric-preview-list {
+  counter-reset: rubric-item;
+  list-style: none;
+  margin: 0 0 6px;
+  padding-left: 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.teacher-page .rubric-preview-list li {
+  counter-increment: rubric-item;
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  column-gap: 8px;
+  align-items: baseline;
+}
+
+.teacher-page .rubric-preview-list li::before {
+  content: counter(rubric-item) ".";
+  color: var(--muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.teacher-page .rubric-preview-note {
+  margin-top: 2px;
 }

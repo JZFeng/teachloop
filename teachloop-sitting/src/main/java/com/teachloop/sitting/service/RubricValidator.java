@@ -15,8 +15,10 @@ import java.util.regex.Pattern;
  * 作业 rubric 的录入校验（T258）。
  *
  * <p>只做「能不能交给 AI 判」的结构校验，不评价标准写得好不好：
- * 解析评分项名称与分值，要求名称非空且不重复、每项有显式分值、各项之和等于作业总分。
- * 与 grading 的 {@code RubricCriteria} 保持同一套「标题优先、Yes/No 是规则不是评分项」口径。
+ * 解析评分项名称与分值，要求名称非空且不重复、各项之和等于作业总分。
+ * 没有分值的分组标题 / 说明行不算评分项，进 {@code ignored}（只供界面提示，不阻断发布）。
+ * 与 grading 的 {@code RubricCriteria}、前端 {@code rubric.ts} 共用同一套选择规则，
+ * 夹具在 {@code docs/rubrics/fixtures/rubric-cases.json}。
  */
 public final class RubricValidator {
 
@@ -52,26 +54,28 @@ public final class RubricValidator {
     }
 
     public record Result(boolean valid, List<Criterion> criteria, BigDecimal total,
-                         List<Issue> issues) {
+                         List<Issue> issues, List<String> ignored) {
     }
 
     public static Result validate(String markdown, BigDecimal expectedTotal) {
         List<Criterion> criteria = new ArrayList<>();
         List<Issue> issues = new ArrayList<>();
         if (markdown == null || markdown.isBlank()) {
-            return new Result(false, List.of(), BigDecimal.ZERO, List.of(Issue.of("error.rubric.empty")));
+            return new Result(false, List.of(), BigDecimal.ZERO,
+                    List.of(Issue.of("error.rubric.empty")), List.of());
         }
         Parsed parsed = parse(markdown);
         if (parsed.criteria().isEmpty()) {
             return new Result(false, List.of(), BigDecimal.ZERO,
-                    List.of(Issue.of("error.rubric.noCriteria")));
+                    List.of(Issue.of("error.rubric.noCriteria")), ignoredNames(parsed.ignored()));
         }
         boolean anyPoints = parsed.criteria().stream().anyMatch(c -> c.maxPoints() != null);
         if (!anyPoints) {
             // 兼容历史 rubric（完全没有分值）：运行时 RubricCriteria 会均分；
             // 新作业模板已带分值，因此这条只服务存量数据与旧测试。
             return new Result(true, evenly(parsed.criteria(), expectedTotal),
-                    expectedTotal == null ? BigDecimal.ZERO : expectedTotal, List.of());
+                    expectedTotal == null ? BigDecimal.ZERO : expectedTotal, List.of(),
+                    ignoredNames(parsed.ignored()));
         }
         Set<String> seen = new HashSet<>();
         BigDecimal total = BigDecimal.ZERO;
@@ -81,6 +85,7 @@ public final class RubricValidator {
                 issues.add(Issue.of("error.rubric.duplicate", c.name()));
             }
             if (c.maxPoints() == null) {
+                // 新选择规则下 criteria 要么全带分值、要么全不带；这里只做防御，正常不会触发。
                 issues.add(Issue.of("error.rubric.missingPoints", c.name()));
             } else {
                 total = total.add(c.maxPoints());
@@ -91,7 +96,13 @@ public final class RubricValidator {
                 && total.subtract(expectedTotal).abs().compareTo(new BigDecimal("0.01")) > 0) {
             issues.add(Issue.of("error.rubric.sumMismatch", pretty(total), pretty(expectedTotal)));
         }
-        return new Result(issues.isEmpty(), List.copyOf(criteria), total, List.copyOf(issues));
+        return new Result(issues.isEmpty(), List.copyOf(criteria), total, List.copyOf(issues),
+                ignoredNames(parsed.ignored()));
+    }
+
+    /** 被忽略的「没有分值」条目：只用于界面提示，不参与校验、不阻断发布。 */
+    private static List<String> ignoredNames(List<ParsedCriterion> items) {
+        return items.stream().map(ParsedCriterion::name).distinct().toList();
     }
 
     private static List<Criterion> evenly(List<ParsedCriterion> parsed, BigDecimal expectedTotal) {
@@ -150,7 +161,29 @@ public final class RubricValidator {
                 add(bullets, numbered.group(1));
             }
         }
-        return new Parsed(headings.isEmpty() ? bullets : headings);
+
+        // T340：分组标题 / 说明行不是评分项。选择规则（grading 与前端逐条对齐）：
+        //   1. 有带分值的标题 → 评分项 = 带分值的标题；无分值标题与无分值列表项进 ignored；
+        //   2. 没有带分值的标题、但有带分值的列表项 → 评分项 = 带分值的列表项；无分值项与标题进 ignored；
+        //   3. 全文没有任何分值 → 维持旧行为（标题优先，否则列表），均分，ignored 为空。
+        List<ParsedCriterion> pointedHeadings = headings.stream()
+                .filter(c -> c.maxPoints() != null).toList();
+        List<ParsedCriterion> pointedBullets = bullets.stream()
+                .filter(c -> c.maxPoints() != null).toList();
+        if (!pointedHeadings.isEmpty()) {
+            List<ParsedCriterion> ignored = new ArrayList<>();
+            headings.stream().filter(c -> c.maxPoints() == null).forEach(ignored::add);
+            bullets.stream().filter(c -> c.maxPoints() == null).forEach(ignored::add);
+            return new Parsed(List.copyOf(pointedHeadings), List.copyOf(ignored));
+        }
+        if (!pointedBullets.isEmpty()) {
+            List<ParsedCriterion> ignored = new ArrayList<>();
+            bullets.stream().filter(c -> c.maxPoints() == null).forEach(ignored::add);
+            ignored.addAll(headings);
+            return new Parsed(List.copyOf(pointedBullets), List.copyOf(ignored));
+        }
+        List<ParsedCriterion> fallback = headings.isEmpty() ? bullets : headings;
+        return new Parsed(List.copyOf(fallback), List.of());
     }
 
     private static void add(List<ParsedCriterion> out, String raw) {
@@ -221,6 +254,6 @@ public final class RubricValidator {
     private record ParsedCriterion(String name, BigDecimal maxPoints) {
     }
 
-    private record Parsed(List<ParsedCriterion> criteria) {
+    private record Parsed(List<ParsedCriterion> criteria, List<ParsedCriterion> ignored) {
     }
 }

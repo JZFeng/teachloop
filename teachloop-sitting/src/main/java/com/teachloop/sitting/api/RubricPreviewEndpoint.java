@@ -21,7 +21,7 @@ public class RubricPreviewEndpoint {
     }
 
     public record Response(boolean valid, List<RubricValidator.Criterion> criteria,
-                           BigDecimal total, List<String> issues) {
+                           BigDecimal total, List<String> issues, List<String> ignored) {
     }
 
     @PostMapping("/preview")
@@ -30,6 +30,6 @@ public class RubricPreviewEndpoint {
                 body == null ? null : body.rubricMarkdown(),
                 body == null ? null : body.totalPoints());
         return new Response(result.valid(), result.criteria(), result.total(),
-                RubricIssueText.render(messages, result.issues()));
+                RubricIssueText.render(messages, result.issues()), result.ignored());
     }
 }

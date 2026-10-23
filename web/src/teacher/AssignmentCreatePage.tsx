@@ -365,6 +365,14 @@ function RubricPreview({ rubric, totalPoints }: { rubric: string; totalPoints: n
                   ? t('teacher.assignmentCreate.aiPreviewMatched')
                   : t('teacher.assignmentCreate.aiPreviewMismatch', { expected: expected ?? '—' })}
           </div>
+          {summary.ignored.length > 0 ? (
+            <div
+              className="small muted rubric-preview-note"
+              title={summary.ignored.map((criterion) => criterion.name).join('\n')}
+            >
+              {t('teacher.assignmentCreate.aiPreviewIgnored', { count: summary.ignored.length })}
+            </div>
+          ) : null}
         </>
       )}
     </div>

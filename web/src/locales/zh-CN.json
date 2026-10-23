@@ -627,8 +627,9 @@
       "aiPreviewEmpty": "还没有评分项。每条一行，例如「1. 回应题目要求 — 4 points」。",
       "aiPreviewMissingPoints": "有评分项没写分值：这一条不会被算进合计。",
       "aiPreviewEvenSplit": "评分项都没写分值，系统会把总分均分到各项。",
-      "aiPreviewMatched": "合计与总分一致，可以发布。",
-      "aiPreviewMismatch": "合计与总分不一致（总分 {{expected}} 分），发布会被拒绝。"
+      "aiPreviewMatched": "合计与总分一致。",
+      "aiPreviewMismatch": "合计与总分不一致（总分 {{expected}} 分），发布会被拒绝。",
+      "aiPreviewIgnored": "另有 {{count}} 行没有分值，未计入评分项"
     },
     "assignments": {
       "colClasses": "班级",
