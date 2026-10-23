@@ -121,6 +121,18 @@ async function setTheme(theme) {
   await evaluate(`localStorage.setItem('teachloop.theme', '${theme}')`)
 }
 
+async function setLang(lang) {
+  await evaluate(`localStorage.setItem('teachloop.lang', '${lang}')`)
+}
+
+async function pressTab(times) {
+  for (let i = 0; i < times; i += 1) {
+    await send('Input.dispatchKeyEvent', { type: 'keyDown', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9, key: 'Tab', code: 'Tab' })
+    await send('Input.dispatchKeyEvent', { type: 'keyUp', windowsVirtualKeyCode: 9, nativeVirtualKeyCode: 9, key: 'Tab', code: 'Tab' })
+    await sleep(120)
+  }
+}
+
 async function login(user) {
   const status = await evaluate(
     `fetch('/api/auth/login', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: ${JSON.stringify(
@@ -189,9 +201,32 @@ async function main() {
   await navigate('/setup')
   await shot('setup-light')
 
+  // 键盘焦点环：登录页 Tab 三次后截一张（AC-33.3 的证据）。
+  await setTheme('light')
+  await navigate('/login')
+  await pressTab(3)
+  await shot('login-focus-light')
+
+  // 英文界面：brandLine / 功能位 / eyebrow 都要能翻译。
+  await setLang('en')
+  await navigate('/login')
+  await shot('login-en')
+  await setLang('zh-CN')
+
   if ((await login(TEACHER)) !== 200) throw new Error('教师登录失败')
   const offerings = await evaluate(`fetch('/api/offerings').then(r => r.json())`)
   await capture(TEACHER_ROUTES)
+
+  // 壳层焦点环 + 英文首页。
+  await setTheme('light')
+  await navigate('/papers')
+  await pressTab(4)
+  await shot('focus-papers-light')
+  await setViewport(900)
+  await setLang('en')
+  await navigate('/')
+  await shot('home-en')
+  await setLang('zh-CN')
 
   const assignmentId = offerings?.find((item) => item.kind === 'ASSIGNMENT')?.id
   if (assignmentId) {

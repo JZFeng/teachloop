@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
+import { PageHeader } from '../ui'
 
 interface AiSettingsView {
   provider: string
@@ -53,9 +54,9 @@ export default function AdminAiPage() {
   }
 
   return (
-    <div className="card" style={{ maxWidth: 760 }}>
-      <h1>{t('app.ai.title')}</h1>
-      <p className="small muted">{t('app.ai.sub')}</p>
+    <>
+      <PageHeader title={t('app.ai.title')} sub={t('app.ai.sub')} />
+      <div className="card" style={{ maxWidth: 760 }}>
       {error && <div className="inline-note danger">{error}</div>}
       {view && (
         <div className="inline-note">
@@ -95,6 +96,7 @@ export default function AdminAiPage() {
           })}
         </p>
       )}
-    </div>
+      </div>
+    </>
   )
 }
