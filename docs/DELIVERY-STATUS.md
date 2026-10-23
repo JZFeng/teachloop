@@ -103,6 +103,15 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
     `docs/reports/ui-standard-2026-10-21/`（含 T319 的 before/after 7 张）。
     **未完成**：21 屏 × 亮暗截图基线（T308，需装 Playwright）；剩余 13 屏组件化（T309）；
     跨浏览器未验；视觉「好不好看」待用户确认。
+    **2026-10-22 更新（决策 006 / `specs/006-brand-visual/`）**：调色板与圆角被品牌层取代——
+    主色 `#1A63E0`（白字 5.38:1）、暗色 `#2A6FD6` + 暗底 `#0A1120`、圆角 8/12/6、页标题 24px；
+    新增四个功能位（Create / Assess / Practice / Insights）与判分三态两个命名空间、`--accent-text`
+    （暗色 `#7DB1FF`，7.96:1）、`Brand` 组件、侧栏功能色胶囊、全站页头 eyebrow、`/ui-kit` 品牌色板；
+    品牌资产由 `scripts/brand/build-assets.py` 生成；`contrast.py` 16 → **40 组**，check-ui 基线 **123 处**；
+    回归 `make test` **255/0/0/0** + 前端 **14/14**。真页面截图
+    `docs/reports/brand-app-2026-10-22/`（30 张，含学生页）。
+    未验证：考试作答 live 页、管理员 AI 设置、反馈详情、`/setup`、跨浏览器；口径见
+    `specs/006-brand-visual/spec.md` 6.2。
 
 
 ## 五、结论

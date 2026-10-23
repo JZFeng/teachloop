@@ -4,6 +4,8 @@
  */
 export { Button } from './Button'
 export type { ButtonProps, ButtonVariant } from './Button'
+export { Brand } from './Brand'
+export type { BrandProps, BrandVariant, BrandSize } from './Brand'
 export { Input, TextArea, Password, Search } from './Input'
 export { Alert } from './Alert'
 export { Segmented } from './Segmented'

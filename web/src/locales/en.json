@@ -37,10 +37,12 @@
       "apiKeyHint": "Required for first setup; stored encrypted and only a mask is shown.",
       "apiKeyPlaceholder": "sk-..."
     },
-    "tagline": "Grading that serves teaching",
+    "tagline": "Better Practice. More Insights.",
     "crashTitle": "This page hit an error",
     "crashBody": "This section failed to render. Reload first; if it keeps happening, send the page address to the developer.",
-    "crashReload": "Reload"
+    "crashReload": "Reload",
+    "descriptor": "AI teaching platform",
+    "brandLine": "Better Practice. More Insights."
   },
   "audit": {
     "attemptNo": "Attempt {{n}}",
@@ -343,7 +345,14 @@
     "password": "Password",
     "submit": "Sign in",
     "subtitle": "Email and password for now; WeChat sign-in comes later",
-    "title": "Sign in"
+    "title": "Sign in",
+    "pillars": "Features",
+    "pillarCreate": "Create",
+    "pillarAssess": "Assess",
+    "pillarPractice": "Practice",
+    "pillarInsights": "Insights",
+    "planned": "Planned",
+    "practiceNote": "Practice is planned and not live yet."
   },
   "nav": {
     "aiSettings": "AI settings",
@@ -1264,8 +1273,34 @@
       "demoRow1": "Class 10-3 · Midterm mock",
       "demoRow2": "Class 10-3 · Writing task",
       "demoRow3": "Class 11-1 · Quick quiz",
-      "typeSample": "Body 14 / 1.65 — Chinese needs a looser line height than English."
+      "typeSample": "Body 14 / 1.65 — Chinese needs a looser line height than English.",
+      "sectionBrand": "Brand palette and feature slots",
+      "brandFeatures": "Four feature slots (ink × tint)",
+      "brandStatus": "Grading states",
+      "brandRaw": "Raw brand colors (fills only)",
+      "brandNote": "Feature hues are for icon chips, eyebrows and charts. Grading states always carry text. Raw brand colors are fills only and never carry body text.",
+      "brandContrast": "Contrast (light / dark)",
+      "statusPass": "Pass",
+      "statusPartial": "Partial",
+      "statusFail": "Fail"
     },
     "navKit": "UI kit"
+  },
+  "eyebrow": {
+    "home": "DASHBOARD",
+    "classes": "CLASSES",
+    "papers": "CREATE · Papers",
+    "assignments": "CREATE · Assignments",
+    "assignmentCreate": "CREATE · Assign",
+    "grading": "ASSESS · Grading",
+    "review": "ASSESS · Review",
+    "reports": "INSIGHTS · Reports",
+    "summary": "INSIGHTS · Summary",
+    "feedback": "ASSESS · Feedback",
+    "exam": "ASSESS · Answer",
+    "profile": "ACCOUNT",
+    "notifications": "INBOX",
+    "uiKit": "DESIGN SYSTEM",
+    "adminAi": "ADMIN"
   }
 }

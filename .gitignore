@@ -80,3 +80,6 @@ teachloop-app/logs/
 .dsh/survey-drafts/
 .dsh/survey-input/
 web/public/vditor/
+
+# 品牌样张截图用的 headless Chrome profile（docsmock 脚本生成）
+.cache/

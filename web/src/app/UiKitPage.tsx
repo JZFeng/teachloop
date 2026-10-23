@@ -7,13 +7,16 @@ import {
   BellOutlined,
   BookOutlined,
   Button,
+  CheckCircleOutlined,
   CommentOutlined,
+  CONTRAST_NOTES,
   DataTable,
   Empty,
   ErrorState,
   Field,
   FileTextOutlined,
   HighlightOutlined,
+  SyncOutlined,
   HomeOutlined,
   Loading,
   LogoutOutlined,
@@ -158,6 +161,51 @@ export default function UiKitPage() {
         </div>
       </Section>
 
+      <Section title={t('ui.kit.sectionBrand')}>
+        <div className="tl-brand-kit">
+          <div className="tl-brand-row">
+            <span className="tl-brand-row-label">{t('ui.kit.brandFeatures')}</span>
+            <span className="tl-brand-chip" data-feature="create">
+              <span className="tl-brand-chip-ico" aria-hidden="true"><FileTextOutlined /></span>
+              Create
+            </span>
+            <span className="tl-brand-chip" data-feature="assess">
+              <span className="tl-brand-chip-ico" aria-hidden="true"><CheckCircleOutlined /></span>
+              Assess
+            </span>
+            <span className="tl-brand-chip" data-feature="practice">
+              <span className="tl-brand-chip-ico" aria-hidden="true"><SyncOutlined /></span>
+              Practice
+            </span>
+            <span className="tl-brand-chip" data-feature="insights">
+              <span className="tl-brand-chip-ico" aria-hidden="true"><BarChartOutlined /></span>
+              Insights
+            </span>
+          </div>
+          <div className="tl-brand-row">
+            <span className="tl-brand-row-label">{t('ui.kit.brandStatus')}</span>
+            <Tag tone="green">{t('ui.kit.statusPass')}</Tag>
+            <Tag tone="amber">{t('ui.kit.statusPartial')}</Tag>
+            <Tag tone="red">{t('ui.kit.statusFail')}</Tag>
+          </div>
+          <div className="tl-brand-row">
+            <span className="tl-brand-row-label">{t('ui.kit.brandRaw')}</span>
+            <span className="tl-brand-swatch" data-brand="navy"><i />--brand-navy</span>
+            <span className="tl-brand-swatch" data-brand="azure"><i />--brand-azure</span>
+            <span className="tl-brand-swatch" data-brand="teal"><i />--brand-teal</span>
+            <span className="tl-brand-swatch" data-brand="yellow"><i />--brand-yellow</span>
+            <span className="tl-brand-swatch" data-brand="rose"><i />--brand-rose</span>
+          </div>
+          <p className="small muted">{t('ui.kit.brandNote')}</p>
+          <div className="tl-brand-ratio">
+            <span>{t('ui.kit.brandContrast')}</span>
+            <span className="mono small">--accent {CONTRAST_NOTES.light.colorPrimary} / {CONTRAST_NOTES.dark.colorPrimary}</span>
+            <span className="mono small">--line-strong {CONTRAST_NOTES.light.colorBorder} / {CONTRAST_NOTES.dark.colorBorder}</span>
+            <span className="mono small">--accent-text {CONTRAST_NOTES.light.colorLink} / {CONTRAST_NOTES.dark.colorLink}</span>
+          </div>
+        </div>
+      </Section>
+
       <Section title={t('ui.kit.sectionIcon')}>
         <div className="tl-kit-icons">
           {ICON_DEMO.map((item) => (
@@ -186,6 +234,11 @@ export default function UiKitPage() {
           <Swatch label="--text" />
           <Swatch label="--muted" />
           <Swatch label="--line" />
+          <Swatch label="--accent-text" />
+          <Swatch label="--create" />
+          <Swatch label="--assess" />
+          <Swatch label="--practice" />
+          <Swatch label="--insights" />
           <Swatch label="--green" />
           <Swatch label="--amber" />
           <Swatch label="--red" />

@@ -130,7 +130,7 @@
 .exam-tree .tree-item.done { background: var(--done); border-color: var(--done); color: var(--on-done); font-weight: 700; }
 .exam-tree .tree-item.done.marked { border-color: var(--amber); }
 .exam-tree .tree-item.current { background: var(--done); color: var(--on-done); outline: 2px solid var(--accent); outline-offset: 1px; }
-.exam-tree .tree-item.current:not(.done) { background: var(--accent-weak); color: var(--accent); outline: 2px solid var(--accent); }
+.exam-tree .tree-item.current:not(.done) { background: var(--accent-weak); color: var(--accent-text); outline: 2px solid var(--accent); }
 .exam-tree .dot { display: inline-block; flex: 0 0 6px; width: 6px; height: 6px; }
 .exam-tree .tree-item.done .dot { background: var(--on-done); border-color: var(--on-done); }
 .exam-tree .tree-item.marked .dot { background: var(--amber); border-color: var(--amber); }
@@ -147,7 +147,7 @@
   font-size: 13px; background: var(--amber-weak); color: var(--amber); border: 1px solid var(--amber);
 }
 .exam-banner.danger { background: var(--red-weak); color: var(--red); border-color: var(--red); }
-.exam-banner.info { background: var(--accent-weak); color: var(--accent); border-color: var(--accent); }
+.exam-banner.info { background: var(--accent-weak); color: var(--accent-text); border-color: var(--accent); }
 .exam-submit-bar { display: flex; justify-content: flex-end; gap: 10px; padding: 24px 0 8px; }
 
 /* ---------- 弹层 ---------- */
@@ -172,14 +172,14 @@
   border-radius: 7px; font: inherit; font-size: 12.5px; color: var(--muted); cursor: pointer;
   padding: 0 7px; font-variant-numeric: tabular-nums;
 }
-.mchip:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-weak); }
+.mchip:hover { border-color: var(--accent); color: var(--accent-text); background: var(--accent-weak); }
 .mchip.mk { border-color: var(--amber); color: var(--amber); background: var(--amber-weak); }
 .mfoot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
 
 /* ---------- 交卷结果 ---------- */
 .exam-result { max-width: 760px; margin: 0 auto; }
 .exam-result-score { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
-.score-big { font-size: 36px; font-weight: 700; letter-spacing: -.035em; line-height: 1; color: var(--accent); font-variant-numeric: tabular-nums; }
+.score-big { font-size: 36px; font-weight: 700; letter-spacing: -.035em; line-height: 1; color: var(--accent-text); font-variant-numeric: tabular-nums; }
 .score-big small { font-size: 14px; font-weight: 400; color: var(--muted); }
 .result-facts { min-width: 210px; }
 .result-facts .kv { padding: 4px 0; border-bottom: 0; }
@@ -247,7 +247,7 @@
   display: inline-flex; align-items: baseline; gap: 3px;
   border: 0; border-bottom: 2px dashed var(--line); background: transparent;
   border-radius: 4px 4px 0 0; padding: 0 4px 1px; margin: 0 2px;
-  font: inherit; font-size: .86em; font-weight: 650; color: var(--accent);
+  font: inherit; font-size: .86em; font-weight: 650; color: var(--accent-text);
   cursor: pointer; line-height: 1.5; vertical-align: baseline;
 }
 .inline-blank:hover:not(:disabled) { background: var(--accent-weak); border-bottom-style: solid; border-bottom-color: var(--accent); }
@@ -286,7 +286,7 @@
 .inline-pop-no {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 22px; height: 22px; padding: 0 6px; border-radius: 999px;
-  background: var(--accent-weak); color: var(--accent); font-weight: 700; font-size: 11px;
+  background: var(--accent-weak); color: var(--accent-text); font-weight: 700; font-size: 11px;
 }
 .inline-pop-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .inline-pop-opt {

@@ -1,0 +1,92 @@
+{
+  "source": "docs/brand/teachloop-logo-source.png",
+  "sourceSha256": "93f02fd1b7d92da6a22d144117e0bf65ae2142d8fe072f401d1f344728c84484",
+  "boxes": {
+    "mark": [
+      370,
+      247,
+      960,
+      624
+    ],
+    "wordmark": [
+      112,
+      656,
+      1140,
+      848
+    ]
+  },
+  "assets": {
+    "apple-touch-icon-180.png": {
+      "size": [
+        180,
+        180
+      ],
+      "bytes": 11974,
+      "alphaCoveragePct": 95.6
+    },
+    "favicon-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 1098,
+      "alphaCoveragePct": 95.3
+    },
+    "logo-lockup-960.png": {
+      "size": [
+        960,
+        567
+      ],
+      "bytes": 236185,
+      "alphaCoveragePct": 29.6
+    },
+    "logo-mark-128.png": {
+      "size": [
+        128,
+        128
+      ],
+      "bytes": 11425,
+      "alphaCoveragePct": 25.9
+    },
+    "logo-mark-256.png": {
+      "size": [
+        256,
+        256
+      ],
+      "bytes": 31044,
+      "alphaCoveragePct": 22.9
+    },
+    "logo-mark-32.png": {
+      "size": [
+        32,
+        32
+      ],
+      "bytes": 1603,
+      "alphaCoveragePct": 36.8
+    },
+    "logo-mark-512.png": {
+      "size": [
+        512,
+        512
+      ],
+      "bytes": 87886,
+      "alphaCoveragePct": 21.5
+    },
+    "logo-mark-wide-512.png": {
+      "size": [
+        512,
+        338
+      ],
+      "bytes": 95085,
+      "alphaCoveragePct": 36.7
+    },
+    "logo-wordmark-960.png": {
+      "size": [
+        960,
+        191
+      ],
+      "bytes": 118383,
+      "alphaCoveragePct": 44.5
+    }
+  }
+}

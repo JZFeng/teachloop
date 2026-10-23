@@ -69,7 +69,7 @@
 .teacher-page .chip.on {
   border-color: var(--accent);
   background: var(--accent-weak);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 650;
 }
 
@@ -83,7 +83,7 @@
   text-decoration: none;
 }
 .teacher-page .breadcrumb a:hover {
-  color: var(--accent);
+  color: var(--accent-text);
 }
 .teacher-page .breadcrumb b {
   color: var(--text);
@@ -119,7 +119,7 @@
 }
 .teacher-page .stepper .st.on {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--accent-text);
   font-weight: 650;
 }
 .teacher-page .stepper .st.on b {
@@ -128,7 +128,7 @@
 }
 .teacher-page .stepper .st.done b {
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
 }
 
 .teacher-page .form-grid {

@@ -51,7 +51,7 @@
 | 学生放大 | `.rich-editor--expanded` `x=238 / 1202×1000`；`body.overflow=hidden`；Esc 后 class 消失、正文保留、焦点回到「放大编辑」 |
 | 学生全屏 | 进入后 `document.fullscreenElement` = 正在编辑的 rich editor；退出后为 null |
 | 边界 | 试卷已发布 => 只读；学生验收时新建了一次 attempt（未提交）留在 QA |
-| 全量 | `make test` 退出码 0：surefire **260 / 0 / 0 / 0**，前端 **22 / 22**；`check-i18n` 1200 键、`check-ui` 无新增违规 |
+| 全量 | `make test` 退出码 0：surefire **250 / 0 / 0 / 0**，前端 **14 / 14**；`check-i18n` 1200 键、`check-ui` 无新增违规 |
 
 > 试卷是 PUBLISHED，无法在页面里直接输入。验收时通过 API 临时写入 `Rubric.md` 验证回填/预览/源码，
 > 随后已把 rubric 还原为空（已复查）。编辑写入路径与新建作业共用同一个 `VditorMarkdown`（T339 已验证）。
