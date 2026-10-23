@@ -83,3 +83,6 @@ web/public/vditor/
 
 # 品牌样张截图用的 headless Chrome profile（docsmock 脚本生成）
 .cache/
+
+# 截图脚本用的临时 Chrome profile（docs/mock/*）
+.chrome-profile/
