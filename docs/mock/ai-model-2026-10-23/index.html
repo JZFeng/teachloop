@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 模型设置 · 可点 mock · 2026-10-23</title>
+<style>
+:root{
+  --bg:#F6F8FC; --panel:#FFF; --panel-2:#EFF4FB; --line:#DCE4F2; --line-2:#EBF0F8;
+  --text:#0E2340; --muted:#41536E; --muted-2:#55677F;
+  --accent:#1A63E0; --accent-weak:#E8EFFD; --accent-text:#1A63E0;
+  --ok:#0E7066; --ok-weak:#DBF4EE; --warn:#8A5A00; --warn-weak:#FFF3D6;
+  --danger:#B42318; --danger-weak:#FEE4E2;
+  --radius:12px; --radius-sm:8px;
+  --shadow:0 1px 2px rgba(14,54,118,.05),0 1px 3px rgba(14,54,118,.07);
+  --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC","Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{background:var(--bg);color:var(--text);font:14px/1.65 var(--font);-webkit-font-smoothing:antialiased;padding:22px 30px 40px}
+.mockbar{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:18px}
+.mockbadge{font:700 11px/1 var(--mono);letter-spacing:.04em;background:#0E2340;color:#fff;border-radius:5px;padding:5px 7px}
+.mockbar .hint{font-size:12px;color:var(--muted-2)}
+.tabs{display:flex;gap:8px;border-bottom:1px solid var(--line);margin-bottom:22px}
+.tab{border:0;background:none;padding:10px 2px 12px;margin-right:22px;font:600 14px var(--font);color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.tab.on{color:var(--text);border-bottom-color:var(--accent)}
+.screen{display:none}
+.screen.on{display:block}
+.head{display:flex;align-items:flex-start;justify-content:space-between;gap:18px;margin-bottom:18px}
+.eyebrow{font:700 11px/1 var(--mono);letter-spacing:.08em;color:var(--muted-2);text-transform:uppercase;margin-bottom:7px}
+h1{font-size:22px;line-height:1.25;margin:0 0 5px;letter-spacing:-.02em}
+.sub{color:var(--muted);font-size:13px;margin:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px 22px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 4px}
+.card .small{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.grow{flex:1}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:8px;padding:9px 14px;font:600 13px var(--font);cursor:pointer}
+.btn:hover{border-color:#B9C8DF}
+.btn.pri{background:var(--accent);border-color:var(--accent);color:#fff}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--accent-text);padding-left:4px;padding-right:4px}
+.btn.danger{color:var(--danger);border-color:var(--danger-weak)}
+.btn.sm{padding:6px 10px;font-size:12px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.field label{font-weight:650;font-size:13px}
+.field .help{font-size:12px;color:var(--muted-2);line-height:1.45}
+input,select{width:100%;border:1px solid #C7D3E5;border-radius:8px;padding:10px 12px;background:#fff;color:var(--text);font:14px var(--font);outline:none}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-weak)}
+.mono{font-family:var(--mono);font-size:12.5px}
+.badge{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:3px 8px;font:600 11.5px var(--font);background:var(--ok-weak);color:var(--ok)}
+.badge.current{background:var(--accent-weak);color:var(--accent-text)}
+.badge.warn{background:var(--warn-weak);color:var(--warn)}
+.dot{width:7px;height:7px;border-radius:50%;background:currentColor;display:inline-block}
+.provider{border:1px solid var(--line-2);border-radius:10px;padding:14px 16px;margin-bottom:10px;background:linear-gradient(#fff,#FCFDFF)}
+.provider .top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.provider .name{font-size:14px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.provider .meta{font-size:12px;color:var(--muted);margin-top:6px;display:grid;grid-template-columns:88px 1fr;gap:2px 10px;max-width:820px}
+.provider .meta b{font-weight:600;color:var(--muted-2)}
+.empty{border:1px dashed #B9C8DF;border-radius:10px;padding:22px;text-align:center;color:var(--muted);background:var(--panel-2)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.chip{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);border-radius:999px;padding:4px 9px;font:12.5px var(--mono);background:var(--panel-2)}
+.chip button{border:0;background:none;color:var(--muted);cursor:pointer;font-size:14px;line-height:1;padding:0}
+.note{border-left:3px solid var(--accent);background:var(--accent-weak);border-radius:0 8px 8px 0;padding:11px 13px;font-size:12.5px;color:#173D7A;line-height:1.55}
+.note.ok{border-left-color:var(--ok);background:var(--ok-weak);color:#0B4F48}
+.teacher-card{max-width:760px}
+.teacher-card h2{font-size:15px;margin-bottom:6px}
+.current-line{font-size:13px;color:var(--muted);margin:10px 0 0}
+.current-line b{color:var(--text)}
+.hidden{display:none!important}
+.modal-mask{position:fixed;inset:0;background:rgba(14,35,64,.35);display:none;align-items:center;justify-content:center;padding:20px;z-index:10}
+.modal-mask.on{display:flex}
+.modal{width:min(620px,100%);background:#fff;border-radius:14px;box-shadow:0 20px 60px rgba(14,35,64,.28);padding:22px}
+.modal h3{margin:0 0 4px;font-size:17px}
+.modal p{margin:0 0 14px;color:var(--muted);font-size:12.5px}
+.model-list{border:1px solid var(--line);border-radius:9px;overflow:hidden;max-height:250px;overflow:auto;margin-bottom:14px}
+.model-row{display:flex;align-items:center;gap:10px;padding:10px 12px;border-bottom:1px solid var(--line-2);cursor:pointer}
+.model-row:last-child{border-bottom:0}
+.model-row:hover{background:var(--panel-2)}
+.model-row input{width:auto;accent-color:var(--accent)}
+.footer{font-size:12px;color:var(--muted-2);margin-top:26px}
+@media(max-width:760px){body{padding:16px}.head{flex-direction:column}.provider .meta{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="mockbar">
+  <div class="row" style="gap:10px">
+    <span class="mockbadge">MOCK</span>
+    <span class="mockbar hint">仅用于确认交互与信息层级，不是产品代码；可点、可切角色。</span>
+  </div>
+  <div class="row"><span class="hint">2026-10-23 · v1 全局模型</span></div>
+</div>
+
+<div class="tabs">
+  <button class="tab on" data-screen="admin" onclick="show('admin')">管理员 · 模型设置</button>
+  <button class="tab" data-screen="teacher" onclick="show('teacher')">教师 · /profile 选择模型</button>
+</div>
+
+<!-- ===================== ADMIN ===================== -->
+<section class="screen on" id="screen-admin">
+  <div class="head">
+    <div>
+      <div class="eyebrow">ADMIN · /admin/ai</div>
+      <h1>模型设置</h1>
+      <p class="sub">这里配置 provider 与模型。教师会在自己的资料页从下拉里选一个；<b>v1 选中的模型对全站生效</b>，不按作业/考试覆盖。</p>
+    </div>
+    <button class="btn pri" onclick="openForm()">+ 添加 provider</button>
+  </div>
+
+  <div class="card">
+    <h2>当前全站模型</h2>
+    <p class="small">管理员也可以在这里直接切换；教师切换同一个全局设置，会看到同一份结果。</p>
+    <div class="row">
+      <select id="adminCurrent" onchange="syncAdminCurrent()" style="max-width:620px">
+        <option value="qwen3.8">qwen3.8 · Qwen 3.8 Local（当前）</option>
+        <option value="deepseek-flash">deepseek-flash · DeepSeek</option>
+      </select>
+      <span class="badge"><span class="dot"></span>已连接</span>
+    </div>
+    <div class="note" style="margin-top:14px">v1：模型只有全局一层。v2 才考虑把模型挂到考试或作业级别。</div>
+  </div>
+
+  <div class="card">
+    <h2>已配置的 provider</h2>
+    <p class="small">一行一个 provider；provider 内可以有多个模型，但当前只启用一个。</p>
+
+    <div class="provider">
+      <div class="top">
+        <div class="name">Qwen 3.8 Local <span class="badge current"><span class="dot"></span>当前使用</span></div>
+        <div class="row">
+          <button class="btn sm" onclick="openForm()">编辑</button>
+          <button class="btn sm danger" onclick="alert('mock：删除 provider')">删除</button>
+        </div>
+      </div>
+      <div class="meta">
+        <b>Provider ID</b><span class="mono">qwen3.8local</span>
+        <b>API 地址</b><span class="mono">http://192.168.68.101:8080/v1</span>
+        <b>API 协议</b><span>OpenAI Chat Completions</span>
+        <b>模型</b><span class="mono">qwen3.8-flash-next-iq2_xs</span>
+      </div>
+    </div>
+
+    <div class="provider">
+      <div class="top">
+        <div class="name">DeepSeek <span class="badge"><span class="dot"></span>已连接</span></div>
+        <div class="row">
+          <button class="btn sm" onclick="openForm()">编辑</button>
+          <button class="btn sm danger" onclick="alert('mock：删除 provider')">删除</button>
+        </div>
+      </div>
+      <div class="meta">
+        <b>Provider ID</b><span class="mono">deepseek</span>
+        <b>API 地址</b><span class="mono">https://api.deepseek.com</span>
+        <b>API 协议</b><span>OpenAI Chat Completions</span>
+        <b>模型</b><span class="mono">deepseek-flash</span>
+      </div>
+    </div>
+
+    <div class="empty">还没有其他 provider。点右上角「添加 provider」；本地 Ollama / LM Studio / vLLM 都走 OpenAI 兼容协议。</div>
+  </div>
+
+  <!-- add form -->
+  <div class="card hidden" id="addForm">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h2>添加 provider</h2>
+        <p class="small">字段与 DSH 的自定义模型 API 对齐；v1 只做 OpenAI 兼容协议。</p>
+      </div>
+      <button class="btn sm ghost" onclick="closeForm()">收起</button>
+    </div>
+
+    <div class="field">
+      <label for="pId">Provider ID</label>
+      <input id="pId" class="mono" value="qwen3.8local" placeholder="qwen3.8local">
+      <div class="help">小写字母开头，在请求中唯一标识该 provider；用于派生凭据名。</div>
+    </div>
+    <div class="field">
+      <label for="pName">显示名称</label>
+      <input id="pName" value="qwen3.8" placeholder="qwen3.8">
+      <div class="help">教师下拉里看到的名字。</div>
+    </div>
+    <div class="field">
+      <label for="pUrl">API 地址</label>
+      <input id="pUrl" class="mono" value="http://192.168.68.101:8080/v1" placeholder="http://192.168.68.101:8080/v1">
+      <div class="help">从后端服务器发起连接；填 localhost 时指的是后端所在机器，不是浏览器。</div>
+    </div>
+    <div class="field">
+      <label for="pProto">API 协议</label>
+      <select id="pProto">
+        <option>OpenAI Chat Completions</option>
+        <option disabled>Anthropic Messages（v2）</option>
+      </select>
+      <div class="help">v1 只实现 OpenAI 兼容；Anthropic 先置灰，避免“配了但调不通”。</div>
+    </div>
+    <div class="field">
+      <label for="pKey">API 密钥</label>
+      <input id="pKey" type="password" class="mono" value="sk-strata-9bfeedeaa67da54c525bcf7729adcc4e" placeholder="sk-...">
+      <div class="help">本地模型可留空；云端服务通常需要。保存后只显示掩码。</div>
+    </div>
+
+    <div class="field">
+      <label>模型目录</label>
+      <div class="row">
+        <button class="btn" onclick="openModels()">获取可用模型</button>
+        <span class="help" id="modelHint">还没有添加模型。先连接 provider，再勾选模型。</span>
+      </div>
+      <div class="chips" id="selectedModels"></div>
+    </div>
+
+    <div class="row" style="justify-content:flex-end;margin-top:6px">
+      <button class="btn" onclick="closeForm()">取消</button>
+      <button class="btn pri" onclick="saveProvider()">保存 provider</button>
+    </div>
+    <div class="note ok hidden" id="savedNote" style="margin-top:12px">已保存（mock）：provider 会出现在教师下拉里。</div>
+  </div>
+
+  <div class="footer">mock 交互：添加 provider → 获取可用模型 → 勾选 → 保存；教师页下拉会跟着变。</div>
+</section>
+
+<!-- ===================== TEACHER ===================== -->
+<section class="screen" id="screen-teacher">
+  <div class="head">
+    <div>
+      <div class="eyebrow">TEACHER · /profile</div>
+      <h1>教师设置</h1>
+      <p class="sub">账号资料、界面偏好、AI 模型与作业批改时机。学生登录同一个地址只看到账号与偏好。</p>
+    </div>
+  </div>
+
+  <div class="card teacher-card">
+    <h2>AI 模型</h2>
+    <p class="small">从管理员配置好的模型里选一个。<b>v1 选中的模型对全站生效</b>；不按作业或考试单独覆盖。</p>
+    <div class="field">
+      <label for="teacherModel">当前模型</label>
+      <select id="teacherModel" onchange="syncTeacherCurrent()">
+        <option value="qwen3.8">qwen3.8 · Qwen 3.8 Local</option>
+        <option value="deepseek-flash">deepseek-flash · DeepSeek</option>
+      </select>
+      <div class="help">下拉里的每一项都来自「管理员 · 模型设置」。教师不能在这里新增 provider 或填 API Key。</div>
+    </div>
+    <div class="row">
+      <button class="btn pri" onclick="saveTeacher()">保存选择</button>
+      <span class="badge hidden" id="teacherSaved"><span class="dot"></span>已保存（mock）</span>
+    </div>
+    <p class="current-line">当前全站模型：<b id="teacherCurrent">qwen3.8 · Qwen 3.8 Local</b></p>
+    <div class="note" style="margin-top:14px">如果下拉是空的，说明管理员还没配 provider；教师页不提供“自己加一个”的入口。</div>
+  </div>
+
+  <div class="card teacher-card" style="opacity:.72">
+    <h2>作业批改时机</h2>
+    <p class="small">这一块本轮保持不变（固定时间 / 截止时间），不是这次 mock 的重点。</p>
+    <div class="row">
+      <select style="max-width:340px"><option>固定时间 · 每天 02:30</option><option>截止时间 · due + 3 小时</option></select>
+      <span class="badge">教师级</span>
+    </div>
+  </div>
+
+  <div class="footer">mock 目标：教师页只有“选择”，没有 provider ID / 地址 / Key / 拉模型这些字段。</div>
+</section>
+
+<!-- model picker modal -->
+<div class="modal-mask" id="modelModal">
+  <div class="modal">
+    <h3>选择要添加的模型</h3>
+    <p>以下是 provider 返回的可用模型，勾选要添加的模型。mock 里只有一项，真实接口会列出全部。</p>
+    <div class="model-list">
+      <label class="model-row"><input type="checkbox" checked value="qwen3.8-flash-next-iq2_xs"> <span class="mono">qwen3.8-flash-next-iq2_xs</span></label>
+      <label class="model-row"><input type="checkbox" value="qwen3.8-instruct"> <span class="mono">qwen3.8-instruct</span></label>
+    </div>
+    <div class="row" style="justify-content:flex-end">
+      <button class="btn" onclick="closeModels()">取消</button>
+      <button class="btn pri" onclick="addModels()">添加所选</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const hash = location.hash.replace(/^#/, '')
+const initial = hash.startsWith('teacher') ? 'teacher' : 'admin'
+const selected = new Set(['qwen3.8-flash-next-iq2_xs'])
+
+function show(name) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'screen-' + name))
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('on', t.dataset.screen === name))
+  if (name === 'admin' && hash.includes('form')) openForm()
+}
+
+function openForm() {
+  document.getElementById('addForm').classList.remove('hidden')
+  document.getElementById('addForm').scrollIntoView({ behavior: 'smooth', block: 'start' })
+}
+function closeForm() { document.getElementById('addForm').classList.add('hidden') }
+function openModels() { document.getElementById('modelModal').classList.add('on') }
+function closeModels() { document.getElementById('modelModal').classList.remove('on') }
+function addModels() {
+  document.querySelectorAll('#modelModal input[type=checkbox]').forEach(cb => {
+    if (cb.checked) selected.add(cb.value)
+  })
+  renderChips()
+  closeModels()
+}
+function renderChips() {
+  const box = document.getElementById('selectedModels')
+  box.innerHTML = ''
+  selected.forEach(m => {
+    const chip = document.createElement('span')
+    chip.className = 'chip'
+    const label = document.createElement('span')
+    label.textContent = m
+    const remove = document.createElement('button')
+    remove.title = '移除'
+    remove.textContent = '×'
+    remove.onclick = () => removeModel(m)
+    chip.appendChild(label)
+    chip.appendChild(remove)
+    box.appendChild(chip)
+  })
+  document.getElementById('modelHint').textContent = selected.size
+    ? '已选择 ' + selected.size + ' 个模型；保存后当前启用第一个。'
+    : '还没有添加模型。先连接 provider，再勾选模型。'
+}
+function removeModel(m) { selected.delete(m); renderChips() }
+function saveProvider() {
+  document.getElementById('savedNote').classList.remove('hidden')
+  const name = document.getElementById('pName').value.trim() || 'qwen3.8'
+  const model = [...selected][0] || 'qwen3.8-flash-next-iq2_xs'
+  const opt = document.createElement('option')
+  opt.value = 'custom-' + name
+  opt.textContent = model + ' · ' + name
+  document.getElementById('adminCurrent').appendChild(opt.cloneNode(true))
+  const teacher = document.getElementById('teacherModel')
+  if (![...teacher.options].some(o => o.value === opt.value)) teacher.appendChild(opt)
+}
+function syncAdminCurrent() {
+  const v = document.getElementById('adminCurrent')
+  const label = v.options[v.selectedIndex].textContent.replace('（当前）', '')
+  document.getElementById('teacherCurrent').textContent = label
+  const teacher = document.getElementById('teacherModel')
+  const match = [...teacher.options].find(o => v.value === 'custom-' + o.textContent.split(' · ')[1] || v.value === o.value)
+  if (match) teacher.value = match.value
+}
+function syncTeacherCurrent() {
+  const v = document.getElementById('teacherModel')
+  const label = v.options[v.selectedIndex].textContent
+  document.getElementById('teacherCurrent').textContent = label
+  const admin = document.getElementById('adminCurrent')
+  const match = [...admin.options].find(o => o.textContent.replace('（当前）', '').trim() === label)
+  if (match) admin.value = match.value
+}
+function saveTeacher() {
+  document.getElementById('teacherSaved').classList.remove('hidden')
+  syncTeacherCurrent()
+}
+
+renderChips()
+if (initial === 'teacher') show('teacher')
+else show('admin')
+if (hash.includes('form')) openForm()
+if (hash.includes('modal')) openModels()
+</script>
+</body>
+</html>
