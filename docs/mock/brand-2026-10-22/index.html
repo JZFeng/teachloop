@@ -20,8 +20,10 @@
   --accent-weak:#E8EFFD; --accent-text:#1A63E0; --on-accent:#FFFFFF;
   --create:#1957E7; --create-weak:#E8EFFD;
   --assess:#0E7066; --assess-weak:#DBF4EE;
-  --practice:#5B3AC4; --practice-weak:#EAE0FD;
-  --insights:#A63960; --insights-weak:#FDE2E7;
+  --practice:#A63960; --practice-weak:#FDE2E7;
+  --insights:#3F51B5; --insights-weak:#EAECFB;
+  --space-home:#0E3676; --space-home-weak:#E7EDF7;
+  --space-classes:#5B3AC4; --space-classes-weak:#EAE0FD;
   --green:#17703F; --green-weak:#E6F5EC;
   --amber:#8A5A00; --amber-weak:#FFF3D6;
   --red:#B42338; --red-weak:#FDE6E8;
@@ -42,8 +44,10 @@ html[data-theme="dark"]{
   --accent-weak:#14233B; --accent-text:#7DB1FF; --on-accent:#FFFFFF;
   --create:#6FB4FF; --create-weak:#14233B;
   --assess:#3FD6B4; --assess-weak:#0F2C28;
-  --practice:#A78BFA; --practice-weak:#1E1A3A;
-  --insights:#E58BB0; --insights-weak:#33141E;
+  --practice:#E58BB0; --practice-weak:#33141E;
+  --insights:#A5B4FC; --insights-weak:#1E2545;
+  --space-home:#8FB4FF; --space-home-weak:#152640;
+  --space-classes:#A78BFA; --space-classes-weak:#1E1A3A;
   --green:#6EE7A5; --green-weak:#0C2A1D;
   --amber:#FFC85C; --amber-weak:#2A2110;
   --red:#FF7D8A; --red-weak:#331218;
@@ -137,6 +141,8 @@ html[data-intensity="brand"] .nav-item[data-f] .nav-ico{background:var(--fw); co
 .nav-item[data-f="create"]{--fw:var(--create-weak); --fc:var(--create)}
 .nav-item[data-f="assess"]{--fw:var(--assess-weak); --fc:var(--assess)}
 .nav-item[data-f="insights"]{--fw:var(--insights-weak); --fc:var(--insights)}
+.nav-item[data-f="home"]{--fw:var(--space-home-weak); --fc:var(--space-home)}
+.nav-item[data-f="classes"]{--fw:var(--space-classes-weak); --fc:var(--space-classes)}
 .nav-item .nav-tag{
   margin-left:auto; font-size:10px; color:var(--muted-2); border:1px solid var(--line);
   border-radius:999px; padding:0 6px; line-height:16px; font-weight:500;
@@ -472,6 +478,8 @@ body[data-state="loading"] .table-foot{display:none}
 .feature-row[data-f="assess"]{--fw:var(--assess-weak); --fc:var(--assess)}
 .feature-row[data-f="practice"]{--fw:var(--practice-weak); --fc:var(--practice)}
 .feature-row[data-f="insights"]{--fw:var(--insights-weak); --fc:var(--insights)}
+.feature-row[data-f="home"]{--fw:var(--space-home-weak); --fc:var(--space-home)}
+.feature-row[data-f="classes"]{--fw:var(--space-classes-weak); --fc:var(--space-classes)}
 .type-row{display:flex; align-items:baseline; gap:16px; padding:8px 0; border-bottom:1px dashed var(--line)}
 .type-row:last-child{border-bottom:0}
 .type-row .t-label{font-size:11px; color:var(--muted-2); width:150px; flex:0 0 auto}
@@ -636,8 +644,8 @@ body[data-chrome="0"] .sidebar{height:100vh}
       </span>
     </a>
     <nav class="nav" aria-label="主导航">
-      <a class="nav-item" href="#" data-nav="home"><span class="nav-ico"><svg class="ico"><use href="#i-home"/></svg></span><span>首页</span></a>
-      <a class="nav-item" href="#" data-nav="classes"><span class="nav-ico"><svg class="ico"><use href="#i-users"/></svg></span><span>班级</span></a>
+      <a class="nav-item" href="#" data-nav="home" data-f="home"><span class="nav-ico"><svg class="ico"><use href="#i-home"/></svg></span><span>首页</span></a>
+      <a class="nav-item" href="#" data-nav="classes" data-f="classes"><span class="nav-ico"><svg class="ico"><use href="#i-users"/></svg></span><span>班级</span></a>
       <a class="nav-item" href="#" data-nav="assignments" data-f="create"><span class="nav-ico"><svg class="ico"><use href="#i-clipboard"/></svg></span><span>作业</span></a>
       <a class="nav-item" href="#" data-nav="papers" data-f="create"><span class="nav-ico"><svg class="ico"><use href="#i-file"/></svg></span><span>试卷</span></a>
       <a class="nav-item" href="#" data-nav="grading" data-f="assess"><span class="nav-ico"><svg class="ico"><use href="#i-pen"/></svg></span><span>批改</span></a>
@@ -941,12 +949,14 @@ body[data-chrome="0"] .sidebar{height:100vh}
         </section>
 
         <section class="sec">
-          <div class="sec-head"><h2>四个功能色</h2><p>取自新 logo 底部四栏（Words 已从品牌图里去掉，黄色只留在铅笔与火花）。功能色只出现在图标胶囊、eyebrow 与图表；判分状态用下面单独的状态色，两者不叠在同一元素上。</p></div>
+          <div class="sec-head"><h2>功能位与空间位</h2><p>取自新 logo 底部四栏（Words 已从品牌图里去掉，黄色只留在铅笔与火花）。功能色只出现在图标胶囊、eyebrow 与图表；首页/班级是空间位，只进导航、不进口 eyebrow；判分状态用下面单独的状态色，两者不叠在同一元素上。</p></div>
           <div class="feature-list">
+            <div class="feature-row" data-f="home"><span class="feature-dot"><svg class="ico"><use href="#i-home"/></svg></span><span class="fr-name">Space · 首页</span><span class="fr-use">导航首页图标；不进口 eyebrow</span><code>亮 #0E3676 / #E7EDF7 · 暗 #8FB4FF / #152640</code></div>
+            <div class="feature-row" data-f="classes"><span class="feature-dot"><svg class="ico"><use href="#i-users"/></svg></span><span class="fr-name">Space · 班级</span><span class="fr-use">导航班级图标；不进口 eyebrow</span><code>亮 #5B3AC4 / #EAE0FD · 暗 #A78BFA / #1E1A3A</code></div>
             <div class="feature-row" data-f="create"><span class="feature-dot"><svg class="ico"><use href="#i-file"/></svg></span><span class="fr-name">Create · 组卷 / 作业</span><span class="fr-use">导航胶囊、页头 eyebrow、建卷入口</span><code>亮 #1957E7 / #E8EFFD · 暗 #6FB4FF / #14233B</code></div>
             <div class="feature-row" data-f="assess"><span class="feature-dot"><svg class="ico"><use href="#i-check-badge"/></svg></span><span class="fr-name">Assess · 批改 / 复核</span><span class="fr-use">批改队列、复核进度、判分结果标题</span><code>亮 #0E7066 / #DBF4EE · 暗 #3FD6B4 / #0F2C28</code></div>
-            <div class="feature-row" data-f="practice"><span class="feature-dot"><svg class="ico"><use href="#i-refresh"/></svg></span><span class="fr-name">Practice · 错题 / 间隔复习</span><span class="fr-use">规划中，未上线；紫色是淡紫底的同族延伸，不是原图取样</span><code>亮 #5B3AC4 / #EAE0FD · 暗 #A78BFA / #1E1A3A</code></div>
-            <div class="feature-row" data-f="insights"><span class="feature-dot"><svg class="ico"><use href="#i-bars"/></svg></span><span class="fr-name">Insights · 学情分析 / 报告</span><span class="fr-use">报表页头、图表系列（配直接标注）</span><code>亮 #A63960 / #FDE2E7 · 暗 #E58BB0 / #33141E</code></div>
+            <div class="feature-row" data-f="practice"><span class="feature-dot"><svg class="ico"><use href="#i-refresh"/></svg></span><span class="fr-name">Practice · 错题 / 间隔复习</span><span class="fr-use">规划中，未上线；玫红占位（原 Insights 退下来的色）</span><code>亮 #A63960 / #FDE2E7 · 暗 #E58BB0 / #33141E</code></div>
+            <div class="feature-row" data-f="insights"><span class="feature-dot"><svg class="ico"><use href="#i-bars"/></svg></span><span class="fr-name">Insights · 学情分析 / 报告</span><span class="fr-use">报表页头、图表系列（配直接标注）</span><code>亮 #3F51B5 / #EAECFB · 暗 #A5B4FC / #1E2545</code></div>
           </div>
         </section>
 

@@ -181,6 +181,17 @@ export function UiKitPanel() {
             </span>
           </div>
           <div className="tl-brand-row">
+            <span className="tl-brand-row-label">{t('ui.kit.brandSpaces')}</span>
+            <span className="tl-brand-chip" data-feature="home">
+              <span className="tl-brand-chip-ico" aria-hidden="true"><HomeOutlined /></span>
+              Home
+            </span>
+            <span className="tl-brand-chip" data-feature="classes">
+              <span className="tl-brand-chip-ico" aria-hidden="true"><TeamOutlined /></span>
+              Classes
+            </span>
+          </div>
+          <div className="tl-brand-row">
             <span className="tl-brand-row-label">{t('ui.kit.brandStatus')}</span>
             <Tag tone="green">{t('ui.kit.statusPass')}</Tag>
             <Tag tone="amber">{t('ui.kit.statusPartial')}</Tag>
@@ -238,6 +249,8 @@ export function UiKitPanel() {
           <Swatch label="--assess" />
           <Swatch label="--practice" />
           <Swatch label="--insights" />
+          <Swatch label="--space-home" />
+          <Swatch label="--space-classes" />
           <Swatch label="--green" />
           <Swatch label="--amber" />
           <Swatch label="--red" />

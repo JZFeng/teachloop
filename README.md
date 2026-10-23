@@ -33,7 +33,7 @@
 - 复核：预览 AI 逐项评分、改分、批量通过、发布 / 撤回；改动写审计。
 - 反馈与报表：学生看自己的评语 / 优点 / 建议，以及反馈里的班级聚合数（应交 / 实交 / 均分）；教师看错题、班级与学生聚合；导出 Markdown / XLSX / DOCX / ZIP / PDF。
 - 账号与运维：本地密码登录（dev）、管理员密码登录（prod）、微信登录 provider（未配置凭据返回 503，不伪造登录）、邮箱 / 手机号补全、教师个人 AI Key、管理员全局 AI Key（AES-GCM 加密、只回掩码）、站内通知、限流、审计、JSONL 请求日志与 `daily_stats`、`/healthz?deep=1`。
-- 界面：中英双语、亮 / 暗主题、品牌层与四个功能位、令牌 + 组件层 + 守卫；弹层统一 Esc 关闭。
+- 界面：中英双语、亮 / 暗主题、品牌层、功能位与空间位、令牌 + 组件层 + 守卫；弹层统一 Esc 关闭。
 
 **当前缺口**
 
@@ -142,8 +142,8 @@ make qa-down         # 停掉
 | :--- | :--- | :--- |
 | `make check-deps` | 十个模块的依赖方向，禁止反向边与环 | 通过 |
 | `make check-boundaries` | 每张表只有一个属主；跨模块外键必须登记；端口只收发 record | 25 表 / 13 外键 / 7 端口 |
-| `make check-i18n` | 前端 zh/en 键完全对齐；新增中文字面量即失败 | 各 1219 键 |
-| `make check-ui` | 样式只从令牌来；颜色对比度与两套令牌一致 | 存量 122 处，无新增；对比度 40 组 |
+| `make check-i18n` | 前端 zh/en 键完全对齐；新增中文字面量即失败 | 各 1220 键 |
+| `make check-ui` | 样式只从令牌来；颜色对比度与两套令牌一致 | 存量 121 处，无新增；对比度 44 组 |
 | `make web-test` | Vditor IR 的 Markdown 往返金标与弹层栈单测 | 28/28 |
 | `make test` | 以上全部 + `mvn test`（Testcontainers 连 Postgres 16） | 286/0/0/0 |
 | `python3 scripts/brand/build-assets.py --check` | 两张品牌源图 sha256 与 9 个产物齐全（需要 Pillow） | 通过 |

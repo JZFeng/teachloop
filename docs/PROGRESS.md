@@ -13,6 +13,13 @@
 
 ## 当前
 
+- 已改口径：**T371 首页/班级上色，报表改靛蓝**（2026-10-23，**推翻 T358 的「中性导航」结论**）。
+  用户先说首页、班级「太素」，选定海军蓝 + 淡紫；随后说报表的玫红在暗色下像出错，从七种候选里选了靛蓝。
+  落地：新增 `SPACE_*` 命名空间（`--space-home` / `--space-classes`，只进导航、不进口 eyebrow），
+  Insights 改 `#3F51B5` / 暗 `#A5B4FC`，Practice 接玫红 `#A63960`；对比度 40 → **44 组**。
+  证据：`docs/mock/nav-color-2026-10-23/`、`docs/mock/insights-color-2026-10-23/`、
+  `docs/reports/nav-color-2026-10-23/`（37 张真页面截图）；AC-31.2 与决策 006 已回写。
+
 - 已整理：**T359 品牌源图归档**——用户给的两张图确认都在仓库里且与附件逐字节一致：
   `docs/brand/teachloop-logo-source.png` 是前端资产的**构建源**（生成 `web/public/brand/` 9 个文件），
   `docs/brand/teachloop-brand-sheet.png` 是**四功能位参考页**（不参与构建，留给以后品牌页/关于页/对外素材）。

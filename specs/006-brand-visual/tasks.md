@@ -20,6 +20,7 @@
 | T351 | 学生与深层页截图：学生首页/班级/反馈/作业/作答须知、批改详情、班级汇总、试卷向导、导入 | T346 | 30 张真页面截图；脚本 `scripts/brand/shoot-app.mjs` 可复跑 | 完成 |
 | T352 | 文档与决策：spec / decision 006、宪法第十五条回改、003 标注、PROGRESS、本文件 | T341–T351 | 四份计数自检通过；003 顶部标注被 006 取代 | 完成 |
 | T353 | 全量回归：`make test` + typecheck/build/check-ui/check-i18n/contrast | T341–T352 | 退出码 0；surefire 255/0/0/0 + 前端 14/14 | 完成 |
+| T371 | 导航着色修订：首页/班级空间位（海军蓝/淡紫）、Insights 改靛蓝、Practice 接玫红；新增 `SPACE_*` 与 4 个令牌 | T346 | `contrast.py --verbose` 44/44；`check-ui` 0 新增；`check-i18n` 对齐；home/classes 亮暗截图；AC-31.2 与决策 006 已回写 | 完成 |
 
 ## 执行记录
 
@@ -38,3 +39,4 @@
 | 2026-10-22 | T351 | 完成 | `docs/reports/brand-app-2026-10-22/` 30 张 |
 | 2026-10-22 | T352 | 完成 | 本文件、spec、decision 006、宪法第十五条品牌层、003 标注、PROGRESS |
 | 2026-10-22 | T353 | 完成 | `make test` 退出码 0（surefire 255/0/0/0）+ `pnpm test` 14/14 + typecheck/build 0 + contrast 40/40 + check-ui 0 新增 + check-i18n 1197 键 |
+| 2026-10-23 | T371 | 完成 | `contrast.py` 44/44；`check-ui` 0 新增；`pnpm test` 28/28；样张 `docs/mock/nav-color-2026-10-23/`、`docs/mock/insights-color-2026-10-23/`；截图 `docs/reports/nav-color-2026-10-23/` |

@@ -13,9 +13,10 @@
 覆盖范围（2026-10-22 品牌层）：
   - 语义令牌 16 组（亮/暗，暗色背景改成读令牌，不再写死 #141414）；
   - 四个功能位 ink × tint 亮暗各 4 组；
+  - 两个空间位（首页/班级）ink × tint 亮暗各 2 组；
   - 判分三态 ink × 浅底、亮色 / 白、暗色 / 面板共 12 组；
   - 链接色 accent-text 亮暗各 2 组；
-  合计 40 组。
+  合计 44 组。
 
 用法：python3 scripts/ui/contrast.py [--verbose]
 退出码：0 通过；1 有不达标项。
@@ -62,6 +63,12 @@ FEATURE_CSS_TO_TS = {
     "insights": "insights",
     "insights-weak": "insightsWeak",
 }
+SPACE_CSS_TO_TS = {
+    "space-home": "home",
+    "space-home-weak": "homeWeak",
+    "space-classes": "classes",
+    "space-classes-weak": "classesWeak",
+}
 STATUS_CSS_TO_TS = {
     "green": "pass",
     "green-weak": "passWeak",
@@ -105,8 +112,14 @@ def parse_ts() -> tuple[dict[str, dict[str, str]], dict[str, dict[str, str]], di
         return parse_hex_block(match.group(1))
 
     extra = {
-        "light": {**const("FEATURE_LIGHT"), **const("STATUS_LIGHT"), **const("LOGO_LIGHT")},
-        "dark": {**const("FEATURE_DARK"), **const("STATUS_DARK"), **const("LOGO_DARK")},
+        "light": {
+            **const("FEATURE_LIGHT"), **const("SPACE_LIGHT"),
+            **const("STATUS_LIGHT"), **const("LOGO_LIGHT"),
+        },
+        "dark": {
+            **const("FEATURE_DARK"), **const("SPACE_DARK"),
+            **const("STATUS_DARK"), **const("LOGO_DARK"),
+        },
     }
     return semantic, extra, const("BRAND")
 
@@ -175,6 +188,7 @@ def main() -> int:
                 )
         for mapping, label in (
             (FEATURE_CSS_TO_TS, "FEATURE"),
+            (SPACE_CSS_TO_TS, "SPACE"),
             (STATUS_CSS_TO_TS, "STATUS"),
             (LOGO_CSS_TO_TS, "LOGO"),
         ):
@@ -203,7 +217,7 @@ def main() -> int:
                 f"light: --{css_key} ({css_value}) 与 tokens.ts BRAND ({ts_value}) 不一致"
             )
 
-    # ---- 2. 对比度（40 组） ----
+    # ---- 2. 对比度（44 组） ----
     light_bg = css["light"]["bg"]
     dark_bg = css["dark"]["bg"]
     dark_panel = css["dark"]["panel"]
@@ -245,6 +259,11 @@ def main() -> int:
             ("insights", "Insights"),
         ):
             add(mode, extra[mode].get(key), extra[mode].get(f"{key}Weak"), f"{label} 功能色 / 粉彩底", TEXT_MIN)
+
+    # 2 个空间位（首页、班级）ink × tint，亮暗各 2 组
+    for mode in ("light", "dark"):
+        for key, label in (("home", "首页"), ("classes", "班级")):
+            add(mode, extra[mode].get(key), extra[mode].get(f"{key}Weak"), f"{label} 空间色 / 粉彩底", TEXT_MIN)
 
     # 判分三态：亮色 on 浅底、暗色 on 浅底、亮色 on 白、暗色 on 面板
     for mode in ("light", "dark"):

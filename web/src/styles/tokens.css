@@ -15,6 +15,7 @@
  * 品牌层（2026-10-22）：
  *   - `--brand-*` 是 logo 原始色，主题无关，只放 :root；
  *   - `--create/--assess/--practice/--insights` 是功能位的深字，`-weak` 是粉彩底；
+ *   - `--space-home/--space-classes` 是空间位（首页/班级），只进导航，与功能位分开命名；
  *   - `--green/--amber/--red` 是判分三态，与功能色分开，页面不得混用；
  *   - `--accent-text` 是链接/次级蓝字：暗色必须比 `--accent`（按钮底）更亮。
  */
@@ -46,15 +47,21 @@
   --brand-yellow: #febf41;
   --brand-rose: #a63960;
 
-  /* 四个功能位：深字 + 粉彩底。 */
+  /* 三个已上线功能位：深字 + 粉彩底（Insights 改靛蓝，Practice 未上线用玫红占位）。 */
   --create: #1957e7;
   --create-weak: #e8effd;
   --assess: #0e7066;
   --assess-weak: #dbf4ee;
-  --practice: #5b3ac4;
-  --practice-weak: #eae0fd;
-  --insights: #a63960;
-  --insights-weak: #fde2e7;
+  --practice: #a63960;
+  --practice-weak: #fde2e7;
+  --insights: #3f51b5;
+  --insights-weak: #eaecfb;
+
+  /* 两个空间位：首页与班级，只进导航图标，不进页头 eyebrow。 */
+  --space-home: #0e3676;
+  --space-home-weak: #e7edf7;
+  --space-classes: #5b3ac4;
+  --space-classes-weak: #eae0fd;
 
   /* 判分三态：与功能色分开命名。 */
   --green: #17703f;
@@ -109,10 +116,14 @@
   --create-weak: #14233b;
   --assess: #3fd6b4;
   --assess-weak: #0f2c28;
-  --practice: #a78bfa;
-  --practice-weak: #1e1a3a;
-  --insights: #e58bb0;
-  --insights-weak: #33141e;
+  --practice: #e58bb0;
+  --practice-weak: #33141e;
+  --insights: #a5b4fc;
+  --insights-weak: #1e2545;
+  --space-home: #8fb4ff;
+  --space-home-weak: #152640;
+  --space-classes: #a78bfa;
+  --space-classes-weak: #1e1a3a;
 
   --green: #6ee7a5;
   --green-weak: #0c2a1d;

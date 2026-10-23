@@ -122,16 +122,19 @@ export const BRAND = {
   rose: '#A63960',
 } as const
 
-/** 四个功能位：深字（ink）配自己的粉彩底（tint）。Words 已从新 logo 去掉，黄色只做装饰。 */
+/**
+ * 三个已上线功能位：深字（ink）配自己的粉彩底（tint）。Words 已从新 logo 去掉，黄色只做装饰。
+ * 2026-10-23：Insights 从玫红改靛蓝（玫红在暗色下像「出错」），玫红让给未上线的 Practice。
+ */
 export const FEATURE_LIGHT = {
   create: '#1957E7',
   createWeak: '#E8EFFD',
   assess: '#0E7066',
   assessWeak: '#DBF4EE',
-  practice: '#5B3AC4',
-  practiceWeak: '#EAE0FD',
-  insights: '#A63960',
-  insightsWeak: '#FDE2E7',
+  practice: '#A63960',
+  practiceWeak: '#FDE2E7',
+  insights: '#3F51B5',
+  insightsWeak: '#EAECFB',
 } as const
 
 export const FEATURE_DARK = {
@@ -139,10 +142,28 @@ export const FEATURE_DARK = {
   createWeak: '#14233B',
   assess: '#3FD6B4',
   assessWeak: '#0F2C28',
-  practice: '#A78BFA',
-  practiceWeak: '#1E1A3A',
-  insights: '#E58BB0',
-  insightsWeak: '#33141E',
+  practice: '#E58BB0',
+  practiceWeak: '#33141E',
+  insights: '#A5B4FC',
+  insightsWeak: '#1E2545',
+} as const
+
+/**
+ * 两个空间位（2026-10-23 新增）：首页与班级不是功能位，是空间。
+ * 它们有自己的命名空间，不与 FEATURE 混用；颜色只进导航，不进页头 eyebrow。
+ */
+export const SPACE_LIGHT = {
+  home: '#0E3676',
+  homeWeak: '#E7EDF7',
+  classes: '#5B3AC4',
+  classesWeak: '#EAE0FD',
+} as const
+
+export const SPACE_DARK = {
+  home: '#8FB4FF',
+  homeWeak: '#152640',
+  classes: '#A78BFA',
+  classesWeak: '#1E1A3A',
 } as const
 
 /** 判分三态：与功能色分开命名，标签里必须有文字，不能只靠颜色。 */

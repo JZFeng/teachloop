@@ -24,7 +24,7 @@ import {
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
 import type { ProfileAiSettings } from '../api/types'
 
-type NavTone = 'create' | 'assess' | 'insights'
+type NavTone = 'create' | 'assess' | 'insights' | 'home' | 'classes'
 interface NavItem { to: string; label: string; icon: ReactNode; end?: boolean; tone?: NavTone }
 
 export function Shell({ children }: { children: ReactNode }) {
@@ -34,12 +34,12 @@ export function Shell({ children }: { children: ReactNode }) {
   const [unread, setUnread] = useState(0)
   const [aiSource, setAiSource] = useState<'user' | 'global' | 'none' | null>(null)
 
-  // 中性导航（首页、班级、资料、通知、管理员 AI）刻意不配 tone：功能色只标注已上线的三个功能位
-  // （作业/试卷 create、批改/复核 assess、报表/我的反馈 insights）。这是决策 006 / AC-31.2 的口径，
-  // 不要给中性项补色当成漏做；Practice 紫只占位，不借给导航。
+  // 三个功能位（作业/试卷 create、批改/复核 assess、报表/我的反馈 insights）之外，
+  // 首页与班级作为「空间位」各有一个颜色：home 海军蓝、classes 淡紫（决策 006 2026-10-23 修订）。
+  // 资料、通知、管理员 AI 仍是中性，不配 tone。
   const teacherNav: NavItem[] = [
-    { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true },
-    { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined /> },
+    { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true, tone: 'home' },
+    { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined />, tone: 'classes' },
     { to: '/assignments', label: t('nav.assignments'), icon: <BookOutlined />, tone: 'create' },
     { to: '/papers', label: t('nav.papers'), icon: <FileTextOutlined />, tone: 'create' },
     { to: '/grading', label: t('nav.grading'), icon: <HighlightOutlined />, tone: 'assess' },
@@ -49,10 +49,10 @@ export function Shell({ children }: { children: ReactNode }) {
       ? [{ to: '/admin/ai', label: t('nav.aiSettings'), icon: <RobotOutlined /> }]
       : []),
   ]
-  // 学生端同理：只有反馈（assess）带功能色，首页与班级保持中性。
+  // 学生端同构：首页 home、班级 classes、反馈 assess。
   const studentNav: NavItem[] = [
-    { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true },
-    { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined /> },
+    { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true, tone: 'home' },
+    { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined />, tone: 'classes' },
     { to: '/feedback', label: t('nav.feedback'), icon: <CommentOutlined />, tone: 'assess' },
   ]
   const items = me?.role === 'STUDENT' ? studentNav : teacherNav

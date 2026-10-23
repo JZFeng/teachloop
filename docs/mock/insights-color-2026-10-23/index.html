@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>导航着色对比 · 2026-10-23</title>
+<style>
+/* 令牌与 web/src/ui/tokens.ts 同值；本页只做视觉比较，不进产品代码。 */
+:root{
+  color-scheme: light;
+  --bg:#F6F8FC; --panel:#FFFFFF; --panel-2:#EFF4FB;
+  --line:#DCE4F2; --line-2:#EBF0F8;
+  --text:#0E2340; --muted:#41536E; --muted-2:#55677F;
+  --accent:#1A63E0; --accent-weak:#E8EFFD; --accent-text:#1A63E0;
+  --create:#1957E7; --create-weak:#E8EFFD;
+  --assess:#0E7066; --assess-weak:#DBF4EE;
+  --insights:#A63960; --insights-weak:#FDE2E7;
+  --rose-ink:#A63960; --rose-weak:#FDE2E7;
+  --gold:#8A5A00; --gold-weak:#FFF3D6;
+  --magenta:#A21C6E; --magenta-weak:#FBE3F0;
+  --indigo:#3F51B5; --indigo-weak:#EAECFB;
+  --petrol:#0B5D8A; --petrol-weak:#E1EEF7;
+  --orange:#9A4B00; --orange-weak:#FDEBDA;
+  --navy:#0E3676; --navy-weak:#E9EEF6;
+  --slate:#44546F; --slate-weak:#EEF2F8;
+  --violet:#5B3AC4; --violet-weak:#EAE0FD;
+  --amber:#8A5A00; --amber-weak:#FFF3D6;
+  --logo-navy:#0E3676; --logo-blue-text:#1957E7; --logo-teal-text:#0E7066;
+  --radius:12px; --radius-sm:8px;
+  --shadow:0 1px 2px rgba(14,54,118,.05), 0 1px 3px rgba(14,54,118,.07);
+  --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC","Segoe UI",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+html[data-theme="dark"]{
+  color-scheme: dark;
+  --bg:#0A1120; --panel:#101A2C; --panel-2:#16223A;
+  --line:#24334D; --line-2:#1B2740;
+  --text:#E8EEF9; --muted:#B3C0D4; --muted-2:#93A4BD;
+  --accent:#2A6FD6; --accent-weak:#14233B; --accent-text:#7DB1FF;
+  --create:#6FB4FF; --create-weak:#14233B;
+  --assess:#3FD6B4; --assess-weak:#0F2C28;
+  --insights:#E58BB0; --insights-weak:#33141E;
+  --rose-ink:#E58BB0; --rose-weak:#33141E;
+  --gold:#FFC85C; --gold-weak:#2A2110;
+  --magenta:#F2A3D2; --magenta-weak:#3A1027;
+  --indigo:#A5B4FC; --indigo-weak:#1E2545;
+  --petrol:#7CC4EA; --petrol-weak:#0B2230;
+  --orange:#FFB074; --orange-weak:#2C1A0C;
+  --navy:#8FB4FF; --navy-weak:#152640;
+  --slate:#A9B8D4; --slate-weak:#1C2638;
+  --violet:#A78BFA; --violet-weak:#1E1A3A;
+  --amber:#FFC85C; --amber-weak:#2A2110;
+  --logo-navy:#E8EEF9; --logo-blue-text:#6FB4FF; --logo-teal-text:#3FD6B4;
+  --shadow:0 1px 2px rgba(0,0,0,.4);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--bg); color:var(--text); font:14px/1.65 var(--font);
+  -webkit-font-smoothing:antialiased; padding:22px 30px 30px;
+}
+.head{display:flex;align-items:baseline;gap:14px;margin-bottom:4px}
+h1{font-size:19px;font-weight:750;margin:0;letter-spacing:-.01em}
+.sub{color:var(--muted);font-size:12.5px;margin:0 0 18px}
+.sub code{font-family:var(--mono);font-size:11.5px;background:var(--panel-2);padding:1px 5px;border-radius:4px}
+.row{display:flex;gap:20px;align-items:flex-start}
+.col{width:252px;flex:0 0 252px}
+.cap{display:flex;align-items:baseline;gap:7px;margin-bottom:8px;min-height:38px}
+.key{font:700 11px/1 var(--mono);color:var(--panel);background:var(--text);border-radius:5px;padding:4px 6px}
+.cap b{font-size:13px;font-weight:700}
+.cap span{display:block;font-size:11.5px;color:var(--muted)}
+.cap .txt{display:flex;flex-direction:column;line-height:1.35}
+
+.sb{
+  width:252px;background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);box-shadow:var(--shadow);
+  padding:14px 12px 12px;display:flex;flex-direction:column;gap:2px;
+}
+.brand{display:flex;flex-direction:column;padding:0 6px 14px;line-height:1.15}
+.wordmark{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--logo-navy)}
+.wordmark .l{color:var(--logo-blue-text)}
+.wordmark .oop{color:var(--logo-teal-text)}
+.brand small{font-size:10px;color:var(--muted-2);letter-spacing:.05em;margin-top:4px;font-weight:500}
+.nav{display:flex;flex-direction:column;gap:2px}
+.item{display:flex;align-items:center;gap:10px;height:36px;padding:0 9px;border-radius:var(--radius-sm);font-size:13.5px}
+.ico{width:26px;height:26px;border-radius:7px;display:inline-flex;align-items:center;justify-content:center;flex:0 0 26px}
+.ico svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.item[data-k="home"]{--ki:var(--home-ink);--kw:var(--home-bg)}
+.item[data-k="class"]{--ki:var(--class-ink);--kw:var(--class-bg)}
+.item[data-k="create"]{--ki:var(--create);--kw:var(--create-weak)}
+.item[data-k="assess"]{--ki:var(--assess);--kw:var(--assess-weak)}
+.item[data-k="insights"]{--ki:var(--insights);--kw:var(--insights-weak)}
+.item .ico{color:var(--ki);background:var(--kw)}
+.item.on{background:var(--accent-weak);color:var(--accent-text);font-weight:650}
+.item.on .ico{background:transparent!important;color:var(--accent-text)}
+.sb[data-active="own"] .item.on{background:var(--kw);color:var(--ki)}
+.sb[data-active="own"] .item.on .ico{background:transparent!important;color:var(--ki)}
+.sb[data-bare="1"] .item[data-k="home"] .ico,
+.sb[data-bare="1"] .item[data-k="class"] .ico{background:transparent!important}
+.sb .sep{height:1px;background:var(--line-2);margin:10px 6px}
+.foot{margin-top:auto;padding-top:10px;border-top:1px solid var(--line-2);display:flex;flex-direction:column;gap:7px}
+.theme{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;color:var(--muted);font-size:12.5px}
+.theme svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7}
+.user{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;color:var(--muted);font-size:12.5px}
+.user b{color:var(--text);font-weight:600;font-size:12.5px}
+.out{display:flex;align-items:center;justify-content:center;gap:7px;height:32px;border:1px solid var(--line);border-radius:var(--radius-sm);color:var(--text);font-size:12.5px}
+.out svg{width:15px;height:15px;fill:none;stroke:currentColor;stroke-width:1.7}
+
+/* 六个变体：只改 home/class 两个槽的 ink 与 tint */
+.sb[data-v="R"]{--insights:var(--rose-ink);--insights-weak:var(--rose-weak)}
+.sb[data-v="G"]{--insights:var(--gold);--insights-weak:var(--gold-weak)}
+.sb[data-v="M"]{--insights:var(--magenta);--insights-weak:var(--magenta-weak)}
+.sb[data-v="I"]{--insights:var(--indigo);--insights-weak:var(--indigo-weak)}
+.sb[data-v="P"]{--insights:var(--petrol);--insights-weak:var(--petrol-weak)}
+.sb[data-v="O"]{--insights:var(--orange);--insights-weak:var(--orange-weak)}
+.sb[data-v="S"]{--insights:var(--slate);--insights-weak:var(--slate-weak)}
+.sb[data-v="A"]{--home-ink:var(--muted-2);--home-bg:transparent;--class-ink:var(--muted-2);--class-bg:transparent}
+.sb[data-v="B"]{--home-ink:var(--navy);--home-bg:var(--navy-weak);--class-ink:var(--violet);--class-bg:var(--violet-weak)}
+.sb[data-v="C"]{--home-ink:var(--navy);--home-bg:var(--navy-weak);--class-ink:var(--violet);--class-bg:var(--violet-weak)}
+.sb[data-v="D"]{--home-ink:var(--slate);--home-bg:var(--slate-weak);--class-ink:var(--slate);--class-bg:var(--slate-weak)}
+.sb[data-v="E"]{--home-ink:var(--navy);--home-bg:var(--navy-weak);--class-ink:var(--amber);--class-bg:var(--amber-weak)}
+.sb[data-v="F"]{--home-ink:var(--navy);--home-bg:var(--navy-weak);--class-ink:var(--violet);--class-bg:var(--violet-weak)}
+
+.legend{margin-top:18px;padding-top:12px;border-top:1px solid var(--line);display:flex;gap:22px;flex-wrap:wrap;font-size:12px;color:var(--muted)}
+.legend b{color:var(--text);font-weight:650}
+.legend code{font-family:var(--mono);font-size:11px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.sw{width:10px;height:10px;border-radius:3px;display:inline-block}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M4 10.7 12 4l8 6.7V20a1 1 0 0 1-1 1h-4.3v-6.1H9.3V21H5a1 1 0 0 1-1-1Z"/></symbol>
+  <symbol id="i-users" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.4 20c.6-3.3 2.8-5 5.6-5s5 1.7 5.6 5"/><path d="M15.5 5.6a3 3 0 0 1 0 5.6"/><path d="M17.4 15.4c2 .6 3.2 2.1 3.6 4.6"/></symbol>
+  <symbol id="i-clipboard" viewBox="0 0 24 24"><rect x="5" y="4.5" width="14" height="16" rx="2"/><path d="M9 4.5V3h6v1.5"/><path d="M8.7 10h6.6M8.7 14h6.6M8.7 18h4"/></symbol>
+  <symbol id="i-file" viewBox="0 0 24 24"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4"/><path d="M9.6 12h5M9.6 15.5h5"/></symbol>
+  <symbol id="i-pen" viewBox="0 0 24 24"><path d="m4 20 4.4-1L19 8.4a2.1 2.1 0 0 0-3-3L5.4 16Z"/><path d="m14.8 6.2 3 3"/></symbol>
+  <symbol id="i-check-badge" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6"/><path d="m8.2 12.2 2.6 2.6 5-5.2"/></symbol>
+  <symbol id="i-bars" viewBox="0 0 24 24"><path d="M5 20V11M12 20V4M19 20v-6"/></symbol>
+  <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.2A8.2 8.2 0 0 1 9.8 4 8.3 8.3 0 1 0 20 14.2Z"/></symbol>
+  <symbol id="i-user" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.4"/><path d="M5 20c.7-3.7 3.4-5.6 7-5.6s6.3 1.9 7 5.6"/></symbol>
+  <symbol id="i-logout" viewBox="0 0 24 24"><path d="M14 5H6v14h8"/><path d="M18 12H10"/><path d="m15 9 3 3-3 3"/></symbol>
+</svg>
+
+<div class="head">
+  <h1>报表（Insights）换成哪个色</h1>
+  <span id="selnote" style="font-size:12px;color:var(--muted-2)">首页=海军蓝、班级=淡紫 已定；未选中任何项</span>
+</div>
+<p class="sub">其余六项不变（首页海军蓝、班级淡紫、作业/试卷蓝、批改/复核青），只换报表这一项的色。亮暗两套见 <code>?theme=dark</code>。</p>
+
+<div class="row" id="row"></div>
+
+<div class="legend">
+  <span><i class="sw" style="background:var(--navy)"></i><b>首页</b> <code>#0E3676</code></span>
+  <span><i class="sw" style="background:var(--violet)"></i><b>班级</b> <code>#5B3AC4</code></span>
+  <span><i class="sw" style="background:var(--create)"></i><b>作业/试卷</b> <code>#1957E7</code></span>
+  <span><i class="sw" style="background:var(--assess)"></i><b>批改/复核</b> <code>#0E7066</code></span>
+  <span><i class="sw" style="background:var(--gold)"></i><b>金</b> <code>#8A5A00 · 5.37</code></span>
+  <span><i class="sw" style="background:var(--magenta)"></i><b>品红</b> <code>#A21C6E · 5.93</code></span>
+  <span><i class="sw" style="background:var(--indigo)"></i><b>靛蓝</b> <code>#3F51B5 · 5.85</code></span>
+  <span><i class="sw" style="background:var(--petrol)"></i><b>深青</b> <code>#0B5D8A · 6.03</code></span>
+  <span><i class="sw" style="background:var(--orange)"></i><b>橙</b> <code>#9A4B00 · 5.35</code></span>
+  <span><i class="sw" style="background:var(--slate)"></i><b>石墨</b> <code>#44546F · 6.81</code></span>
+  <span><i class="sw" style="background:var(--insights)"></i><b>玫红</b> <code>#A63960 · 5.10</code></span>
+</div>
+
+<script>
+const VARIANTS = [
+  ['R','玫红（现状）','#A63960 / #FDE2E7 · 现在的报表色，偏红','rose'],
+  ['G','金 · #8A5A00','金 / #FFF3D6 · 数据亮点，和蓝青紫都不撞','gold'],
+  ['M','品红 · #A21C6E','品红 / #FBE3F0 · 比玫红更偏紫，脱离错误红','magenta'],
+  ['I','靛蓝 · #3F51B5','靛蓝 / #EAECFB · 分析感，但和班级紫较近','indigo'],
+  ['P','深青 · #0B5D8A','深青 / #E1EEF7 · 数据/技术感，和批改青有区分','petrol'],
+  ['O','橙 · #9A4B00','橙 / #FDEBDA · 暖色强调，接近琥珀','orange'],
+  ['S','石墨 · #44546F','石墨 / #EEF2F8 · 最中性，不像任何状态色','slate'],
+];
+const params = new URLSearchParams(location.search);
+const SEL = params.get('sel') || 'none';
+const ONLY = (params.get('only') || '').split(',').filter(Boolean);
+
+function item(k, label, icon){
+  const on = (k === SEL) ? ' on' : '';
+  return `<div class="item${on}" data-k="${k}"><span class="ico"><svg><use href="#i-${icon}"/></svg></span><span>${label}</span></div>`;
+}
+function sidebar(v, opts){
+  const bare = opts.includes('bare') ? ' data-bare="1"' : '';
+  const own = opts.includes('own') ? ' data-active="own"' : '';
+  return `<div class="sb" data-v="${v}"${bare}${own}>
+    <div class="brand"><span class="wordmark">Teach<span class="l">L</span><span class="oop">oop</span></span><small>练得更好，看得更清。</small></div>
+    <div class="nav">
+      ${item('home','首页','home')}
+      ${item('class','班级','users')}
+      ${item('create','作业','clipboard')}
+      ${item('create','试卷','file')}
+      ${item('assess','批改','pen')}
+      ${item('assess','复核','check-badge')}
+      ${item('insights','报表','bars')}
+    </div>
+    <div class="foot">
+      <div class="theme"><svg><use href="#i-moon"/></svg><span>亮色主题</span></div>
+      <div class="user"><svg width="14" height="14" style="fill:none;stroke:currentColor;stroke-width:1.7"><use href="#i-user"/></svg><b>Jz</b><span>· TEACHER</span></div>
+      <div class="out"><svg><use href="#i-logout"/></svg>退出登录</div>
+    </div>
+  </div>`;
+}
+const list = ONLY.length ? VARIANTS.filter(v => ONLY.includes(v[0])) : VARIANTS;
+document.getElementById('row').innerHTML = list.map(([k,title,desc,opt]) =>
+  `<div class="col"><div class="cap"><span class="key">${k}</span><span class="txt"><b>${title}</b><span>${desc}</span></span></div>${sidebar(k,opt)}</div>`
+).join('');
+
+if (location.search.includes('theme=dark')) document.documentElement.dataset.theme = 'dark';
+</script>
+</body>
+</html>

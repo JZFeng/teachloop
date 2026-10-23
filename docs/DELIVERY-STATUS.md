@@ -113,6 +113,9 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
     `docs/reports/brand-app-2026-10-22/`（30 张，含学生页）。
     未验证：考试作答 live 页、管理员 AI 设置、反馈详情、`/setup`、跨浏览器；口径见
     `specs/006-brand-visual/spec.md` 6.2。
+    **2026-10-23 更新（导航着色修订）**：首页 = 空间海军蓝 `#0E3676`、班级 = 空间淡紫 `#5B3AC4`、
+    Insights 从玫红改靛蓝 `#3F51B5`、Practice 接玫红；新增 `SPACE_*` 命名空间；`contrast.py` 40 → **44 组**；
+    前端 **28/28**；真页面截图 `docs/reports/nav-color-2026-10-23/`（37 张）。
 
 
 ## 五、结论
