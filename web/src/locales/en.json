@@ -1273,5 +1273,22 @@
       "typeSample": "Body 14 / 1.65 — Chinese needs a looser line height than English."
     },
     "navKit": "UI kit"
+  },
+  "eyebrow": {
+    "home": "DASHBOARD",
+    "classes": "CLASSES",
+    "papers": "CREATE · Papers",
+    "assignments": "CREATE · Assignments",
+    "assignmentCreate": "CREATE · Assign",
+    "grading": "ASSESS · Grading",
+    "review": "ASSESS · Review",
+    "reports": "INSIGHTS · Reports",
+    "summary": "INSIGHTS · Summary",
+    "feedback": "ASSESS · Feedback",
+    "exam": "ASSESS · Answer",
+    "profile": "ACCOUNT",
+    "notifications": "INBOX",
+    "uiKit": "DESIGN SYSTEM",
+    "adminAi": "ADMIN"
   }
 }

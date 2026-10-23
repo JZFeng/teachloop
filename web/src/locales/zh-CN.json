@@ -1273,5 +1273,22 @@
       "typeSample": "正文 14 / 1.65 —— 中文行高比英文松一档，长段正文才不挤。"
     },
     "navKit": "组件标准"
+  },
+  "eyebrow": {
+    "home": "DASHBOARD",
+    "classes": "CLASSES",
+    "papers": "CREATE · 组卷",
+    "assignments": "CREATE · 作业",
+    "assignmentCreate": "CREATE · 布置",
+    "grading": "ASSESS · 批改",
+    "review": "ASSESS · 复核",
+    "reports": "INSIGHTS · 报表",
+    "summary": "INSIGHTS · 汇总",
+    "feedback": "ASSESS · 反馈",
+    "exam": "ASSESS · 作答",
+    "profile": "ACCOUNT",
+    "notifications": "INBOX",
+    "uiKit": "DESIGN SYSTEM",
+    "adminAi": "ADMIN"
   }
 }
