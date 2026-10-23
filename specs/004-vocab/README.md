@@ -7,6 +7,7 @@
 
 | 阶段 | 产出物 | 状态 |
 | :--- | :--- | :--- |
+| 0. 来源输入 | 外部需求文档 `~/Downloads/flashcard req.md` 的功能抽取（剔除账号/DDL/API/技术栈） | **已完成** 2026-10-23 → [`source-requirements.md`](source-requirements.md)；余 6 个问题待拍板 |
 | 1. Research | 5–10 个同类系统（Anki / SuperMemo / Quizlet / 墨墨 / 扇贝 等）的做法与取舍 | **未开始** |
 | 2. Constitution | 复核是否需要新增条款（学生个人学习数据的隐私与保留期最可能） | **未开始** |
 | 3. Spec | 用户故事 + 可验收的验收标准 + 功能需求（编号从本目录自己的 001 起） | **未开始** |
