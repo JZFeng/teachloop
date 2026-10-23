@@ -41,7 +41,7 @@
 | 端点 | `PaperImportEndpointTest` 10/10（含写作题落库、非 ESSAY 传 rubric 被拒） |
 | 判分 | `AiGradingEngineTest` 8/8（两篇两次调用、prompt 不串题、空白 0 调用、`answers[]` 取正文） |
 | 快照兼容 | `SnapshotCodecTest` 2/2（旧快照没有 `rubricMarkdown` → null；新快照往返一致） |
-| 全链路 | `FlowIntegrationTest.twoEssaysAreGradedPerItem`：建卷 → 布置 → 学生按 `answers[]` 交两篇 → 逐篇判分 → 复核 `ai_criteria` 含 `itemNumber` 15/16，主观分 22.6（stub 0.75 × 30） |
+| 全链路 | `FlowIntegrationTest.twoEssaysAreGradedPerItem`：建卷 → 布置 → 学生按 `answers[]` 交两篇 → 逐篇判分 → 复核 `ai_criteria` 含 `itemNumber` 15/16，主观分 22.6（stub 0.75 × 30）；D-29 断言：写好试卷级 rubric 并直接改旧 `offerings.rubric_markdown` 后，`SittingLedger.load().rubricMarkdown()` 仍为 null |
 
 ## 3.5 没有 rubric 时的默认判分（D-28）
 
@@ -52,8 +52,9 @@
   **语法与拼写**（100−X%），默认 **80/20**；分值按本题满分拆（内容四舍五入取整：15 → 12+3，14 → 11+3，70% → 11+4），两项相加等于满分。
 - 配置：`teachloop.grading.essay-default-rubric.content-percent`（application.yml，默认 80；env
   `TEACHLOOP_ESSAY_CONTENT_PERCENT`）。只留一个旋钮，语法取其余；1–99 之外启动失败。
-- 老师写了 rubric（题项级或试卷级）→ 永远优先，不会被默认比例覆盖。题项级在同一步每道写作题里填
-  （`PUT /items/{n}`），试卷级在同一步最下方「试卷默认 rubric」（`PUT /papers/{id}/rubric`）。
+- 老师写了题项级 rubric → 永远优先，不会被默认比例覆盖（向导第 4 步每道写作题，`PUT /items/{n}`）。
+- **试卷级 rubric 已退役（D-29）**：界面移除；考试判分不再读取 `papers/offerings.rubric_markdown`，
+  没有题项级 rubric 就一律走默认 80/20；列与接口保留兼容，独立作业仍用布置自带 rubric。
 - 题目全文（`stem`）始终完整进 prompt 的「题目要求」，不截断；英文反馈时 rubic 文案用英文。
 - 移除了 `PaperCatalogImpl` 里「伪造一份无分值默认 rubric」的旧逻辑（那会盖住默认并被 50/50 均分）。
 - 向导第 4 步回显当前比例（`PaperDetail.essayContentPercent`），空 rubric 的题目提示「按系统默认

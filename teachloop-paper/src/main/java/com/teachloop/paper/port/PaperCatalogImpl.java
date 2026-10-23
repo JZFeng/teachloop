@@ -39,10 +39,9 @@ public class PaperCatalogImpl implements Ports.PaperCatalog {
                             i.getScoringStrategy().name(), i.getRubricMarkdown());
                 })
                 .toList();
-        // D-28：不在这里编一份「没有分值」的默认 rubric；没有 rubric 时判分侧按
-        // teachloop.grading.essay-default-rubric.content-percent 合成「内容 + 语法与拼写」两项。
+        // D-29：试卷级 rubric 退役（列与接口保留兼容）。快照不再携带它；考试的写作题只认
+        // 题项级 rubric，没有就由判分侧按配置合成「内容 + 语法与拼写」默认项（D-28）。
         return new Ports.PaperSnapshot(paperId, p.getVersion(), p.getTitle(), p.getTotalPoints().intValue(),
-                p.getDefaultDurationMinutes() == null ? 60 : p.getDefaultDurationMinutes(), specs,
-                p.getRubricMarkdown());
+                p.getDefaultDurationMinutes() == null ? 60 : p.getDefaultDurationMinutes(), specs, null);
     }
 }

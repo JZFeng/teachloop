@@ -261,7 +261,7 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 
 ## 需求追踪矩阵
 
-`spec.md` 的 35 个用户故事、84 条功能需求都有对应任务（FR-043/044 由 2026-10-20 的未编号增量实现）。295 条验收标准在各自用户故事的
+`spec.md` 的 35 个用户故事、86 条功能需求都有对应任务（FR-043/044 由 2026-10-20 的未编号增量实现）。296 条验收标准在各自用户故事的
 任务里被覆盖（验收标准与任务是一对多的关系，因此不逐条列出以免矩阵变成噪音）。
 
 ### 用户故事 → 任务
@@ -515,6 +515,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | T366 | **测试补齐**：`PaperTextParserTest`（两文件夹具、节内清单、范文绑定、分值语法）、`AnswerTableParserTest`（essayNumbers）、`RealExamWithAnswersTest` 扩展、`AiGradingEngineTest`（逐篇/隔离/空白/answers 文本）、`ReviewWorkflowTest`、共享 rubric 夹具加三例 | T363,T364 | 模块测试全绿；`make test` 退出码 0 |
 | T368 | **无 rubric 的默认判分（D-28）**：`EssayRubricWeights`（内容百分比 1–99，语法取其余）；`SubjectiveGradeRequest.forEssay` 在两级 rubric 都为空时按比例合成「内容与任务完成 + 语法与拼写」并拆分本题满分；`AiGradingEngine` 注入配置 `teachloop.grading.essay-default-rubric.content-percent`（默认 80，env `TEACHLOOP_ESSAY_CONTENT_PERCENT`）；`PaperCatalogImpl` 不再伪造无分值默认 rubric；英文反馈用英文 rubric 文案 | T364 | 15 分作文默认 12+3、14 分 11+3、70% 配置 11+4（内容四舍五入取整）；题目全文进 prompt；老师 rubric 优先；非法比例启动失败；`EssayRubricWeightsTest` 5/5、`AiGradingEngineTest` 10/10 |
 | T369 | **默认分值四舍五入 + 试卷级 rubric 文案**：内容分改为整数四舍五入（14 → 11+3、70% → 11+4），语法取余数；第 4 步试卷级编辑器改名「试卷默认 rubric（兜底）」，提示写明题项级优先、试卷级仅兜底 | T368 | `EssayRubricWeightsTest` 6/6、`AiGradingEngineTest` 10/10；`tsc`/`build`/`check-i18n`/`check-ui` 绿 |
+| T370 | **试卷级 rubric 退役（D-29）**：向导第 4 步删除「试卷默认 rubric 与 AI 提示词」整块；`PaperCatalogImpl` 生成的快照 rubric 恒为 null；`SittingLedgerImpl` 对考试忽略 `offerings.rubric_markdown`（旧行也不读）；列、`PUT /rubric`、`PaperDetail.rubricMarkdown` 保留兼容；独立作业仍用布置自带 rubric | T369 | `FlowIntegrationTest` 故意写入试卷级 rubric + 旧 offering 行后，`ledger.load().rubricMarkdown()` 为 null 且两篇按题项 rubric 判分；独立作业不变；`tsc`/`build`/`check-i18n`/`check-ui` 绿 |
 | T367 | **实测与收尾**：QA/dev 导入两文件、逐篇 rubric 判分（stub 或真实 AI）、复核页分组；截图 `docs/reports/essay-rubric/`；四份文档计数；PROGRESS 与执行记录 | T365,T366 | 截图与报告落盘；计数吻合；本轮汇报含已知未验证项 |
 
 ---
@@ -709,3 +710,4 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | 2026-10-22 | T367 全量验证与收尾 | 部分 | `make test` 退出码 0，surefire **286 / 0 / 0 / 0**；前端 28/28；`check-deps` / `check-boundaries`（25 表 / 13 外键 / 7 端口）/ `check-i18n`（后端基线 290、前端 1219 键）/ `check-ui` 全过；两文件导入与两篇作文全链路（建卷→布置→按 `answers[]` 交卷→逐篇判分→复核 `ai_criteria` 带 15/16）有自动化证据。**未验证**：浏览器第 4 步与导入页视觉（未重启 dev/QA 前端）、真实 DeepSeek 判分与 `subjective-v3` golden set。报告 `docs/reports/essay-rubric/report.md` |
 | 2026-10-22 | T368 无 rubric 的默认判分（D-28） | 完成 | 用户要求「内容 80% + 语法拼写 20%，比例可配置」。新增 `EssayRubricWeights`（只留 content-percent 一个旋钮，1–99，语法取其余；15 分→12+3、14 分→11+3）；`SubjectiveGradeRequest.forEssay` 在题项级与试卷级 rubric 都为空时合成两项默认 rubric，题目全文始终进 prompt；`AiGradingEngine` 注入配置 `teachloop.grading.essay-default-rubric.content-percent`（env `TEACHLOOP_ESSAY_CONTENT_PERCENT`，默认 80）；`PaperCatalogImpl` 不再伪造无分值默认 rubric；英文反馈用英文文案；非法比例启动失败；`PaperDetail.essayContentPercent` 把当前比例回显给向导。验证：`EssayRubricWeightsTest` 6/6、`AiGradingEngineTest` 10/10（无 rubric 时 12+3 且 prompt 含题目全文、70% 配置 11+4）、`AiGradingConfigTest` 5/5（70 可启动、0/100 启动失败）；`make test` 286/0/0/0，向导回显 80 有 app 断言 |
 | 2026-10-23 | T369 默认分值四舍五入 + 试卷级 rubric 文案 | 完成 | 用户指出「两项相加…这个要 round 的，四舍五入」并问「为啥还有试卷级、在哪设置」。`EssayRubricWeights.contentPoints` 改为 0 位小数 HALF_UP（14→11+3、15→12+3、70%→11+4），语法恒取余数保证相加等于满分；第 4 步试卷级编辑器改名「试卷默认 rubric（兜底）」、提示写明题项级优先，决策 008 补「两个层级分别在哪设置」表。验证：`EssayRubricWeightsTest` 6/6、`AiGradingEngineTest` 10/10（70% 期望改 11+4）、`tsc`/`build`、`check-i18n`（1219 键）、`check-ui`；`make test` 退出码 0（286/0/0/0 + 前端 28/28） |
+| 2026-10-23 | T370 试卷级 rubric 退役（D-29） | 完成 | 用户拍板「拿掉吧，没必要了」：写作题只保留题项级 rubric，没有就一律走默认（题目全文 + 内容/语法，比例可配）。向导第 4 步删除试卷级 rubric 与提示词编辑器；`PaperCatalogImpl` 快照 rubric 恒 null；`SittingLedgerImpl` 对考试传 null（旧 `offerings.rubric_markdown` 也忽略）；列、`PUT /api/papers/{id}/rubric`、`PaperDetail.rubricMarkdown` 保留兼容；独立作业不变。验证：`FlowIntegrationTest` 新断言（写入试卷级 rubric + 直接改旧 offering 行 → `SittingLedger.load().rubricMarkdown()==null`，两篇按题项 rubric 判分 22.6）；`tsc`/`build` 0；`check-i18n`（1219 键）/`check-ui`；`make test` 286/0/0/0 + 前端 28/28；决策 009 |

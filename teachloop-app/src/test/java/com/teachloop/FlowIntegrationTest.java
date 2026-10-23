@@ -6,6 +6,7 @@ import com.teachloop.grading.domain.ReviewRepository;
 import com.teachloop.grading.domain.ReviewStatus;
 import com.teachloop.grading.service.GradingWorker;
 import com.teachloop.observability.domain.AuditLogRepository;
+import com.teachloop.shared.port.Ports;
 import com.teachloop.sitting.domain.GradingState;
 import com.teachloop.sitting.domain.Submission;
 import com.teachloop.sitting.domain.SubmissionRepository;
@@ -22,6 +23,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -65,6 +67,12 @@ class FlowIntegrationTest {
 
     @Autowired
     GradingWorker worker;
+
+    @Autowired
+    JdbcTemplate jdbc;
+
+    @Autowired
+    Ports.SittingLedger ledger;
 
     private final HttpClient client = HttpClient.newHttpClient();
 
@@ -197,6 +205,9 @@ class FlowIntegrationTest {
         assertThat(String.valueOf(((Map<?, ?>) items.get(0)).get("referenceMarkdown")))
                 .isEqualTo(sample15);
 
+        // D-29：试卷级 rubric 已退役——这里故意写一份，考试也不应再读它。
+        send(base, teacher, "PUT", "/api/papers/" + paperId + "/rubric",
+                Map.of("rubricMarkdown", "# 旧的试卷级 rubric\n- 内容要点（10 分）\n- 语言（5 分）"));
         post(base, teacher, "/api/papers/" + paperId + "/publish", Map.of(), "id");
         Map<String, Object> cls = send(base, teacher, "POST", "/api/classes", Map.of("name", "写作双题班"));
         String classId = cls.get("id").toString();
@@ -213,6 +224,12 @@ class FlowIntegrationTest {
                         Map.of("number", 15, "answer", "Dear Chen Ming, I understand your feeling."),
                         Map.of("number", 16, "answer", "Good morning, everyone! Our club meets weekly."))),
                 "submissionId");
+
+        // 模拟存量考试行：offerings.rubric_markdown 里还留着旧的试卷级 rubric
+        jdbc.update("update offerings set rubric_markdown = ? where id = ?",
+                "# 旧的试卷级 rubric\n- 内容要点（10 分）", UUID.fromString(offeringId));
+        Ports.WorkItem work = ledger.load(UUID.fromString(submissionId));
+        assertThat(work.rubricMarkdown()).as("D-29：考试不再读试卷级 rubric").isNull();
 
         send(base, teacher, "POST", "/api/offerings/" + offeringId + "/grading/dispatch", Map.of());
         worker.processBatch(10);

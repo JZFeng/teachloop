@@ -2335,54 +2335,6 @@ export default function PaperWizardPage() {
               </div>
             )}
 
-            <h3 style={{ fontSize: 14, margin: '16px 0 8px' }}>
-              {t('teacher.wizard.rubricTitle')}
-            </h3>
-            <div className="f">
-              <b>{t('teacher.wizard.rubricMarkdown')}</b>
-              <Suspense fallback={<div className="md-editor md-editor-loading">{t('editor.loading')}</div>}>
-                <VditorMarkdown
-                  rows={8}
-                  value={draft.rubricMarkdown}
-                  onChange={(next) =>
-                    update((current) => ({
-                      ...current,
-                      rubricMarkdown: next,
-                      rubricTouched: true,
-                    }))
-                  }
-                  placeholder={t('teacher.wizard.rubricPlaceholder')}
-                  disabled={locked}
-                  expandable
-                  heading={t('teacher.wizard.rubricMarkdown')}
-                  footer={(
-                    <RubricPreview
-                      rubric={draft.rubricMarkdown}
-                      showTotalCheck={false}
-                      title={t('teacher.wizard.rubricPreview')}
-                    />
-                  )}
-                />
-              </Suspense>
-            </div>
-            <label className="f">
-              <b>{t('teacher.wizard.gradingPrompt')}</b>
-              <textarea
-                rows={4}
-                value={draft.gradingPromptTemplate}
-                disabled={locked}
-                placeholder={t('teacher.wizard.gradingPromptPlaceholder')}
-                onChange={(e) =>
-                  update((current) => ({
-                    ...current,
-                    gradingPromptTemplate: e.target.value,
-                    rubricTouched: true,
-                  }))
-                }
-              />
-              <div className="hint">{t('teacher.wizard.rubricHint')}</div>
-            </label>
-
             <div className="row" style={{ marginTop: 8 }}>
               <button
                 type="button"

@@ -32,13 +32,14 @@
 
 ## 两个 rubric 层级分别在哪设置
 
+> 2026-10-23 更新：**试卷级 rubric 已退役（决策 009 / D-29）**，界面不再提供、考试不再读取。
+> 现在考试只有两级：题项级 rubric（向导第 4 步每道写作题）→ 都没有就用本决策的默认 80/20。
+> 独立作业仍用布置自带 rubric。下表保留历史说明。
+
 | 层级 | 设置位置 | 生效范围 |
 | :--- | :--- | :--- |
-| **题项级**（优先） | 试卷向导第 4 步「写作题评分标准（每道题一份）」；`PUT /api/papers/{id}/items/{number}` 的 `rubricMarkdown` 字段；库表 `objective_items.rubric_markdown` | 只作用于这一道写作题 |
-| **试卷级**（兜底） | 同一步最下方「试卷默认 rubric 与 AI 提示词（兜底）」；`PUT /api/papers/{id}/rubric`；库表 `papers.rubric_markdown`，布置时复制进 offering 快照 | 该卷所有没写题项级 rubric 的主观题；独立作业用它自己的 rubric |
-
-保留试卷级的原因：存量数据与「一张卷统一一份评分口径」的场景（含独立作业链路）；新导入的写作题
-题项级 rubric 为空，所以默认落到 80/20 合成，而不是这份试卷级文本——除非老师主动填了它。
+| **题项级**（唯一可配置） | 试卷向导第 4 步「写作题评分标准（每道题一份）」；`PUT /api/papers/{id}/items/{number}` 的 `rubricMarkdown`；库表 `objective_items.rubric_markdown` | 只作用于这一道写作题 |
+| ~~试卷级~~（已退役） | 列/接口保留兼容：`papers.rubric_markdown`、`PUT /api/papers/{id}/rubric` | 考试不读取；独立作业用自己的 rubric |
 
 ## 为什么不把默认 rubric 写进试卷
 

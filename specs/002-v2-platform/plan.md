@@ -616,7 +616,8 @@ GradingWorker 领取 submission
 
 **做法**
 
-1. **数据**：`ESSAY` 题项带 `rubric_markdown`；为空回退试卷级 rubric，再为空用系统默认 rubric。
+1. **数据**：`ESSAY` 题项带 `rubric_markdown`；为空**直接**用系统默认 rubric（D-29 起考试不再回退试卷级；
+   独立作业仍用布置自带 rubric）。
    `reference_markdown` 只给教师看，不进 prompt。
 2. **请求对象**：`SubjectiveGradeRequest.forEssay(WorkItem work, ItemSpec essay)` 负责取该篇正文、
    该篇 rubric、该篇满分与长度区间。`SubjectiveGradeRequest` 仍然**不含** `answers` / `answerKey`
@@ -634,7 +635,8 @@ GradingWorker 领取 submission
    由判分侧按 `teachloop.grading.essay-default-rubric.content-percent`（默认 80）合成两项：
    内容与任务完成 X%、语法与拼写 100−X%，分值按本题满分拆分（内容四舍五入取整：15 分 → 12 + 3，14 分 → 11 + 3，70% → 11 + 4）。
    英文反馈时用英文文案。题目全文（stem）始终在 prompt 的「题目要求」里；参考范文仍不进 prompt。
-   `PaperCatalogImpl` 不再编制「没有分值」的默认 rubric（否则会被均分成 50/50）；
+   `PaperCatalogImpl` 不再编制「没有分值」的默认 rubric（否则会被均分成 50/50），快照里也不再带试卷级 rubric；
+   `SittingLedgerImpl` 对考试忽略 `offerings.rubric_markdown`（D-29）；
    旧快照里那段系统伪造文本由 `EssayRubricWeights.isLegacyDefault` 识别为「没有 rubric」，
    存量卷子无需重新布置。
 

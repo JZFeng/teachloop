@@ -65,9 +65,12 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
         if (language == null || language.isBlank()) {
             language = o.getFeedbackLanguage();
         }
+        // D-29：试卷级 rubric 退役。考试只认题项级 rubric（没有就按默认 80/20 合成），
+        // 即使旧行的 offerings.rubric_markdown 还留着内容也不再使用；独立作业仍用自己的 rubric。
+        String paperLevelRubric = o.getKind() == OfferingKind.EXAM ? null : o.getRubricMarkdown();
         return new Ports.WorkItem(s.getId(), o.getId(), s.getStudentId(), "",
                 s.getInputKind(), s.getContentText(), s.getContentHtml(), rows, snap.items(),
-                o.getRubricMarkdown(), o.getGradingPromptTemplate(), language, o.getCreatedBy(), o.getAnchorExamples());
+                paperLevelRubric, o.getGradingPromptTemplate(), language, o.getCreatedBy(), o.getAnchorExamples());
     }
 
     @Override

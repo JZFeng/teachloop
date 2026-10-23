@@ -178,7 +178,8 @@
   `answers[]` 交两篇 → 逐篇判分合并 → 复核 `ai_criteria` 带题号 15/16、主观分 22.6（stub 0.75×30）。
 - **追加（2026-10-23）D-28**：没有 rubric 的作文改为「内容 80% + 语法与拼写 20%」判分（内容四舍五入取整，14 分 → 11+3、70% → 11+4），比例走配置
   `teachloop.grading.essay-default-rubric.content-percent`（默认 80，env `TEACHLOOP_ESSAY_CONTENT_PERCENT`）；
-  老师的题项级/试卷级 rubric 永远优先；题目全文完整进 prompt；向导第 4 步回显当前比例
+  老师的题项级 rubric 永远优先；**试卷级 rubric 已退役**（界面移除、考试不再读取，列保留兼容，D-29）；
+  题目全文完整进 prompt；向导第 4 步回显当前比例
   （`PaperDetail.essayContentPercent`）。`EssayRubricWeightsTest` 6/6、
   `AiGradingEngineTest` 10/10、`AiGradingConfigTest` 5/5。
 - **未验证**：浏览器里的第 4 步交互与导入页视觉（本轮未重启 dev/QA 前端，只做了 `tsc`/`build`）；
