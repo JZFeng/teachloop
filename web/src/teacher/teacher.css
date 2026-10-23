@@ -128,7 +128,7 @@
 }
 .teacher-page .stepper .st.done b {
   background: var(--green);
-  color: #fff;
+  color: var(--on-green);
 }
 
 .teacher-page .form-grid {

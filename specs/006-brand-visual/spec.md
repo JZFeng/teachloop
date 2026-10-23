@@ -190,6 +190,10 @@ Practice 的紫色是淡紫底的同族延伸，不是原图取样值；logo 里
 - **管理员 AI 设置页**：需要 ADMIN 角色；当前 QA 账号是 TEACHER。
 - **反馈详情页**：QA 的 `/api/feedback` 没有返回可定位的 offering，未截到。
 - **初始化 `/setup`**：环境已初始化，页面会跳转。
+- **静态检查已做**：`AdminAiPage` / `FeedbackDetailPage` / `SetupPage` 无颜色字面量，全部走令牌与组件；
+  `ExamLivePage` / `ExamPaper` 的颜色走 `exam.css` 的令牌变量（仅两处 `rgba(15,20,28,.34)` 遮罩是主题无关的深色叠层）。
+  live 页的交互态等 QA 数据重建后补截：`scripts/brand/shoot-app.mjs` 已支持自动点「开始答题」并截
+  `student-exam-live-light`（考试不可开始时跳过并告警）。
 - **跨浏览器**：只在 Chrome（headless 1440×900 @2x）验证。
 - **21 屏截图基线**：003 的 T308 仍未做；本轮是评审截图，不是像素基线。
 

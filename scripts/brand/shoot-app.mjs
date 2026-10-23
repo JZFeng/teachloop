@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 const CHROME = process.env.CHROME ?? '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
 const BASE = process.env.BASE ?? 'http://localhost:5173'
-const OUT = path.join(ROOT, 'docs/reports/brand-app-2026-10-22')
+const OUT = path.join(ROOT, process.env.OUT_DIR ?? 'docs/reports/brand-app-2026-10-22')
 const PROFILE = path.join(ROOT, '.cache/chrome-app')
 const CDP = 'http://127.0.0.1:9333'
 
@@ -218,6 +218,22 @@ async function main() {
       studentRoutes.push(['student-exam-entry-light', `/exams/${studentExamId}`, 'light'])
     }
     await capture(studentRoutes)
+
+    // 作答 live 页：只有在考试可以开始时才截得到（点「开始答题」会真的建一次作答）。
+    if (studentExamId) {
+      await setViewport(900)
+      await setTheme('light')
+      await navigate(`/exams/${studentExamId}`)
+      const started = await evaluate(
+        `(() => { const b = [...document.querySelectorAll('button')].find(x => (x.textContent || '').includes('开始答题')); if (!b) return false; b.click(); return true })()`,
+      )
+      if (started) {
+        await sleep(2500)
+        await shot('student-exam-live-light')
+      } else {
+        console.warn('[shoot-app] 这场考试当前不可开始，跳过 live 页')
+      }
+    }
 
     const feedback = await evaluate(`fetch('/api/feedback').then(r => r.json())`)
     const feedbackOfferingId = feedback?.[0]?.offeringId

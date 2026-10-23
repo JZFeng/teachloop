@@ -59,6 +59,7 @@
   /* 判分三态：与功能色分开命名。 */
   --green: #17703f;
   --green-weak: #e6f5ec;
+  --on-green: #ffffff;
   --amber: #8a5a00;
   --amber-weak: #fff3d6;
   --red: #b42338;
@@ -115,6 +116,7 @@
 
   --green: #6ee7a5;
   --green-weak: #0c2a1d;
+  --on-green: #0c2a1d;
   --amber: #ffc85c;
   --amber-weak: #2a2110;
   --red: #ff7d8a;
