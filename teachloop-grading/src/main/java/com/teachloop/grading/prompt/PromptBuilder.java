@@ -25,7 +25,7 @@ import java.util.Locale;
  */
 public class PromptBuilder {
 
-    public static final String PROMPT_VERSION = "subjective-v2";
+    public static final String PROMPT_VERSION = "subjective-v3";
 
     public Prompt build(SubjectiveGradeRequest request) {
         if (request == null || request.isEmpty()) {
@@ -48,6 +48,8 @@ public class PromptBuilder {
         StringBuilder sb = new StringBuilder();
         sb.append("你是一名有经验的 TESOL 教师与助教，负责给学生的一次主观题作答写第一轮评语。")
                 .append("最终决定权在老师：你的输出是草稿，不是最终成绩。\n\n");
+        sb.append("## 本题\n第 ").append(itemNumber(request)).append(" 题，满分 ")
+                .append(points(request.subjectiveMax())).append(" 分。只判这一篇，不要评论其他题目。\n\n");
         sb.append("## 题目要求\n");
         sb.append(instructions(request, false)).append("\n\n");
         sb.append("## 评分标准（只按这一份判分）\n");
@@ -98,11 +100,17 @@ public class PromptBuilder {
         return sb.toString();
     }
 
+    private static int itemNumber(SubjectiveGradeRequest request) {
+        return request.items().isEmpty() ? 1 : request.items().get(0).number();
+    }
+
     private String systemEn(SubjectiveGradeRequest request) {
         StringBuilder sb = new StringBuilder();
         sb.append("You are an experienced TESOL instructor and teaching assistant writing the first-pass ")
                 .append("review of one student response. The teacher makes the final decision; your output ")
                 .append("is a draft, not a final grade.\n\n");
+        sb.append("## This item\nItem ").append(itemNumber(request)).append(", maximum ")
+                .append(points(request.subjectiveMax())).append(" points. Grade this response only.\n\n");
         sb.append("## Assignment\n");
         sb.append(instructions(request, true)).append("\n\n");
         sb.append("## Rubric (grade only against this)\n");

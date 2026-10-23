@@ -1,7 +1,9 @@
 # TeachLoop 进度仪表盘
 
 > 每个批次结束时由 Lead 更新；`make status` 会打印下面的「当前」与「剩余」。
-> 最近一次更新：2026-10-22（T357 导入时空里带题号 `______(7)___` / `__(7)__` 不再多算空；
+> 最近一次更新：2026-10-22（T359 品牌源图归档与指纹守卫；
+> T358 明确「首页/班级是中性导航」的口径并写进决策/规格/UI Kit；
+> T357 导入时空里带题号 `______(7)___` / `__(7)__` 不再多算空；
 > T356 界面标准收进资料页偏好设置，侧栏删入口；
 > T355 答题页共用材料只渲染一次（空数 ≠ 题数时不再重复）；
 > T354 所有弹层 Esc 可关（统一弹层栈 + CDP 实测）；
@@ -10,6 +12,24 @@
 > `make test` 265/0/0/0 + 前端 28/28 全绿）
 
 ## 当前
+
+- 已整理：**T359 品牌源图归档**——用户给的两张图确认都在仓库里且与附件逐字节一致：
+  `docs/brand/teachloop-logo-source.png` 是前端资产的**构建源**（生成 `web/public/brand/` 9 个文件），
+  `docs/brand/teachloop-brand-sheet.png` 是**四功能位参考页**（不参与构建，留给以后品牌页/关于页/对外素材）。
+  新增 `docs/brand/README.md` 写清用途、sha256、重新生成命令与以后怎么取用；把参考图的 sha256
+  一并写进 `scripts/brand/build-assets.py`，`--check` 现在同时校验两张源图 + 产物，删了/改名/替换会直接报错。
+  验证：`python3 scripts/brand/build-assets.py --check` 通过（两张源图指纹一致、产物齐全）。
+
+- 已确认：**T358 首页/班级的导航为什么没有颜色**——用户问「是故意的吗」。结论：是，不是漏做。
+  决策 006 / AC-31.2 只给三个已上线功能位配功能色（作业·试卷 Create、批改·复核 Assess、
+  报表·我的反馈 Insights）；首页、班级、资料、通知、管理员 AI 是中性导航，图标用 `--muted-2`，
+  `Shell.tsx` 的 `NavItem` 不配 `tone`。本轮只补口径不改配色：决策 006 加「导航着色口径」、
+  spec 006 §5.3 加说明并在 AC-31.2 补「其余导航无胶囊」、`Shell.tsx` 导航定义处加防误改注释、
+  UI Kit 品牌区加一句中英说明（`ui.kit.navToneNote`）。
+  验证：`node scripts/verify/nav-tone-note.mjs` 对 QA 5174 实测 10/10（首页/班级无胶囊、
+  三组功能色正确、UI Kit 中英说明可见、切英文后仍中性、无控制台异常），截图
+  `docs/reports/t358-nav-tone-note/`；`typecheck`/`build` 0、`check-i18n` 1203 键、`check-ui` 无新增、
+  `make test` 265/0/0/0。
 
 - 已修复：**T357 导入时「空里带题号」的写法**——用户实测：`______(7)` 正常，写成 `______(7)___`
   或把 `(7)` 用下划线包起来（`__(7)__`、`______<u>(7)</u>`）就导入失败。真因：`BLANK` 只认连续 3 个以上
@@ -129,6 +149,40 @@
   打开后按 Esc 均关闭，路由 `/grading/bfd90d97-…` 与表格行不变，关闭后再按 Esc 无副作用；截图
   `docs/reports/t354-esc-dismiss/`；栈逻辑 `web/tests/escape-stack.test.mjs` 8/8、`make test` 退出码 0（前端 28/28）。
   **未用浏览器验证**的弹层：交卷前检查、答题页窄屏目录、完形/七选五选项弹层（走同一个 hook，无独立按键证据）。
+
+## 2026-10-22 · 写作题按题项存 rubric、按篇判分（D-23~D-27，T360–T367）
+
+用户拿两份真实卷子试导入后提出的问题：`整个考卷含写作.md` 第 191 行报
+「无法解析的答案行「15. 应用文写作示范范文：」」；`paper and answer.md` 能导入但第四部分写作
+0 题、只有 120 分（卷面 150），向导第 4 步只有一个 rubric 输入框。
+
+- **规格**：D-23~D-27；AC-4.21~4.23（写作建题、分值语法、参考范文）、AC-27.17~19（题项级
+  rubric、逐篇判分、正文来源与空白）；FR-082~084。调研 `docs/research/2026-10-22-essay-rubric.md`
+  （12 个同类系统）、决策 `docs/decisions/007-essay-per-item-rubric.md`。
+- **数据**：`V036` 给 `objective_items` 加 `rubric_markdown` / `reference_markdown`（可空、不进总分）；
+  `Ports.ItemSpec` 增题项 rubric，旧构造器与旧快照空值回退。
+- **导入**：写作/口语部分按「第X节」或带题号的写作任务行建 `ESSAY` 题项；`满分 N 分`、
+  `(N points)`、`（N分）`、`N pts`、`每小题 X points` 都能解析；答案区按写作题号绑定参考范文，
+  范文里以数字开头的行不再报错；粘贴答案表遇到写作题号整块跳过并提示。
+  实测：`整个考卷含写作.md` 0 报错、14 客观 + 15/16 两道写作题（15 分/篇，范文各归其题）；
+  `paper and answer.md` 75 客观 + 76/77 两道写作题、总分 150、缺答案 0。
+- **判分**：`SubjectiveGradeRequest.forEssay` 先取 `answers[]` 里该题号正文（仅单篇作业回退
+  `content_text`），本题 rubric 优先、空回退试卷级；`SubjectiveGradingLoop` 逐篇调用并合并
+  （主观分求和、criteria 带 `itemNumber`、三段文本分段、空白篇 0 分不调用）；prompt 升 `subjective-v3`。
+  这同时修掉「考试作文只读 `content_text`、等于空文本判分」的旧缺陷。
+- **前端**：向导第 4 步每道写作题一块 rubric（Vditor + 合计/满分预览）+ 参考范文编辑器；
+  导入页写作题提示；复核页 AI 评分项按题分组、写作题 rubric 可展开；zh/en 1218 键对齐。
+- **验证**：`make test` 退出码 0，surefire **286 tests / 0 failures / 0 errors / 0 skipped**；
+  前端 28/28；`check-deps` / `check-boundaries`（25 表 / 13 外键 / 7 端口）/ `check-i18n` / `check-ui` 全过。
+  新增 `FlowIntegrationTest.twoEssaysAreGradedPerItem`：两道写作题各自 rubric 进快照 → 学生按
+  `answers[]` 交两篇 → 逐篇判分合并 → 复核 `ai_criteria` 带题号 15/16、主观分 22.6（stub 0.75×30）。
+- **追加（当晚）D-28**：没有 rubric 的作文改为「内容 80% + 语法与拼写 20%」判分，比例走配置
+  `teachloop.grading.essay-default-rubric.content-percent`（默认 80，env `TEACHLOOP_ESSAY_CONTENT_PERCENT`）；
+  老师的题项级/试卷级 rubric 永远优先；题目全文完整进 prompt；向导第 4 步回显当前比例
+  （`PaperDetail.essayContentPercent`）。`EssayRubricWeightsTest` 6/6、
+  `AiGradingEngineTest` 10/10、`AiGradingConfigTest` 5/5。
+- **未验证**：浏览器里的第 4 步交互与导入页视觉（本轮未重启 dev/QA 前端，只做了 `tsc`/`build`）；
+  真实 DeepSeek 判分（测试用 stub 引擎），`subjective-v3` 的 golden set 未重跑。
 
 ## 下一步
 

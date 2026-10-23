@@ -195,6 +195,9 @@ export default function ImportPaperPage() {
                   {t('teacher.import.missing', { numbers: missingNumbers.join(', ') })}
                 </span>
               )}
+              {result.items.some((item) => item.questionType === 'ESSAY') && (
+                <span className="tag blue">{t('teacher.import.essayCreated')}</span>
+              )}
               {paperId && (
                 <button className="btn" onClick={() => navigate(`/papers/${paperId}`)}>
                   {t('teacher.import.gotoWizard')}
@@ -221,6 +224,8 @@ export default function ImportPaperPage() {
                 {t('teacher.import.answerFill')}
                 <br />
                 {t('teacher.import.answerNoBlank')}
+                <br />
+                {t('teacher.import.essayPasteHint')}
               </div>
               <textarea
                 style={{ width: '100%', minHeight: 110, fontFamily: 'monospace' }}

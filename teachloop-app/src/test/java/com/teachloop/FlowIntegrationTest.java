@@ -166,6 +166,65 @@ class FlowIntegrationTest {
         assertThat(((Number) progress.get("pending")).longValue()).isZero();
     }
 
+    @Test
+    @DisplayName("两道写作题：各自 rubric 进快照，逐篇判分合并，复核逐项带题号（D-24 / D-26）")
+    void twoEssaysAreGradedPerItem() throws Exception {
+        String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
+        String teacher = login(base, "teacher@teachloop.local");
+        String student = login(base, "student@teachloop.local");
+
+        String paperId = post(base, teacher, "/api/papers",
+                Map.of("title", "写作双题卷", "defaultDurationMinutes", 60), "id");
+        String sectionId = post(base, teacher, "/api/papers/" + paperId + "/sections",
+                Map.of("title", "第四部分 写作", "pointsPerItem", 15), "id");
+        String rubric15 = "# 评分标准\n- 表达理解（5 分）：是否回应朋友的处境。\n- 给出建议（10 分）：建议是否具体。";
+        String rubric16 = "# 评分标准\n- 社团简介（5 分）：是否点明社团。\n- 社团活动（10 分）：活动是否具体。";
+        String sample15 = "Dear Chen Ming, I understand your feeling...";
+        post(base, teacher, "/api/papers/" + paperId + "/items", Map.of("number", 15,
+                "questionType", "ESSAY", "stem", "写一封回信。", "points", 15, "sectionId", sectionId,
+                "rubricMarkdown", rubric15, "referenceMarkdown", sample15), "id");
+        post(base, teacher, "/api/papers/" + paperId + "/items", Map.of("number", 16,
+                "questionType", "ESSAY", "stem", "写一篇招新演讲稿。", "points", 15, "sectionId", sectionId,
+                "rubricMarkdown", rubric16), "id");
+
+        Map<String, Object> detail = get(base, teacher, "/api/papers/" + paperId);
+        assertThat(((Number) detail.get("essayContentPercent")).intValue())
+                .as("D-28：向导能看到当前作文默认内容占比").isEqualTo(80);
+        List<?> sections = (List<?>) detail.get("sections");
+        List<?> items = (List<?>) ((Map<?, ?>) sections.get(0)).get("items");
+        assertThat(items).hasSize(2);
+        assertThat(String.valueOf(((Map<?, ?>) items.get(0)).get("rubricMarkdown"))).contains("表达理解");
+        assertThat(String.valueOf(((Map<?, ?>) items.get(0)).get("referenceMarkdown")))
+                .isEqualTo(sample15);
+
+        post(base, teacher, "/api/papers/" + paperId + "/publish", Map.of(), "id");
+        Map<String, Object> cls = send(base, teacher, "POST", "/api/classes", Map.of("name", "写作双题班"));
+        String classId = cls.get("id").toString();
+        String invite = cls.get("inviteCode").toString();
+        String offeringId = post(base, teacher, "/api/offerings", Map.of(
+                "paperId", paperId, "kind", "EXAM", "dueAt", "2026-12-31T23:59:59Z",
+                "durationMinutes", 60, "timingMode", "INDIVIDUAL",
+                "classIds", List.of(classId)), "id");
+        post(base, teacher, "/api/offerings/" + offeringId + "/publish", Map.of(), "id");
+        post(base, student, "/api/classes/join", Map.of("inviteCode", invite), "name");
+        post(base, student, "/api/offerings/" + offeringId + "/start", Map.of(), "submissionId");
+        String submissionId = post(base, student, "/api/offerings/" + offeringId + "/submissions",
+                Map.of("answers", List.of(
+                        Map.of("number", 15, "answer", "Dear Chen Ming, I understand your feeling."),
+                        Map.of("number", 16, "answer", "Good morning, everyone! Our club meets weekly."))),
+                "submissionId");
+
+        send(base, teacher, "POST", "/api/offerings/" + offeringId + "/grading/dispatch", Map.of());
+        worker.processBatch(10);
+
+        Submission s = submissions.findById(UUID.fromString(submissionId)).orElseThrow();
+        assertThat(s.getGradingState()).isEqualTo(GradingState.DONE);
+        // stub 0.75：15 分两篇 → 11.3 + 11.3
+        assertThat(s.getSubjectiveTotal()).isEqualByComparingTo("22.6");
+        String criteria = reviews.findBySubmissionId(s.getId()).orElseThrow().getAiCriteria();
+        assertThat(criteria).contains("\"itemNumber\":15").contains("\"itemNumber\":16");
+    }
+
     // ---------- helpers ----------
 
     private String login(String base, String email) throws Exception {

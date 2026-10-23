@@ -7,6 +7,7 @@ import com.teachloop.grading.ai.LlmClient;
 import com.teachloop.grading.ai.LlmClientProvider;
 import com.teachloop.grading.ai.SpringAiLlmClient;
 import com.teachloop.grading.domain.AiCallRepository;
+import com.teachloop.grading.prompt.EssayRubricWeights;
 import com.teachloop.grading.prompt.PromptBuilder;
 import com.teachloop.shared.port.Ports;
 import java.util.Optional;
@@ -102,8 +103,11 @@ public class AiGradingConfig {
             @Value("${teachloop.ai.model:deepseek-flash}") String envModel,
             @Value("${teachloop.ai.temperature:0.2}") BigDecimal envTemperature,
             @Value("${teachloop.ai.timeout-seconds:180}") int timeoutSeconds,
+            @Value("${teachloop.grading.essay-default-rubric.content-percent:80}") int contentPercent,
             ObjectProvider<Ports.AiSettingsLookup> lookup) {
         Duration timeout = Duration.ofSeconds(timeoutSeconds);
+        // D-28：没有 rubric 的作文按「内容 X% + 语法与拼写 (100-X)%」合成默认评分项
+        EssayRubricWeights essayWeights = new EssayRubricWeights(contentPercent);
         LlmClientProvider provider = new LlmClientProvider() {
             @Override
             public LlmClient forTeacher(UUID teacherId) {
@@ -140,6 +144,7 @@ public class AiGradingConfig {
                         envTemperature, true, "env");
             }
         };
-        return new AiGradingEngine(new PromptBuilder(), new GradeOutputValidator(), provider, aiCalls, clock);
+        return new AiGradingEngine(new PromptBuilder(), new GradeOutputValidator(), provider, aiCalls,
+                clock, essayWeights);
     }
 }

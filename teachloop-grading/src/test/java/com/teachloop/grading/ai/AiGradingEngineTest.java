@@ -12,6 +12,7 @@ import static org.mockito.Mockito.when;
 import com.teachloop.grading.domain.AiCall;
 import com.teachloop.grading.domain.AiCallRepository;
 import com.teachloop.grading.engine.AiGradingEngine;
+import com.teachloop.grading.prompt.EssayRubricWeights;
 import com.teachloop.grading.prompt.PromptBuilder;
 import com.teachloop.shared.port.Ports;
 import java.math.BigDecimal;
@@ -61,7 +62,7 @@ class AiGradingEngineTest {
         verify(aiCalls, times(1)).save(saved.capture());
         AiCall call = saved.getValue();
         assertThat(call.getModel()).isEqualTo("deepseek-flash");
-        assertThat(call.getPromptVersion()).isEqualTo("subjective-v2");
+        assertThat(call.getPromptVersion()).isEqualTo("subjective-v3");
         assertThat(call.getTokensIn()).isEqualTo(1200);
         assertThat(call.getTokensOut()).isEqualTo(300);
         assertThat(call.getLatencyMs()).isEqualTo(850);
@@ -143,6 +144,89 @@ class AiGradingEngineTest {
     }
 
     @Test
+    @DisplayName("两道写作题各用各的 rubric：两次调用、criteria 带题号、总分相加、prompt 不串题")
+    void gradesEachEssayWithItsOwnRubric() {
+        FakeLlmClient llm = FakeLlmClient.responding(
+                response(TWO_ESSAY_FIRST, 100, 20, 100),
+                response(TWO_ESSAY_SECOND, 110, 25, 120));
+        AiGradingEngine engine = engine(llm);
+
+        Ports.GradingResult result = engine.grade(twoEssayWorkItem(true));
+
+        assertThat(result.subjectivePoints()).isEqualByComparingTo("25");
+        assertThat(result.criteria()).extracting(Ports.CriterionScore::itemNumber)
+                .containsExactly(15, 15, 16, 16);
+        assertThat(llm.requests).hasSize(2);
+        assertThat(llm.requests.get(0).system())
+                .contains("第 15 题")
+                .contains("表达理解")
+                .doesNotContain("社团简介")
+                .doesNotContain("SECRET-SAMPLE-FIFTEEN");
+        assertThat(llm.requests.get(1).system())
+                .contains("第 16 题")
+                .contains("社团简介")
+                .doesNotContain("表达理解")
+                .doesNotContain("SECRET-SAMPLE-FIFTEEN");
+        assertThat(llm.requests.get(1).user())
+                .contains("Our Debate Club meets weekly")
+                .doesNotContain("I understand your feeling");
+        assertThat(result.feedback()).contains("第 15 题（15 分）").contains("第 16 题（15 分）");
+    }
+
+    @Test
+    @DisplayName("空白作文：0 分、不调用模型、评语写未作答")
+    void blankEssayIsZeroWithoutCall() {
+        FakeLlmClient llm = FakeLlmClient.responding(response(TWO_ESSAY_FIRST, 100, 20, 100));
+        AiGradingEngine engine = engine(llm);
+
+        Ports.GradingResult result = engine.grade(twoEssayWorkItem(false));
+
+        assertThat(result.subjectivePoints()).isEqualByComparingTo("13");
+        assertThat(llm.requests).hasSize(1);
+        assertThat(result.feedback()).contains("第 16 题（15 分）：未作答。");
+        assertThat(result.criteria()).extracting(Ports.CriterionScore::itemNumber)
+                .containsExactly(15, 15);
+    }
+
+    @Test
+    @DisplayName("没有 rubric：按 80/20 合成「内容 + 语法与拼写」，整个题目要求进 prompt")
+    void defaultsToContentAndGrammarSplit() {
+        FakeLlmClient llm = FakeLlmClient.responding(response(DEFAULT_ESSAY_JSON, 100, 30, 100));
+        AiGradingEngine engine = engine(llm);
+
+        Ports.GradingResult result = engine.grade(essayWithoutRubric());
+
+        assertThat(result.subjectivePoints()).isEqualByComparingTo("15");
+        assertThat(result.criteria()).extracting(Ports.CriterionScore::name)
+                .containsExactly("内容与任务完成", "语法与拼写");
+        assertThat(result.criteria()).extracting(Ports.CriterionScore::maxPoints)
+                .containsExactly(new BigDecimal("12"), new BigDecimal("3"));
+        assertThat(llm.requests).hasSize(1);
+        assertThat(llm.requests.get(0).system())
+                .contains("## 题目要求")
+                .contains("Write about your summer holiday.")
+                .contains("- 内容与任务完成（12 分）")
+                .contains("- 语法与拼写（3 分）")
+                .contains("满分 12 分")
+                .contains("满分 3 分");
+    }
+
+    @Test
+    @DisplayName("默认比例可配置：70% 内容 → 10.5 + 4.5")
+    void usesConfiguredWeightForDefaultRubric() {
+        FakeLlmClient llm = FakeLlmClient.responding(response(DEFAULT_ESSAY_JSON_70, 100, 30, 100));
+        AiGradingEngine engine = engine(llm, new EssayRubricWeights(70));
+
+        Ports.GradingResult result = engine.grade(essayWithoutRubric());
+
+        assertThat(result.criteria()).extracting(Ports.CriterionScore::maxPoints)
+                .containsExactly(new BigDecimal("10.5"), new BigDecimal("4.5"));
+        assertThat(llm.requests.get(0).system())
+                .contains("- 内容与任务完成（10.5 分）")
+                .contains("- 语法与拼写（4.5 分）");
+    }
+
+    @Test
     @DisplayName("没有主观题时不调用模型、不写 ai_calls，返回 0 分主观结果")
     void skipsModelWhenNoSubjectiveItems() {
         FakeLlmClient llm = FakeLlmClient.responding();
@@ -156,9 +240,66 @@ class AiGradingEngineTest {
         verify(aiCalls, never()).save(any(AiCall.class));
     }
 
+    private static final String TWO_ESSAY_FIRST = """
+            {"criteria":[{"name":"表达理解","points":5,"comment":"正文写了“I understand your feeling”，直接回应了朋友的处境。"},
+            {"name":"给出建议","points":8,"comment":"建议“talk with your parents calmly”，给出了可执行的下一步。"}],
+            "total":13,"overall":"回信结构完整，语气得体。","strength":"用“talk with your parents calmly”给出具体建议。","suggestion":"补充一句对父母立场的理解。"}""";
+
+    private static final String TWO_ESSAY_SECOND = """
+            {"criteria":[{"name":"社团简介","points":5,"comment":"正文用“Our Debate Club”点明社团，简介清楚。"},
+            {"name":"社团活动","points":7,"comment":"写了“meets weekly to discuss public topics”，活动安排具体。"}],
+            "total":12,"overall":"讲稿有号召力，信息完整。","strength":"用“meets weekly”说明了固定活动。","suggestion":"补一句欢迎新生体验的建议。"}""";
+
+    private static Ports.WorkItem twoEssayWorkItem(boolean answerSecond) {
+        List<Ports.AnswerRow> answers = new java.util.ArrayList<>();
+        answers.add(new Ports.AnswerRow(UUID.randomUUID(), 15,
+                "Dear Chen Ming, I understand your feeling and suggest you talk with your parents calmly."));
+        if (answerSecond) {
+            answers.add(new Ports.AnswerRow(UUID.randomUUID(), 16,
+                    "Good morning, everyone! Our Debate Club meets weekly to discuss public topics."));
+        }
+        List<Ports.ItemSpec> items = List.of(
+                new Ports.ItemSpec(UUID.randomUUID(), 15, "ESSAY", null, new BigDecimal("15"),
+                        "Write a reply letter.", null, 4, "第四节 写作", "ALL_OR_NOTHING",
+                        "# 评分标准\n- 表达理解（5 分）：是否回应了朋友的处境。\n"
+                                + "- 给出建议（8 分）：建议是否具体可行。\n"),
+                new Ports.ItemSpec(UUID.randomUUID(), 16, "ESSAY", null, new BigDecimal("15"),
+                        "Write a speech.", null, 4, "第四节 写作", "ALL_OR_NOTHING",
+                        "# 评分标准\n- 社团简介（5 分）：是否点明社团。\n"
+                                + "- 社团活动（7 分）：活动安排是否具体。\n"));
+        return new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "张三",
+                "TEXT", null, null, answers, items,
+                "# 试卷默认评分标准\n- 总评（15 分）：只按本题 rubric。\n", null, "zh-CN");
+    }
+
+    private static final String DEFAULT_ESSAY_JSON = """
+            {"criteria":[{"name":"内容与任务完成","points":12,"comment":"正文写了“My class is great”，并说明每天一起学英语，覆盖了题目要求的要点。"},
+            {"name":"语法与拼写","points":3,"comment":"使用了“We learn English together every day”，语法与拼写基本正确。"}],
+            "total":15,"overall":"文章完整回应了题目，语言基本准确。","strength":"用“My class is great”直接点题。","suggestion":"补充一个具体的课堂活动例子。"}""";
+
+    private static final String DEFAULT_ESSAY_JSON_70 = """
+            {"criteria":[{"name":"内容与任务完成","points":10.5,"comment":"正文写了“My class is great”，并说明每天一起学英语，覆盖了题目要求的要点。"},
+            {"name":"语法与拼写","points":4.5,"comment":"使用了“We learn English together every day”，语法与拼写基本正确。"}],
+            "total":15,"overall":"文章完整回应了题目，语言基本准确。","strength":"用“My class is great”直接点题。","suggestion":"补充一个具体的课堂活动例子。"}""";
+
+    /** 没有 rubric 的考试作文：正文在 contentText，题项与试卷都没有评分标准。 */
+    private static Ports.WorkItem essayWithoutRubric() {
+        return new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "张三",
+                "TEXT", "My class is great.\n\nWe learn English together every day.", null,
+                List.of(new Ports.AnswerRow(UUID.randomUUID(), 1, "A")),
+                List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", "SECRET",
+                        new BigDecimal("15"), "Write about your summer holiday.")),
+                null, null, "zh-CN");
+    }
+
     private AiGradingEngine engine(FakeLlmClient llm) {
+        return engine(llm, EssayRubricWeights.DEFAULT);
+    }
+
+    private AiGradingEngine engine(FakeLlmClient llm, EssayRubricWeights weights) {
         Clock clock = Clock.fixed(NOW, ZoneOffset.UTC);
-        return new AiGradingEngine(new PromptBuilder(), new GradeOutputValidator(), llm, aiCalls, clock);
+        return new AiGradingEngine(new PromptBuilder(), new GradeOutputValidator(),
+                (LlmClientProvider) teacherId -> llm, aiCalls, clock, weights);
     }
 
     private static LlmClient.LlmResponse response(String content, int tokensIn, int tokensOut, long latency) {

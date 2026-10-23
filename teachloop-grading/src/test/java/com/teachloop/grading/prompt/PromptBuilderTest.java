@@ -37,7 +37,7 @@ class PromptBuilderTest {
         assertThat(request.studentText()).isEqualTo(ESSAY);
 
         PromptBuilder.Prompt prompt = builder.build(request);
-        assertThat(prompt.promptVersion()).isEqualTo("subjective-v2");
+        assertThat(prompt.promptVersion()).isEqualTo("subjective-v3");
         assertThat(prompt.system())
                 .contains("TESOL")
                 .contains("Write about your class.")

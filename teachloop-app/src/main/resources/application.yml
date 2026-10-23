@@ -55,6 +55,11 @@ teachloop:
     # 僵尸清扫（T091）：启动时 + 每 sweep-ms 把超过 stale-minutes 的 RUNNING 退回 PENDING
     sweep-ms: 120000
     stale-minutes: 5
+    # D-28：没有 rubric 的作文（题项级、试卷级都没有）按「内容 X% + 语法与拼写 (100-X)%」判分。
+    # 这里只写内容百分比，语法与拼写自动取其余部分；默认 80/20。改完重启生效。
+    # 题项级 rubric 或试卷级 rubric 存在时，永远以老师写的为准。
+    essay-default-rubric:
+      content-percent: ${TEACHLOOP_ESSAY_CONTENT_PERCENT:80}
   exam:
     # 到点自动交卷的扫描周期：归零后最迟这么久定稿（T199 验收要求 60 秒内）
     scan-ms: 30000

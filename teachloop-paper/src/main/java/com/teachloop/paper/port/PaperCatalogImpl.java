@@ -36,19 +36,13 @@ public class PaperCatalogImpl implements Ports.PaperCatalog {
                             i.getAnswerKey(), i.getPoints(), i.getStem(), i.getOptions(),
                             section == null ? 0 : section.getPosition(),
                             section == null ? null : section.getTitle(),
-                            i.getScoringStrategy().name());
+                            i.getScoringStrategy().name(), i.getRubricMarkdown());
                 })
                 .toList();
-        String rubric = p.getRubricMarkdown() == null ? defaultRubric() : p.getRubricMarkdown();
+        // D-28：不在这里编一份「没有分值」的默认 rubric；没有 rubric 时判分侧按
+        // teachloop.grading.essay-default-rubric.content-percent 合成「内容 + 语法与拼写」两项。
         return new Ports.PaperSnapshot(paperId, p.getVersion(), p.getTitle(), p.getTotalPoints().intValue(),
-                p.getDefaultDurationMinutes() == null ? 60 : p.getDefaultDurationMinutes(), specs, rubric);
-    }
-
-    private String defaultRubric() {
-        return """
-               # 评分标准
-               - 内容要点：是否覆盖题目要求的全部要点。
-               - 语言准确性：语法、用词与句式是否准确得体。
-               """;
+                p.getDefaultDurationMinutes() == null ? 60 : p.getDefaultDurationMinutes(), specs,
+                p.getRubricMarkdown());
     }
 }

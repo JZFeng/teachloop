@@ -1,5 +1,6 @@
 package com.teachloop.paper.importing;
 
+import com.teachloop.paper.domain.QuestionType;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -36,9 +37,22 @@ import java.util.regex.Pattern;
  */
 public final class PaperTextParser {
 
-    /** 一道解析出来的题。{@code sourceLine} 是题号所在行，便于教师定位。 */
+    /**
+     * 一道解析出来的题。{@code sourceLine} 是题号所在行，便于教师定位。
+     *
+     * <p>{@code questionType} 只对写作题有值（{@link QuestionType#ESSAY}）；客观题保持 null，
+     * 由调用方按「有没有选项」推断。{@code rubricMarkdown} / {@code referenceMarkdown}
+     * 是题项级评分标准与参考范文（D-24 / D-25），只有写作题会填。</p>
+     */
     public record ParsedItem(int number, int sourceLine, String stem, String options, String answerKey,
-                             BigDecimal points) {
+                             BigDecimal points, QuestionType questionType, String rubricMarkdown,
+                             String referenceMarkdown) {
+
+        /** 兼容既有调用：客观题，没有题项级 rubric/范文。 */
+        public ParsedItem(int number, int sourceLine, String stem, String options, String answerKey,
+                          BigDecimal points) {
+            this(number, sourceLine, stem, options, answerKey, points, null, null, null);
+        }
     }
 
     /** 一个试卷部分（{@code 第X部分}）；没有部分标题的文档只有一条、标题为空。 */
@@ -96,8 +110,27 @@ public final class PaperTextParser {
     private static final Pattern ENGLISH_SECTION = Pattern.compile("^Part\\s+[IVXLC\\d]+\\b.*$",
             Pattern.CASE_INSENSITIVE);
 
-    /** {@code 每小题 1.5 分} / {@code 每题 2 分}。 */
-    private static final Pattern POINTS_PER_ITEM = Pattern.compile("每(?:小)?题\\s*(\\d+(?:\\.\\d+)?)\\s*分");
+    /**
+     * {@code 每小题 1.5 分} / {@code 每题 2 分} / {@code 每小题 1.5 points} / {@code 1.5 points each}。
+     *
+     * <p>D-27：中文老师出英文卷时两种写法混用，分值语法统一到 {@code 分|points?|pts?}。</p>
+     */
+    private static final Pattern POINTS_PER_ITEM = Pattern.compile(
+            "每(?:小)?题\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)"
+                    + "|(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)\\s*(?:每(?:小)?题|each)",
+            Pattern.CASE_INSENSITIVE);
+    /** 任何带单位的分值：{@code 15 分} / {@code 15 points} / {@code 15 pts}。 */
+    private static final Pattern ANY_POINTS = Pattern.compile(
+            "(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)", Pattern.CASE_INSENSITIVE);
+    /** 写作任务行的「满分 N 分」：{@code 满分 15 分} / {@code 总分: 15 points}。 */
+    private static final Pattern TASK_SCORE = Pattern.compile(
+            "(?:满分|总分|total)\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)",
+            Pattern.CASE_INSENSITIVE);
+    /** 写作任务行的人才有的词：用来把「15. 应用文写作」和「1. 表达理解；」区分开。 */
+    private static final Pattern WRITING_TASK_HINT = Pattern.compile(
+            "写作|作文|应用文|书面表达|口语|演讲|发言稿|书信|通知");
+    /** 只有下划线的作答行：不进题干。 */
+    private static final Pattern BLANK_ANSWER_LINE = Pattern.compile("^\\s*_{3,}\\s*$");
     /** {@code 共 5 小题}。 */
     private static final Pattern SUB_QUESTION_COUNT = Pattern.compile("共\\s*(\\d+)\\s*小题");
     /** 主观题小节：不产题项。 */
@@ -167,9 +200,9 @@ public final class PaperTextParser {
         List<ParsedSection> sections = new ArrayList<>();
         for (Block block : group(lines.subList(0, answerStart))) {
             if (SUBJECTIVE.matcher(block.title).find()) {
-                warnings.add("「" + block.title + "」是主观题部分，没有生成题项；"
-                        + "如需要，请在作答页该部分的评分要点里补充要求");
-                sections.add(new ParsedSection(block.title, block.hint(), List.of()));
+                // D-23：写作/口语部分建 ESSAY 题项（有节按节一题、否则按带题号的写作任务行一题）
+                List<ParsedItem> writing = interpretWriting(block, ctx, warnings);
+                sections.add(new ParsedSection(block.title, block.hint(), List.copyOf(writing)));
                 continue;
             }
             List<ParsedItem> items = new ArrayList<>();
@@ -186,16 +219,31 @@ public final class PaperTextParser {
         }
 
         Map<Integer, AnswerValue> answers = new LinkedHashMap<>();
-        List<Integer> questionNumbers = ctx.items.stream().map(ParsedItem::number).toList();
+        // 写作题没有「字母答案」，不能混进纯字母串配对里；它的答案区内容是参考范文（D-25）
+        Set<Integer> essayNumbers = new HashSet<>();
+        List<Integer> questionNumbers = new ArrayList<>();
+        for (ParsedItem item : ctx.items) {
+            if (item.questionType() == QuestionType.ESSAY) {
+                essayNumbers.add(item.number());
+            } else {
+                questionNumbers.add(item.number());
+            }
+        }
         // 没有选项的题（语法填空、单句填空）答案就是文本，不能按字母解析
         Set<Integer> freeTextNumbers = new HashSet<>();
         for (ParsedItem item : ctx.items) {
+            if (item.questionType() == QuestionType.ESSAY) {
+                continue;
+            }
             if (item.options() == null || item.options().isBlank()) {
                 freeTextNumbers.add(item.number());
             }
         }
-        parseAnswerLines(lines, answerStart, answers, warnings, questionNumbers, freeTextNumbers);
+        Map<Integer, String> references = new LinkedHashMap<>();
+        parseAnswerLines(lines, answerStart, answers, warnings, questionNumbers, freeTextNumbers,
+                essayNumbers, references);
         applyAnswers(ctx.byNumber, answers, warnings);
+        applyReferences(ctx.byNumber, references);
 
         List<ParsedItem> finalized = new ArrayList<>(ctx.items.size());
         List<Integer> missingAnswers = new ArrayList<>();
@@ -204,8 +252,11 @@ public final class PaperTextParser {
             String answerKey = merged.answerKey();
             // points 为 null 表示文档没写「每小题 X 分」，交给调用方按部分分值兜底
             finalized.add(new ParsedItem(merged.number(), merged.sourceLine(), merged.stem(),
-                    merged.options(), answerKey, merged.points()));
-            if (answerKey == null || answerKey.isBlank()) {
+                    merged.options(), answerKey, merged.points(), merged.questionType(),
+                    merged.rubricMarkdown(), merged.referenceMarkdown()));
+            // 写作题由 rubric 判分，没有「缺标准答案」这回事
+            if (merged.questionType() != QuestionType.ESSAY
+                    && (answerKey == null || answerKey.isBlank())) {
                 missingAnswers.add(merged.number());
             }
         }
@@ -240,12 +291,15 @@ public final class PaperTextParser {
     /** 一个小节；{@code points} 为 null 表示标题里没写每小题分值。 */
     private static final class Sub {
         private final String title;
+        /** 清洗前的原始标题（含「满分 15 分」这类括号说明），写作题取分值要用。 */
+        private final String rawTitle;
         private final BigDecimal points;
         private final Integer expectedCount;
         private final List<DocumentTextExtractor.SourceLine> lines = new ArrayList<>();
 
-        private Sub(String title, BigDecimal points, Integer expectedCount) {
+        private Sub(String title, String rawTitle, BigDecimal points, Integer expectedCount) {
             this.title = title;
+            this.rawTitle = rawTitle;
             this.points = points;
             this.expectedCount = expectedCount;
         }
@@ -262,7 +316,7 @@ public final class PaperTextParser {
                     || ENGLISH_SECTION.matcher(text).matches()) {
                 subs = new ArrayList<>();
                 blocks.add(new Block(cleanTitle(text), subs));
-                current = new Sub(cleanTitle(text), pointsOf(text), null);
+                current = new Sub(cleanTitle(text), text, pointsOf(text), null);
                 subs.add(current);
                 continue;
             }
@@ -271,7 +325,7 @@ public final class PaperTextParser {
                     subs = new ArrayList<>();
                     blocks.add(new Block("", subs));
                 }
-                current = new Sub(cleanTitle(text), pointsOf(text), countOf(text));
+                current = new Sub(cleanTitle(text), text, pointsOf(text), countOf(text));
                 subs.add(current);
                 continue;
             }
@@ -280,7 +334,7 @@ public final class PaperTextParser {
                 blocks.add(new Block("", subs));
             }
             if (current == null) {
-                current = new Sub("", null, null);
+                current = new Sub("", "", null, null);
                 subs.add(current);
             }
             current.lines.add(line);
@@ -536,6 +590,177 @@ public final class PaperTextParser {
         return content.isEmpty() ? 1 : content.get(0).number();
     }
 
+    // ------------------------------------------------------------- 写作题
+
+    /** 一道写作任务：题号（0 = 顺序编号）+ 标题 + 正文行 + 分值。 */
+    private static final class WritingTask {
+        private final int number;
+        private final int sourceLine;
+        private final String title;
+        private final List<DocumentTextExtractor.SourceLine> body;
+        private final BigDecimal points;
+
+        private WritingTask(int number, int sourceLine, String title,
+                            List<DocumentTextExtractor.SourceLine> body, BigDecimal points) {
+            this.number = number;
+            this.sourceLine = sourceLine;
+            this.title = title == null ? "" : title.strip();
+            this.body = body;
+            this.points = points;
+        }
+    }
+
+    /**
+     * 写作 / 口语部分 → ESSAY 题项（D-23）。
+     *
+     * <p>粒度优先级：① 带题号的写作任务行（{@code 15. 应用文写作（满分 15 分）}）一行一题；
+     * ② 没有题号时按「第X节」一节一题；③ 都没有时整块 1 题并提醒。
+     * 节内的 {@code 1. 表达理解；} 这类编号行是内容要点，不是新题。</p>
+     */
+    private static List<ParsedItem> interpretWriting(Block block, Context ctx, List<String> warnings) {
+        List<DocumentTextExtractor.SourceLine> all = new ArrayList<>();
+        for (Sub sub : block.subs) {
+            all.addAll(sub.lines);
+        }
+        List<WritingTask> tasks = new ArrayList<>();
+        List<Integer> starts = new ArrayList<>();
+        for (int i = 0; i < all.size(); i++) {
+            Matcher number = NUMBER_LINE.matcher(strip(all.get(i).text()));
+            if (number.matches() && isWritingTaskLine(number.group(2))) {
+                starts.add(i);
+            }
+        }
+        if (!starts.isEmpty()) {
+            for (int k = 0; k < starts.size(); k++) {
+                int index = starts.get(k);
+                Matcher number = NUMBER_LINE.matcher(strip(all.get(index).text()));
+                if (!number.matches()) {
+                    continue;
+                }
+                int value = parseNumber(number.group(1), all.get(index).number());
+                int end = k + 1 < starts.size() ? starts.get(k + 1) : all.size();
+                String rest = number.group(2).strip();
+                tasks.add(new WritingTask(value, all.get(index).number(), rest,
+                        all.subList(index + 1, end), taskPoints(rest)));
+            }
+        } else {
+            List<Sub> sections = block.subs.stream()
+                    .filter(sub -> !sub.title.isBlank() && sub.lines.stream()
+                            .anyMatch(line -> !strip(line.text()).isBlank()))
+                    .toList();
+            boolean hasSubHeaders = block.subs.stream().skip(1).anyMatch(sub -> !sub.title.isBlank());
+            if (hasSubHeaders) {
+                for (Sub sub : sections) {
+                    BigDecimal points = taskPoints(sub.rawTitle);
+                    tasks.add(new WritingTask(0, firstLine(sub.lines), sub.title, sub.lines,
+                            points != null ? points : sub.points));
+                }
+            } else if (!all.isEmpty()) {
+                tasks.add(new WritingTask(0, firstLine(all), cleanTitle(block.title), all,
+                        taskPoints(block.title)));
+                warnings.add("「" + block.title + "」没有写作题号也没有小节，已按一整题导入");
+            }
+        }
+        if (tasks.isEmpty()) {
+            warnings.add("「" + block.title + "」没有识别到写作任务，已跳过");
+            return List.of();
+        }
+
+        BigDecimal partTotal = taskPoints(block.title);
+        BigDecimal perTask = partTotal == null ? null
+                : partTotal.divide(BigDecimal.valueOf(tasks.size()), 2, java.math.RoundingMode.HALF_UP);
+        int cursor = ctx.lastNumber;
+        List<ParsedItem> out = new ArrayList<>();
+        for (WritingTask task : tasks) {
+            int number = task.number > 0 ? task.number : ++cursor;
+            Integer previous = ctx.firstLine.get(number);
+            if (previous != null || ctx.byNumber.containsKey(number)) {
+                throw ImportException.atLine(task.sourceLine,
+                        "题号 " + number + " 重复（首次出现在第 " + (previous == null ? 0 : previous) + " 行）");
+            }
+            BigDecimal points = task.points != null ? task.points : perTask;
+            if (points == null || points.signum() <= 0) {
+                warnings.add("写作题 " + number + " 没有写分值（满分 N 分 / (N points)），请在向导里补上");
+                points = points == null ? BigDecimal.ZERO : points;
+            }
+            String stem = writingStem(task);
+            String rubric = rubricFromTask(task);
+            ctx.firstLine.put(number, task.sourceLine);
+            ctx.lastNumber = Math.max(ctx.lastNumber, number);
+            ctx.explicitNumbers.add(number);
+            out.add(register(new ParsedItem(number, task.sourceLine, stem.isBlank() ? null : stem,
+                    null, null, points, QuestionType.ESSAY, rubric, null), ctx));
+        }
+        return out;
+    }
+
+    /** 写作任务行的判定：带写作类词，或带「满分 N 分」——避免把内容要点当新题。 */
+    private static boolean isWritingTaskLine(String rest) {
+        return WRITING_TASK_HINT.matcher(rest).find() || TASK_SCORE.matcher(rest).find();
+    }
+
+    /** 任务行/小节标题里的分值：先认「满分 N 分」，再认任意「N 分 / N points」。 */
+    private static BigDecimal taskPoints(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        Matcher score = TASK_SCORE.matcher(text);
+        if (score.find()) {
+            return new BigDecimal(score.group(1));
+        }
+        Matcher any = ANY_POINTS.matcher(text);
+        return any.find() ? new BigDecimal(any.group(1)) : null;
+    }
+
+    private static int firstLine(List<DocumentTextExtractor.SourceLine> lines) {
+        return lines.isEmpty() ? 1 : lines.get(0).number();
+    }
+
+    /** 写作题题干 = 任务标题 + 正文（去掉纯下划线作答行与分页符）。 */
+    private static String writingStem(WritingTask task) {
+        StringBuilder sb = new StringBuilder();
+        if (!task.title.isBlank()) {
+            sb.append(task.title);
+        }
+        for (DocumentTextExtractor.SourceLine line : task.body) {
+            String text = strip(line.text());
+            if (text.isEmpty() || BLANK_ANSWER_LINE.matcher(text).matches()
+                    || text.equalsIgnoreCase("newpage")) {
+                continue;
+            }
+            if (sb.length() > 0) {
+                sb.append('\n');
+            }
+            sb.append(text);
+        }
+        return sb.toString().strip();
+    }
+
+    /**
+     * 题面已经写了分值的要点 → 预填题项级 rubric（D-24）。
+     *
+     * <p>只收「带分值」的短行：没有分值的要点只是内容清单，一律均分会生成一份假 rubric，
+     * 不如留空让老师在第 4 步写。</p>
+     */
+    private static String rubricFromTask(WritingTask task) {
+        List<String> criteria = new ArrayList<>();
+        for (DocumentTextExtractor.SourceLine line : task.body) {
+            String text = strip(line.text());
+            if (text.isEmpty() || BLANK_ANSWER_LINE.matcher(text).matches()) {
+                continue;
+            }
+            if (!ANY_POINTS.matcher(text).find()) {
+                continue;
+            }
+            String cleaned = text.replaceFirst("^\\d+\\s*[.、．)）]\\s*", "").strip();
+            if (cleaned.isEmpty() || cleaned.length() > 120) {
+                continue;
+            }
+            criteria.add("- " + cleaned);
+        }
+        return criteria.isEmpty() ? null : String.join("\n", criteria);
+    }
+
     // ---------------------------------------------------------------- 答案区
 
     /** 返回答案区第一行的下标；没有答案区时返回 lines.size()。 */
@@ -577,21 +802,47 @@ public final class PaperTextParser {
      */
     private static void parseAnswerLines(List<DocumentTextExtractor.SourceLine> lines, int answerStart,
                                          Map<Integer, AnswerValue> answers, List<String> warnings,
-                                         List<Integer> questionNumbers, Set<Integer> freeTextNumbers) {
+                                         List<Integer> questionNumbers, Set<Integer> freeTextNumbers,
+                                         Set<Integer> essayNumbers, Map<Integer, String> references) {
         DocumentTextExtractor.SourceLine badLine = null;
         String badText = null;
+        Integer currentEssay = null;
+        List<String> sample = new ArrayList<>();
+        boolean sawUnboundSample = false;
         for (int i = answerStart; i < lines.size(); i++) {
             DocumentTextExtractor.SourceLine line = lines.get(i);
             String text = strip(line.text());
             if (text.isEmpty()) {
+                if (currentEssay != null) {
+                    sample.add("");
+                }
                 continue;
             }
             text = stripAnswerPrefix(text);
             if (text.isEmpty()) {
                 continue;
             }
-            // 填空题：整行按题号切成若干条文本答案
             Integer leading = AnswerFreeText.leadingNumber(text);
+            // D-25：答案区里以写作题号开头的行 = 该题参考范文的入口；其后到下一个写作题号
+            // 或一条可解析的客观答案行，全部归该题。范文里以数字开头的行不再报错。
+            if (leading != null && essayNumbers.contains(leading)) {
+                flushSample(references, currentEssay, sample);
+                currentEssay = leading;
+                continue;
+            }
+            if (currentEssay != null) {
+                if (leading != null && isParseableAnswer(text)) {
+                    flushSample(references, currentEssay, sample);
+                    currentEssay = null;
+                } else {
+                    sample.add(text);
+                    continue;
+                }
+            }
+            if ((text.contains("范文") || text.contains("示范")) && !essayNumbers.isEmpty()) {
+                sawUnboundSample = true;
+            }
+            // 填空题：整行按题号切成若干条文本答案
             if (leading != null && freeTextNumbers.contains(leading)) {
                 for (AnswerFreeText.Entry entry : AnswerFreeText.parse(text)) {
                     if (entry.value().isEmpty()) {
@@ -659,10 +910,38 @@ public final class PaperTextParser {
                 }
             }
         }
+        flushSample(references, currentEssay, sample);
+        if (sawUnboundSample && references.isEmpty()) {
+            warnings.add("答案区里的写作示范范文没有题号，未保存；写成「15. …」可绑定到对应写作题");
+        }
         if (answers.isEmpty() && badLine != null) {
             throw ImportException.atLine(badLine.number(),
                     "无法解析的答案内容「" + badText + "」（支持 1. A / 1A / 1 A / 1-5 ABCDA / 1 A 2 B 3 C）");
         }
+    }
+
+    /** 一行能不能按客观答案解析：能解析的行表示范文结束、答案区继续。 */
+    private static boolean isParseableAnswer(String text) {
+        if (LETTER_SEQUENCE.matcher(text).matches()) {
+            return true;
+        }
+        if (ANSWER_PAIR.matcher(text).find()) {
+            return true;
+        }
+        return AnswerFreeText.bareNumber(text) != null;
+    }
+
+    /** 把一段范文写进题号对应的缓冲；空行只在段间保留，首尾去掉。 */
+    private static void flushSample(Map<Integer, String> references, Integer number, List<String> sample) {
+        if (number == null) {
+            sample.clear();
+            return;
+        }
+        String joined = String.join("\n", sample).strip();
+        if (!joined.isEmpty()) {
+            references.merge(number, joined, (first, second) -> first + "\n\n" + second);
+        }
+        sample.clear();
     }
 
     /**
@@ -726,6 +1005,20 @@ public final class PaperTextParser {
         }
         throw ImportException.atLine(line, "题号 " + number + " 的答案重复且不一致（第 "
                 + previous.line + " 行给的是 " + previous.value + "，此处是 " + letters + "）");
+    }
+
+    /** 答案区里按写作题号收集到的参考范文（D-25）写回题项。 */
+    private static void applyReferences(Map<Integer, ParsedItem> byNumber, Map<Integer, String> references) {
+        for (Map.Entry<Integer, String> entry : references.entrySet()) {
+            ParsedItem item = byNumber.get(entry.getKey());
+            String reference = entry.getValue() == null ? "" : entry.getValue().strip();
+            if (item == null || reference.isEmpty()) {
+                continue;
+            }
+            byNumber.put(entry.getKey(), new ParsedItem(item.number(), item.sourceLine(), item.stem(),
+                    item.options(), item.answerKey(), item.points(), item.questionType(),
+                    item.rubricMarkdown(), reference));
+        }
     }
 
     private static void applyAnswers(Map<Integer, ParsedItem> byNumber, Map<Integer, AnswerValue> answers,
@@ -914,7 +1207,11 @@ public final class PaperTextParser {
 
     private static BigDecimal pointsOf(String text) {
         Matcher matcher = POINTS_PER_ITEM.matcher(text);
-        return matcher.find() ? new BigDecimal(matcher.group(1)) : null;
+        if (!matcher.find()) {
+            return null;
+        }
+        String value = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
+        return value == null ? null : new BigDecimal(value);
     }
 
     private static Integer countOf(String text) {

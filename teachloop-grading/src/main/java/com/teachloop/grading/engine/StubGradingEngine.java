@@ -18,22 +18,24 @@ public class StubGradingEngine implements GradingEngine {
         this.ratio = ratio;
     }
 
+    /** 与真实引擎同一条逐篇流程，只是「判一篇」换成固定比例（D-26）。 */
     @Override
     public Ports.GradingResult grade(Ports.WorkItem item) {
-        BigDecimal essayMax = item.items().stream()
-                .filter(i -> "ESSAY".equals(i.questionType()))
-                .map(Ports.ItemSpec::points)
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return SubjectiveGradingLoop.grade(item, (work, essay) -> gradeOne(essay));
+    }
+
+    private Ports.GradingResult gradeOne(Ports.ItemSpec essay) {
+        BigDecimal essayMax = essay.points() == null ? BigDecimal.ZERO : essay.points();
         BigDecimal subjective = essayMax.multiply(ratio).setScale(1, RoundingMode.HALF_UP);
         List<Ports.CriterionScore> criteria = new ArrayList<>();
         if (essayMax.signum() > 0) {
+            BigDecimal contentMax = essayMax.multiply(new BigDecimal("0.6")).setScale(1, RoundingMode.HALF_UP);
             BigDecimal content = subjective.multiply(new BigDecimal("0.6")).setScale(1, RoundingMode.HALF_UP);
             BigDecimal language = subjective.subtract(content);
-            criteria.add(new Ports.CriterionScore("内容要点", content,
-                    essayMax.multiply(new BigDecimal("0.6")).setScale(1, RoundingMode.HALF_UP),
+            criteria.add(new Ports.CriterionScore("内容要点", content, contentMax,
                     "stub：按固定比例给分"));
             criteria.add(new Ports.CriterionScore("语言准确性", language,
-                    essayMax.subtract(essayMax.multiply(new BigDecimal("0.6"))).setScale(1, RoundingMode.HALF_UP),
+                    essayMax.subtract(contentMax).setScale(1, RoundingMode.HALF_UP),
                     "stub：按固定比例给分"));
         }
         return new Ports.GradingResult(null, subjective, criteria,

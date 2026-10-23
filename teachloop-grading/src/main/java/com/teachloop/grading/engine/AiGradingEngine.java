@@ -6,6 +6,7 @@ import com.teachloop.grading.ai.LlmClient;
 import com.teachloop.grading.ai.LlmClientProvider;
 import com.teachloop.grading.domain.AiCall;
 import com.teachloop.grading.domain.AiCallRepository;
+import com.teachloop.grading.prompt.EssayRubricWeights;
 import com.teachloop.grading.prompt.PromptBuilder;
 import com.teachloop.grading.prompt.SubjectiveGradeRequest;
 import com.teachloop.shared.port.Ports;
@@ -37,27 +38,41 @@ public class AiGradingEngine implements GradingEngine {
     private final LlmClientProvider clients;
     private final AiCallRepository aiCalls;
     private final Clock clock;
+    private final EssayRubricWeights essayWeights;
 
     /** 兼容旧测试/调用：固定客户端。 */
     public AiGradingEngine(PromptBuilder promptBuilder, GradeOutputValidator validator, LlmClient llm,
                            AiCallRepository aiCalls, Clock clock) {
-        this(promptBuilder, validator, (LlmClientProvider) teacherId -> llm, aiCalls, clock);
+        this(promptBuilder, validator, (LlmClientProvider) teacherId -> llm, aiCalls, clock,
+                EssayRubricWeights.DEFAULT);
     }
 
     public AiGradingEngine(PromptBuilder promptBuilder, GradeOutputValidator validator,
                            LlmClientProvider clients, AiCallRepository aiCalls, Clock clock) {
+        this(promptBuilder, validator, clients, aiCalls, clock, EssayRubricWeights.DEFAULT);
+    }
+
+    /** 指定作文默认评分比例（D-28）；没有 rubric 的作文用它合成「内容 + 语法与拼写」。 */
+    public AiGradingEngine(PromptBuilder promptBuilder, GradeOutputValidator validator,
+                           LlmClientProvider clients, AiCallRepository aiCalls, Clock clock,
+                           EssayRubricWeights essayWeights) {
         this.promptBuilder = promptBuilder;
         this.validator = validator;
         this.clients = clients;
         this.aiCalls = aiCalls;
         this.clock = clock;
+        this.essayWeights = essayWeights == null ? EssayRubricWeights.DEFAULT : essayWeights;
     }
 
+    /** 逐篇判分（D-26）：一道作文一次调用，合并交给 {@link SubjectiveGradingLoop}。 */
     @Override
     public Ports.GradingResult grade(Ports.WorkItem item) {
-        SubjectiveGradeRequest request = SubjectiveGradeRequest.from(item);
+        return SubjectiveGradingLoop.grade(item, this::gradeEssay);
+    }
+
+    private Ports.GradingResult gradeEssay(Ports.WorkItem item, Ports.ItemSpec essay) {
+        SubjectiveGradeRequest request = SubjectiveGradeRequest.forEssay(item, essay, essayWeights);
         if (request.isEmpty()) {
-            // 全是客观题：没有可判的主观内容，也没有必要调用模型。
             return new Ports.GradingResult(null, BigDecimal.ZERO, List.of(), null, List.of());
         }
         PromptBuilder.Prompt prompt = promptBuilder.build(request);

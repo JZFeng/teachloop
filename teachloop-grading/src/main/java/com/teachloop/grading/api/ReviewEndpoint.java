@@ -120,11 +120,13 @@ public class ReviewEndpoint {
 
     public record ItemView(int number, String questionType, String stem, String options,
                            String answerKey, BigDecimal points, String scoringStrategy,
-                           int sectionPosition, String sectionTitle) {
+                           int sectionPosition, String sectionTitle, String rubricMarkdown) {
     }
 
     /** T253：AI 的逐项意见（评分项名称、得分、满分、评语）。 */
-    public record CriterionView(String name, BigDecimal points, BigDecimal maxPoints, String comment) {
+    /** AI 逐项评分；{@code itemNumber} 指出这是哪道写作题的评分项（旧数据为 null）。 */
+    public record CriterionView(String name, BigDecimal points, BigDecimal maxPoints, String comment,
+                                Integer itemNumber) {
     }
 
     /**
@@ -218,7 +220,7 @@ public class ReviewEndpoint {
         List<ItemView> items = item.items().stream()
                 .map(i -> new ItemView(i.number(), i.questionType(), i.stem(), i.options(),
                         i.answerKey(), i.points(), i.scoringStrategy(),
-                        i.sectionPosition(), i.sectionTitle()))
+                        i.sectionPosition(), i.sectionTitle(), i.rubricMarkdown()))
                 .toList();
         return new ReviewDetail(str(item.submissionId()), str(item.studentId()),
                 item.studentName(), item.inputKind(), item.contentText(), item.contentHtml(), answers, items,

@@ -47,6 +47,14 @@ public class ObjectiveItem {
     @Column(name = "scoring_strategy", nullable = false)
     private ScoringStrategy scoringStrategy = ScoringStrategy.ALL_OR_NOTHING;
 
+    /** D-24：题项级评分标准；仅 ESSAY 有值，判分优先用它，空则回退试卷级 rubric。 */
+    @Column(name = "rubric_markdown", columnDefinition = "text")
+    private String rubricMarkdown;
+
+    /** D-25：参考范文；仅 ESSAY 有值，只给教师端看，不进 AI prompt、不进学生端。 */
+    @Column(name = "reference_markdown", columnDefinition = "text")
+    private String referenceMarkdown;
+
     protected ObjectiveItem() {
     }
 
@@ -84,4 +92,8 @@ public class ObjectiveItem {
     public void setStem(String stem) { this.stem = stem; }
     public void setOptions(String options) { this.options = options; }
     public void setPoints(BigDecimal points) { this.points = points; }
+    public String getRubricMarkdown() { return rubricMarkdown; }
+    public void setRubricMarkdown(String rubricMarkdown) { this.rubricMarkdown = rubricMarkdown; }
+    public String getReferenceMarkdown() { return referenceMarkdown; }
+    public void setReferenceMarkdown(String referenceMarkdown) { this.referenceMarkdown = referenceMarkdown; }
 }

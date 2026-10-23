@@ -63,6 +63,22 @@ class AiGradingConfigTest {
     }
 
     @Test
+    @DisplayName("作文默认比例可配置：70% 能启动，0/100 启动即失败")
+    void validatesEssayDefaultPercent() {
+        runner.withPropertyValues("teachloop.grading.engine=ai", "DEEPSEEK_API_KEY=test-key",
+                        "teachloop.grading.essay-default-rubric.content-percent=70")
+                .run(context -> assertThat(context).hasNotFailed());
+
+        runner.withPropertyValues("teachloop.grading.engine=ai", "DEEPSEEK_API_KEY=test-key",
+                        "teachloop.grading.essay-default-rubric.content-percent=0")
+                .run(context -> assertThat(context).hasFailed());
+
+        runner.withPropertyValues("teachloop.grading.engine=ai", "DEEPSEEK_API_KEY=test-key",
+                        "teachloop.grading.essay-default-rubric.content-percent=100")
+                .run(context -> assertThat(context).hasFailed());
+    }
+
+    @Test
     @DisplayName("无 Key 时仍可装配（调用时才失败，且不发网络请求）")
     void wiresWithoutApiKey() {
         runner.withPropertyValues("teachloop.grading.engine=ai")

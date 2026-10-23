@@ -296,6 +296,14 @@ papers ──< paper_sections ──< objective_items
 - `reviews` 增 `ai_overall`（总评）、`ai_model`、`ai_prompt_version`、`ai_key_source`、`ai_failure`（失败分类）、`feedback_language`（本次 AI 实际输出语言）；`ai_criteria` / `ai_feedback` 保留。
 - `ai_calls` 增 `key_source` 与 `prompt_version`（已有）；不记录 Key 本体。
 - `objective_items` 唯一 `(paper_section_id, number)`；增列 `stem`（题干）、`options`（选项 JSONB）、`question_type`（`single_choice` / `multiple_choice` / `fill_blank` / `essay`）、`answer_key`、`match_strategy`、以及解析工作项状态 `explanation_state` / `explanation_attempts` / `explanation_started_at` / `explanation_error`。
+- `objective_items` 再增两列（V036，D-24 / D-25）：`rubric_markdown`（仅 `ESSAY` 有值，题项级评分标准）、
+  `reference_markdown`（仅 `ESSAY`，教师端参考范文）。两列可空、无索引；**题项 rubric 的分值只约束本题，
+  不进 `papers.total_points`**（总分公式仍是 Σ item.points + Σ section_criteria.max_points）。
+  写入用 setter（构造器不扩参），避免动既有调用点。
+- 写作题由导入器建为 `ESSAY` 题项（D-23）：有「第X节」按节一题、否则按带题号的写作任务行一题；
+  没有显式题号时取全卷最大题号 +1。题干保存任务说明与卷面给出的开头/落款，纯下划线作答行剔除。
+- 旧口径作废：D-12 里「主观题不产题项、落成评分要点」的部分自 D-23 起失效（D-12 其余内容——材料并入题干、
+  多部分切分——仍有效）。
 - `item_explanations` 唯一 `(item_id, language, prompt_version)` —— 这是「同一题只调一次模型」的保证。
 - 枚举用 PG enum 或 check 约束；新增值必须有迁移，不手改线上。
 
@@ -377,21 +385,28 @@ due_at + grace_hours 到达 → 派发（见 §7）
 Worker 执行一份：
  ├─ 条件 UPDATE 领取该行（grading_state pending -> running）
  ├─ 校验 paper_version，不一致则重取快照
+ ├─ 客观分：按标准答案判分（不调模型），主观分逐篇累加
  ├─ 解析 Key：作业创建者 → 全局；都没有 → NO_KEY，不出分（§6.6）
- ├─ 读 rubric 快照 + 题目要求 + 学生语言 + 段数（policy_default）与边界标记（§6.7）
- ├─ 组装 prompt：任务背景 + 完整 rubric + 评分政策 + 可选锚点（system）
- │               + 客观指标 + 反馈语言 + 正文（user）
- │    （不含标准答案、不含客观得分——由类型系统保证调用方拿不到这些字段）
- ├─ Spring AI ChatClient → deepseek-flash，输出用 Jackson 3 反序列化并校验
- ├─ 校验：项名/顺序/满分/总分 + 原文引用 + 语言 + 长度结论 + 二元/分档；失败重试一次；
- │    仍失败 → 标 failed、写 ai_failure、保存原始输出，不出分
- ├─ 写 reviews（AI 草稿：主观分、逐项意见、overall、优点、建议、model/prompt_version/key_source）
+ ├─ 对该份里的每道 ESSAY 题（D-26，§6.8）：
+ │    ├─ 取正文：answers[] 里该题号的作答（全卷仅 1 道 ESSAY 时才回退 content_text）
+ │    ├─ 空白作文 → 0 分、不调用、评语「未作答」
+ │    ├─ 取本题 rubric（item.rubric_markdown，空则试卷级 rubric）+ 本题满分
+ │    ├─ 读题目要求（stem）+ 学生语言 + 该篇段数（policy_default）与边界标记（§6.7）
+ │    ├─ 组装 prompt：任务背景 + 本题 rubric + 评分政策 + 可选锚点（system）
+ │    │               + 客观指标 + 反馈语言 + 该篇正文（user）
+ │    │    （不含标准答案、不含参考范文、不含其他题的 rubric）
+ │    ├─ Spring AI ChatClient → deepseek-flash，输出用 Jackson 3 反序列化并校验
+ │    ├─ 校验：项名/顺序/满分/总分 + 原文引用 + 语言 + 长度结论 + 二元/分档；失败重试一次；
+ │    │    仍失败 → 整份标 failed、写 ai_failure、保存原始输出，不出分
+ │    └─ 记下本篇结果（分数、逐项、评语）
+ ├─ 合并：主观分 = Σ 各篇；逐项带 itemNumber；评语/优点/建议按「第 N 题（X 分）」分段
+ ├─ 写 reviews（AI 草稿：合并后的主观分、逐项意见、overall、优点、建议、model/prompt_version/key_source）
  └─ 写回 grading_state=done（前端轮询看到）
 ```
 
 **AI 看不到客观答案**这一条用代码结构强制：`SubjectiveGradeRequest` 记录类里根本不存在 `answers` 与 `objectiveTotal` 字段，`buildPrompt` 只能拿到该类型。
 
-### 6.1 Prompt 分层契约（2026-10-21 v2）
+### 6.1 Prompt 分层契约（2026-10-22 v3：逐篇）
 
 Prompt 必须严格分两层，**顺序不可变**；v2 把「任务背景、证据、评分政策、锚点」放进 system，
 并把长度结论改为服务端计算：
@@ -430,6 +445,8 @@ Prompt 必须严格分两层，**顺序不可变**；v2 把「任务背景、证
 
 **实现口径（2026-10-21，v2 修订）**：
 
+- 2026-10-22 起 `PROMPT_VERSION` 升为 `subjective-v3`：每次调用只判**一道**作文，system 顶部带
+  「本题：第 N 题（满分 X 分）」；本题 rubric 由题项级 rubric 提供，参考范文不进 prompt。
 - `PromptBuilder.PROMPT_VERSION` 从 `subjective-v1` 升为 `subjective-v2`；`SubjectiveGradeRequest`
   增加 `instructions`、`paragraphPolicy`、`paragraphBoundarySensitive`、`feedbackLanguage`（学生的），
   仍然**不含**标准答案、客观分、学生姓名、学号。
@@ -590,6 +607,39 @@ GradingWorker 领取 submission
   按 D-19 更正 golden set，同时在 `docs/reports/grading-quality/known-inconsistency.md` 留档。
 
 ---
+
+### 6.8 逐篇判分与题项级 rubric（D-24 / D-26，2026-10-22）
+
+**背景**：一份卷可以有两道写作题（应用文 15 分 + 口语表达 15 分），各有自己的评分项。
+现状是「试卷级一份 rubric + 一次调用判全部主观题」，且考试作文正文在 `answers[]` 里、判分只读
+`content_text`，等于拿空文本判分。
+
+**做法**
+
+1. **数据**：`ESSAY` 题项带 `rubric_markdown`；为空回退试卷级 rubric，再为空用系统默认 rubric。
+   `reference_markdown` 只给教师看，不进 prompt。
+2. **请求对象**：`SubjectiveGradeRequest.forEssay(WorkItem work, ItemSpec essay)` 负责取该篇正文、
+   该篇 rubric、该篇满分与长度区间。`SubjectiveGradeRequest` 仍然**不含** `answers` / `answerKey`
+   字段（隐私边界由类型系统保证），正文在工厂里取出后只以字符串传入。
+3. **正文来源**：`answers[]` 中 `number == essay.number()` 的作答；找不到且全卷只有 1 道 ESSAY 时
+   回退 `contentText`（独立作业路径）；仍为空视为未作答。
+4. **调用与合并**：逐篇调用（有作答才调用），每次都用现有 `PromptBuilder` + `GradeOutputValidator`
+   独立校验；合并为一份 `GradingResult`：主观分求和、`criteria` 带 `itemNumber`、三段文本按篇分段、
+   `model/prompt_version/key_source` 取最后一次调用。
+5. **失败**：任一篇重试耗尽 → 整份 FAILED（沿用 §7 状态机），不落假分；重跑整份会重复计费。
+6. **成本**：k 道写作题 → k 次调用（串行）。2 篇作文的时延约为 2 倍；system prompt 只多「本题」一行。
+   若将来出现 10+ 道主观题的卷，再评估并发或一次多篇。
+
+7. **没有 rubric 的默认判分（D-28）**：题项级、试卷级 rubric 都为空时，不在这里造默认文本，
+   由判分侧按 `teachloop.grading.essay-default-rubric.content-percent`（默认 80）合成两项：
+   内容与任务完成 X%、语法与拼写 100−X%，分值按本题满分拆分（15 分 → 12 + 3，14 分 → 11.2 + 2.8）。
+   英文反馈时用英文文案。题目全文（stem）始终在 prompt 的「题目要求」里；参考范文仍不进 prompt。
+   `PaperCatalogImpl` 不再编制「没有分值」的默认 rubric（否则会被均分成 50/50）；
+   旧快照里那段系统伪造文本由 `EssayRubricWeights.isLegacyDefault` 识别为「没有 rubric」，
+   存量卷子无需重新布置。
+
+**测试锚点**：`AiGradingEngineTest` 两篇不同 rubric → 2 次调用、`itemNumber` 正确、总分相加；
+第 15 题的 rubric/范文不出现在第 16 题的 prompt；空白篇 0 次调用；考试路径从 `answers[]` 取到正文。
 
 ## 7. 批改调度（状态机，不是队列）
 

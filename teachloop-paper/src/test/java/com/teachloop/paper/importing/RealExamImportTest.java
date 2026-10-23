@@ -16,8 +16,8 @@ import org.junit.jupiter.api.Test;
  * A–G 列在文末、语法填空 56–65 在正文里根本没有题号、写作部分还带
  * {@code 1. 表达理解；}这种编号要求。旧解析器把它当成第 1 题重复直接整卷失败。</p>
  *
- * <p>断言的是「教师看到什么就导入什么」：75 题、4 个部分、总分 120 分
- * （写作 30 分是主观题，不产题项）。</p>
+ * <p>断言的是「教师看到什么就导入什么」：75 道客观题 + 2 道写作题（76 / 77），
+ * 4 个部分、总分 150 分（客观 120 + 写作 30，D-23）。</p>
  */
 class RealExamImportTest {
 
@@ -39,7 +39,7 @@ class RealExamImportTest {
         assertThat(result.sections()).extracting(PaperTextParser.ParsedSection::title)
                 .containsExactly("第一部分 听力", "第二部分 阅读理解", "第三部分 英语知识运用", "第四部分 写作");
         assertThat(result.sections()).extracting(section -> section.items().size())
-                .containsExactly(20, 20, 35, 0);
+                .containsExactly(20, 20, 35, 2);
     }
 
     @Test
@@ -47,7 +47,8 @@ class RealExamImportTest {
         PaperTextParser.Result result = parseFixture();
 
         assertThat(result.items()).extracting(PaperTextParser.ParsedItem::number)
-                .containsExactlyElementsOf(java.util.stream.IntStream.rangeClosed(1, 75).boxed().toList());
+                .containsExactlyElementsOf(java.util.stream.IntStream.rangeClosed(1, 77).boxed().toList());
+        assertThat(result.items().subList(75, 77)).allMatch(item -> item.questionType() != null);
     }
 
     @Test
@@ -57,7 +58,9 @@ class RealExamImportTest {
         BigDecimal total = result.items().stream()
                 .map(PaperTextParser.ParsedItem::points)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        assertThat(total).isEqualByComparingTo("120");
+        assertThat(total).isEqualByComparingTo("150");
+        assertThat(pointsOf(result, 76)).isEqualByComparingTo("15");
+        assertThat(pointsOf(result, 77)).isEqualByComparingTo("15");
         assertThat(pointsOf(result, 1)).isEqualByComparingTo("1.5");
         assertThat(pointsOf(result, 21)).isEqualByComparingTo("2.5");
         assertThat(pointsOf(result, 41)).isEqualByComparingTo("1");
@@ -112,9 +115,17 @@ class RealExamImportTest {
     void doesNotMistakeTheWritingRequirementsForQuestions() throws IOException {
         PaperTextParser.Result result = parseFixture();
 
-        // 「1. 表达理解；」「2. 词数 80 左右；」都写在第四部分，不能变成题项
-        assertThat(item(result, 75).stem()).contains("from Peking University");
-        assertThat(result.warnings()).anyMatch(warning -> warning.contains("第四部分 写作"));
+        // 「1. 表达理解；」「2. 词数 80 左右；」都是写作题的内容要点：只建 76/77 两道写作题，
+        // 要点留在题干里，不能变成新的题项（D-23）。
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::number)
+                .doesNotHaveDuplicates();
+        assertThat(result.items().stream().filter(item -> item.questionType() == null).count())
+                .as("客观题仍是 75 道").isEqualTo(75);
+        assertThat(result.items()).extracting(PaperTextParser.ParsedItem::number)
+                .contains(76, 77);
+        assertThat(item(result, 76).questionType()).isNotNull();
+        assertThat(item(result, 76).stem()).contains("表达理解").contains("假定你是校英文报");
+        assertThat(item(result, 77).stem()).contains("社团简介");
     }
 
     @Test

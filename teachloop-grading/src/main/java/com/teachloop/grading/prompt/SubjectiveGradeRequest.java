@@ -85,6 +85,63 @@ public record SubjectiveGradeRequest(
      * <p>客观指标（词数、段落数）目前由正文计算：{@code submissions} 的 metrics 还没有通过
      * {@code WorkItem} 暴露。时长暂时为 {@code null}。
      */
+    /**
+     * 一道作文的请求（D-26）：本题正文 + 本题 rubric + 本题满分与长度区间。
+     *
+     * <p>考试作文的正文在 {@code answers[]} 里、不在 {@code content_text}；独立作业反过来。
+     * 正文在这里取出后只以字符串进请求，记录类本身仍不含 {@code answers} / {@code answerKey}。</p>
+     */
+    public static SubjectiveGradeRequest forEssay(Ports.WorkItem work, Ports.ItemSpec essay) {
+        return forEssay(work, essay, EssayRubricWeights.DEFAULT);
+    }
+
+    /**
+     * 同上，但允许指定默认评分比例（D-28）。题项级 rubric 与试卷级 rubric 都存在时优先用它们；
+     * 两级都没有时才按 {@code weights} 合成「内容 + 语法与拼写」两项默认 rubric。
+     */
+    public static SubjectiveGradeRequest forEssay(Ports.WorkItem work, Ports.ItemSpec essay,
+                                                  EssayRubricWeights weights) {
+        String text = essayText(work, essay);
+        String rubric = essay.rubricMarkdown() == null || essay.rubricMarkdown().isBlank()
+                ? work.rubricMarkdown() : essay.rubricMarkdown();
+        if (rubric == null || rubric.isBlank() || EssayRubricWeights.isLegacyDefault(rubric)) {
+            BigDecimal total = essay.points() == null ? BigDecimal.ZERO : essay.points();
+            rubric = (weights == null ? EssayRubricWeights.DEFAULT : weights)
+                    .defaultMarkdown(total, isEnglish(work.feedbackLanguage()));
+        }
+        BigDecimal max = essay.points() == null ? BigDecimal.ZERO : essay.points();
+        List<Criterion> criteria = RubricCriteria.parse(rubric, max, work.feedbackLanguage());
+        int[] range = lengthRange(rubric);
+        String instructions = essay.stem() == null ? "" : essay.stem().strip();
+        return new SubjectiveGradeRequest(List.of(new Item(essay.number(), essay.questionType(), max,
+                        instructions)), text, countWords(text),
+                TextLengthCounter.count(text, "policy_default"), null,
+                criteria, rubric, work.feedbackLanguage(), instructions,
+                binaryRubric(rubric), range[0], range[1], "policy_default",
+                TextLengthCounter.boundarySensitive(text, range[0], range[1]), work.anchors());
+    }
+
+    /**
+     * 一道作文的正文：考试取 {@code answers[]} 里该题号的作答；全卷只有 1 道 ESSAY 且没有该行时
+     * 回退 {@code content_text}（独立作业路径）。
+     */
+    public static String essayText(Ports.WorkItem work, Ports.ItemSpec essay) {
+        long essays = work.items() == null ? 0 : work.items().stream()
+                .filter(i -> "ESSAY".equals(i.questionType())).count();
+        // 独立作业只有一篇、正文在 content_text 里；考试作文在 answers[] 里（content_text 为空）
+        if (essays == 1 && work.contentText() != null && !work.contentText().isBlank()) {
+            return work.contentText().strip();
+        }
+        if (work.answers() != null) {
+            for (Ports.AnswerRow row : work.answers()) {
+                if (row.number() == essay.number() && row.answer() != null && !row.answer().isBlank()) {
+                    return row.answer().strip();
+                }
+            }
+        }
+        return "";
+    }
+
     public static SubjectiveGradeRequest from(Ports.WorkItem item) {
         List<Item> essays = item.items().stream()
                 .filter(i -> "ESSAY".equals(i.questionType()))
@@ -127,6 +184,10 @@ public record SubjectiveGradeRequest(
             }
         }
         return new int[] {1, 4};
+    }
+
+    private static boolean isEnglish(String language) {
+        return language != null && language.toLowerCase(java.util.Locale.ROOT).startsWith("en");
     }
 
     /** 二元 rubric（Yes/No、是/否）只允许 0 或满分；分档 rubric 不加这个限制。 */

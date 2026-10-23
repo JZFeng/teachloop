@@ -49,6 +49,10 @@ export interface PaperItem {
   answerKey: string | null
   points: number
   scoringStrategy?: 'ALL_OR_NOTHING' | 'PARTIAL'
+  /** D-24：写作题自己的评分标准；为空回退试卷级 rubric。 */
+  rubricMarkdown?: string | null
+  /** D-25：参考范文；只给教师端看，不进 AI prompt。 */
+  referenceMarkdown?: string | null
 }
 
 export interface PaperSection {
@@ -90,6 +94,8 @@ export interface PaperDetail {
   /** 试卷级 rubric（考试判分用）；向导打开时要回填，否则编辑器永远是空的。 */
   rubricMarkdown: string | null
   gradingPromptTemplate: string | null
+  /** D-28：作文默认内容占比（语法与拼写取其余），只用于界面回显当前系统配置。 */
+  essayContentPercent?: number
 }
 
 export type OfferingKind = 'EXAM' | 'ASSIGNMENT'
@@ -410,6 +416,8 @@ export interface ReviewItem {
   scoringStrategy: string | null
   sectionPosition: number
   sectionTitle: string | null
+  /** 写作题的题项级评分标准（D-24）。 */
+  rubricMarkdown?: string | null
 }
 
 export interface ReviewDetail {
@@ -447,6 +455,8 @@ export interface ReviewCriterion {
   points: number
   maxPoints: number
   comment: string | null
+  /** D-26：这是哪道写作题的评分项；旧数据为 null。 */
+  itemNumber?: number | null
 }
 
 export interface BulkApproveResult {

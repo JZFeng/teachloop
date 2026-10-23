@@ -19,24 +19,34 @@ public final class Ports {
      */
     public record ItemSpec(UUID itemId, int number, String questionType, String answerKey,
                            BigDecimal points, String stem, String options,
-                           int sectionPosition, String sectionTitle, String scoringStrategy) {
+                           int sectionPosition, String sectionTitle, String scoringStrategy,
+                           String rubricMarkdown) {
 
         /** 兼容既有测试与调用方：结构字段缺省。 */
         public ItemSpec(UUID itemId, int number, String questionType, String answerKey,
                         BigDecimal points, String stem) {
-            this(itemId, number, questionType, answerKey, points, stem, null, 0, null, "ALL_OR_NOTHING");
+            this(itemId, number, questionType, answerKey, points, stem, null, 0, null, "ALL_OR_NOTHING",
+                    null);
+        }
+
+        /** 兼容 T362 之前调用方：没有题项级 rubric。 */
+        public ItemSpec(UUID itemId, int number, String questionType, String answerKey,
+                        BigDecimal points, String stem, String options,
+                        int sectionPosition, String sectionTitle, String scoringStrategy) {
+            this(itemId, number, questionType, answerKey, points, stem, options,
+                    sectionPosition, sectionTitle, scoringStrategy, null);
         }
 
         public ItemSpec withAnswerKey(String key) {
             return new ItemSpec(itemId, number, questionType, key, points, stem, options,
-                    sectionPosition, sectionTitle, scoringStrategy);
+                    sectionPosition, sectionTitle, scoringStrategy, rubricMarkdown);
         }
 
         public ItemSpec(UUID itemId, int number, String questionType, String answerKey,
                         BigDecimal points, String stem, String options,
                         int sectionPosition, String sectionTitle) {
             this(itemId, number, questionType, answerKey, points, stem, options,
-                    sectionPosition, sectionTitle, "ALL_OR_NOTHING");
+                    sectionPosition, sectionTitle, "ALL_OR_NOTHING", null);
         }
     }
 
@@ -109,7 +119,17 @@ public final class Ports {
                                    BigDecimal subjectiveTotal, String gradingState) {
     }
 
-    public record CriterionScore(String name, BigDecimal points, BigDecimal maxPoints, String comment) {
+    public record CriterionScore(String name, BigDecimal points, BigDecimal maxPoints, String comment,
+                                 Integer itemNumber) {
+
+        /** 兼容既有调用：不区分题号（单篇判分/旧行为）。 */
+        public CriterionScore(String name, BigDecimal points, BigDecimal maxPoints, String comment) {
+            this(name, points, maxPoints, comment, null);
+        }
+
+        public CriterionScore withItemNumber(Integer number) {
+            return new CriterionScore(name, points, maxPoints, comment, number);
+        }
     }
 
     public record ItemExplanation(int number, String text) {

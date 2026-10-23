@@ -43,6 +43,14 @@ public final class AnswerTableParser {
      * @param freeTextNumbers 填空题题号：这些题号整行当作文本答案，不按字母解析
      */
     public static Result parse(String text, Set<Integer> freeTextNumbers) {
+        return parse(text, freeTextNumbers, Set.of());
+    }
+
+    /**
+     * @param freeTextNumbers 填空题题号：这些题号整行当作文本答案，不按字母解析
+     * @param essayNumbers    写作题题号：这些题号及其后的范文内容不进答案表（D-25）
+     */
+    public static Result parse(String text, Set<Integer> freeTextNumbers, Set<Integer> essayNumbers) {
         if (text == null || text.isBlank()) {
             throw new ImportException("答案表是空的");
         }
@@ -51,20 +59,42 @@ public final class AnswerTableParser {
         for (int i = 0; i < rows.length; i++) {
             lines.add(new DocumentTextExtractor.SourceLine(i + 1, rows[i]));
         }
-        return parse(MarkdownSyntax.clean(lines), freeTextNumbers);
+        return parse(MarkdownSyntax.clean(lines), freeTextNumbers, essayNumbers);
     }
 
     static Result parse(List<DocumentTextExtractor.SourceLine> lines, Set<Integer> freeTextNumbers) {
+        return parse(lines, freeTextNumbers, Set.of());
+    }
+
+    static Result parse(List<DocumentTextExtractor.SourceLine> lines, Set<Integer> freeTextNumbers,
+                        Set<Integer> essayNumbers) {
         List<Entry> entries = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
         Map<Integer, Integer> seen = new LinkedHashMap<>();
         DocumentTextExtractor.SourceLine skipped = null;
+        boolean inEssaySample = false;
         for (DocumentTextExtractor.SourceLine source : lines) {
             String line = source.text() == null ? "" : source.text().trim();
             if (line.isEmpty() || line.startsWith("#")) {
                 continue;
             }
             Integer leading = AnswerFreeText.leadingNumber(line);
+            // 写作题号（及其实范文）不进答案表：整块跳过，范文里的数字行也不报错
+            if (leading != null && essayNumbers.contains(leading)) {
+                if (!inEssaySample) {
+                    warnings.add("第 " + source.number() + " 行：题号 " + leading
+                            + " 是写作题，参考答案请在向导第 4 步的「参考范文」里填写");
+                }
+                inEssaySample = true;
+                continue;
+            }
+            if (inEssaySample) {
+                boolean restarts = leading != null && PAIR.matcher(line).find();
+                if (!restarts) {
+                    continue;
+                }
+                inEssaySample = false;
+            }
             if (leading != null && freeTextNumbers.contains(leading)) {
                 for (AnswerFreeText.Entry entry : AnswerFreeText.parse(line)) {
                     if (entry.value().isEmpty()) {

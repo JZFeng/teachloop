@@ -49,21 +49,25 @@ class RealExamWithAnswersTest {
 
         assertThat(result.sections()).extracting(PaperTextParser.ParsedSection::title)
                 .containsExactly("第一部分 听力", "第二部分 阅读理解", "第三部分 英语知识运用", "第四部分 写作");
+        // D-23：第四部分写作不再跳过，按「第X节」建两道 ESSAY 题（76 / 77）
         assertThat(result.sections()).extracting(section -> section.items().size())
-                .containsExactly(20, 20, 35, 0);
-        assertThat(result.items()).hasSize(75);
-        assertThat(result.missingAnswers()).as("附录里的答案要全部配上").isEmpty();
+                .containsExactly(20, 20, 35, 2);
+        assertThat(result.items()).hasSize(77);
+        assertThat(result.items()).filteredOn(item -> item.questionType() != null)
+                .extracting(PaperTextParser.ParsedItem::number).containsExactly(76, 77);
+        assertThat(result.missingAnswers()).as("附录里的答案要全部配上；写作题不算缺答案").isEmpty();
 
         BigDecimal total = result.items().stream()
                 .map(PaperTextParser.ParsedItem::points)
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
-        assertThat(total).isEqualByComparingTo("120");
+        assertThat(total).as("客观 120 + 写作 30").isEqualByComparingTo("150");
     }
 
     @Test
     void readsMultipleChoiceAnswersFromTheAppendix() throws IOException {
         Map<Integer, String> answers = parseCombined().items().stream()
+                .filter(item -> item.questionType() == null)
                 .collect(Collectors.toMap(PaperTextParser.ParsedItem::number,
                         PaperTextParser.ParsedItem::answerKey, (first, second) -> first, TreeMap::new));
 
@@ -76,6 +80,7 @@ class RealExamWithAnswersTest {
     @Test
     void readsFillBlankAnswersAsTextNotLetters() throws IOException {
         Map<Integer, String> answers = parseCombined().items().stream()
+                .filter(item -> item.questionType() == null)
                 .collect(Collectors.toMap(PaperTextParser.ParsedItem::number,
                         PaperTextParser.ParsedItem::answerKey, (first, second) -> first, TreeMap::new));
 
@@ -93,16 +98,21 @@ class RealExamWithAnswersTest {
         DocumentTextExtractor.ExtractedDocument paper =
                 DocumentTextExtractor.extract("paper.md", read("english-grade10-2026.md"));
         PaperTextParser.Result parsed = PaperTextParser.parse(paper.lines());
-        assertThat(parsed.items()).hasSize(75);
+        assertThat(parsed.items()).hasSize(77);
 
         Set<Integer> fillBlank = parsed.items().stream()
+                .filter(item -> item.questionType() == null)
                 .filter(item -> item.options() == null || item.options().isBlank())
                 .map(PaperTextParser.ParsedItem::number)
                 .collect(Collectors.toSet());
         assertThat(fillBlank).as("56–75 是填空题").hasSize(20);
+        Set<Integer> essays = parsed.items().stream()
+                .filter(item -> item.questionType() != null)
+                .map(PaperTextParser.ParsedItem::number)
+                .collect(Collectors.toSet());
 
         String answerText = new String(read("english-grade10-2026-answers.md"), StandardCharsets.UTF_8);
-        AnswerTableParser.Result table = AnswerTableParser.parse(answerText, fillBlank);
+        AnswerTableParser.Result table = AnswerTableParser.parse(answerText, fillBlank, essays);
 
         Map<Integer, String> answers = table.entries().stream()
                 .collect(Collectors.toMap(AnswerTableParser.Entry::number, AnswerTableParser.Entry::answer));

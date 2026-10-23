@@ -10,6 +10,7 @@ import type {
   PaperView,
 } from '../api/types'
 import { ErrorState, Loading, PageHeader } from '../components/States'
+import { Button } from '../ui'
 import { RubricPreview } from '../components/RubricPreview'
 import {
   errorMessage,
@@ -36,6 +37,10 @@ interface DraftItem {
   answerKey: string
   points: number
   scoringStrategy: ScoringStrategy
+  /** D-24：写作题自己的评分标准（只对 ESSAY 生效）。 */
+  rubricMarkdown: string
+  /** D-25：参考范文；只给教师端看。 */
+  referenceMarkdown: string
 }
 
 interface DraftCriterion {
@@ -65,6 +70,8 @@ interface Draft {
   /** 编辑模式：详情接口只返回评分项名称，逐项分值用「总分 − 题项分」推导。 */
   legacyCriteriaNames: string[]
   existingCriteriaTotal: number
+  /** D-28：作文默认内容占比（判分侧同一配置），用于向导回显，不参与保存。 */
+  essayContentPercent: number
   rubricMarkdown: string
   gradingPromptTemplate: string
   rubricTouched: boolean
@@ -91,6 +98,7 @@ function blankDraft(): Draft {
     sections: [],
     legacyCriteriaNames: [],
     existingCriteriaTotal: 0,
+    essayContentPercent: 80,
     rubricMarkdown: '',
     gradingPromptTemplate: '',
     rubricTouched: false,
@@ -130,11 +138,14 @@ function fromDetail(detail: PaperDetail): Draft {
         answerKey: item.answerKey ?? '',
         points: Number(item.points),
         scoringStrategy: (item.scoringStrategy ?? 'ALL_OR_NOTHING') as ScoringStrategy,
+        rubricMarkdown: item.rubricMarkdown ?? '',
+        referenceMarkdown: item.referenceMarkdown ?? '',
       })),
       criteria: [],
     })),
     legacyCriteriaNames: detail.criteriaNames,
     existingCriteriaTotal: criteriaTotal,
+    essayContentPercent: detail.essayContentPercent ?? 80,
     rubricMarkdown: detail.rubricMarkdown ?? '',
     gradingPromptTemplate: detail.gradingPromptTemplate ?? '',
     serverTotalPoints: Number(detail.paper.totalPoints),
@@ -153,6 +164,7 @@ function loadStoredDraft(): Draft | null {
       ...parsed,
       mode: parsed.mode === 'edit' ? 'edit' : 'create',
       step: Math.min(5, Math.max(1, Number(parsed.step ?? 1) || 1)),
+      essayContentPercent: Number(parsed.essayContentPercent ?? 80),
       sections: parsed.sections.map((section) => ({
         key: section.key ?? uid(),
         serverId: section.serverId,
@@ -168,6 +180,8 @@ function loadStoredDraft(): Draft | null {
           options: item.options ?? '',
           answerKey: item.answerKey ?? '',
           points: Number(item.points ?? 0),
+          rubricMarkdown: item.rubricMarkdown ?? '',
+          referenceMarkdown: item.referenceMarkdown ?? '',
         })),
         criteria: (section.criteria ?? []).map((criterion) => ({
           key: criterion.key ?? uid(),
@@ -195,6 +209,8 @@ function itemFromServer(item: PaperItem, previous?: DraftItem): DraftItem {
     answerKey: item.answerKey ?? '',
     points: Number(item.points),
     scoringStrategy: (item.scoringStrategy ?? 'ALL_OR_NOTHING') as ScoringStrategy,
+    rubricMarkdown: item.rubricMarkdown ?? '',
+    referenceMarkdown: item.referenceMarkdown ?? '',
   }
 }
 
@@ -380,6 +396,9 @@ export default function PaperWizardPage() {
   const [criteriaSectionKey, setCriteriaSectionKey] = useState('')
   const [criteriaForm, setCriteriaForm] = useState({ name: '', maxPoints: '', description: '' })
   const [formError, setFormError] = useState<string | null>(null)
+  // 第 4 步：写作题的题项级 rubric / 参考范文（D-24 / D-25）
+  const [essayBusyKey, setEssayBusyKey] = useState<string | null>(null)
+  const [essaySavedKey, setEssaySavedKey] = useState<string | null>(null)
 
   const [syncing, setSyncing] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
@@ -745,6 +764,8 @@ export default function PaperWizardPage() {
       answerKey: parsed.answerKey,
       points: parsed.points,
       scoringStrategy: parsed.scoringStrategy,
+      rubricMarkdown: '',
+      referenceMarkdown: '',
     }
     update((current) => ({
       ...current,
@@ -795,6 +816,46 @@ export default function PaperWizardPage() {
       points: '',
       scoringStrategy: 'ALL_OR_NOTHING',
     })
+  }
+
+  /** 第 4 步写作题的字段修改（只改本地草稿，点保存才落库）。 */
+  const updateEssayField = (
+    sectionKey: string,
+    itemKey: string,
+    patch: Partial<Pick<DraftItem, 'rubricMarkdown' | 'referenceMarkdown'>>,
+  ) => {
+    update((current) => ({
+      ...current,
+      sections: current.sections.map((section) =>
+        section.key === sectionKey
+          ? {
+              ...section,
+              items: section.items.map((item) =>
+                item.key === itemKey ? { ...item, ...patch } : item,
+              ),
+            }
+          : section,
+      ),
+    }))
+    setEssaySavedKey(null)
+  }
+
+  /** 保存一道写作题的 rubric 与参考范文；只发这两个字段，不会碰题干/答案。 */
+  const saveEssayText = async (item: DraftItem) => {
+    if (!draft?.paperId || draft.locked) return
+    setEssayBusyKey(item.key)
+    setFormError(null)
+    try {
+      await api.put(`/api/papers/${draft.paperId}/items/${item.number}`, {
+        rubricMarkdown: item.rubricMarkdown.trim(),
+        referenceMarkdown: item.referenceMarkdown.trim(),
+      })
+      setEssaySavedKey(item.key)
+    } catch (e) {
+      setFormError((e as Error).message)
+    } finally {
+      setEssayBusyKey(null)
+    }
   }
 
   const saveItemEdit = async () => {
@@ -1012,6 +1073,10 @@ export default function PaperWizardPage() {
           points: items[itemIndex].points,
           sectionId,
           scoringStrategy: items[itemIndex].scoringStrategy,
+          rubricMarkdown: items[itemIndex].questionType === 'ESSAY'
+            ? (items[itemIndex].rubricMarkdown.trim() || null) : null,
+          referenceMarkdown: items[itemIndex].questionType === 'ESSAY'
+            ? (items[itemIndex].referenceMarkdown.trim() || null) : null,
         })
         items = items.map((item, i) =>
           i === itemIndex ? { ...item, serverId: created.id } : item,
@@ -2187,6 +2252,88 @@ export default function PaperWizardPage() {
                 </tbody>
               </table>
             </div>
+
+            {draft.sections.some((section) => section.items.some((item) => item.questionType === 'ESSAY')) && (
+              <div style={{ margin: '16px 0' }}>
+                <h3 style={{ margin: '16px 0 8px' }}>
+                  {t('teacher.wizard.essayRubricTitle')}
+                </h3>
+                <div className="hint">{t('teacher.wizard.essayRubricHint')}</div>
+                {draft.sections.flatMap((section) =>
+                  section.items
+                    .filter((item) => item.questionType === 'ESSAY')
+                    .map((item) => (
+                      <div key={item.key} className="card" style={{ marginTop: 10 }}>
+                        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                          <b>
+                            {t('teacher.wizard.essayItemHeading', {
+                              number: item.number,
+                              points: fmtNum(item.points),
+                            })}
+                          </b>
+                          <span className="small muted">{section.title}</span>
+                        </div>
+                        <div className="f">
+                          <b>{t('teacher.wizard.essayItemRubric')}</b>
+                          <Suspense fallback={<div className="md-editor md-editor-loading">{t('editor.loading')}</div>}>
+                            <VditorMarkdown
+                              rows={6}
+                              value={item.rubricMarkdown}
+                              onChange={(next) => updateEssayField(section.key, item.key, { rubricMarkdown: next })}
+                              placeholder={t('teacher.wizard.essayItemRubricPlaceholder')}
+                              disabled={locked}
+                              expandable
+                              heading={t('teacher.wizard.essayItemRubric')}
+                              footer={(
+                                <RubricPreview
+                                  rubric={item.rubricMarkdown}
+                                  totalPoints={item.points}
+                                  title={t('teacher.wizard.rubricPreview')}
+                                />
+                              )}
+                            />
+                          </Suspense>
+                          <div className="hint">
+                            {item.rubricMarkdown.trim()
+                              ? t('teacher.wizard.essayItemRubricHint')
+                              : t('teacher.wizard.essayItemRubricDefault', {
+                                  content: draft.essayContentPercent,
+                                  language: 100 - draft.essayContentPercent,
+                                })}
+                          </div>
+                        </div>
+                        <div className="f">
+                          <b>{t('teacher.wizard.essayItemReference')}</b>
+                          <textarea
+                            rows={6}
+                            value={item.referenceMarkdown}
+                            disabled={locked}
+                            placeholder={t('teacher.wizard.essayItemReferencePlaceholder')}
+                            onChange={(e) =>
+                              updateEssayField(section.key, item.key, { referenceMarkdown: e.target.value })
+                            }
+                          />
+                          <div className="hint">{t('teacher.wizard.essayItemReferenceHint')}</div>
+                        </div>
+                        <div className="row" style={{ marginTop: 8 }}>
+                          <Button
+                            busy={essayBusyKey === item.key}
+                            disabled={locked}
+                            onClick={() => void saveEssayText(item)}
+                          >
+                            {essayBusyKey === item.key
+                              ? t('teacher.common.saving')
+                              : t('teacher.wizard.saveEssay')}
+                          </Button>
+                          {essaySavedKey === item.key && (
+                            <span className="small muted">{t('teacher.wizard.essaySaved')}</span>
+                          )}
+                        </div>
+                      </div>
+                    )),
+                )}
+              </div>
+            )}
 
             <h3 style={{ fontSize: 14, margin: '16px 0 8px' }}>
               {t('teacher.wizard.rubricTitle')}

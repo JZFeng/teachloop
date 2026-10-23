@@ -7,6 +7,7 @@ import type {
   BulkApprovePreview,
   BulkApproveResult,
   ReviewAnswer,
+  ReviewCriterion,
   ReviewDetail,
   ReviewItem,
   ReviewView,
@@ -363,19 +364,47 @@ export default function ReviewPage() {
                       <b className="mono" style={{ fontSize: 18 }}>{detail.aiSubjectiveDraft ?? '—'}</b>
                     </div>
                   </div>
-                  {(detail.aiCriteria ?? []).length > 0 && (
-                    <ul className="ai-criteria">
-                      {(detail.aiCriteria ?? []).map((criterion) => (
-                        <li key={criterion.name}>
-                          <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                            <b>{criterion.name}</b>
-                            <span className="mono small">{criterion.points} / {criterion.maxPoints}</span>
-                          </div>
-                          {criterion.comment && <div className="small muted">{criterion.comment}</div>}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
+                  {(detail.aiCriteria ?? []).length > 0 && (() => {
+                    // D-26：AI 逐项评分按题号分组；旧数据没有 itemNumber，仍按一组平铺。
+                    const groups: { number: number | null; items: ReviewCriterion[] }[] = []
+                    for (const criterion of detail.aiCriteria ?? []) {
+                      const number = criterion.itemNumber ?? null
+                      let group = groups.find((g) => g.number === number)
+                      if (!group) {
+                        group = { number, items: [] }
+                        groups.push(group)
+                      }
+                      group.items.push(criterion)
+                    }
+                    return groups.map((group) => {
+                      const item = group.number == null
+                        ? null
+                        : detail.items.find((i) => i.number === group.number)
+                      return (
+                        <div key={String(group.number)}>
+                          {group.number != null && (
+                            <div className="small muted" style={{ margin: '8px 0 2px' }}>
+                              {t('review.essayCriteriaGroup', {
+                                number: group.number,
+                                points: item ? fmtNum(item.points) : '',
+                              })}
+                            </div>
+                          )}
+                          <ul className="ai-criteria">
+                            {group.items.map((criterion) => (
+                              <li key={`${group.number}-${criterion.name}`}>
+                                <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+                                  <b>{criterion.name}</b>
+                                  <span className="mono small">{criterion.points} / {criterion.maxPoints}</span>
+                                </div>
+                                {criterion.comment && <div className="small muted">{criterion.comment}</div>}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )
+                    })
+                  })()}
                   {detail.aiOverall && (
                     <p className="small" style={{ whiteSpace: 'pre-wrap', marginBottom: 6 }}>
                       <b>{t('review.aiOverall')}</b> {detail.aiOverall}
@@ -490,6 +519,12 @@ export default function ReviewPage() {
                               {t('review.question', { number: item.number })}
                             </div>
                             {stemText.trim() ? <Markdown className="md-body" text={stemText} /> : null}
+                            {(item.rubricMarkdown ?? '').trim() ? (
+                              <details className="small">
+                                <summary className="muted">{t('review.essayItemRubric')}</summary>
+                                <Markdown className="md-body" text={item.rubricMarkdown ?? ''} />
+                              </details>
+                            ) : null}
                             <div className="grading-answer-text small">
                               {text || (hasContent ? t('review.seeContentAbove') : t('review.unanswered'))}
                             </div>

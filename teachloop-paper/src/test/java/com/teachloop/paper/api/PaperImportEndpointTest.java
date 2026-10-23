@@ -114,6 +114,52 @@ class PaperImportEndpointTest {
     }
 
     @Test
+    void importsWritingTasksAsEssayItemsWithReference() {
+        String text = """
+                ## 第四部分 写作（共两节，满分 30 分）
+                15. 应用文写作（满分 15 分）
+
+                写一封回信，给出建议。
+                **Dear Chen Ming:**
+
+                # 试卷参考答案
+                15. 应用文写作示范范文：
+                Dear Chen Ming,
+                I understand your feeling.
+                """;
+        MockMultipartFile file = new MockMultipartFile("file", "writing.md", "text/markdown",
+                text.getBytes(StandardCharsets.UTF_8));
+
+        ResponseEntity<?> response =
+                endpoint.importFile(paperId, file, sectionId, teacher(teacherId));
+
+        PaperEndpoint.ImportResult body = (PaperEndpoint.ImportResult) response.getBody();
+        assertThat(body).isNotNull();
+        assertThat(body.imported()).isEqualTo(1);
+        assertThat(body.missingAnswers()).as("写作题不算缺答案").isEmpty();
+        assertThat(persisted).hasSize(1);
+        ObjectiveItem essay = persisted.get(0);
+        assertThat(essay.getQuestionType()).isEqualTo(QuestionType.ESSAY);
+        assertThat(essay.getNumber()).isEqualTo(15);
+        assertThat(essay.getPoints()).isEqualByComparingTo("15");
+        assertThat(essay.getReferenceMarkdown()).contains("I understand your feeling.");
+        assertThat(essay.getRubricMarkdown()).as("题面要点没有分值，不预填 rubric").isNull();
+        assertThat(paper.getTotalPoints()).isEqualByComparingTo("15");
+    }
+
+    @Test
+    void rejectsRubricOnObjectiveItem() {
+        PaperEndpoint.CreateItem body = new PaperEndpoint.CreateItem(3, QuestionType.SINGLE_CHOICE,
+                "题干", "A. 一\nB. 二", "A", new BigDecimal("2"), sectionId, "ALL_OR_NOTHING",
+                "- 内容要点（2 分）", null);
+
+        assertThatThrownBy(() -> endpoint.addItem(paperId, body, false, teacher(teacherId)))
+                .isInstanceOfSatisfying(ApiException.class,
+                        ex -> assertThat(ex.code()).isEqualTo(ErrorCode.BAD_REQUEST));
+        assertThat(persisted).isEmpty();
+    }
+
+    @Test
     void skipsExistingNumbersWithWarningInsteadOfOverwriting() {
         persisted.add(new ObjectiveItem(UUID.randomUUID(), paperId, sectionId, 1, 1,
                 QuestionType.SINGLE_CHOICE, "旧题", "A. 旧\nB. 旧", "A", new BigDecimal("2")));

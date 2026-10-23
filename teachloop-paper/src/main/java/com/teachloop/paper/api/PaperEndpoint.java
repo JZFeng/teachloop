@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,6 +46,10 @@ public class PaperEndpoint {
     private final Ports.ObjectiveRecompute recompute;
 
     private final AuditPort audit;
+
+    /** D-28：作文默认内容占比；判分侧读同一配置，这里只用于向导回显当前比例。 */
+    @Value("${teachloop.grading.essay-default-rubric.content-percent:80}")
+    private int essayContentPercent = 80;
 
     /** 旧测试/内部构造兼容：没有布置统计时按 0 处理。 */
     public PaperEndpoint(PaperRepository papers, PaperSectionRepository sections,
@@ -78,7 +83,7 @@ public class PaperEndpoint {
 
     public record CreateItem(@NotNull Integer number, @NotNull QuestionType questionType, String stem,
                              String options, String answerKey, @NotNull BigDecimal points, UUID sectionId,
-                             String scoringStrategy) {
+                             String scoringStrategy, String rubricMarkdown, String referenceMarkdown) {
     }
 
     public record SetQuestionType(@NotNull QuestionType questionType) {
@@ -106,14 +111,15 @@ public class PaperEndpoint {
     }
 
     public record ItemView(String id, int number, String questionType, String stem, String options,
-                           String answerKey, BigDecimal points, String scoringStrategy) {
+                           String answerKey, BigDecimal points, String scoringStrategy,
+                           String rubricMarkdown, String referenceMarkdown) {
     }
 
     public record SectionView(String id, String title, int position, BigDecimal pointsPerItem, List<ItemView> items) {
     }
 
     public record PaperDetail(PaperView paper, List<SectionView> sections, List<String> criteriaNames,
-                              String rubricMarkdown, String gradingPromptTemplate) {
+                              String rubricMarkdown, String gradingPromptTemplate, int essayContentPercent) {
     }
 
     public record ImportedItem(int number, String stem, String options, String answerKey,
@@ -124,7 +130,8 @@ public class PaperEndpoint {
     public record ImportSection(String title, int itemCount, BigDecimal pointsPerItem) {
     }
 
-    public record UpdateItem(String stem, String options, String answerKey, BigDecimal points) {
+    public record UpdateItem(String stem, String options, String answerKey, BigDecimal points,
+                             String rubricMarkdown, String referenceMarkdown) {
     }
 
     public record AnswerTableRequest(@jakarta.validation.constraints.NotBlank String text) {
@@ -209,7 +216,8 @@ public class PaperEndpoint {
                                 .toList()))
                 .toList();
         List<String> crit = criteria.findByPaperIdOrderByPosition(id).stream().map(SectionCriteria::getName).toList();
-        return new PaperDetail(view(p), secs, crit, p.getRubricMarkdown(), p.getGradingPromptTemplate());
+        return new PaperDetail(view(p), secs, crit, p.getRubricMarkdown(), p.getGradingPromptTemplate(),
+                essayContentPercent);
     }
 
     @PostMapping("/{id}/sections")
@@ -289,6 +297,7 @@ public class PaperEndpoint {
         var item = new ObjectiveItem(UUID.randomUUID(), id, sectionId, body.number(), pos,
                 body.questionType(), body.stem(), body.options(), body.answerKey(), body.points());
         item.setScoringStrategy(parseStrategy(body.scoringStrategy()));
+        applyEssayText(item, body.rubricMarkdown(), body.referenceMarkdown());
         items.save(item);
         recalcTotal(p);
         return itemView(item);
@@ -317,6 +326,10 @@ public class PaperEndpoint {
         if (body.stem() != null) item.setStem(body.stem());
         if (body.options() != null) item.setOptions(body.options());
         if (body.answerKey() != null) item.setAnswerKey(body.answerKey().trim());
+        // D-24 / D-25：题项级 rubric 与参考范文只对写作题开放
+        if (body.rubricMarkdown() != null || body.referenceMarkdown() != null) {
+            applyEssayText(item, body.rubricMarkdown(), body.referenceMarkdown());
+        }
         if (body.points() != null) {
             item.setPoints(body.points());
             items.save(item);
@@ -358,12 +371,16 @@ public class PaperEndpoint {
         try {
             // 填空题的答案不是字母（challenging / to walk），按题号白名单交给文本通道
             Set<Integer> freeText = new HashSet<>();
+            Set<Integer> essays = new HashSet<>();
             for (ObjectiveItem item : items.findByPaperIdOrderByNumber(id)) {
                 if (item.getQuestionType() == QuestionType.FILL_BLANK) {
                     freeText.add(item.getNumber());
                 }
+                if (item.getQuestionType() == QuestionType.ESSAY) {
+                    essays.add(item.getNumber());
+                }
             }
-            parsed = AnswerTableParser.parse(body.text(), freeText);
+            parsed = AnswerTableParser.parse(body.text(), freeText, essays);
         } catch (ImportException ex) {
             throw ApiException.badRequest(ex.getMessage());
         }
@@ -517,16 +534,25 @@ public class PaperEndpoint {
                 continue;
             }
             String answerKey = parsedItem.answerKey();
-            QuestionType type = parsedItem.options() == null
-                    ? QuestionType.FILL_BLANK
-                    : (answerKey != null && answerKey.length() > 1
-                            ? QuestionType.MULTIPLE_CHOICE : QuestionType.SINGLE_CHOICE);
+            QuestionType type = parsedItem.questionType() != null
+                    ? parsedItem.questionType()
+                    : (parsedItem.options() == null
+                            ? QuestionType.FILL_BLANK
+                            : (answerKey != null && answerKey.length() > 1
+                                    ? QuestionType.MULTIPLE_CHOICE : QuestionType.SINGLE_CHOICE));
             BigDecimal points = parsedItem.points() == null ? fallback : parsedItem.points();
             var item = new ObjectiveItem(UUID.randomUUID(), paperId, section.getId(), parsedItem.number(),
                     ++position, type, parsedItem.stem(), parsedItem.options(), answerKey, points);
+            if (type == QuestionType.ESSAY) {
+                item.setRubricMarkdown(parsedItem.rubricMarkdown() == null || parsedItem.rubricMarkdown().isBlank()
+                        ? null : parsedItem.rubricMarkdown());
+                item.setReferenceMarkdown(parsedItem.referenceMarkdown() == null
+                        || parsedItem.referenceMarkdown().isBlank() ? null : parsedItem.referenceMarkdown());
+            }
             items.save(item);
             existingNumbers.add(parsedItem.number());
-            if (answerKey == null || answerKey.isBlank()) {
+            // 写作题由 rubric 判分，没有「标准答案」一说，不进缺答案清单
+            if (type != QuestionType.ESSAY && (answerKey == null || answerKey.isBlank())) {
                 missingAnswers.add(parsedItem.number());
             }
             imported.add(new ImportedItem(parsedItem.number(), parsedItem.stem(), parsedItem.options(),
@@ -687,7 +713,28 @@ public class PaperEndpoint {
     private static ItemView itemView(ObjectiveItem i) {
         return new ItemView(i.getId().toString(), i.getNumber(), i.getQuestionType().name(),
                 i.getStem(), i.getOptions(), i.getAnswerKey(), i.getPoints(),
-                i.getScoringStrategy().name());
+                i.getScoringStrategy().name(), i.getRubricMarkdown(), i.getReferenceMarkdown());
+    }
+
+    /**
+     * D-24 / D-25：题项级 rubric 与参考范文只允许写在写作题上。
+     * 传 null 表示「不修改」，传空串表示「清空」。
+     */
+    private static void applyEssayText(ObjectiveItem item, String rubricMarkdown, String referenceMarkdown) {
+        if (item.getQuestionType() != QuestionType.ESSAY) {
+            boolean anyRubric = rubricMarkdown != null && !rubricMarkdown.isBlank();
+            boolean anyReference = referenceMarkdown != null && !referenceMarkdown.isBlank();
+            if (anyRubric || anyReference) {
+                throw ApiException.badRequest("error.paper.essayOnly");
+            }
+            return;
+        }
+        if (rubricMarkdown != null) {
+            item.setRubricMarkdown(rubricMarkdown.isBlank() ? null : rubricMarkdown);
+        }
+        if (referenceMarkdown != null) {
+            item.setReferenceMarkdown(referenceMarkdown.isBlank() ? null : referenceMarkdown);
+        }
     }
 
     private PaperSection requireSection(UUID paperId, UUID sectionId) {
