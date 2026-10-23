@@ -543,7 +543,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
-| T386 | **存储端口进 shared + 落地阿里云 OSS**：新增 `com.teachloop.shared.storage.BlobStore`（`store`/`load`/`exists`，只放接口）；`LocalStorage` 与新的 `AliyunOssStorage` 实现之；sitting 的 6 处引用改 `shared` 类型、行为不变；`teachloop.storage.oss.*` 全部可配（endpoint / bucket / access-key-id / access-key-secret / path-prefix），`STORAGE_BACKEND` 默认仍为 `local`；选 `oss` 但缺配置时启动即失败；OSS 用例 `@Tag("oss")` 默认跳过并新增 `make test-oss`；密钥不进仓库、不进日志与错误信息 | — | `make test` 退出码 0 且用例数与改动前一致；`check-deps`/`check-boundaries`/`check-i18n`/`check-ui` 全部 0；`STORAGE_BACKEND=local` 下附件上传/下载行为与改前一致；配置齐全时 `make test-oss` 能上传后读回同字节；缺配置的报错信息不含 AccessKey |
+| T386 | **存储端口进 shared + 用 S3 协议落地对象存储**：新增 `com.teachloop.shared.storage.BlobStore`（`store`/`load`/`exists`，只放接口）；`LocalStorage` 与新的 `S3BlobStore`（AWS SDK v2 的 S3 客户端）实现之；sitting 的 6 处引用改 `shared` 类型、行为不变；`teachloop.storage.s3.*` 全部可配（endpoint / region / bucket / access-key-id / access-key-secret / path-style / path-prefix，path-style 默认 false 以适配 OSS 的 virtual-hosted 要求）；`STORAGE_BACKEND` 默认仍 `local`；选 `s3` 但缺配置时启动即失败；新增 `make oss-dev`（Docker 起 MinIO）与 `make test-oss`，S3 用例 `@Tag("oss")` 默认跳过；密钥不进仓库、日志与错误信息 | — | `make test` 退出码 0 且用例数与改动前一致；`check-deps`/`check-boundaries`/`check-i18n`/`check-ui` 全 0；`STORAGE_BACKEND=local` 下附件上传/下载行为与改前一致；MinIO 起来后 `make test-oss` 能上传后读回同字节（**这条不需要阿里云账号**）；缺配置的报错信息不含 AccessKey |
 
 ---
 
