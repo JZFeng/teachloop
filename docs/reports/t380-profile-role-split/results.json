@@ -32,12 +32,12 @@
   {
     "name": "本地 provider 保存后 source=user",
     "ok": true,
-    "detail": "{\"provider\":\"ollama\",\"displayName\":\"QA 本地 Ollama\",\"baseUrl\":\"http://127.0.0.1:11434/v1\",\"model\":\"qwen3:8b\",\"temperature\":\"0.2\",\"configured\":true,\"apiKeySet\":true,\"apiKeyMasked\":\"sk-****2ad6\",\"source\":\"user\",\"globalConfigured\":true,\"updatedAt\":\"2026-10-23T20:16:26.106070Z\",\"restartRequired\":false}"
+    "detail": "{\"provider\":\"ollama\",\"displayName\":\"QA 本地 Ollama\",\"baseUrl\":\"http://127.0.0.1:11434/v1\",\"model\":\"qwen3:8b\",\"temperature\":\"0.2\",\"configured\":true,\"apiKeySet\":true,\"apiKeyMasked\":\"sk-****2ad6\",\"source\":\"user\",\"globalConfigured\":true,\"updatedAt\":\"2026-10-23T20:18:46.924107Z\",\"restartRequired\":false}"
   },
   {
     "name": "本地 provider 保存后 configured=true（已有 Key 保留）",
     "ok": true,
-    "detail": "{\"provider\":\"ollama\",\"displayName\":\"QA 本地 Ollama\",\"baseUrl\":\"http://127.0.0.1:11434/v1\",\"model\":\"qwen3:8b\",\"temperature\":\"0.2\",\"configured\":true,\"apiKeySet\":true,\"apiKeyMasked\":\"sk-****2ad6\",\"source\":\"user\",\"globalConfigured\":true,\"updatedAt\":\"2026-10-23T20:16:26.106070Z\",\"restartRequired\":false}"
+    "detail": "{\"provider\":\"ollama\",\"displayName\":\"QA 本地 Ollama\",\"baseUrl\":\"http://127.0.0.1:11434/v1\",\"model\":\"qwen3:8b\",\"temperature\":\"0.2\",\"configured\":true,\"apiKeySet\":true,\"apiKeyMasked\":\"sk-****2ad6\",\"source\":\"user\",\"globalConfigured\":true,\"updatedAt\":\"2026-10-23T20:18:46.924107Z\",\"restartRequired\":false}"
   },
   {
     "name": "显示名称已保存",
@@ -52,7 +52,7 @@
   {
     "name": "批改时机保存为 DUE_DATE",
     "ok": true,
-    "detail": "{\"triggerMode\":\"DUE_DATE\",\"fixedTime\":\"02:30\",\"timeZone\":\"Asia/Shanghai\",\"catchUp\":true,\"lastFixedRunAt\":\"2026-10-23T20:13:31.147633Z\",\"updatedAt\":\"2026-10-23T20:16:26.935168Z\"}"
+    "detail": "{\"triggerMode\":\"DUE_DATE\",\"fixedTime\":\"02:30\",\"timeZone\":\"Asia/Shanghai\",\"catchUp\":true,\"lastFixedRunAt\":\"2026-10-23T20:13:31.147633Z\",\"updatedAt\":\"2026-10-23T20:18:47.764198Z\"}"
   },
   {
     "name": "学生登录",
