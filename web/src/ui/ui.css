@@ -166,7 +166,16 @@
   color: var(--muted-2);
 }
 
-/* ---- /ui-kit 展示页用到的排版（只做布局，颜色全部走变量） ---- */
+/* ---- 资料页「界面标准」面板用到的排版（只做布局，颜色全部走变量） ---- */
+/* 组件标准收在偏好设置里按需展开：分隔线 + 标题 + 右侧开关。 */
+.tl-pref-divider { border-top: 1px solid var(--line-2); margin: 16px 0 14px; }
+.tl-pref-extra { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.tl-pref-extra-text p { margin: 4px 0 0; }
+.tl-kit-embed { margin-top: 16px; border-top: 1px solid var(--line-2); padding-top: 12px; scroll-margin-top: 16px; }
+.tl-kit-embed-sub { margin: 0 0 2px; }
+.tl-kit-section { padding: 14px 0; border-top: 1px solid var(--line-2); }
+.tl-kit-section:first-child { border-top: 0; padding-top: 10px; }
+.tl-kit-section-title { margin: 0 0 10px; font-family: var(--font-head); font-size: 14px; font-weight: 650; }
 .tl-kit-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -377,7 +386,7 @@
 :root[data-theme='dark'] .tl-brand-lockup-img { display: none; }
 :root[data-theme='dark'] .tl-brand-lockup-dark { display: inline-flex; }
 
-/* /ui-kit 品牌色板：功能位胶囊、状态标签、原色块。颜色全部来自令牌。 */
+/* 界面标准面板的品牌色板：功能位胶囊、状态标签、原色块。颜色全部来自令牌。 */
 .tl-brand-kit { display: flex; flex-direction: column; gap: 10px; }
 .tl-brand-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .tl-brand-row-label { flex: 0 0 190px; font-size: 12px; color: var(--muted-2); }

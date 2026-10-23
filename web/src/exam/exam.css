@@ -243,6 +243,8 @@
 
 .inline-blank-slot, .inline-fill-wrap { display: inline; scroll-margin-top: 90px; white-space: nowrap; }
 .inline-blank-no, .inline-blank-value { white-space: nowrap; }
+/* T355：原文里有、本卷没有对应题目的空位。只画横线，不给控件。 */
+.inline-blank-gap { color: var(--muted-2); letter-spacing: .06em; }
 .inline-blank {
   display: inline-flex; align-items: baseline; gap: 3px;
   border: 0; border-bottom: 2px dashed var(--line); background: transparent;

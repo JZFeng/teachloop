@@ -49,8 +49,8 @@ const TEACHER_ROUTES = [
   ['admin-ai-light', '/admin/ai', 'light', 1200],
   ['profile-light', '/profile', 'light'],
   ['notifications-light', '/notifications', 'light'],
-  ['ui-kit-light', '/ui-kit', 'light', 2600],
-  ['ui-kit-dark', '/ui-kit', 'dark', 2600],
+  ['ui-kit-light', '/profile?panel=ui-kit', 'light', 2600],
+  ['ui-kit-dark', '/profile?panel=ui-kit', 'dark', 2600],
 ]
 
 mkdirSync(OUT, { recursive: true })

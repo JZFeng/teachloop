@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  AppstoreOutlined,
   AuditOutlined,
   BarChartOutlined,
   BellOutlined,
@@ -21,7 +20,6 @@ import {
   Loading,
   LogoutOutlined,
   MoonOutlined,
-  PageHeader,
   RobotOutlined,
   StatCard,
   SunOutlined,
@@ -53,7 +51,6 @@ const ICON_DEMO: { key: string; icon: ReactNode }[] = [
   { key: 'nav.grading', icon: <HighlightOutlined /> },
   { key: 'nav.review', icon: <AuditOutlined /> },
   { key: 'nav.reports', icon: <BarChartOutlined /> },
-  { key: 'ui.navKit', icon: <AppstoreOutlined /> },
   { key: 'nav.aiSettings', icon: <RobotOutlined /> },
   { key: 'nav.feedback', icon: <CommentOutlined /> },
   { key: 'nav.notifications', icon: <BellOutlined /> },
@@ -64,10 +61,13 @@ const ICON_DEMO: { key: string; icon: ReactNode }[] = [
 ]
 
 /**
- * UI 标准的展示页（`/ui-kit`）：一页看全组件的每种状态。
- * 规矩：这一页不许写死颜色/字号，只能引用组件与令牌——它自己就是被检查的对象。
+ * UI 标准面板：一页看全组件的每种状态。
+ *
+ * 它不再单独占一个路由/导航入口，而是收在资料页「偏好设置」里按需展开——
+ * 组件标准是给改样式的人对照的，不是产品功能。
+ * 规矩：这一块不许写死颜色/字号，只能引用组件与令牌——它自己就是被检查的对象。
  */
-export default function UiKitPage() {
+export function UiKitPanel() {
   const { t } = useTranslation('translation')
 
   const columns: Column<DemoRow>[] = [
@@ -86,9 +86,7 @@ export default function UiKitPage() {
   ]
 
   return (
-    <div className="teacher-page">
-      <PageHeader title={t('ui.kit.title')} sub={t('ui.kit.sub')} />
-
+    <div className="tl-kit-panel">
       <Section title={t('ui.kit.sectionButton')}>
         <StateRow label={t('ui.kit.stateDefault')}>
           <Button variant="primary">{t('ui.kit.variantPrimary')}</Button>
@@ -251,8 +249,8 @@ export default function UiKitPage() {
 
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="card">
-      <h2>{title}</h2>
+    <section className="tl-kit-section">
+      <h3 className="tl-kit-section-title">{title}</h3>
       {children}
     </section>
   )

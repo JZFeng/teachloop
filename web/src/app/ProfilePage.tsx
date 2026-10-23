@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import { LANGUAGES, changeLanguage } from '../i18n'
 import { Alert, Button, Field, Input, PageHeader, ThemeToggle } from '../ui'
+import { UiKitPanel } from './UiKitPanel'
 import type { AiTestResult, ProfileAiSettings } from '../api/types'
 
 interface ProfileView {
@@ -35,6 +37,28 @@ export default function ProfilePage() {
   const [aiMessage, setAiMessage] = useState<string | null>(null)
   const [aiError, setAiError] = useState<string | null>(null)
   const canConfigureAi = me?.role === 'TEACHER' || me?.role === 'ADMIN'
+  // 界面标准（组件与令牌）收在偏好设置里，不再占一个导航入口；旧链接 /ui-kit 带参数跳过来。
+  const [params, setParams] = useSearchParams()
+  const canViewDesign = me?.role === 'TEACHER' || me?.role === 'ADMIN'
+  const designOpen = canViewDesign && params.get('panel') === 'ui-kit'
+
+  const toggleDesign = () => {
+    setParams((prev) => {
+      const next = new URLSearchParams(prev)
+      if (next.get('panel') === 'ui-kit') next.delete('panel')
+      else next.set('panel', 'ui-kit')
+      return next
+    }, { replace: true })
+  }
+
+  useEffect(() => {
+    if (!designOpen) return
+    // 展开后把面板滚进视野：从 /ui-kit 旧链接进来时页面还停在顶部。
+    const frame = window.requestAnimationFrame(() => {
+      document.getElementById('ui-kit-panel')?.scrollIntoView({ block: 'start' })
+    })
+    return () => window.cancelAnimationFrame(frame)
+  }, [designOpen])
 
   useEffect(() => {
     if (!canConfigureAi) return
@@ -190,6 +214,32 @@ export default function ProfilePage() {
           </select>
         </Field>
         <ThemeToggle size="middle" />
+
+        {canViewDesign && (
+          <>
+            <div className="tl-pref-divider" aria-hidden="true" />
+            <div className="tl-pref-extra">
+              <div className="tl-pref-extra-text">
+                <b>{t('profile.designTitle')}</b>
+                <p className="small muted">{t('profile.designHint')}</p>
+              </div>
+              <Button
+                size="small"
+                aria-expanded={designOpen}
+                aria-controls="ui-kit-panel"
+                onClick={toggleDesign}
+              >
+                {designOpen ? t('profile.designHide') : t('profile.designShow')}
+              </Button>
+            </div>
+            {designOpen && (
+              <div id="ui-kit-panel" className="tl-kit-embed" role="region" aria-label={t('ui.kit.title')}>
+                <p className="small muted tl-kit-embed-sub">{t('ui.kit.sub')}</p>
+                <UiKitPanel />
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {canConfigureAi && (
