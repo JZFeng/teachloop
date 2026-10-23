@@ -51,17 +51,14 @@ public class DeepSeekLlmClient implements LlmClient {
 
     @Override
     public LlmResponse complete(LlmRequest request) {
-        if (apiKey.isBlank()) {
-            // 无 Key 时绝不发网络请求。
-            throw new LlmCallException("DEEPSEEK_API_KEY 未配置，拒绝调用模型");
-        }
         String body = requestBody(request);
-        HttpRequest httpRequest = HttpRequest.newBuilder(uri())
+        HttpRequest.Builder builder = HttpRequest.newBuilder(uri())
                 .timeout(timeout)
-                .header("Content-Type", "application/json")
-                .header("Authorization", "Bearer " + apiKey)
-                .POST(HttpRequest.BodyPublishers.ofString(body))
-                .build();
+                .header("Content-Type", "application/json");
+        if (!apiKey.isBlank()) {
+            builder.header("Authorization", "Bearer " + apiKey);
+        }
+        HttpRequest httpRequest = builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
         long started = System.nanoTime();
         HttpResponse<String> response;
         try {

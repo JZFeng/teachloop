@@ -84,14 +84,15 @@ class DeepSeekLlmClientTest {
     }
 
     @Test
-    @DisplayName("无 API Key 时不发任何网络请求")
-    void doesNotCallNetworkWithoutApiKey() {
+    @DisplayName("无 API Key 时照常请求，且不带 Authorization 头（本地模型）")
+    void callsLocalEndpointWithoutApiKey() {
         DeepSeekLlmClient client = client("", "");
 
-        assertThatThrownBy(() -> client.complete(new LlmClient.LlmRequest("s", "u")))
-                .isInstanceOf(LlmCallException.class)
-                .hasMessageContaining("DEEPSEEK_API_KEY");
-        assertThat(hits.get()).isZero();
+        LlmClient.LlmResponse response = client.complete(new LlmClient.LlmRequest("s", "u"));
+
+        assertThat(response.content()).isEqualTo("{\"ok\":true}");
+        assertThat(hits.get()).isEqualTo(1);
+        assertThat(lastAuthorization.get()).isNull();
     }
 
     @Test

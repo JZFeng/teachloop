@@ -49,7 +49,8 @@ public class SpringAiLlmClient implements LlmClient {
     public SpringAiLlmClient(String apiKey, String baseUrl, String model, BigDecimal temperature,
                              Duration timeout) {
         this.fixedClient = null;
-        this.apiKey = apiKey == null ? "" : apiKey.strip();
+        // 本地模型通常不校验 Authorization；OpenAI SDK 又要求 apiKey 非空，用占位值。
+        this.apiKey = apiKey == null || apiKey.isBlank() ? "local-no-key" : apiKey.strip();
         this.baseUrl = baseUrl == null || baseUrl.isBlank() ? "https://api.deepseek.com" : baseUrl.strip();
         this.model = model == null || model.isBlank() ? "deepseek-flash" : model.strip();
         this.temperature = temperature == null ? new BigDecimal("0.2") : temperature;
@@ -58,10 +59,6 @@ public class SpringAiLlmClient implements LlmClient {
 
     @Override
     public LlmResponse complete(LlmRequest request) {
-        if (fixedClient == null && apiKey.isBlank()) {
-            // 无 Key 时绝不构建客户端、绝不发网络请求。
-            throw new LlmCallException("DEEPSEEK_API_KEY 未配置，拒绝调用模型");
-        }
         if (request == null || request.system() == null || request.user() == null) {
             throw new LlmCallException("模型请求缺少 system 或 user");
         }

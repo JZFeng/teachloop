@@ -44,14 +44,15 @@ teachloop:
     batch-size: 5
     # 到期派发的扫描周期（T092）；互斥在 SQL 条件更新，不靠这里
     dispatch-ms: 60000
-    # 峰谷调度（T093）：北京时间工作日 9-12 / 14-18 为高峰，自动派发推迟到空闲起点；手动派发不受限
-    # 只影响考试：作业改走下面的夜间批量（决策 003）
+    # 峰谷调度（T093）：北京时间工作日 9-12 / 14-18 为高峰，自动派发推迟到空闲起点；手动派发不受限。
+    # 只影响考试：作业按教师自己的偏好派发（决策 010），due-date 模式明确不看峰谷。
     peak-aware: true
-    # 作业夜间批量（决策 003）：每晚 02:30（Asia/Shanghai）把所有排队中的作业提交推给 AI，
-    # 不看截止时间；启动时补跑一次，避免恰好重启导致当晚空跑。
-    assignment-cron: "0 30 2 * * *"
-    assignment-zone: Asia/Shanghai
-    assignment-catch-up: true
+    # 教师级作业批改时机（决策 010）：每分钟扫描一次教师偏好。
+    # 固定时间默认 02:30 Asia/Shanghai，教师可在 /profile 改时刻、时区与是否补跑。
+    preference-scan-ms: 60000
+    assignment-default-time: "02:30"
+    assignment-default-zone: Asia/Shanghai
+    assignment-default-catch-up: true
     # 僵尸清扫（T091）：启动时 + 每 sweep-ms 把超过 stale-minutes 的 RUNNING 退回 PENDING
     sweep-ms: 120000
     stale-minutes: 5

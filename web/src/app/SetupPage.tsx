@@ -52,7 +52,7 @@ export default function SetupPage() {
           <label className="f"><b>{t('app.setup.password')}</b><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
           <label className="f"><b>{t('app.setup.apiKey')}</b><input type="password" value={apiKey} placeholder={t('app.setup.apiKeyPlaceholder')} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" /></label>
           <p className="small muted">{t('app.setup.apiKeyHint')}</p>
-          <button className="btn pri" disabled={!email || password.length < 8 || !apiKey.trim()} onClick={() => void createAdmin()}>{t('app.setup.createAdmin')}</button>
+          <button className="btn pri" disabled={!email || password.length < 8} onClick={() => void createAdmin()}>{t('app.setup.createAdmin')}</button>
         </>
       ) : (
         <>

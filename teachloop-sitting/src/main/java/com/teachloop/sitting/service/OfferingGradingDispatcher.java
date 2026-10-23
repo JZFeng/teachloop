@@ -97,30 +97,47 @@ public class OfferingGradingDispatcher {
     }
 
     /**
-     * 作业的夜间批量派发（决策 003 / T330）：不看截止时间、不看峰谷，一晚一次。
+     * 决策 010：某位教师的固定时间批量派发。不看 due、不看峰谷；调用方负责判断“今天是否该跑”。
      *
-     * <p>作业的提交时间分散但成簇，AI 结果只是老师复核前的草稿，所以时间要求是「老师上班前准备好」，
-     * 而不是「交卷即出分」。这样既落在 DeepSeek 夜间折扣时段，也把「什么时候会批」变成一句可解释的话。
-     *
-     * <p>与自动派发共用同一套幂等：首次派发走条件更新建 run，已派发过的只把新到的 QUEUED 补进同一个 run。
+     * <p>与自动派发共用同一套幂等：首次派发走条件更新建 run，已派发过的只把新到的 QUEUED
+     * 补进同一个 run。只处理该教师名下的作业，不跨教师。
      *
      * @return 本次真正完成首次派发的场次数
      */
     @Transactional
-    public int dispatchAssignments() {
+    public int dispatchAssignmentsForTeacher(UUID teacherId) {
         Instant now = Instant.now(clock);
-        List<UUID> pending = offerings.findAssignmentsWithQueued();
+        List<UUID> pending = offerings.findAssignmentsWithQueuedByTeacher(teacherId);
         int dispatched = 0;
         for (UUID offeringId : pending) {
-            if (dispatchFirstTime(offeringId, now, null, "nightly") != null) {
+            if (dispatchFirstTime(offeringId, now, null, "fixed") != null) {
                 dispatched++;
                 continue;
             }
-            // 这一场早就派发过（可能有老师手动派过）：新提交补进同一个 run
             gradingDispatch.dispatch(offeringId);
             submissions.enqueueQueued(offeringId);
         }
-        // 每场派发都已写审计事件（mode=nightly，含 runId 与 enqueued），这里不再重复打日志。
+        submissions.enqueueQueuedOfDispatchedByTeacher(teacherId);
+        return dispatched;
+    }
+
+    /**
+     * 决策 010：某位教师的 due-date 模式派发。过了 {@code due_at + grace_hours} 就派，
+     * **不经过峰谷限制**——峰谷是 DeepSeek 的成本策略，不能写死在所有 provider 上。
+     *
+     * @return 本次真正完成首次派发的场次数
+     */
+    @Transactional
+    public int dispatchAssignmentsDueForTeacher(UUID teacherId, Instant now) {
+        List<UUID> due = offerings.findDueAssignmentsForGrading(teacherId, now);
+        int dispatched = 0;
+        for (UUID offeringId : due) {
+            if (dispatchFirstTime(offeringId, now, null, "due") != null) {
+                dispatched++;
+            }
+        }
+        // 已派发场次的迟到提交继续进同一个 run；不受峰谷限制。
+        submissions.enqueueQueuedOfDispatchedByTeacher(teacherId);
         return dispatched;
     }
 

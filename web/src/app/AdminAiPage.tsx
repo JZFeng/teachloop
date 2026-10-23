@@ -8,6 +8,7 @@ interface AiSettingsView {
   baseUrl: string
   model: string
   temperature: string
+  configured: boolean
   apiKeySet: boolean
   apiKeyMasked: string | null
   updatedAt: string
@@ -20,7 +21,7 @@ interface TestResult { ok: boolean; latencyMs: number; message: string; model: s
 export default function AdminAiPage() {
   const { t } = useTranslation('translation')
   const [view, setView] = useState<AiSettingsView | null>(null)
-  const [form, setForm] = useState({ provider: 'deepseek', baseUrl: 'https://api.deepseek.com', model: 'deepseek-flash', apiKey: '', temperature: '0.2' })
+  const [form, setForm] = useState({ provider: 'openai-compatible', baseUrl: '', model: '', apiKey: '', temperature: '0.2' })
   const [saved, setSaved] = useState(false)
   const [test, setTest] = useState<TestResult | null>(null)
   const [busy, setBusy] = useState(false)
@@ -62,25 +63,29 @@ export default function AdminAiPage() {
         <div className="inline-note">
           {t('app.ai.current', {
             provider: view.provider,
-            model: view.model,
+            model: view.model || t('app.ai.modelUnset'),
             key: view.apiKeySet
               ? t('app.ai.keySet', { mask: view.apiKeyMasked })
               : t('app.ai.keyUnset'),
             time: new Date(view.updatedAt).toLocaleString(),
           })}
+          {' · '}{view.configured ? t('app.ai.configured') : t('app.ai.notConfigured')}
         </div>
       )}
       <label className="f"><b>Provider</b>
         <select value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })}>
-          <option value="deepseek">DeepSeek</option>
           <option value="openai-compatible">{t('app.ai.providerOpenaiCompatible')}</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="ollama">Ollama</option>
+          <option value="lmstudio">LM Studio</option>
+          <option value="vllm">vLLM</option>
         </select>
       </label>
-      <label className="f"><b>Base URL</b><input value={form.baseUrl} onChange={(e) => setForm({ ...form, baseUrl: e.target.value })} placeholder="https://api.deepseek.com" /></label>
-      <label className="f"><b>{t('app.ai.model')}</b><input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="deepseek-flash" /></label>
+      <label className="f"><b>Base URL</b><input value={form.baseUrl} onChange={(e) => setForm({ ...form, baseUrl: e.target.value })} placeholder="http://localhost:11434/v1" /></label>
+      <label className="f"><b>{t('app.ai.model')}</b><input value={form.model} onChange={(e) => setForm({ ...form, model: e.target.value })} placeholder="qwen3:8b" /></label>
       <label className="f"><b>Temperature</b><input type="number" min={0} max={1} step={0.1} value={form.temperature} onChange={(e) => setForm({ ...form, temperature: e.target.value })} /></label>
       <label className="f"><b>{t('app.ai.apiKey')}</b>
-        <input type="password" value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} placeholder="sk-..." autoComplete="off" />
+        <input type="password" value={form.apiKey} onChange={(e) => setForm({ ...form, apiKey: e.target.value })} placeholder={t('app.ai.keyOptionalPlaceholder')} autoComplete="off" />
       </label>
       <div className="row">
         <button className="btn pri" disabled={busy} onClick={() => void save()}>{t('app.ai.save')}</button>

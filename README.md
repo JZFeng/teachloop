@@ -29,7 +29,7 @@
 - 试卷：新建向导（部分 / 题项 / 评分项）、Markdown 整卷导入（单选 / 多选 / 填空 / 写作，含答案表与参考范文）、发布锁、复制、归档。
 - 布置：考试（一份试卷可发给多个班、按班覆盖截止与时长、服务端权威计时、到点自动交卷）与作业（自带题目要求 + 总分 + rubric，不引用试卷；过截止仍可交并标迟交）。
 - 作答：富文本（基础格式）/ 文件（PDF / DOCX / TXT / MD）/ 视频（ffprobe 校验）；阅读与完形材料按组只渲染一次。
-- 批改：客观题由代码判；主观题与写作题由 AI 按 rubric 判（题项级 rubric 优先，回退试卷级，再回退默认 80/20，仅作文）。作业每晚 02:30（Asia/Shanghai）夜间批量，考试到期派发；支持单份「让 AI 先批」、重试失败项、僵尸清扫。
+- 批改：客观题由代码判；主观题与写作题由 AI 按 rubric 判（题项级 rubric 优先，回退试卷级，再回退默认 80/20，仅作文）。作业按教师个人偏好派发（默认固定时间 02:30 Asia/Shanghai，可改时刻/时区或切到截止时间），考试到期派发；支持单份「让 AI 先批」、重试失败项、僵尸清扫。
 - 复核：预览 AI 逐项评分、改分、批量通过、发布 / 撤回；改动写审计。
 - 反馈与报表：学生看自己的评语 / 优点 / 建议，以及反馈里的班级聚合数（应交 / 实交 / 均分）；教师看错题、班级与学生聚合；导出 Markdown / XLSX / DOCX / ZIP / PDF。
 - 账号与运维：本地密码登录（dev）、管理员密码登录（prod）、微信登录 provider（未配置凭据返回 503，不伪造登录）、邮箱 / 手机号补全、教师个人 AI Key、管理员全局 AI Key（AES-GCM 加密、只回掩码）、站内通知、限流、审计、JSONL 请求日志与 `daily_stats`、`/healthz?deep=1`。
@@ -53,7 +53,7 @@
 ## 技术栈
 
 - 后端：Java 21 + Spring Boot 4.1.1（Spring Framework 7）+ Jackson 3（`tools.jackson`）+ Spring Data JPA / Hibernate 7 + Flyway + PostgreSQL 16
-- 模型：DeepSeek `deepseek-flash`，经 Spring AI 2.0.1 `ChatClient` 调用 OpenAI 兼容端点；`teachloop.ai.client=http` 保留 JDK HttpClient 回退。Key 解析顺序是「教师个人 → 全局 → `DEEPSEEK_API_KEY`」，无 Key / 调用失败不出假分
+- 模型：任意 OpenAI 兼容端点（DeepSeek / Ollama / LM Studio / vLLM），经 Spring AI 2.0.1 `ChatClient` 调用；`teachloop.ai.client=http` 保留 JDK HttpClient 回退。教师可在 `/profile` 自定义 provider（ID/显示名/Base URL/可空 Key/模型发现）；解析顺序是「教师个人 → 全局 → `DEEPSEEK_API_KEY`」，无可用配置 / 调用失败不出假分
 - 前端：`web/`，React 19.3 + TypeScript 7 + Vite 8.3 + antd 6 + i18next 26；Markdown 编辑器用 Vditor 4.0.1
 - 队列：不引入消息队列。提交行就是工作项，SQL 条件更新领取；`@Scheduled` + 数据库条件更新。考试到期派发、作业夜间批量、僵尸清扫、到点自动交卷都在这里
 - 部署：单镜像（内置 Noto CJK 与 ffprobe）→ compose 起 app + worker + postgres，无 Redis

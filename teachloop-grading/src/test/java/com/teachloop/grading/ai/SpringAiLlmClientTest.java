@@ -100,15 +100,15 @@ class SpringAiLlmClientTest {
     }
 
     @Test
-    @DisplayName("无 API Key 时不构建客户端、不发网络请求")
-    void doesNotCallNetworkWithoutApiKey() {
+    @DisplayName("无 API Key 时用占位 Key 发请求，本地模型可忽略鉴权")
+    void callsLocalEndpointWithPlaceholderKey() {
         SpringAiLlmClient client = new SpringAiLlmClient("", "http://127.0.0.1:" + port,
                 "deepseek-flash", new BigDecimal("0.2"), Duration.ofSeconds(5));
 
-        assertThatThrownBy(() -> client.complete(new LlmClient.LlmRequest("s", "u")))
-                .isInstanceOf(LlmCallException.class)
-                .hasMessageContaining("DEEPSEEK_API_KEY");
-        assertThat(lastBody.get()).isNull();
+        LlmClient.LlmResponse response = client.complete(new LlmClient.LlmRequest("s", "u"));
+
+        assertThat(response.content()).isEqualTo("{\"ok\":true}");
+        assertThat(lastAuthorization.get()).isEqualTo("Bearer local-no-key");
     }
 
     @Test

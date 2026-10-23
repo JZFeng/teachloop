@@ -1,0 +1,435 @@
+{
+  "v": 1,
+  "surveyId": "9083ce93-1ac3-47f5-99e0-1d12d22d28ad",
+  "sessionId": "session-264e025a-dcf3-45e7-aa02-ad2259b430b3",
+  "outcome": "answered",
+  "settledAt": 1792784247125,
+  "title": "AI 批改：模型配置、教师设置页与批改时机",
+  "answers": [
+    {
+      "id": "q_runtime",
+      "selected": [
+        "e"
+      ]
+    },
+    {
+      "id": "q_config",
+      "selected": [],
+      "custom": "一般来说自定义ai，用户得提供 provider ID，显示名称，api地址，api 密钥，用户可以连接上去，并选择模型（一个机器上可能有多个模型）"
+    },
+    {
+      "id": "q_place",
+      "selected": [],
+      "custom": "教师也有主题和语言哦，不只是 账号资料/Ai与批改设置"
+    },
+    {
+      "id": "q_scope",
+      "selected": [],
+      "custom": "只属于教师个人，每条作业都能改太细了，没那个必要。"
+    },
+    {
+      "id": "q_fixed",
+      "selected": [
+        "a"
+      ]
+    },
+    {
+      "id": "q_due",
+      "selected": [],
+      "custom": "过了 `due_at + grace_hours` 后，60 秒扫描派发，不用等峰谷限制了。峰谷只是对deepseek。咱不能把逻辑写死在deepseek上"
+    }
+  ],
+  "path": [
+    "q_runtime",
+    "q_config",
+    "q_place",
+    "q_scope",
+    "q_fixed",
+    "q_due"
+  ],
+  "spec": {
+    "title": "AI 批改：模型配置、教师设置页与批改时机",
+    "intro": "这一轮要定的是四件与 AI 批改有关的事：模型怎么配（含本地 LLM）、教师专属设置放在哪、profile 怎么按角色分、作业的 AI 批改按固定时间还是截止时间触发。\n\n**当前进度**：调研、决策 010、identity 的 AI 配置语义已经开始按默认值改；sitting 调度器、`/profile` 角色分栏、前端和测试还没动。所以你的回答会直接决定剩下部分的形态。\n\n**默认组合**就是下方一键模板 A：教师自填任意端点、预设 + 模型发现、`/profile` 按角色分栏、教师级触发偏好、固定时间 02:30 Asia/Shanghai 可改、due-date 沿用 due+grace 与峰谷。另有 2 个技术默认值先按现状处理：固定时间错过后启动补跑保持开启；考试仍按 due+grace，不受教师偏好影响。\n\n6 个问题彼此独立、都适用于本轮改动；每题都能选“其他”自己写，右上角有 5 个一键模板。约 4 分钟。",
+    "entry": "q_runtime",
+    "questions": {
+      "q_runtime": {
+        "header": "本地模型位置",
+        "prompt": "本地 LLM（local LLM）指跑在你自己机器或内网、不把试卷正文发给第三方 API 的模型服务，例如 Ollama、LM Studio、vLLM。后端要能通过 HTTP 访问它的 /v1/chat/completions。这台机器实际在哪里？这决定“测试连接”是从服务器发起还是需要隧道，也决定设置页该写什么提示。",
+        "allowCustom": true,
+        "next": "q_config",
+        "options": [
+          {
+            "key": "a",
+            "label": "后端同一台机器",
+            "description": "Ollama/LM Studio 与后端跑在同一台服务器或开发机上，地址用 127.0.0.1:端口；部署最简单。",
+            "insight": "- **Pattern:** 同机部署，base URL 固定为 127.0.0.1 加端口，后端与模型共享 CPU 和内存。\n- **Proven at:** Ollama 官方文档写明本地 `http://localhost:11434` 不需要鉴权；LM Studio 默认服务地址是 `http://localhost:1234/v1`。\n- **Breaks when:** 后端在公网 ECS、模型在教师笔记本上——127.0.0.1 指向服务器自己，请求永远到不了教师机器。\n- **Here now:** `AiGradingConfig` 直接把 `settings.baseUrl()` 交给客户端，代码本身不假设拓扑；缺的是设置页对“这个地址从服务器看”的解释。",
+            "sources": [
+              "docs/research/2026-10-23-local-llm-and-grading-timing.md",
+              "https://docs.ollama.com/api/authentication",
+              "teachloop-grading/src/main/java/com/teachloop/grading/engine/AiGradingConfig.java"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "同一内网的另一台机器",
+            "description": "模型跑在教室或办公室的 GPU 机器、NAS 上，后端通过私有 IP 访问；需要网络可达和防火墙放行。",
+            "insight": "- **Pattern:** 内网 GPU 机器跑 vLLM 或 Ollama，后端用 `192.168.x.x:8000/v1` 这类地址访问。\n- **Proven at:** vLLM 的 OpenAI 兼容服务器默认监听 8000，可用 `--api-key` 增加 Bearer 鉴权；教室共享一张 GPU 是常见部署。\n- **Breaks when:** 后端在阿里云、模型在校园内网——没有 VPN 或专线时私有 IP 不可达，测试连接会超时。\n- **Here now:** `user_ai_settings.base_url` 是自由文本，已经能存私有 IP；但没有连通性预检，也没有“从服务器发起”的提示。",
+            "sources": [
+              "docs/research/2026-10-23-local-llm-and-grading-timing.md",
+              "https://docs.vllm.ai/en/latest/serving/openai_compatible_server.html",
+              "teachloop-identity/src/main/resources/db/migration/V029__identity_user_ai_settings.sql"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "教师自己的电脑 + 隧道",
+            "description": "模型跑在教师笔记本上，用 Tailscale 或 Cloudflare Tunnel 把端口暴露给后端；隐私最好，运维最复杂。",
+            "insight": "- **Pattern:** 教师笔记本跑 LM Studio，隧道把本地端口映射成后端可达的 URL。\n- **Proven at:** Tailscale 和 Cloudflare Tunnel 是自托管服务暴露本地端口的常见组合；Turnitin 则把阅卷放在云端，不要求教师机器在线。\n- **Breaks when:** 教师关机、休眠或断网，批改就失败；隧道地址变化后还要重新配置。\n- **Here now:** `AiSettingsService.testUser` 从服务器发起 HTTP 请求，测不到教师浏览器所在网络；设置页必须写明测试路径。",
+            "sources": [
+              "docs/research/2026-10-23-local-llm-and-grading-timing.md",
+              "https://tailscale.com/kb/1223/funnel",
+              "teachloop-identity/src/main/java/com/teachloop/identity/ai/AiSettingsService.java"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "暂时只用云端 API",
+            "description": "继续用 DeepSeek、OpenAI 等云端服务，只把模型名和地址开放出来；不需要本地部署。",
+            "insight": "- **Pattern:** 保留云端 OpenAI 兼容端点，教师只改模型名和 base URL。\n- **Proven at:** DeepSeek 的 OpenAI 兼容端点就是现有默认路径，`AiGradingConfig` 默认用 Spring AI 客户端。\n- **Breaks when:** 试卷含隐私内容，云端 API 意味着正文离开你的网络；这正是本轮要支持本地模型的原因。\n- **Here now:** `application.yml` 默认 `teachloop.ai.base-url=https://api.deepseek.com`，默认模型是 `deepseek-flash`。",
+            "sources": [
+              "docs/research/2026-10-23-local-llm-and-grading-timing.md",
+              "teachloop-app/src/main/resources/application.yml",
+              "teachloop-grading/src/main/java/com/teachloop/grading/ai/SpringAiLlmClient.java"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "不预设拓扑，教师自填地址",
+            "description": "后端只保存并测试教师填写的 base URL，不判断是本机、内网还是云端；最灵活，也最依赖教师自己保证可达。",
+            "insight": "- **Pattern:** 产品只存教师填写的 base URL，不假设模型在哪台机器上。\n- **Proven at:** Ollama、LM Studio、vLLM、llama.cpp 都接受任意 host 的 OpenAI 兼容地址；Open WebUI 等客户端也是让用户填 base URL。\n- **Breaks when:** 教师填了 `localhost` 但后端在另一台机器——测试连接失败，文案必须说清“从服务器发起”。\n- **Here now:** `user_ai_settings.base_url` 是自由文本，已经支持任意地址；缺的是无 Key 放行、模型发现和清晰提示。",
+            "sources": [
+              "docs/research/2026-10-23-local-llm-and-grading-timing.md",
+              "https://docs.ollama.com/api/openai-compatibility",
+              "teachloop-identity/src/main/java/com/teachloop/identity/ai/UserAiSettingsEntity.java"
+            ]
+          }
+        ]
+      },
+      "q_config": {
+        "header": "配置界面",
+        "prompt": "当前 `/profile` 只让教师填 Base URL、模型名和 API Key，provider 下拉只有 DeepSeek 与 OpenAI 兼容，而且 Key 为空会被当成“未配置”。你希望教师配置 AI 时看到什么？这决定后端是否要加模型发现接口、预设和“Key 可空”的校验。",
+        "allowCustom": true,
+        "next": "q_place",
+        "options": [
+          {
+            "key": "a",
+            "label": "预设 + 自由填写 + 模型发现",
+            "description": "提供 Ollama、LM Studio、vLLM、DeepSeek、自定义预设；base URL 和模型可改，Key 可空；点“加载模型”从 /v1/models 拉列表，失败仍可手填。",
+            "insight": "- **Pattern:** 预设负责填 base URL，模型发现负责填 model，手填作为兜底。\n- **Proven at:** Ollama、LM Studio、vLLM、llama.cpp 都实现 `GET /v1/models`；LM Studio 文档把它列为标准端点。\n- **Breaks when:** 本地服务器没开、跨域或鉴权失败时模型列表拉不到——下拉不能设成必填，否则教师被卡死。\n- **Here now:** `ProfilePage.tsx` 只有三个文本框；`AiSettingsService.testWith` 只发 `POST /chat/completions`，没有 `GET /models`。",
+            "sources": [
+              "web/src/app/ProfilePage.tsx",
+              "teachloop-identity/src/main/java/com/teachloop/identity/ai/AiSettingsService.java",
+              "https://lmstudio.ai/docs/developer/openai-compat"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "预设 + 自由填写，不发现模型",
+            "description": "有预设和自由文本，但不调用 /v1/models；实现简单，教师需要知道本地模型名。",
+            "insight": "- **Pattern:** 预设 + 自由文本，不发现模型。\n- **Proven at:** 大多数 OpenAI 兼容客户端都允许手填 model；模型名本来就是部署侧的知识。\n- **Breaks when:** 教师不知道本地模型标识（如 `qwen3:8b`），填错后只在判分时看到 404。\n- **Here now:** `user_ai_settings.model` 是 `varchar(100) not null`，已经能存任意模型名。",
+            "sources": [
+              "web/src/app/ProfilePage.tsx",
+              "teachloop-identity/src/main/resources/db/migration/V029__identity_user_ai_settings.sql",
+              "https://docs.ollama.com/api/openai-compatibility"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "只做通用 OpenAI 兼容",
+            "description": "只有 base URL、模型、可选 Key 三个字段，不做任何预设；代码最少，对教师最不友好。",
+            "insight": "- **Pattern:** 三个字段的最小配置。\n- **Proven at:** OpenAI 兼容协议只需要 base URL、model 和可选 key；llama.cpp server 就是这样工作的。\n- **Breaks when:** 教师要从零知道 `http://localhost:11434/v1` 这类地址；没有引导时错误率最高。\n- **Here now:** 现有 `ProfilePage.tsx` 已经接近这一档，只是 Key 被强制、provider 没有实际作用。",
+            "sources": [
+              "web/src/app/ProfilePage.tsx",
+              "https://github.com/ggml-org/llama.cpp/tree/master/tools/server",
+              "teachloop-identity/src/main/java/com/teachloop/identity/ai/AiSettingsService.java"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "保留 DeepSeek 默认，加本地开关",
+            "description": "默认仍是 DeepSeek；勾选本地后填本地地址和模型，Key 可空。改动最小，但模型仍以 DeepSeek 为中心。",
+            "insight": "- **Pattern:** DeepSeek 默认 + 一个“本地模型”开关。\n- **Proven at:** 现有默认值 `deepseek-flash` 和 `https://api.deepseek.com` 就是这条路径。\n- **Breaks when:** 本地模型不是 DeepSeek 形状（模型名、JSON 支持不同），开关只是换地址，解释成本仍在。\n- **Here now:** `AiSettingsService` 的 fallback 默认值仍是 deepseek/deepseek-flash；`AdminAiPage` 的 provider 下拉已有 openai-compatible。",
+            "sources": [
+              "teachloop-identity/src/main/java/com/teachloop/identity/ai/AiSettingsService.java",
+              "web/src/app/AdminAiPage.tsx",
+              "teachloop-app/src/main/resources/application.yml"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "管理员统一配，教师只选预设",
+            "description": "管理员在 /admin/ai 配好一个或多个端点，教师只能选；集中管理更省心，但与“教师自由配置”冲突。",
+            "insight": "- **Pattern:** 管理员维护端点清单，教师只做选择。\n- **Proven at:** 企业 LLM 网关（如 LiteLLM）集中配置端点、用户只选模型，适合统一采购和审计。\n- **Breaks when:** 教师想接自己电脑上的模型，必须找管理员加一条；与“大部分时候 local”冲突。\n- **Here now:** `/api/admin/ai-settings` 只有单行 `ai_settings(id=1)`，没有多端点表。",
+            "sources": [
+              "teachloop-identity/src/main/resources/db/migration/V024__identity_ai_settings.sql",
+              "teachloop-identity/src/main/java/com/teachloop/identity/ai/AiSettingsEndpoint.java",
+              "https://docs.litellm.ai/docs/proxy/virtual_keys"
+            ]
+          }
+        ]
+      },
+      "q_place": {
+        "header": "教师设置页",
+        "prompt": "现在 `/profile` 同时承担“个人资料”和“教师 AI 设置”，学生也会打开同一个地址。你希望教师专属的 AI 与批改设置放在哪里？这决定路由、侧栏入口和学生看到的页面结构。",
+        "allowCustom": true,
+        "next": "q_scope",
+        "options": [
+          {
+            "key": "a",
+            "label": "`/profile` 按角色分栏",
+            "description": "同一个 `/profile`：教师看到“账号资料 / AI 与批改设置”，学生只看到账号资料和语言/主题；不新增路由。",
+            "insight": "- **Pattern:** 一个路由，按 `me.role` 渲染不同区块。\n- **Proven at:** Canvas 的 Account 页按角色显示不同设置；GitHub 的 `/settings` 也是同一入口按权限显示。\n- **Breaks when:** 页面越加越长，教师要滚很久才能找到 AI 设置；后续可以再拆 tab。\n- **Here now:** `ProfilePage.tsx` 已有 `canConfigureAi` 角色判断，AI 卡片只对 TEACHER/ADMIN 渲染；缺的是把批改时机也放进来，并给学生一个更短的页面。",
+            "sources": [
+              "web/src/app/ProfilePage.tsx",
+              "web/src/app/App.tsx",
+              "https://community.canvaslms.com/t5/Canvas-Basics-Guide/How-do-I-view-my-Canvas-account-settings/ta-p/55"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "新增 `/teacher/settings`",
+            "description": "侧栏只给教师显示“教学设置”，`/profile` 保持个人资料；职责最清楚，多一个页面。",
+            "insight": "- **Pattern:** 个人资料和教学配置分成两个路由。\n- **Proven at:** Moodle 把“个人资料/偏好”和“课程/作业设置”分开；LMS 普遍区分 user settings 与 course settings。\n- **Breaks when:** 教师要在两个页面之间跳；侧栏多一个入口，移动端更挤。\n- **Here now:** `App.tsx` 没有 `/teacher/settings` 路由；`Shell.tsx` 的教师导航已有 8 项，再加一项需要斟酌。",
+            "sources": [
+              "web/src/app/App.tsx",
+              "web/src/app/Shell.tsx",
+              "https://docs.moodle.org/en/Preferences"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "`/profile` 加“教学设置”标签页",
+            "description": "一个页面两个 tab：教师看到第二个 tab，学生看不到；介于 a 和 b 之间。",
+            "insight": "- **Pattern:** 同一路由，tab 分隔账号与教学。\n- **Proven at:** 很多 SaaS 的设置页用 tab（Account / Workspace / Billing）承载不同权限的内容。\n- **Breaks when:** tab 需要额外的可访问性处理（键盘、URL 状态），实现比 a 多。\n- **Here now:** `ProfilePage.tsx` 目前是纵向卡片流，没有 tab 组件；`web/src/ui` 里也没有 Tabs。",
+            "sources": [
+              "web/src/app/ProfilePage.tsx",
+              "web/src/ui",
+              "https://m3.material.io/components/tabs/overview"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "放进教师首页卡片",
+            "description": "在教师首页直接放 AI 与批改设置卡片；最显眼，首页会变重。",
+            "insight": "- **Pattern:** 首页卡片直接配置。\n- **Proven at:** 一些教师工具把常用设置放在 dashboard，减少一次点击。\n- **Breaks when:** 首页被统计卡和待办占满，设置卡片会把主任务挤下去。\n- **Here now:** `web/src/teacher/HomePage.tsx` 是统计卡加表格，没有设置区。",
+            "sources": [
+              "web/src/teacher/HomePage.tsx",
+              "web/src/app/Shell.tsx",
+              "docs/decisions/006-brand-visual.md"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "新增 `/settings` 统一设置页",
+            "description": "教师和学生都进 `/settings`，按角色渲染不同分区；以后加设置项不用再改路由。",
+            "insight": "- **Pattern:** 统一 `/settings`，按角色分区。\n- **Proven at:** Notion、Slack 等产品用统一设置入口加角色化分区，扩展性好。\n- **Breaks when:** 学生也会看到“设置”入口，容易误以为有教学配置；需要清晰的空状态。\n- **Here now:** `App.tsx` 只有 `/profile`，没有 `/settings`；侧栏“资料”入口常驻。",
+            "sources": [
+              "web/src/app/App.tsx",
+              "web/src/app/Shell.tsx",
+              "https://slack.com/help/articles/218547167-Manage-your-preferences"
+            ]
+          }
+        ]
+      },
+      "q_scope": {
+        "header": "偏好挂载层级",
+        "prompt": "“固定时间”与“截止时间”的选择，应该只属于教师个人，还是每条作业都能改？当前 `AssignmentGradingJob` 是一个全局 cron，所有教师的作业都在 02:30 跑；手动“立即派发”已经存在。这决定是否需要给作业表加字段、创建页是否多一个选项。",
+        "allowCustom": true,
+        "next": "q_fixed",
+        "options": [
+          {
+            "key": "a",
+            "label": "教师级默认，作用于所有作业",
+            "description": "教师在设置里选一次，之后所有作业都按这个规则；个别急件用现有的“立即派发”。",
+            "insight": "- **Pattern:** 一个教师一行偏好，调度器按教师分组派发。\n- **Proven at:** Turnitin 的 Feedback Release Date 是每条作业的设置，但 LMS 里也常见“教师默认值”；本需求原话就是 teacher preference。\n- **Breaks when:** 同一教师有“今晚就要”的作业，只能手动派发；现有“立即派发”正好兜底。\n- **Here now:** `AssignmentGradingJob` 没有教师维度；`offerings.created_by` 已有教师归属（V030）。",
+            "sources": [
+              "docs/decisions/003-assignment-nightly-grading.md",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/AssignmentGradingJob.java",
+              "teachloop-sitting/src/main/resources/db/migration/V030__sitting_offering_created_by.sql"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "每条作业创建时单独选",
+            "description": "不改教师设置，每条作业在创建页选固定时间或截止时间；最灵活，重复劳动最多。",
+            "insight": "- **Pattern:** 每条作业一个 trigger 字段。\n- **Proven at:** Canvas、Google Classroom 的截止与发布设置都是 per-assignment，灵活度最高。\n- **Breaks when:** 教师每次建作业都要重复选，容易忘；默认值仍要有一个来源。\n- **Here now:** `offerings` 表没有 trigger 字段；创建页 `AssignmentCreatePage.tsx` 已有多个开关，继续加会变长。",
+            "sources": [
+              "web/src/teacher/AssignmentCreatePage.tsx",
+              "teachloop-sitting/src/main/resources/db/migration/V005__sitting_offerings.sql",
+              "https://support.google.com/edu/classroom/answer/6020297"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "教师级默认 + 每条作业可覆盖",
+            "description": "设置里给默认值，创建作业时可改这一条；兼顾两者，表和 UI 都多一层。",
+            "insight": "- **Pattern:** 教师默认加作业覆盖。\n- **Proven at:** Turnitin 的作业级日期设置加机构默认值；企业系统常见的“继承/覆盖”模型。\n- **Breaks when:** 两处设置不一致时，教师要能看出这一条到底按哪个跑；UI 要显示“继承自教师设置”。\n- **Here now:** 需要新表加 `offerings.trigger_mode` 可空列；调度器要按“作业覆盖优先，否则教师默认”解析。",
+            "sources": [
+              "docs/decisions/003-assignment-nightly-grading.md",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/Offering.java",
+              "web/src/teacher/AssignmentCreatePage.tsx"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "按班级设置",
+            "description": "同一个班的所有作业统一规则；适合按课程节奏管理，跨班教师要多配几次。",
+            "insight": "- **Pattern:** 班级级策略。\n- **Proven at:** 一些 LMS 按课程设置截止或发布策略，班级是天然的管理边界。\n- **Breaks when:** 教师教多个班、节奏不同，要配多次；跨班作业没有归属。\n- **Here now:** `classes` 表存在，但没有班级级设置表；`offerings` 关联班级。",
+            "sources": [
+              "teachloop-classroom/src/main/resources/db/migration",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/Offering.java",
+              "https://docs.moodle.org/en/Assignment_settings"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "管理员全局设置，教师只读",
+            "description": "学校统一策略，教师不能改；最省心，和“teacher preference”冲突。",
+            "insight": "- **Pattern:** 管理员全局策略。\n- **Proven at:** 学校统一阅卷窗口的部署方式；管理员在 `/admin/ai` 已有全局配置入口。\n- **Breaks when:** 教师想按自己作息调整，必须找管理员；与用户原话“teacher preference”直接冲突。\n- **Here now:** `ai_settings(id=1)` 是单行全局配置；没有教师级调度配置。",
+            "sources": [
+              "teachloop-identity/src/main/resources/db/migration/V024__identity_ai_settings.sql",
+              "docs/decisions/003-assignment-nightly-grading.md",
+              "teachloop-app/src/main/resources/application.yml"
+            ]
+          }
+        ]
+      },
+      "q_fixed": {
+        "header": "固定时间细节",
+        "prompt": "固定时间模式现在的硬编码值是每晚 02:30（Asia/Shanghai），落在 DeepSeek 夜间折扣时段。你说“这个也需要做到可配置”。教师应该能改到什么程度？这决定设置页的控件和调度器的计算方式。",
+        "allowCustom": true,
+        "next": "q_due",
+        "options": [
+          {
+            "key": "a",
+            "label": "时刻 + 时区",
+            "description": "教师选每天几点跑，并选时区；默认 02:30 / Asia/Shanghai。跨时区部署或教师出差时不用改服务器。",
+            "insight": "- **Pattern:** 存本地时刻加时区，调度器按教师时区算下一次运行。\n- **Proven at:** Turnitin 的反馈发布日期带具体时间；cron 系统普遍支持时区（Quartz 与 Spring `@Scheduled` 的 `zone` 参数）。\n- **Breaks when:** 教师改时区后当天已经跑过——需要“按本地日期只跑一次”的状态，避免重复。\n- **Here now:** `application.yml` 已有 `assignment-zone: Asia/Shanghai`，`AssignmentGradingJob` 的 `@Scheduled` 用了 `zone`，但这是全局的。",
+            "sources": [
+              "teachloop-app/src/main/resources/application.yml",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/AssignmentGradingJob.java",
+              "https://docs.spring.io/spring-framework/reference/integration/scheduling.html"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "只改时刻，时区固定",
+            "description": "控件最简单，所有教师按北京时间；海外教师会看到奇怪的时间。",
+            "insight": "- **Pattern:** 只存时刻，时区固定。\n- **Proven at:** 单一时区部署的常见简化；现有 `assignment-zone` 默认就是 Asia/Shanghai。\n- **Breaks when:** 教师在美国或欧洲，02:30 北京时间是他们的下午；设置页会显得不真实。\n- **Here now:** 代码里已有全局 zone，改成教师级只需多一列；不做时区列更省事。",
+            "sources": [
+              "teachloop-app/src/main/resources/application.yml",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/AssignmentGradingJob.java",
+              "docs/decisions/003-assignment-nightly-grading.md"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "每天多个时刻",
+            "description": "例如 02:30 和 14:00 各跑一次；适合一天多批，调度状态要按多个窗口记。",
+            "insight": "- **Pattern:** 一天多个运行窗口。\n- **Proven at:** 一些批处理系统允许一天多次 cron，适合“早批加午批”。\n- **Breaks when:** 每次运行都要判断哪些提交属于哪个窗口，状态从一行变成多行；实现成本明显上升。\n- **Here now:** `grading_dispatched_at` 是“首次派发”幂等键，不区分窗口；要新增窗口状态。",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/OfferingRepository.java",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/OfferingGradingDispatcher.java",
+              "https://docs.spring.io/spring-framework/reference/integration/scheduling.html"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "时刻 + 星期几",
+            "description": "例如只在工作日 02:30 跑；周末提交等到周一，适合学校作息。",
+            "insight": "- **Pattern:** 时刻加星期。\n- **Proven at:** 学校作息常见的“工作日批改”；Spring cron 支持 day-of-week。\n- **Breaks when:** 周五提交、周一才批，学生等两天；教师可能更希望周末也跑。\n- **Here now:** 现有 cron `0 30 2 * * *` 是每天；加星期要存 7 位掩码或 cron 字符串。",
+            "sources": [
+              "teachloop-app/src/main/resources/application.yml",
+              "https://docs.spring.io/spring-framework/reference/integration/scheduling.html",
+              "docs/decisions/003-assignment-nightly-grading.md"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "不可配，固定 02:30，只能切换模式",
+            "description": "保持现状，只加 due-date 开关；改动最小，但不满足“可配置”。",
+            "insight": "- **Pattern:** 只切换模式，时间固定。\n- **Proven at:** 现有决策 003 就是这条，已经上线并解释过。\n- **Breaks when:** 教师想在上午批，只能等 02:30 或手动派发；不满足本轮“可配置”的要求。\n- **Here now:** `assignment-cron` 与 `assignment-zone` 是 `application.yml` 配置，教师界面不可见。",
+            "sources": [
+              "docs/decisions/003-assignment-nightly-grading.md",
+              "teachloop-app/src/main/resources/application.yml",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/AssignmentGradingJob.java"
+            ]
+          }
+        ]
+      },
+      "q_due": {
+        "header": "截止模式行为",
+        "prompt": "截止时间（due date）模式在决策 003 之前用于作业：过了 `due_at + grace_hours` 后，60 秒扫描派发，且受峰谷限制（工作日 9–12 / 14–18 不自动派发）。考试至今仍是这个行为。作业切回 due-date 时，应该沿用哪一套？",
+        "allowCustom": true,
+        "options": [
+          {
+            "key": "a",
+            "label": "截止 + 宽限后派发，沿用峰谷",
+            "description": "回到 003 之前的作业行为；和考试同一套解释，白天高峰自动推迟。",
+            "insight": "- **Pattern:** 复用 due+grace 条件和 `GradingDispatchPolicy` 峰谷判断。\n- **Proven at:** 决策 003 之前作业就是这样跑的；考试至今保持，`GradingDispatchTest` 覆盖到期与峰谷。\n- **Breaks when:** 教师把 due 设得很晚，学生交完要等到 due 之后才批；这正是用户想切回 due-date 的场景。\n- **Here now:** `findDueForGrading` 目前硬编码 `kind='EXAM'`；要加作业分支并带教师过滤。",
+            "sources": [
+              "docs/decisions/003-assignment-nightly-grading.md",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/OfferingRepository.java",
+              "teachloop-app/src/test/java/com/teachloop/GradingDispatchTest.java"
+            ]
+          },
+          {
+            "key": "b",
+            "label": "截止 + 宽限后立即派发，不看峰谷",
+            "description": "过了截止就派，白天也跑；反馈更快，云端 API 成本更高。",
+            "insight": "- **Pattern:** 过截止就派，跳过峰谷。\n- **Proven at:** 手动“立即派发”已经是不受峰谷限制的路径，说明“立即”在系统里是可表达的。\n- **Breaks when:** 白天高峰批量跑，云端 API 按原价计费；决策 003 的夜间折扣理由被抵消。\n- **Here now:** `autoDispatch()` 先调 `policy.mayDispatchNow(now)`；绕过它只需不调用，但会改变成本模型。",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/OfferingGradingDispatcher.java",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/GradingDispatchPolicy.java",
+              "docs/decisions/003-assignment-nightly-grading.md"
+            ]
+          },
+          {
+            "key": "c",
+            "label": "截止时刻立即派发，不算宽限",
+            "description": "到点就批，迟到提交可能赶不上这一批；最贴近“截止即批”。",
+            "insight": "- **Pattern:** due 时刻直接派，不加 grace。\n- **Proven at:** 一些 LMS 在 due 后立即锁定并批，简单直接。\n- **Breaks when:** 学生网络慢或时区误差，刚过 due 的提交被落下；`grace_hours` 列已经存在，不用白不用。\n- **Here now:** `offerings.grace_hours` 默认 3 小时；due-date 查询已经用它。",
+            "sources": [
+              "teachloop-sitting/src/main/resources/db/migration/V005__sitting_offerings.sql",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/Offering.java",
+              "https://docs.moodle.org/en/Assignment_settings"
+            ]
+          },
+          {
+            "key": "d",
+            "label": "截止后只派发一次，迟到不再自动批",
+            "description": "只批按时提交的；迟到件全部手动，队列更可控。",
+            "insight": "- **Pattern:** 只批按时提交，迟到件手动。\n- **Proven at:** 迟交单独处理的课程政策；`late` 标记已存在。\n- **Breaks when:** 教师忘了手动批迟到件，学生会一直看不到反馈；违背“AI 草稿自动准备”的初衷。\n- **Here now:** `submissions` 有迟交标记；`enqueueQueuedOfDispatched` 会把迟到件补进同一个 run。",
+            "sources": [
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/OfferingGradingDispatcher.java",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/Submission.java",
+              "docs/decisions/003-assignment-nightly-grading.md"
+            ]
+          },
+          {
+            "key": "e",
+            "label": "due-date 只对考试生效，作业永远固定时间",
+            "description": "作业没有 due-date 选项，和“可切换”矛盾；列出以确认边界。",
+            "insight": "- **Pattern:** 作业永远固定时间，due-date 只给考试。\n- **Proven at:** 决策 003 的现状；作业与考试分开调度。\n- **Breaks when:** 教师明确要求作业也能 due-date；本轮需求就是改这个。\n- **Here now:** `AssignmentGradingJob` 只跑固定 cron；`findDueForGrading` 排除作业。",
+            "sources": [
+              "docs/decisions/003-assignment-nightly-grading.md",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/domain/OfferingRepository.java",
+              "teachloop-sitting/src/main/java/com/teachloop/sitting/service/AssignmentGradingJob.java"
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "workspaceRecord": true
+}

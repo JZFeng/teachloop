@@ -39,6 +39,13 @@ public class AiSettingsEndpoint {
         return service.test(body);
     }
 
+    @PostMapping("/models")
+    public AiSettingsService.ModelsResult models(@RequestAttribute("currentUser") CurrentUser me,
+                                                 @RequestBody AiSettingsService.TestRequest body) {
+        requireAdmin(me);
+        return service.listModels(null, body);
+    }
+
     private static void requireAdmin(CurrentUser me) {
         if (!me.is("ADMIN")) {
             throw ApiException.forbidden("需要管理员权限");

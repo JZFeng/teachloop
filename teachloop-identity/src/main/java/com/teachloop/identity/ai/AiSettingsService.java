@@ -15,6 +15,7 @@ import java.util.Optional;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /** 管理员 AI 配置：保存（Key 加密）、读取（掩码）、连通性测试。 */
@@ -22,11 +23,18 @@ import tools.jackson.databind.ObjectMapper;
 public class AiSettingsService {
 
     public record View(String provider, String baseUrl, String model, String temperature,
-                       boolean apiKeySet, String apiKeyMasked, String updatedAt, boolean restartRequired) {
+                       boolean configured, boolean apiKeySet, String apiKeyMasked, String updatedAt,
+                       boolean restartRequired) {
     }
 
-    public record UpdateRequest(String provider, String baseUrl, String model, String apiKey,
-                                BigDecimal temperature) {
+    public record UpdateRequest(String provider, String displayName, String baseUrl, String model,
+                                String apiKey, BigDecimal temperature) {
+
+        /** 兼容旧调用（setup 只传 key）。 */
+        public UpdateRequest(String provider, String baseUrl, String model, String apiKey,
+                             BigDecimal temperature) {
+            this(provider, null, baseUrl, model, apiKey, temperature);
+        }
     }
 
     public record TestRequest(String baseUrl, String model, String apiKey) {
@@ -36,9 +44,12 @@ public class AiSettingsService {
     }
 
     /** 个人 AI 设置页需要的字段；永远不回完整 Key。 */
-    public record UserView(String provider, String baseUrl, String model, String temperature,
-                           boolean apiKeySet, String apiKeyMasked, String source,
+    public record UserView(String provider, String displayName, String baseUrl, String model, String temperature,
+                           boolean configured, boolean apiKeySet, String apiKeyMasked, String source,
                            boolean globalConfigured, String updatedAt, boolean restartRequired) {
+    }
+
+    public record ModelsResult(boolean ok, List<String> models, String message) {
     }
 
     private final AiSettingsRepository repo;
@@ -62,14 +73,17 @@ public class AiSettingsService {
         String key = secretBox.decrypt(e.getApiKeyCipher());
         return new View(e.getProvider(), e.getBaseUrl(), e.getModel(),
                 e.getTemperature().stripTrailingZeros().toPlainString(),
-                key != null && !key.isBlank(), mask(key), e.getUpdatedAt().toString(), false);
+                isConfigured(e.getProvider(), e.getBaseUrl(), e.getModel(), key),
+                key != null && !key.isBlank(),
+                mask(key), e.getUpdatedAt().toString(), false);
     }
 
     public Optional<Ports.AiSettings> lookup() {
         return repo.findById(1).map(e -> {
             String key = secretBox.decrypt(e.getApiKeyCipher());
             return new Ports.AiSettings(e.getProvider(), e.getBaseUrl(), e.getModel(), key,
-                    e.getTemperature(), key != null && !key.isBlank(), "global");
+                    e.getTemperature(),
+                    isConfigured(e.getProvider(), e.getBaseUrl(), e.getModel(), key), "global");
         });
     }
 
@@ -82,7 +96,8 @@ public class AiSettingsService {
             Optional<Ports.AiSettings> own = userRepo.findById(teacherId).map(e -> {
                 String key = secretBox.decrypt(e.getApiKeyCipher());
                 return new Ports.AiSettings(e.getProvider(), e.getBaseUrl(), e.getModel(), key,
-                        e.getTemperature(), key != null && !key.isBlank(), "user");
+                        e.getTemperature(),
+                        isConfigured(e.getProvider(), e.getBaseUrl(), e.getModel(), key), "user");
             });
             if (own.isPresent() && own.get().configured()) {
                 return own;
@@ -95,23 +110,32 @@ public class AiSettingsService {
         Optional<UserAiSettingsEntity> own = userRepo.findById(userId);
         Optional<AiSettingsEntity> global = repo.findById(1);
         String key = own.map(e -> secretBox.decrypt(e.getApiKeyCipher())).orElse(null);
-        boolean ownConfigured = key != null && !key.isBlank();
+        boolean ownKeySet = key != null && !key.isBlank();
         String globalKey = global.map(e -> secretBox.decrypt(e.getApiKeyCipher())).orElse(null);
-        boolean globalConfigured = globalKey != null && !globalKey.isBlank();
+        boolean globalKeySet = globalKey != null && !globalKey.isBlank();
         String provider = own.map(UserAiSettingsEntity::getProvider)
-                .orElseGet(() -> global.map(AiSettingsEntity::getProvider).orElse("deepseek"));
+                .orElseGet(() -> global.map(AiSettingsEntity::getProvider).orElse("openai-compatible"));
+        String displayName = own.map(UserAiSettingsEntity::getDisplayName)
+                .orElseGet(() -> global.map(AiSettingsEntity::getProvider).orElse(provider));
+        if (displayName == null || displayName.isBlank()) {
+            displayName = provider;
+        }
         String baseUrl = own.map(UserAiSettingsEntity::getBaseUrl)
-                .orElseGet(() -> global.map(AiSettingsEntity::getBaseUrl).orElse("https://api.deepseek.com"));
+                .orElseGet(() -> global.map(AiSettingsEntity::getBaseUrl).orElse(""));
         String model = own.map(UserAiSettingsEntity::getModel)
-                .orElseGet(() -> global.map(AiSettingsEntity::getModel).orElse("deepseek-flash"));
+                .orElseGet(() -> global.map(AiSettingsEntity::getModel).orElse(""));
         BigDecimal temperature = own.map(UserAiSettingsEntity::getTemperature)
                 .orElseGet(() -> global.map(AiSettingsEntity::getTemperature).orElse(new BigDecimal("0.20")));
+        boolean ownConfigured = own.map(e -> isConfigured(
+                e.getProvider(), e.getBaseUrl(), e.getModel(), key)).orElse(false);
+        boolean globalConfigured = global.map(e -> isConfigured(
+                e.getProvider(), e.getBaseUrl(), e.getModel(), globalKey)).orElse(false);
         String source = ownConfigured ? "user" : (globalConfigured ? "global" : "none");
         String updatedAt = own.map(e -> e.getUpdatedAt().toString())
                 .orElseGet(() -> global.map(e -> e.getUpdatedAt().toString()).orElse(null));
-        return new UserView(provider, baseUrl, model, temperature.stripTrailingZeros().toPlainString(),
-                ownConfigured || globalConfigured, ownConfigured ? mask(key) : null,
-                source, globalConfigured, updatedAt, false);
+        return new UserView(provider, displayName, baseUrl, model, temperature.stripTrailingZeros().toPlainString(),
+                ownConfigured || globalConfigured, ownKeySet,
+                ownKeySet ? mask(key) : null, source, globalConfigured, updatedAt, false);
     }
 
     @Transactional
@@ -119,13 +143,17 @@ public class AiSettingsService {
         Optional<AiSettingsEntity> global = repo.findById(1);
         UserAiSettingsEntity e = userRepo.findById(userId).orElseGet(() -> new UserAiSettingsEntity(
                 userId,
-                req.provider() == null || req.provider().isBlank() ? "deepseek" : req.provider().strip(),
-                global.map(AiSettingsEntity::getBaseUrl).orElse("https://api.deepseek.com"),
-                global.map(AiSettingsEntity::getModel).orElse("deepseek-flash"),
+                req.provider() == null || req.provider().isBlank()
+                        ? global.map(AiSettingsEntity::getProvider).orElse("openai-compatible")
+                        : req.provider().strip(),
+                req.displayName() == null || req.displayName().isBlank() ? null : req.displayName().strip(),
+                global.map(AiSettingsEntity::getBaseUrl).orElse(""),
+                global.map(AiSettingsEntity::getModel).orElse(""),
                 null,
                 global.map(AiSettingsEntity::getTemperature).orElse(new BigDecimal("0.20")),
                 clock.instant(), actorId));
         if (req.provider() != null && !req.provider().isBlank()) e.setProvider(req.provider().strip());
+        if (req.displayName() != null) e.setDisplayName(req.displayName().strip());
         if (req.baseUrl() != null && !req.baseUrl().isBlank()) {
             String url = req.baseUrl().strip();
             if (!url.startsWith("http://") && !url.startsWith("https://")) {
@@ -150,15 +178,20 @@ public class AiSettingsService {
     }
 
     public TestResult testUser(UUID userId, TestRequest req) {
-        String key = req.apiKey() == null || req.apiKey().isBlank()
-                ? storedUserKey(userId) : req.apiKey().strip();
-        if (key == null || key.isBlank()) {
-            key = storedGlobalKey();
+        return testWith(req, testKey(userId, req));
+    }
+
+    /** 空 Key 是合法状态：本地模型通常不校验 Authorization。 */
+    private String testKey(UUID userId, TestRequest req) {
+        if (req.apiKey() != null && !req.apiKey().isBlank()) {
+            return req.apiKey().strip();
         }
-        if (key == null || key.isBlank()) {
-            return new TestResult(false, 0, "还没有保存 API Key", req.model());
+        String own = userId == null ? null : storedUserKey(userId);
+        if (own != null && !own.isBlank()) {
+            return own;
         }
-        return testWith(req, key);
+        String global = storedGlobalKey();
+        return global == null ? "" : global;
     }
 
     private String storedUserKey(UUID userId) {
@@ -195,25 +228,27 @@ public class AiSettingsService {
         repo.save(e);
         return new View(e.getProvider(), e.getBaseUrl(), e.getModel(),
                 e.getTemperature().stripTrailingZeros().toPlainString(),
+                isConfigured(e.getProvider(), e.getBaseUrl(), e.getModel(),
+                        secretBox.decrypt(e.getApiKeyCipher())),
                 req.apiKey() != null && !req.apiKey().isBlank(), mask(req.apiKey()),
                 e.getUpdatedAt().toString(), false);
     }
 
     /** 用提交值或已保存值测试；异常也转成 ok=false，不把 Key 写日志。 */
     public TestResult test(TestRequest req) {
-        AiSettingsEntity e = repo.findById(1).orElseThrow();
-        String key = req.apiKey() == null || req.apiKey().isBlank()
-                ? secretBox.decrypt(e.getApiKeyCipher()) : req.apiKey().strip();
-        if (key == null || key.isBlank()) {
-            return new TestResult(false, 0, "还没有保存 API Key", req.model());
-        }
-        return testWith(req, key);
+        return testWith(req, testKey(null, req));
     }
 
     private TestResult testWith(TestRequest req, String key) {
         AiSettingsEntity e = repo.findById(1).orElseThrow();
         String baseUrl = req.baseUrl() == null || req.baseUrl().isBlank() ? e.getBaseUrl() : req.baseUrl().strip();
         String model = req.model() == null || req.model().isBlank() ? e.getModel() : req.model().strip();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return new TestResult(false, 0, "还没有填写 Base URL", model);
+        }
+        if (model == null || model.isBlank()) {
+            return new TestResult(false, 0, "还没有填写模型名", model);
+        }
         long started = System.nanoTime();
         try {
             String body = mapper.writeValueAsString(Map.of(
@@ -221,23 +256,105 @@ public class AiSettingsService {
                     "temperature", 0.2,
                     "messages", List.of(Map.of("role", "user", "content", "ping")),
                     "max_tokens", 8));
-            HttpRequest request = HttpRequest.newBuilder(URI.create(baseUrl.replaceAll("/+$", "") + "/chat/completions"))
+            HttpRequest.Builder builder = HttpRequest.newBuilder(
+                            URI.create(baseUrl.replaceAll("/+$", "") + "/chat/completions"))
                     .timeout(Duration.ofSeconds(20))
-                    .header("Content-Type", "application/json")
-                    .header("Authorization", "Bearer " + key)
-                    .POST(HttpRequest.BodyPublishers.ofString(body))
-                    .build();
-            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+                    .header("Content-Type", "application/json");
+            if (key != null && !key.isBlank()) {
+                builder.header("Authorization", "Bearer " + key);
+            }
+            HttpResponse<String> response = http.send(builder.POST(HttpRequest.BodyPublishers.ofString(body)).build(),
+                    HttpResponse.BodyHandlers.ofString());
             long ms = (System.nanoTime() - started) / 1_000_000;
             if (response.statusCode() >= 200 && response.statusCode() < 300) {
                 return new TestResult(true, ms, "连接成功（HTTP 200）", model);
             }
             String hint = response.statusCode() == 401 || response.statusCode() == 403
-                    ? "认证失败，检查 API Key" : "HTTP " + response.statusCode();
+                    ? "认证失败，检查 API Key（本地模型通常不需要 Key）" : "HTTP " + response.statusCode();
             return new TestResult(false, ms, hint, model);
         } catch (Exception ex) {
             long ms = (System.nanoTime() - started) / 1_000_000;
             return new TestResult(false, ms, "连接失败：" + ex.getClass().getSimpleName(), model);
+        }
+    }
+
+    /** 模型发现：GET {baseUrl}/models。空 Key 也允许，本地服务器通常不需要鉴权。 */
+    public ModelsResult listModels(UUID userId, TestRequest req) {
+        String key = testKey(userId, req);
+        AiSettingsEntity e = repo.findById(1).orElseThrow();
+        String baseUrl = req.baseUrl() == null || req.baseUrl().isBlank() ? e.getBaseUrl() : req.baseUrl().strip();
+        if (baseUrl == null || baseUrl.isBlank()) {
+            return new ModelsResult(false, List.of(), "还没有填写 Base URL");
+        }
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(
+                            URI.create(baseUrl.replaceAll("/+$", "") + "/models"))
+                    .timeout(Duration.ofSeconds(10))
+                    .header("Accept", "application/json");
+            if (key != null && !key.isBlank()) {
+                builder.header("Authorization", "Bearer " + key);
+            }
+            HttpResponse<String> response = http.send(builder.GET().build(),
+                    HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                return new ModelsResult(false, List.of(), "HTTP " + response.statusCode());
+            }
+            JsonNode root = mapper.readTree(response.body());
+            JsonNode data = root.path("data");
+            List<String> models = new java.util.ArrayList<>();
+            if (data.isArray()) {
+                for (JsonNode item : data) {
+                    String id = item.path("id").isString() ? item.path("id").asString() : null;
+                    if (id != null && !id.isBlank()) {
+                        models.add(id);
+                    }
+                }
+            }
+            models.sort(String::compareTo);
+            return new ModelsResult(true, models, models.isEmpty() ? "端点返回的模型列表为空" : "已加载 " + models.size() + " 个模型");
+        } catch (Exception ex) {
+            return new ModelsResult(false, List.of(), "加载失败：" + ex.getClass().getSimpleName());
+        }
+    }
+
+    /**
+     * 可用性：baseUrl 与 model 必须非空；本地 provider 允许没有 Key，云端 provider 仍要 Key。
+     * 这样全局默认的 DeepSeek（没有 Key）不会被误报成“已配置”。
+     */
+    private static boolean isConfigured(String provider, String baseUrl, String model, String key) {
+        if (baseUrl == null || baseUrl.isBlank() || model == null || model.isBlank()) {
+            return false;
+        }
+        if (key != null && !key.isBlank()) {
+            return true;
+        }
+        return isLocalProvider(provider) || isLocalHost(baseUrl);
+    }
+
+    private static boolean isLocalProvider(String provider) {
+        if (provider == null) {
+            return false;
+        }
+        String p = provider.toLowerCase();
+        return p.contains("ollama") || p.contains("lmstudio") || p.contains("lm-studio")
+                || p.contains("vllm") || p.contains("llamacpp") || p.contains("llama.cpp")
+                || p.contains("localai") || p.equals("local");
+    }
+
+    private static boolean isLocalHost(String baseUrl) {
+        try {
+            String host = URI.create(baseUrl).getHost();
+            if (host == null) {
+                return false;
+            }
+            String h = host.toLowerCase();
+            if (h.equals("localhost") || h.equals("127.0.0.1") || h.equals("::1") || h.equals("0.0.0.0")) {
+                return true;
+            }
+            return h.startsWith("10.") || h.startsWith("192.168.")
+                    || h.matches("^172\\.(1[6-9]|2[0-9]|3[0-1])\\..*");
+        } catch (RuntimeException ex) {
+            return false;
         }
     }
 

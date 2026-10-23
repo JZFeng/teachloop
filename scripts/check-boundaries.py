@@ -44,6 +44,7 @@ TABLE_OWNER: dict[str, str] = {
     "submissions": "sitting",
     "objective_answers": "sitting",
     "submission_metrics": "sitting",
+    "teacher_grading_preferences": "sitting",
 
     "grading_runs": "grading",
     "reviews": "grading",

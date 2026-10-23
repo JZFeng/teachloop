@@ -40,6 +40,14 @@ public class ProfileAiSettingsEndpoint {
         return service.testUser(me.id(), body);
     }
 
+    /** 模型发现：从教师填写的 base URL 拉 /v1/models；失败不影响手填。 */
+    @PostMapping("/models")
+    public AiSettingsService.ModelsResult models(@RequestAttribute("currentUser") CurrentUser me,
+                                                 @RequestBody AiSettingsService.TestRequest body) {
+        requireTeacher(me);
+        return service.listModels(me.id(), body);
+    }
+
     private static void requireTeacher(CurrentUser me) {
         if (me == null) {
             throw ApiException.unauthorized("请先登录");

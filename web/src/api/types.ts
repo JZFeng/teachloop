@@ -481,15 +481,33 @@ export interface BulkApprovePreview {
 
 export interface ProfileAiSettings {
   provider: string
+  displayName: string
   baseUrl: string
   model: string
   temperature: string
+  configured: boolean
   apiKeySet: boolean
   apiKeyMasked: string | null
   source: 'user' | 'global' | 'none'
   globalConfigured: boolean
   updatedAt: string | null
   restartRequired: boolean
+}
+
+export interface AiModelsResult {
+  ok: boolean
+  models: string[]
+  message: string
+}
+
+/** 教师级作业批改时机（决策 010）。 */
+export interface GradingPreference {
+  triggerMode: 'FIXED_TIME' | 'DUE_DATE'
+  fixedTime: string
+  timeZone: string
+  catchUp: boolean
+  lastFixedRunAt: string | null
+  updatedAt: string | null
 }
 
 export interface AiTestResult {

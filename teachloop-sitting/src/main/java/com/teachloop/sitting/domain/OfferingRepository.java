@@ -27,13 +27,29 @@ public interface OfferingRepository extends JpaRepository<Offering, UUID> {
     List<UUID> findDueForGrading(Instant now);
 
     /**
-     * 决策 003：作业不等到期，每晚把「还有排队提交」的场次找出来（含已派发、又来了新提交的）。
-     * 考试不走这里，仍由 {@link #findDueForGrading} 按截止 + 宽限派发。
+     * 决策 010：某位教师名下「还有排队提交」的作业（含已派发、又来了新提交的）。
+     * 固定时间模式用它；考试不走这里，仍由 {@link #findDueForGrading} 按截止 + 宽限派发。
      */
     @Query(value = "select distinct o.id from offerings o join submissions s on s.offering_id = o.id "
             + "where o.kind = 'ASSIGNMENT' and o.status = 'PUBLISHED' "
-            + "and s.grading_state = 'QUEUED'", nativeQuery = true)
-    List<UUID> findAssignmentsWithQueued();
+            + "and o.created_by = :teacherId and s.grading_state = 'QUEUED'", nativeQuery = true)
+    List<UUID> findAssignmentsWithQueuedByTeacher(UUID teacherId);
+
+    /** 调度器发现哪些教师还有排队中的作业；created_by 为空的历史数据不在这里。 */
+    @Query(value = "select distinct o.created_by from offerings o join submissions s on s.offering_id = o.id "
+            + "where o.kind = 'ASSIGNMENT' and o.status = 'PUBLISHED' "
+            + "and o.created_by is not null and s.grading_state = 'QUEUED'", nativeQuery = true)
+    List<UUID> findTeacherIdsWithQueuedAssignments();
+
+    /**
+     * 决策 010：due-date 模式下的作业到期扫描。与考试查询同一条 due+grace 条件，
+     * 但限定作业与教师；不再经过峰谷限制。
+     */
+    @Query(value = "select o.id from offerings o "
+            + "where o.status = 'PUBLISHED' and o.kind = 'ASSIGNMENT' "
+            + "and o.created_by = :teacherId and o.grading_dispatched_at is null "
+            + "and o.due_at + make_interval(hours => o.grace_hours) <= :now", nativeQuery = true)
+    List<UUID> findDueAssignmentsForGrading(UUID teacherId, Instant now);
 
     /**
      * 派发的互斥：条件更新成功（返回 1）的那一次才去建 run。

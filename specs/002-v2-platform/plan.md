@@ -2,7 +2,7 @@
 
 - 项目名：**TeachLoop**（2026-10-19 定名；仓库 `teachloop`，groupId / 包根 `com.teachloop`）
 - 特性编号：`002-v2-platform`
-- 上游：`spec.md`（28 用户故事 / 258 验收标准 / 61 功能需求）、`.specify/memory/constitution.md`（v2.1）
+- 上游：`spec.md`（29 用户故事 / 270 验收标准 / 70 功能需求）、`.specify/memory/constitution.md`（v2.1）
 - 日期：2026-10-19（本版为整份重写，非增量修补）
 - 技术栈变更说明：早期方案用 Python/FastAPI，理由是复用 v1 资产与 `dsh` 子进程。用户 review 后确定部署阿里云、取消 OCR、生产直连模型 API，这两条理由都不再成立；且用户最熟悉 Java。故整体改用 Java。
 - 名字为什么叫 TeachLoop：`loop` 同时指两件事——批改反馈的闭环（出卷→作答→批改→复核→发布），与将来背单词模块的间隔重复循环。所以加模块不需要改名。
@@ -15,7 +15,7 @@ Plan 的退出条件是下面 6 条全部打勾。每条标注了自评结果与
 
 | # | 检查项 | 自评 | 验法 |
 | :--- | :--- | :--- | :--- |
-| 1 | 每个用户故事在本文件里有承接结构 | ✅ | 附录 A 逐条对照 28 个故事。**追溯粒度到故事与 FR**：258 条 AC 不逐条映射（理由见 `tasks.md` 追踪矩阵开头） |
+| 1 | 每个用户故事在本文件里有承接结构 | ✅ | 附录 A 逐条对照 29 个故事。**追溯粒度到故事与 FR**：258 条 AC 不逐条映射（理由见 `tasks.md` 追踪矩阵开头） |
 | 2 | 每个实体的表、字段、索引、状态迁移写全 | ✅ | §5（含 `user_ai_settings` / `offerings.created_by` / `submission_metrics` / `reviews` AI 溯源列）；状态机见 §7 与 §7.6 |
 | 3 | 每条外部依赖写了失败与重试路径 | ✅ | §6.4 失败处理、§6.6 Key 失败分类（NO_KEY/AUTH/TIMEOUT/INVALID_OUTPUT/RATE_LIMITED）、§7.2 崩溃恢复、§9 上传、§15 字体自检 |
 | 4 | 模块依赖无环、跨模块只走端口 | ✅ | §3.1 编译期强制；§3.2 端口表；T203 专门验证 |
@@ -41,7 +41,7 @@ Spring Boot 4.1 应用（fat jar，1..N 实例，profile=app）
    ├── 业务层（试卷 / 布置 / 提交 / 批改 / 复核 / 报表 / 审计）
    ├── 客观题判分（纯代码 + 可扩展匹配策略，不调模型）
    ├── 进度由前端每 2 秒轮询（无长连接、无 SSE）
-   ├── Spring AI → DeepSeek API（deepseek-flash）
+   ├── Spring AI → 任意 OpenAI 兼容端点（DeepSeek / 本地 Ollama / LM Studio / vLLM）
    └── StorageBackend（OSS / 本地）
    ▼
 PostgreSQL（RDS）—— 唯一中间件：业务数据 + 工作项 + 限流 + 会话
@@ -157,7 +157,7 @@ teachloop-app ──▶ paper / sitting / grading / report / observability
 | identity | `users`、`credentials`、`spring_session`、`spring_session_attributes`、`teacher_invites`、`rate_limits`、`notifications`、`ai_settings`、`user_ai_settings` | `teachloop-identity/src/main/resources/db/migration/` |
 | classroom | `classes`、`class_members` | `teachloop-classroom/…/db/migration/` |
 | paper | `papers`、`paper_sections`、`objective_items`、`section_criteria` | `teachloop-paper/…/db/migration/` |
-| sitting | `offerings`、`offering_classes`、`submissions`、`objective_answers`、`submission_metrics` | `teachloop-sitting/…/db/migration/` |
+| sitting | `offerings`、`offering_classes`、`submissions`、`objective_answers`、`submission_metrics`、`teacher_grading_preferences` | `teachloop-sitting/…/db/migration/` |
 | grading | `grading_runs`、`reviews`、`item_explanations`、`ai_calls` | `teachloop-grading/…/db/migration/` |
 | report | 无表（只读） | — |
 | observability | `audit_logs`、`daily_stats` | `teachloop-observability/…/db/migration/` |
@@ -292,7 +292,8 @@ papers ──< paper_sections ──< objective_items
 - `submissions` 计时与迟交列：`started_at`、`deadline_at`、`auto_submitted`、`late_by_seconds`、`rejected_at`、`reject_reason`。
 - `submissions` 工作项状态列（替代独立队列表，见 §7）：`grading_state`、`grading_attempts`、`grading_started_at`、`grading_error`、`grading_run_id`。
 - 篇幅指标不新增表：`TextLengthCounter` 在判分与复核详情里按 `content_text` 现算（policy_default 段数 + 四模型边界标记）；数据量是单班几十份，无需为它建表。
-- `ai_settings` 保持全局单行（id=1）；新增 `user_ai_settings`（`user_id` 主键、provider/base_url/model/api_key_cipher/temperature/updated_at）；两者只存密文。
+- `ai_settings` 保持全局单行（id=1）；`user_ai_settings`（`user_id` 主键、provider/display_name/base_url/model/api_key_cipher/temperature/updated_at）是教师自定义 provider；两者都只存密文。`display_name` 是 V038 新增（D-30）。
+- 新增 `teacher_grading_preferences`（V037，D-30）：`teacher_id` 主键、`trigger_mode`（FIXED_TIME / DUE_DATE）、`fixed_time`、`time_zone`、`catch_up`、`last_fixed_run_at`、`updated_at`、`updated_by`。不建跨模块外键；没有行时按默认 02:30 Asia/Shanghai 解释。
 - `reviews` 增 `ai_overall`（总评）、`ai_model`、`ai_prompt_version`、`ai_key_source`、`ai_failure`（失败分类）、`feedback_language`（本次 AI 实际输出语言）；`ai_criteria` / `ai_feedback` 保留。
 - `ai_calls` 增 `key_source` 与 `prompt_version`（已有）；不记录 Key 本体。
 - `objective_items` 唯一 `(paper_section_id, number)`；增列 `stem`（题干）、`options`（选项 JSONB）、`question_type`（`single_choice` / `multiple_choice` / `fill_blank` / `essay`）、`answer_key`、`match_strategy`、以及解析工作项状态 `explanation_state` / `explanation_attempts` / `explanation_started_at` / `explanation_error`。
@@ -555,10 +556,11 @@ DeepSeek 的上下文硬盘缓存**自动生效、无需代码开关**，但只�
   未通过输出质量闸门、已决策/已发布。发布仍是独立动作。
 - 失败兜底：AI 失败（`FAILED`）的提交也能人工判分并发布；`apply` 会清掉 `grading_error`。
 
-### 6.6 Key 解析与归属（D-16）
+### 6.6 AI 配置解析与归属（D-16 / D-30）
 
-**问题**：`AiGradingConfig` 在启动时把管理员 Key 固化进 `LlmClient`，无法支持「教师个人 Key」
-与「保存即生效」，也无法在 worker 里按作业找 Key。
+**问题**：`AiGradingConfig` 在启动时把管理员 Key 固化进 `LlmClient`，无法支持「教师个人 provider」
+与「保存即生效」，也无法在 worker 里按作业找配置。本地模型通常没有 API Key，旧逻辑把空 Key 判成
+「未配置」，直接拒绝了 Ollama / LM Studio。
 
 **方案**：
 
@@ -566,29 +568,34 @@ DeepSeek 的上下文硬盘缓存**自动生效、无需代码开关**，但只�
 GradingWorker 领取 submission
   ├─ ledger.load(submissionId) → WorkItem（含 offeringId, createdBy）
   ├─ AiKeyResolver.resolve(createdBy)
-  │    ├─ identity: user_ai_settings(teacherId) 且 configured → key_source=user
-  │    ├─ identity: ai_settings(global id=1) 且 configured → key_source=global
+  │    ├─ identity: user_ai_settings(teacherId) 且 configured → source=user
+  │    ├─ identity: ai_settings(global id=1) 且 configured → source=global
   │    └─ 都没有 → GradingFailure(NO_KEY)，不出分
   ├─ LlmClientFactory.create(settings, timeout) → 每次调用一个短生命周期客户端
   └─ engine.grade(item, client) → ai_calls 写 model/prompt_version/key_source
 ```
 
-- **数据**：`ai_settings` 保留全局单行（id=1）；新增 `user_ai_settings`（`user_id` 主键、
-  `provider/base_url/model/api_key_cipher/temperature/updated_at`），两者都只存密文。
-  教师/管理员的 `/profile` 写 `user_ai_settings`；`/admin/ai` 仍写全局。
-- **端口**：`Ports.AiSettingsLookup` 从 `current()` 改为 `resolve(UUID teacherId)`，返回
+- **数据**：`ai_settings` 保留全局单行（id=1）；`user_ai_settings`（`user_id` 主键、
+  `provider/display_name/base_url/model/api_key_cipher/temperature/updated_at`）是教师自定义
+  provider，两者都只存密文。教师/管理员的 `/profile` 写 `user_ai_settings`；`/admin/ai` 仍写全局。
+- **可用性**：`baseUrl` 与 `model` 非空是硬条件；本地 provider（ollama / lmstudio / vllm /
+  llama.cpp / local）或回环/私有地址允许空 Key，云端 provider 仍需 Key 才算 `configured`。
+  空 Key 的 JDK 客户端不发 `Authorization`；Spring AI 客户端用 `local-no-key` 占位值。
+- **模型发现**：`POST /api/profile/ai-settings/models` 从后端服务器请求
+  `GET {baseUrl}/models`，返回 `data[].id`；失败不阻断保存，前端仍可手填。
+- **端口**：`Ports.AiSettingsLookup` 的 `resolve(UUID teacherId)` 返回
   `AiSettings(provider/baseUrl/model/apiKey/temperature/configured/source)`；`source` 是
   `user` / `global` / `none`。identity 实现里先查 `user_ai_settings`，再查全局；
   grading 只依赖端口，不查 identity 表。
-- **优先级**：作业创建者 Key → 全局 Key；**不**在鉴权失败时静默改用另一个 Key（避免同一批
-  混用两种口径），只把失败原因写清楚。
+- **优先级**：作业创建者的 provider → 全局 provider；**不**在鉴权失败时静默改用另一个配置
+  （避免同一批混用两种口径），只把失败原因写清楚。
 - **归属**：`offerings` 增 `created_by`（创建教师，无跨模块外键，和 `papers.author_id` 一样
   由应用写入）；`WorkItem` 增 `createdBy`。历史数据 `created_by` 为空时直接用全局 Key。
 - **生效**：`AiSettingsService` 不再在 Bean 创建时读 Key；`AiKeyResolver` 每次判分现查。
   保存后下一次调用即生效，`restartRequired` 从响应里去掉（或恒为 false）。
 - **安全**：沿用 `SecretBox` AES-GCM；GET 只回 `configured` + 掩码（末 4 位）；`test` 接口
   接受临时 Key 但不落库、不写日志；审计只记 `user_ai_settings:updated` 与操作者，
-  不记 Key。`teachloop.security.secret` 生产必须显式配置。
+  不记 Key。`teachloop.security.secret` 生产必须显式配置。首次 `/setup` 不再强制 Key。
 - **失败分类**：`NO_KEY` / `AUTH_FAILED` / `TIMEOUT` / `INVALID_OUTPUT` / `RATE_LIMITED`，
   写 `submissions.grading_error` 与 `reviews.ai_failure`，复核页按类显示；均不产生分数。
 
@@ -688,6 +695,15 @@ RETURNING id;
 
 派发时点是 `due_at + grace_hours`（默认 3 小时），**不是** `due_at`：宽限期留给迟交（§8 的 AC-8.5）。宽限期内的提交照常进入同一个 run。
 
+**决策 010 的作业分支**：考试继续走上面的 `findDueForGrading`；作业按教师级
+`teacher_grading_preferences` 走 `TeacherGradingScheduler`（每分钟扫描）：
+
+- `FIXED_TIME`：到达教师设置的本地时刻后，派发该教师所有排队中的作业；同一本地日期最多一次
+  （`last_fixed_run_at`），启动时按 `catch_up` 决定是否补跑。
+- `DUE_DATE`：`findDueAssignmentsForGrading(teacherId, now)` 取 `due_at + grace_hours <= now`
+  且未派发的作业；**不调用** `GradingDispatchPolicy`，即不看峰谷。迟到提交仍补进同一个 run。
+- 手动「立即派发」「让 AI 先批」不变，任何时刻可用。
+
 ### 7.4 峰谷调度（挑半价时段批改）
 
 DeepSeek 官方时段口径：
@@ -699,6 +715,7 @@ DeepSeek 官方时段口径：
 | 默认行为 | 到期派发时若处于**高峰时段**，推迟到下一个空闲时段的起点再派发 |
 | 延迟上限 | **最多约 4 小时**（14:00 之后最快要 18:00 才进入空闲）；周末与节假日**零延迟** |
 | 手动派发 | 教师点"立即批改"**不受窗口限制**，随时执行 |
+| 作业 due-date | 决策 010 起**不看峰谷**：作业的 due-date 模式过截止就派；峰谷只保留给考试（DeepSeek 成本策略） |
 | 时区 | 一律按 `Asia/Shanghai` 判断，与服务器时区无关 |
 | 关闭开关 | `grading.peak_aware=false` 可完全关闭 |
 | 已知局限 | 官方口径含"法定节假日全天空闲"，V1 **不做节假日日历**，因此节假日会被当成工作日、最多多等 4 小时 |
@@ -1076,6 +1093,7 @@ make seed             # 1 个班 + 30 个学生 + 1 份带标准答案的试卷
 | US-26 | 一次布置（考试 / 作业） | §5.0（`offerings` / `offering_classes` / D-14）、§7.6、§3.3 |
 | US-27 | AI 批改质量与密钥 | §6.1（prompt v2）、§6.5（预填/批量）、§6.6（Key 解析）、§6.7（篇幅/语言）、§9、§11、§18.5 |
 | US-28 | 评分标准契约与质量基准 | §5（rubric 快照/锚点/指标）、§6.1、§18.5、§3.3 |
+| US-45 | 教师自定义 AI 与批改时机 | §5（`user_ai_settings.display_name` / `teacher_grading_preferences`）、§6.6、§7.3、§7.4、§3.3 |
 
 ## 附录 B：本文件与下游文档的约定
 

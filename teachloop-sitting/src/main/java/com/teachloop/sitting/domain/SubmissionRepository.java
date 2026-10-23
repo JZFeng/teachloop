@@ -101,6 +101,14 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
             + "and s.grading_state = 'QUEUED'", nativeQuery = true)
     int enqueueQueuedOfDispatched();
 
+    /** 决策 010：只补某位教师名下已派发作业的迟到提交，避免跨教师误派。 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "update submissions s set grading_state = 'PENDING' from offerings o "
+            + "where s.offering_id = o.id and o.kind = 'ASSIGNMENT' "
+            + "and o.created_by = :teacherId and o.grading_dispatched_at is not null "
+            + "and s.grading_state = 'QUEUED'", nativeQuery = true)
+    int enqueueQueuedOfDispatchedByTeacher(UUID teacherId);
+
     /**
      * T091 僵尸清扫：只回收超过阈值的 RUNNING，正在跑的（started_at 较新）不动。
      * grading_started_at 置空，下一次领取会重新计时。
