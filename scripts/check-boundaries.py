@@ -60,6 +60,8 @@ TABLE_OWNER: dict[str, str] = {
     "vocab_lexicon_forms": "vocab",
     # T388：词表索引装载指纹（单行表，V045）
     "vocab_lexicon_meta": "vocab",
+    # T396/T397：学生列配置（V047）
+    "vocab_user_prefs": "vocab",
     "vocab_words": "vocab",
     "vocab_word_sources": "vocab",
     "vocab_progress": "vocab",
