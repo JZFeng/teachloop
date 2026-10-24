@@ -112,4 +112,4 @@
 
 | 日期 | 任务 | 结果 | 验证 |
 | :--- | :--- | :--- | :--- |
-| 2026-10-23 | T387 迁移 V040–V044 | 完成（只建表，无业务代码） | 空库按序执行 5 个迁移成功，17 张表；`check-boundaries` 44 表归属通过、`check-deps` 通过；约束冒烟：重复词（user+language+normalized）被唯一键拒绝、`rating=3` 被 check 拒绝、同来源重复（NULL 列）被 `unique nulls not distinct` 拒绝 |
+| 2026-10-23 | T387 迁移 V040–V044 | 完成（只建表，无业务代码）；`make test` 281/0/0/0（Flyway 在实际测试库上应用成功） | 空库按序执行 5 个迁移成功，17 张表；`check-boundaries` 44 表归属通过、`check-deps` 通过；约束冒烟：重复词（user+language+normalized）被唯一键拒绝、`rating=3` 被 check 拒绝、同来源重复（NULL 列）被 `unique nulls not distinct` 拒绝 |
