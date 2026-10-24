@@ -488,6 +488,8 @@ export default function VocabLibraryPage() {
         <Button variant="primary" disabled={reviewableCount === 0} onClick={() => void startFreeReview()}>
           {t('vocab.library.reviewThese', { count: reviewableCount })}
         </Button>
+        <Button onClick={() => navigate('/vocab/add?tab=file')}>{t('vocab.library.import')}</Button>
+        <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
       </div>
 
       {selected.size > 0 && (
@@ -504,7 +506,13 @@ export default function VocabLibraryPage() {
       )}
 
       {items.length === 0 ? (
-        <Empty>{filterCount > 0 || q ? t('vocab.library.noMatch') : t('vocab.library.empty')}</Empty>
+        <Empty>
+          <div>{filterCount > 0 || q ? t('vocab.library.noMatch') : t('vocab.library.empty')}</div>
+          <div className="row" style={{ gap: 8, justifyContent: 'center', marginTop: 10 }}>
+            <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
+            <Button onClick={() => navigate('/vocab/add?tab=file')}>{t('vocab.library.import')}</Button>
+          </div>
+        </Empty>
       ) : (
         <div className="card" style={{ padding: 0, overflow: 'auto' }}>
           <table className="vocab-table">

@@ -1487,7 +1487,9 @@
       "retry": "重试",
       "retryDone": "已重新入队，稍后自动刷新",
       "batchRetry": "批量重试",
-      "reviewThese": "复习这些词（{{count}}）"
+      "reviewThese": "复习这些词（{{count}}）",
+      "import": "导入",
+      "addWords": "加词"
     },
     "review": {
       "title": "今日复习",
@@ -1616,6 +1618,28 @@
     "audio": {
       "play": "发音",
       "stop": "停止"
+    },
+    "add": {
+      "title": "加词与导入",
+      "tabPaste": "粘贴加词",
+      "tabFile": "导入文件",
+      "fileHint": "支持 .csv / .md / .txt，UTF-8（含 BOM）；文件大小 ≤20MB。",
+      "placeholder": "每行一个词，或用逗号/空格分隔；支持标题、列表、表格与代码块。",
+      "sourceLabel": "来源标记（可选，如 Unit 5 生词）",
+      "preview": "预览",
+      "commit": "导入",
+      "back": "返回词库",
+      "countTotal": "共 {{count}} 个词",
+      "countCreate": "将新建 {{count}}",
+      "countDuplicate": "重复跳过 {{count}}",
+      "countFailed": "会失败 {{count}}",
+      "spellingOff": "词表未加载，未做拼写校验",
+      "skippedSummary": "跳过 {{count}} 行（点开看行号与原因）",
+      "cleanupsSummary": "清洗 {{count}} 处（点开看前后值）",
+      "resultLine": "新建 {{created}} 个，重复跳过 {{duplicated}} 个，失败 {{failed}} 个",
+      "goLibrary": "去词库",
+      "done": "已入库",
+      "tooLarge": "文件超过 20MB"
     }
   }
 }
