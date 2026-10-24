@@ -50,6 +50,8 @@ body { display: block; }
 .nav-link[data-tone="create"] .nav-ico { background: var(--create-weak); color: var(--create); }
 .nav-link[data-tone="assess"] .nav-ico { background: var(--assess-weak); color: var(--assess); }
 .nav-link[data-tone="insights"] .nav-ico { background: var(--insights-weak); color: var(--insights); }
+/* 背单词是 practice 功能位（T389）；颜色来自 tokens 里已有的 --practice。 */
+.nav-link[data-tone="practice"] .nav-ico { background: var(--practice-weak); color: var(--practice); }
 /* 空间位：首页与班级不是功能位，用自己的两个令牌（2026-10-23 决策 006 修订）。 */
 .nav-link[data-tone="home"] .nav-ico { background: var(--space-home-weak); color: var(--space-home); }
 .nav-link[data-tone="classes"] .nav-ico { background: var(--space-classes-weak); color: var(--space-classes); }

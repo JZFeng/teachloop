@@ -1397,6 +1397,34 @@
     "exam": "ASSESS · 作答",
     "profile": "ACCOUNT",
     "notifications": "INBOX",
-    "adminAi": "ADMIN"
+    "adminAi": "ADMIN",
+    "vocabLibrary": "PRACTICE · 词库",
+    "vocabReview": "PRACTICE · 复习",
+    "vocabSets": "PRACTICE · 词集",
+    "vocabAssign": "PRACTICE · 发词"
+  },
+  "vocab": {
+    "nav": {
+      "library": "我的词库",
+      "review": "今日复习",
+      "sets": "词集",
+      "assign": "发词"
+    },
+    "library": {
+      "title": "我的词库",
+      "empty": "词库还没有单词。"
+    },
+    "review": {
+      "title": "今日复习",
+      "empty": "今天没有要复习的卡。"
+    },
+    "sets": {
+      "title": "词集",
+      "empty": "还没有词集。"
+    },
+    "assign": {
+      "title": "发词",
+      "empty": "还没有可发给班级的词集。"
+    }
   }
 }

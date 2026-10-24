@@ -26,6 +26,7 @@ export {
   LogoutOutlined,
   MoonOutlined,
   RobotOutlined,
+  SendOutlined,
   SunOutlined,
   SyncOutlined,
   TeamOutlined,

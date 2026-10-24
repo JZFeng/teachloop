@@ -7,10 +7,10 @@ import { useTranslation } from 'react-i18next'
  *
  * eyebrow 不逐页传参，而是按路由前缀解析：这样新增页面不会「忘了加品牌层」，
  * 也不会出现同一个模块两种叫法。路由 → 文案的映射在下面这张表里，改一处全站生效。
- * 颜色只表达「这是哪个功能位」（Create 蓝 / Assess 青 / Insights 玫红），
+ * 颜色只表达「这是哪个功能位」（Create 蓝 / Assess 青 / Insights 玫红 / Practice 玫粉），
  * 中性页面（首页、班级、资料、通知）用 --muted-2，不上功能色。
  */
-export type PageTone = 'create' | 'assess' | 'insights' | 'neutral'
+export type PageTone = 'create' | 'assess' | 'insights' | 'practice' | 'neutral'
 
 interface EyebrowRule {
   test: RegExp
@@ -19,6 +19,10 @@ interface EyebrowRule {
 }
 
 const EYEBROW_RULES: EyebrowRule[] = [
+  { test: /^\/vocab\/library$/, key: 'vocabLibrary', tone: 'practice' },
+  { test: /^\/vocab\/review$/, key: 'vocabReview', tone: 'practice' },
+  { test: /^\/vocab\/sets$/, key: 'vocabSets', tone: 'practice' },
+  { test: /^\/vocab\/assign$/, key: 'vocabAssign', tone: 'practice' },
   { test: /^\/assignments\/new$/, key: 'assignmentCreate', tone: 'create' },
   { test: /^\/assignments$/, key: 'assignments', tone: 'create' },
   { test: /^\/papers(\/|$)/, key: 'papers', tone: 'create' },

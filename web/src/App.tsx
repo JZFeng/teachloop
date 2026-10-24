@@ -4,10 +4,15 @@ import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { trackEvent } from './api/events'
 import { ensureCsrf } from './api/client'
 import { useAuth } from './api/auth'
+import { useFeatures } from './api/features'
 import { Loading } from './components/States'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { Button } from './ui'
 import { ExamFocusLayout, Shell } from './app/Shell'
+import VocabLibraryPage from './vocab/LibraryPage'
+import VocabReviewPage from './vocab/ReviewPage'
+import VocabSetsPage from './vocab/SetsPage'
+import VocabAssignPage from './vocab/AssignPage'
 import LoginPage from './app/LoginPage'
 import NotificationsPage from './app/NotificationsPage'
 import ProfilePage from './app/ProfilePage'
@@ -71,6 +76,7 @@ function ShellLayout() {
 
 export default function App() {
   const { me } = useAuth()
+  const { features, loaded } = useFeatures()
   const location = useLocation()
 
   useEffect(() => {
@@ -89,6 +95,15 @@ export default function App() {
         <Route element={<ShellLayout />}>
           <Route index element={<HomeRouter />} />
           <Route path="classes" element={<ClassesPage />} />
+          {/* T389：开关关闭时不注册 vocab 路由（AC-56.3 / plan §11）。 */}
+          {features.vocab && (
+            <>
+              <Route path="vocab/library" element={<VocabLibraryPage />} />
+              <Route path="vocab/review" element={<VocabReviewPage />} />
+              <Route path="vocab/sets" element={<VocabSetsPage />} />
+              <Route path="vocab/assign" element={<VocabAssignPage />} />
+            </>
+          )}
           <Route path="papers" element={<PapersPage />} />
           <Route path="papers/new" element={<PaperWizardPage />} />
           <Route path="papers/import" element={<ImportPaperPage />} />
@@ -114,7 +129,8 @@ export default function App() {
         <Route path="/exams/:offeringId" element={<Shell><ExamEntryPage /></Shell>} />
         <Route path="/exams/:offeringId/live" element={<ExamFocusLayout><ExamLivePage /></ExamFocusLayout>} />
       </Route>
-      <Route path="*" element={<Navigate to="/" replace />} />
+      {/* 深链 /vocab/* 时开关还没回来，先别重定向；否则开关回来 URL 已经变了（T389 浏览器验收发现）。 */}
+      <Route path="*" element={loaded ? <Navigate to="/" replace /> : <Loading />} />
     </Routes>
   )
 }

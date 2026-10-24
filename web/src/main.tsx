@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter } from 'react-router-dom'
 import App from './App'
 import { AuthProvider } from './api/auth'
+import { FeaturesProvider } from './api/features'
 import { ThemeProvider } from './ui'
 import './i18n'
 import './styles/tokens.css'
@@ -15,7 +16,9 @@ createRoot(document.getElementById('root')!).render(
     <ThemeProvider>
       <BrowserRouter>
         <AuthProvider>
-          <App />
+          <FeaturesProvider>
+            <App />
+          </FeaturesProvider>
         </AuthProvider>
       </BrowserRouter>
     </ThemeProvider>

@@ -237,6 +237,9 @@ lookup(form):
 5. `V044__vocab_jobs_feedback_audio.sql`
 6. `V045__vocab_lexicon_meta.sql`（T388：词表装载指纹单行表）
 7. 功能开关：`teachloop.vocab.enabled=false` 时不注册路由、导航不出现（宪法第十五条：不放占位空承诺）。
+   **T389 起默认 false**：四个页面在 T397/T403/T407/T408 落地后由 T413 收尾验收再置 true。
+   开关值由 `GET /api/features` 透出，前端 `FeaturesProvider` 统一消费（未拿到答案前不提前重定向、不显示导航）。
+   vocab 的控制器一律加 `@ConditionalOnProperty(name="teachloop.vocab.enabled", havingValue="true")`，关闭时端点不存在。
 
 ## 12. 测试策略
 

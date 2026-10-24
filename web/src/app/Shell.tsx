@@ -4,7 +4,10 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
+import { useFeatures } from '../api/features'
+import { navSpecs, type NavIcon } from './nav'
 import {
+  AppstoreOutlined,
   AuditOutlined,
   BarChartOutlined,
   BellOutlined,
@@ -17,6 +20,8 @@ import {
   HomeOutlined,
   LogoutOutlined,
   RobotOutlined,
+  SendOutlined,
+  SyncOutlined,
   TeamOutlined,
   ThemeToggle,
   UserOutlined,
@@ -24,11 +29,26 @@ import {
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
 import type { AiModelsView } from '../api/types'
 
-type NavTone = 'create' | 'assess' | 'insights' | 'home' | 'classes'
-interface NavItem { to: string; label: string; icon: ReactNode; end?: boolean; tone?: NavTone }
+/** 导航规格只带 icon 名，真正的 ReactNode 在这里映射（见 app/nav.ts）。 */
+const NAV_ICONS: Record<NavIcon, ReactNode> = {
+  home: <HomeOutlined />,
+  classes: <TeamOutlined />,
+  assignments: <BookOutlined />,
+  papers: <FileTextOutlined />,
+  grading: <HighlightOutlined />,
+  review: <AuditOutlined />,
+  reports: <BarChartOutlined />,
+  ai: <RobotOutlined />,
+  feedback: <CommentOutlined />,
+  library: <BookOutlined />,
+  vocabReview: <SyncOutlined />,
+  sets: <AppstoreOutlined />,
+  assign: <SendOutlined />,
+}
 
 export function Shell({ children }: { children: ReactNode }) {
   const { me, logout, profileComplete } = useAuth()
+  const { features } = useFeatures()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [unread, setUnread] = useState(0)
@@ -36,26 +56,8 @@ export function Shell({ children }: { children: ReactNode }) {
 
   // 三个功能位（作业/试卷 create、批改/复核 assess、报表/我的反馈 insights）之外，
   // 首页与班级作为「空间位」各有一个颜色：home 海军蓝、classes 淡紫（决策 006 2026-10-23 修订）。
-  // 资料、通知、管理员 AI 仍是中性，不配 tone。
-  const teacherNav: NavItem[] = [
-    { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true, tone: 'home' },
-    { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined />, tone: 'classes' },
-    { to: '/assignments', label: t('nav.assignments'), icon: <BookOutlined />, tone: 'create' },
-    { to: '/papers', label: t('nav.papers'), icon: <FileTextOutlined />, tone: 'create' },
-    { to: '/grading', label: t('nav.grading'), icon: <HighlightOutlined />, tone: 'assess' },
-    { to: '/review', label: t('nav.review'), icon: <AuditOutlined />, tone: 'assess' },
-    { to: '/reports', label: t('nav.reports'), icon: <BarChartOutlined />, tone: 'insights' },
-    ...(me?.role === 'ADMIN'
-      ? [{ to: '/admin/ai', label: t('nav.aiSettings'), icon: <RobotOutlined /> }]
-      : []),
-  ]
-  // 学生端同构：首页 home、班级 classes、反馈 assess。
-  const studentNav: NavItem[] = [
-    { to: '/', label: t('nav.home'), icon: <HomeOutlined />, end: true, tone: 'home' },
-    { to: '/classes', label: t('nav.classes'), icon: <TeamOutlined />, tone: 'classes' },
-    { to: '/feedback', label: t('nav.feedback'), icon: <CommentOutlined />, tone: 'assess' },
-  ]
-  const items = me?.role === 'STUDENT' ? studentNav : teacherNav
+  // 背单词是 practice 位；开关关闭时两项完全不出现（app/nav.ts）。
+  const items = navSpecs(me?.role ?? '', features.vocab)
 
   useEffect(() => {
     let alive = true
@@ -100,8 +102,8 @@ export function Shell({ children }: { children: ReactNode }) {
               data-tone={item.tone}
               className={({ isActive }) => `nav-link${isActive ? ' on' : ''}`}
             >
-              <span className="nav-ico" aria-hidden="true">{item.icon}</span>
-              <span>{item.label}</span>
+              <span className="nav-ico" aria-hidden="true">{NAV_ICONS[item.icon]}</span>
+              <span>{t(item.labelKey)}</span>
             </NavLink>
           ))}
         </nav>

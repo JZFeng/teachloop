@@ -1397,6 +1397,34 @@
     "exam": "ASSESS · Answer",
     "profile": "ACCOUNT",
     "notifications": "INBOX",
-    "adminAi": "ADMIN"
+    "adminAi": "ADMIN",
+    "vocabLibrary": "PRACTICE · Library",
+    "vocabReview": "PRACTICE · Review",
+    "vocabSets": "PRACTICE · Word sets",
+    "vocabAssign": "PRACTICE · Send words"
+  },
+  "vocab": {
+    "nav": {
+      "library": "My library",
+      "review": "Today's review",
+      "sets": "Word sets",
+      "assign": "Send words"
+    },
+    "library": {
+      "title": "My library",
+      "empty": "No words yet."
+    },
+    "review": {
+      "title": "Today's review",
+      "empty": "Nothing due today."
+    },
+    "sets": {
+      "title": "Word sets",
+      "empty": "No word sets yet."
+    },
+    "assign": {
+      "title": "Send words",
+      "empty": "No word sets available to send yet."
+    }
   }
 }
