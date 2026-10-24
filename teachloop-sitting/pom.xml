@@ -49,10 +49,42 @@
       <artifactId>poi-ooxml</artifactId>
       <version>5.5.1</version>
     </dependency>
+    <!-- T386：S3 协议对象存储（阿里云 OSS / MinIO 都兼容）；版本显式固定，Boot BOM 不管理 awssdk -->
+    <dependency>
+      <groupId>software.amazon.awssdk</groupId>
+      <artifactId>s3</artifactId>
+      <version>2.57.3</version>
+    </dependency>
     <dependency>
       <groupId>org.springframework.boot</groupId>
       <artifactId>spring-boot-starter-test</artifactId>
       <scope>test</scope>
     </dependency>
   </dependencies>
+
+  <build>
+    <plugins>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-surefire-plugin</artifactId>
+        <configuration>
+          <excludedGroups>${excludedGroups}</excludedGroups>
+        </configuration>
+      </plugin>
+    </plugins>
+  </build>
+
+  <properties>
+    <!-- T386：默认跳过 @Tag("oss") 的真实对象存储测试；-Poss（或 -DexcludedGroups=）才跑。 -->
+    <excludedGroups>oss</excludedGroups>
+  </properties>
+
+  <profiles>
+    <profile>
+      <id>oss</id>
+      <properties>
+        <excludedGroups></excludedGroups>
+      </properties>
+    </profile>
+  </profiles>
 </project>

@@ -34,7 +34,7 @@ public class Submission {
     @Column(name = "content_html", columnDefinition = "text")
     private String contentHtml;
 
-    /** T061：附件在 StorageBackend 中的 key；不存二进制、不暴露存储根目录。 */
+    /** T061：附件在 BlobStore 中的 key；不存二进制、不暴露存储根目录。 */
     @Column(name = "attachment_path", columnDefinition = "text")
     private String attachmentPath;
 

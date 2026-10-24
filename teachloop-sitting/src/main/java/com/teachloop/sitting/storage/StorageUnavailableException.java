@@ -6,4 +6,9 @@ public class StorageUnavailableException extends RuntimeException {
     public StorageUnavailableException(String message) {
         super(message);
     }
+
+    /** 保留 SDK 原始异常做诊断，但对外只返回通用消息（不含端点细节或密钥）。 */
+    public StorageUnavailableException(String message, Throwable cause) {
+        super(message, cause);
+    }
 }
