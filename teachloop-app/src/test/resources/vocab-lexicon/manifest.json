@@ -1,0 +1,110 @@
+{
+  "artifacts": {
+    "families": {
+      "bytes": 157,
+      "file": "lexicon-families.tsv",
+      "rows": 5,
+      "sha256": "c825da5aeeb9c5d8ab524cfe33e641dcb9a9178fe115e8a79baeb6678f4afd72"
+    },
+    "forms": {
+      "bytes": 380,
+      "file": "lexicon-forms.tsv",
+      "rows": 10,
+      "sha256": "4e7b954574df1fdb6dda92133f2078e4d52c5c779cd61a87c190913be6f2f19c"
+    }
+  },
+  "content_sha256": "c18c8ef0ba65efd460aa2dfdb0c792593f22966bf40e3215d70eae61f5496e7f",
+  "content_sha256_rule": "sha256('teachloop-lexicon-v1\\n' + 每个产物的 'name:sha256\\n'（按文件名排序） + 每个源文件的 'src:name:sha256\\n'（按文件名排序） + 'counts:families/forms\\n')",
+  "counts": {
+    "duplicate_forms": 2,
+    "families": 5,
+    "families_without_forms": 1,
+    "forms": 10,
+    "head_forms": 4,
+    "skipped_lines": 1,
+    "warnings": 0
+  },
+  "duplicates": [
+    {
+      "dropped": {
+        "band": 2,
+        "family_id": 6463120305653079417,
+        "file": "basewrd2.txt",
+        "freq": 8,
+        "line": 1
+      },
+      "form": "hunger",
+      "kept": {
+        "band": 1,
+        "family_id": 3163829118717115379,
+        "file": "basewrd1.txt",
+        "freq": 1124,
+        "line": 2
+      }
+    },
+    {
+      "dropped": {
+        "band": 2,
+        "family_id": 6463120305653079417,
+        "file": "basewrd2.txt",
+        "freq": 2,
+        "line": 2
+      },
+      "form": "hungered",
+      "kept": {
+        "band": 1,
+        "family_id": 3163829118717115379,
+        "file": "basewrd1.txt",
+        "freq": 8,
+        "line": 3
+      }
+    }
+  ],
+  "format": "teachloop-lexicon-v1",
+  "generated_at": "2026-10-24T05:17:03+00:00",
+  "generated_by": "scripts/vocab/build-wordlist-index.py",
+  "scope": {
+    "bands": [
+      1,
+      2
+    ],
+    "files": [
+      "basewrd1.txt",
+      "basewrd2.txt"
+    ],
+    "ignored_files": []
+  },
+  "skipped_lines": [
+    {
+      "file": "basewrd2.txt",
+      "line": 6,
+      "reason": "行尾不是整数频次（源文件杂质），整行跳过",
+      "text": "\tTRISECTS"
+    }
+  ],
+  "source": {
+    "files": [
+      {
+        "band": 1,
+        "bytes": 75,
+        "families": 3,
+        "form_rows": 7,
+        "name": "basewrd1.txt",
+        "sha256": "210dfdd95ac4c92ead935333e892446f91019c0657725078bb8d390dd6044b7a"
+      },
+      {
+        "band": 2,
+        "bytes": 60,
+        "families": 2,
+        "form_rows": 5,
+        "name": "basewrd2.txt",
+        "sha256": "0464fa0a64b0cad3754cc6c2b29dd4d7641263a7edab0e6c49acff0c34cf4c96"
+      }
+    ],
+    "local_dir": "scripts/vocab/testdata/basewords-mini",
+    "name": "Paul Nation BNC/COCA word family lists",
+    "note": "原始 txt 不入库、不进 git；仓库只保留脚本、manifest 与校验命令（spec §14.1）",
+    "url": null
+  },
+  "warnings": []
+}

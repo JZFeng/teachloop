@@ -86,3 +86,7 @@ web/public/vditor/
 
 # 截图脚本用的临时 Chrome profile（docs/mock/*）
 .chrome-profile/
+
+# Python 脚本缓存（scripts/vocab 等）
+__pycache__/
+*.pyc

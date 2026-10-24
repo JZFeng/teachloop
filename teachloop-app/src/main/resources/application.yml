@@ -38,6 +38,17 @@ teachloop:
     local-dir: ${STORAGE_LOCAL_DIR:./uploads}
     oss:
       bucket: ${STORAGE_OSS_BUCKET:}
+  vocab:
+    lexicon:
+      # T388：本地词族索引（28,276 族 / 80,579 形）。产物不进 git，先 `make vocab-lexicon`；
+      # 目录不存在时词族区块降级隐藏（spec §8），不影响应用启动。
+      enabled: ${VOCAB_LEXICON_ENABLED:true}
+      dir: ${WORDLIST_INDEX_DIR:./fixtures-local/vocab-lexicon}
+      # 启动装载期间到达的查询最多等这么久，之后按不可用处理
+      load-timeout-ms: 5000
+    word-family:
+      # spec §14.4：详情页最多显示 N 个同族词（默认 8）
+      max-members: ${VOCAB_WORD_FAMILY_MAX_MEMBERS:8}
   grading:
     engine: ${TEACHLOOP_GRADING_ENGINE:ai}
     poll-ms: 2000

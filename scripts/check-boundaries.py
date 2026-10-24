@@ -58,6 +58,8 @@ TABLE_OWNER: dict[str, str] = {
     # T387：背单词模块（17 张表，见 specs/004-vocab/plan.md §2）
     "vocab_lexicon_families": "vocab",
     "vocab_lexicon_forms": "vocab",
+    # T388：词表索引装载指纹（单行表，V045）
+    "vocab_lexicon_meta": "vocab",
     "vocab_words": "vocab",
     "vocab_word_sources": "vocab",
     "vocab_progress": "vocab",

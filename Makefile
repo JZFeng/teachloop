@@ -5,7 +5,7 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help status dev build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-test web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status
+.PHONY: help status dev build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-test web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status vocab-lexicon vocab-lexicon-test
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -19,6 +19,8 @@ help:
 	@echo "make clean      清理 target"
 	@echo "make check-deps 依赖方向守卫（T203）"
 	@echo "make status     一眼看清：提交/工作区/测试/进度"
+	@echo "make vocab-lexicon 构建本地词族索引（28,276 族 / 80,579 形）并校验 sha256"
+	@echo "make vocab-lexicon-test 跑词表构建脚本自测（合成小数据）"
 	@echo "make docker-build 构建生产镜像（含 Noto CJK/ffprobe）"
 	@echo "make compose-up   起 app + worker + postgres（需 .env）"
 	@echo "make seed         可重复演示数据（1 班 + 30 学生 + 1 试卷）"
@@ -57,10 +59,19 @@ check-ui:
 	@python3 scripts/check-ui.py
 	@python3 scripts/ui/contrast.py
 
+# T388：词表构建脚本自测（合成小数据，不依赖 fixtures-local/真实词表）。
+vocab-lexicon-test:
+	@python3 scripts/vocab/test_build_wordlist_index.py
+
+# T388：本地词族索引。原始 txt 与产物都不进 git；应用启动时装载，manifest 不变则跳过写库。
+vocab-lexicon:
+	@python3 scripts/vocab/build-wordlist-index.py
+	@python3 scripts/vocab/build-wordlist-index.py --verify
+
 build:
 	@$(MVN) -q -DskipTests package
 
-test: check-deps check-boundaries check-i18n check-ui web-test
+test: check-deps check-boundaries check-i18n check-ui web-test vocab-lexicon-test
 	@$(MVN) -q test
 
 test-ai:

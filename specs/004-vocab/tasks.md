@@ -12,7 +12,7 @@
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
 | T387 | **数据迁移 V040–V044**：词表两表（families/forms）、`vocab_words`/`word_sources`/`progress`/`review_logs`、`decks`/`review_sessions`、`sets`/`set_words`/`assignments`/`assignment_words`/`assignment_classes`/`assignment_recipients`、`generation_jobs`/`feedback`/`audio_assets`；全部登记 `TABLE_OWNER`；不建跨模块外键 | — | `make check-boundaries` 通过；迁移在空库与含存量数据的库各跑一次；表数与 plan §2 一致（17 张） |
-| T388 | **词表索引**：`scripts/vocab/build-wordlist-index.py` 产出 `lexicon-*.json` + `manifest.json`（sha256/族数/形数）；启动时幂等 upsert 进 `vocab_lexicon_*`；内存 `Map` 查询（精确 + 去变音符） | T387 | 28,276 族 / 80,579 形导入成功；`run` 与 `running` 命中同一族；`éclat` 能命中 `ÉCLAT`；manifest 变化才重建 |
+| T388 | **词表索引**：`scripts/vocab/build-wordlist-index.py` 产出 `lexicon-*.tsv` + `manifest.json`（sha256/族数/形数）；启动时幂等 upsert 进 `vocab_lexicon_*`；内存 `Map` 查询（精确 + 去变音符） | T387 | 28,276 族 / 80,579 形导入成功；`run` 与 `running` 命中同一族；`éclat` 能命中 `ÉCLAT`（用合成夹具验证去变音符——真实词表的 ÉCLAT 在未收录的 `basewrd35` 补充表，见执行记录）；manifest 变化才重建 |
 | T389 | **功能开关与导航**：`teachloop.vocab.enabled=false` 时不注册路由、导航不出现；开启后学生两项（我的词库/今日复习）、教师两项（词集/发词）；i18n key 前缀 `vocab.*` 中英同步 | T387 | 关时 `check-i18n` 与前端构建通过；开时两步导航可见；`make check-ui` 无新增违规 |
 
 ## 阶段 B — 导入、清洗、拼写校验与内容生成
@@ -113,3 +113,4 @@
 | 日期 | 任务 | 结果 | 验证 |
 | :--- | :--- | :--- | :--- |
 | 2026-10-23 | T387 迁移 V040–V044 | 完成（只建表，无业务代码）；`make test` 281/0/0/0（Flyway 在实际测试库上应用成功） | 空库按序执行 5 个迁移成功，17 张表；`check-boundaries` 44 表归属通过、`check-deps` 通过；约束冒烟：重复词（user+language+normalized）被唯一键拒绝、`rating=3` 被 check 拒绝、同来源重复（NULL 列）被 `unique nulls not distinct` 拒绝 |
+| 2026-10-23 | T388 词表索引 | 完成：`scripts/vocab/build-wordlist-index.py`（TSV + manifest）、V045 `vocab_lexicon_meta`、Java 读取/校验/幂等 upsert/内存索引/启动装载 | 真实词表：**28,276 族 / 80,579 形**（去重前 80,585；跨文件重复 6；源文件 2 行杂质跳过并在 manifest `skipped_lines` 报告；4.3 MB / gzip 约 1.5 MB）；`run` 与 `running` 同族；`éclat` 去变音符用合成夹具验证——**ÉCLAT 只在 `basewrd35`，用户 2026-10-23 决定索引只收 `basewrd1–30`**，补充表逐条记进 manifest `ignored_files`；脚本自测 8/8、vocab 单元 13/0/0、app 集成 3/0/0（Testcontainers，Flyway 实际应用到 V045）；`check-boundaries` / `check-deps` / `check-i18n` 全通过 |

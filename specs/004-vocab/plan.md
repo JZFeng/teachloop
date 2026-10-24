@@ -61,6 +61,7 @@ teachloop-vocab（第 11 个模块）
 | `vocab_generation_jobs` | `id bigserial`、`subject_type`(WORD/SET_WORD/ASSIGNMENT_WORD)、`subject_id`、`state`(QUEUED/RUNNING/SUCCEEDED/FAILED)、`attempts`、`next_run_at`、`last_error`、`locked_by/locked_at` | `unique(subject_type, subject_id)`、`index(state, next_run_at)` |
 | `vocab_lexicon_families` | `id bigint`、`head`、`band smallint`、`family_freq bigint` | `index(head)`、`index(band)` |
 | `vocab_lexicon_forms` | `normalized_form`(pk)、`folded_form`、`family_id`、`form_freq`、`is_head bool` | `index(folded_form)`、`index(family_id)`（这一列是 `band` 的冗余来源，便于按族取） |
+| `vocab_lexicon_meta`（T388，V045） | `id smallint`(pk，恒为 1)、`content_sha256`、`family_count`、`form_count`、`applied_at` | 单行；`check(id = 1)`；存「上次写进词表两表的是哪份产物」，指纹一致就跳过写库 |
 | `vocab_feedback` | `id`、`user_id`、`word_id`、`payload jsonb`、`note`、`status`、`created_at` | `index(status, created_at)` |
 | `vocab_audio_assets`（可选） | `key`(pk)、`form`、`voice`、`rate`、`size_bytes`、`created_at` | 仅做统计与清理；权威内容在 BlobStore |
 
@@ -95,6 +96,19 @@ WORDLIST_DIR（本地，不入库；默认 fixtures-local/wordlists/basewords_13
     查询走内存 map（启动时加载），DB 只做持久化与运维侧可查。
 - 索引结构：`Map<String, FormRow>`（80,579 条）+ `Map<String, Long>`（去变音符）+ `Map<Long, Family>`。
 - 实测（Python 原型）：解析 60 ms、建索引 17 ms、单次查找 1–4 µs、内存 10–15 MB。生产用 Java 只会更快。
+
+**T388 实现后的实际口径（2026-10-23）**
+
+- 产物：`lexicon-families.tsv`（28,276 行，947 KB）+ `lexicon-forms.tsv`（80,579 行，3.4 MB）+ `manifest.json`（14 KB），
+  合计 **4.3 MB**；gzip 约 **1.5 MB**（略超上面 <1 MB 的估算，可接受）。
+- **索引范围 = `basewrd1–30`**：28,276 族 / 80,585 行 / 去重 80,579 形（重复 6 个，按频次高者保留；源文件 2 行杂质跳过并写进 manifest）。
+  `basewrd31–35`（专有名词 / 前缀 / 学科词 / 缩写 / 法语借词）**不进索引**（用户 2026-10-23 决定）：
+  否则 `band=31` 会被显示成「第 31 千词族」，且拼写校验词形集会偏离 spec §20 的 80,579；
+  未纳入的文件逐条写进 manifest 的 `scope.ignored_files`，不静默丢弃。因此 `éclat`（只在 `basewrd35`）在真实词表里查不到，
+  去变音符行为用测试夹具验证（T388 执行记录）。
+- **族 id = `sha256(band|head)` 前 8 字节取正**（不用频段内序号）：词表更新插入新族时，未变化的族保持同一个 id，
+  `vocab_words.family_id` 不会静默指错族。
+- 装载指纹存 `vocab_lexicon_meta`（V045 单行表，`content_sha256` 不含构建时间）：指纹一致直接跳过写库。
 
 ### 3.2 解析规则（与 spec §14.2 一致，实现时逐条对应）
 
@@ -221,7 +235,8 @@ lookup(form):
 3. `V042__vocab_review.sql`（review_logs / decks / review_sessions）
 4. `V043__vocab_sets_assignments.sql`
 5. `V044__vocab_jobs_feedback_audio.sql`
-6. 功能开关：`teachloop.vocab.enabled=false` 时不注册路由、导航不出现（宪法第十五条：不放占位空承诺）。
+6. `V045__vocab_lexicon_meta.sql`（T388：词表装载指纹单行表）
+7. 功能开关：`teachloop.vocab.enabled=false` 时不注册路由、导航不出现（宪法第十五条：不放占位空承诺）。
 
 ## 12. 测试策略
 
