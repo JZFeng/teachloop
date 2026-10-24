@@ -1183,7 +1183,6 @@ function screenAssign(){
   </div>`;
 }
 function pickAll(){ S.picked = CLASSES.filter(c=>c.taught).map(c=>c.id); render(); }
-  S.picked = [...new Set([...S.picked, ...ids])]; render(); }
 
 function toggleClass(id){ S.picked = S.picked.includes(id)?S.picked.filter(x=>x!==id):[...S.picked,id]; render(); }
 function doAssign(){ S.assigned=true; render(); toast('已发送给 '+S.picked.length+' 个班'); }
