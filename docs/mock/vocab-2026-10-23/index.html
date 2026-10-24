@@ -226,6 +226,14 @@
   .wf .wfc span { color:var(--muted-2); margin-left:4px; }
   .fav { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-sm); padding:5px 11px; font-size:13px; }
   .fav.on { border-color:var(--amber); color:var(--amber); background:var(--amber-weak); }
+
+  .combo { position:relative; }
+  .combo-list { position:absolute; z-index:30; left:0; right:0; top:38px; background:var(--panel);
+                border:1px solid var(--line); border-radius:var(--radius-sm); box-shadow:var(--shadow-lg); max-height:220px; overflow:auto; }
+  .combo-list button { display:block; width:100%; text-align:left; padding:7px 12px; border:0; background:transparent; font-size:13px; }
+  .combo-list button:hover { background:var(--panel-2); }
+  .class-panel { border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px; max-height:240px; overflow:auto; }
+  .cp-group + .cp-group { border-top:1px dashed var(--line-2); margin-top:10px; padding-top:10px; }
 </style>
 </head>
 <body>
@@ -321,17 +329,21 @@ const WORDS = [
   { w:'achieve', ph:'/əˈtʃiːv/', def:'v. 实现；达到', src:'班级 · Unit 4', srcType:'practice',
     st:'grad', due:'96 天后', ex:['They achieved their goal.'], an:'a- + chief（头）→ 到头', note:'' },
 ];
-const SETS = [
-  { id:'u5', name:'Unit 5 生词', n:28, classes:['高二(3)班','高二(5)班'], updated:'今天 09:12', on:true },
-  { id:'u4', name:'Unit 4 生词', n:32, classes:['高二(3)班'], updated:'10-21', on:false },
-  { id:'gk', name:'高考核心 3500', n:3500, classes:[], updated:'10-18', on:false },
-  { id:'wrong', name:'易错词（自建）', n:46, classes:[], updated:'10-16', on:false },
+let SETS = [
+  { id:'u5', name:'Unit 5 生词', n:28, classes:['高二(3)班','高二(5)班'], updated:'今天 09:12', active:true, lang:'英语' },
+  { id:'u4', name:'Unit 4 生词', n:32, classes:['高二(3)班'], updated:'10-21 14:30', active:true, lang:'英语' },
+  { id:'gk', name:'高考核心 3500', n:3500, classes:[], updated:'10-18 10:02', active:true, lang:'英语' },
+  { id:'wrong', name:'易错词（自建）', n:46, classes:[], updated:'10-16 20:15', active:false, lang:'英语' },
+  { id:'gz', name:'高一 Unit 1 词汇', n:64, classes:['高一(3)班','高一(7)班'], updated:'10-15 08:40', active:true, lang:'英语' },
 ];
-const CLASSES = [
-  { id:'c3', name:'高二(3)班', n:42, taught:true },
-  { id:'c5', name:'高二(5)班', n:40, taught:true },
-  { id:'c7', name:'高二(7)班', n:38, taught:false },
-];
+const CLASSES = (() => {
+  const out = [];
+  for (let i = 1; i <= 18; i++) out.push({ id:'g1-'+i, name:`高一(${i})班`, n:40 + ((i*7)%6), taught:true, grade:'高一' });
+  out.push({ id:'g2-3', name:'高二(3)班', n:42, taught:true, grade:'高二' });
+  out.push({ id:'g2-5', name:'高二(5)班', n:40, taught:true, grade:'高二' });
+  out.push({ id:'g2-7', name:'高二(7)班', n:38, taught:false, grade:'高二' });
+  return out;
+})();
 
 /* ============================================================ */
 const S = {
@@ -350,6 +362,7 @@ const S = {
   popFilters:{src:[], deck:'all', status:'all', lang:'en'},
   free:false, freeTotal:0, freeIdx:0, freeKnown:0, freeRated:{again:0,hard:0,good:0,easy:0},
   detail:null, fav:['abandon','accumulate'], paused:[], info:false, rated:null,
+  setSelRows:[], setEdit:null, setQ:'', setActiveTab:'words', assignInfo:false, classQ:'', comboOpen:false,
   addTab:'paste', setTab:'words', paste: SAMPLE_PASTE, parseDone:false,
 };
 
@@ -388,6 +401,7 @@ const TITLES = {
   summary:['复习小结','单词 · 学生'],
   add:['加词与导入','单词 · 学生'],
   wordset:['词集','单词 · 教师'],
+  wordsetEdit:['编辑词集','单词 · 教师'],
   assign:['发词给班级','单词 · 教师'],
 };
 
@@ -917,133 +931,187 @@ function screenAdd(){
   </div>`;
 }
 
+function setSel(id){ S.setSelRows = S.setSelRows.includes(id)?S.setSelRows.filter(x=>x!==id):[...S.setSelRows,id]; render(); }
+function setAll(on){ S.setSelRows = on ? SETS.map(s=>s.id) : []; render(); }
+function setBulk(kind){
+  if (kind==='delete') { SETS = SETS.filter(s=>!S.setSelRows.includes(s.id)); }
+  else { SETS.forEach(s=>{ if(S.setSelRows.includes(s.id)) s.active = (kind==='active'); }); }
+  toast(`已对 ${S.setSelRows.length} 个词集执行「${({active:'启用',inactive:'停用',delete:'删除'})[kind]}」`);
+  S.setSelRows=[]; render();
+}
+function openSet(id){ S.setEdit=id; S.screen='wordsetEdit'; render(); }
+
 function screenWordset(){
   if (S.ds!=='data') return stateBlock(S.ds);
-  const set = SETS.find(s=>s.id===S.setSel) || SETS[0];
-  const words = WORDS.slice(0,8);
+  const q = S.setQ.trim().toLowerCase();
+  const rows = SETS.filter(s=>!q || s.name.toLowerCase().includes(q));
+  const allSel = rows.length>0 && rows.every(s=>S.setSelRows.includes(s.id));
   return `
-  <div class="two-col">
-    <div class="card">
-      <div class="between card-pad" style="border-bottom:1px solid var(--line-2)">
-        <b>我的词集</b><button class="btn sm primary">${ICONS.plus} 新建</button>
-      </div>
-      ${SETS.map(s=>`<div class="list-item ${s.id===S.setSel?'on':''}" onclick="S.setSel='${s.id}';render()">
-        <div class="between"><span style="font-weight:500">${s.name}</span><span class="sm muted-2 mono">${s.n} 词</span></div>
-        <div class="sm muted-2" style="margin-top:2px">
-          ${s.classes.length?`已发给 ${s.classes.length} 个班`:'未发送'} · 更新于 ${s.updated}
-        </div>
-      </div>`).join('')}
-    </div>
-
-    <div class="card">
-      <div class="card-pad" style="border-bottom:1px solid var(--line-2)">
-        <div class="seg" style="margin-bottom:10px">
-          <button class="${S.setTab==='words'?'on':''}" onclick="S.setTab='words';render()">词条</button>
-          <button class="${S.setTab==='history'?'on':''}" onclick="S.setTab='history';render()">发词记录</button>
-        </div>
-        <div class="between">
-          <div>
-            <div style="font-size:16px;font-weight:600">${set.name}</div>
-            <div class="sm muted">${set.n} 个词 · ${set.classes.length?`已发给 ${set.classes.join('、')}`:'还没发给任何班'}</div>
-          </div>
-          <div class="row">
-            <button class="btn sm">${ICONS.upload} 导入单词</button>
-            <button class="btn sm">${ICONS.plus} 加词</button>
-            <button class="btn sm primary" onclick="go('assign')">${ICONS.send} 发给班级</button>
-          </div>
-        </div>
-      </div>
-      ${S.setTab==='history'?`
-        ${[
-          ['高二(3)班','今天 09:12','3 天后截止','28 词'],
-          ['高二(5)班','10-21 14:30','已过期','32 词'],
-        ].map(([cls,when,due,n])=>`<div class="wrow">
-          <div style="flex:1"><div style="font-weight:500">${cls}</div><div class="sm muted">${when} · ${n} · ${due}</div></div>
-          <button class="btn ghost sm" onclick="toast('已复制布置链接')">复制链接</button>
-        </div>`).join('')}
-        <div class="card-pad sm muted">发出去的是快照：之后改词集不影响这些布置。</div>
-      `:words.map((w,i)=>`<div class="wrow">
-        <span class="handle">${i+1}</span>
-        <div style="flex:1;min-width:0">
-          <div style="font-weight:500">${w.w} <span class="ph">${w.ph}</span></div>
-          <div class="sm muted">${w.def}</div>
-        </div>
-        <button class="btn ghost sm" title="朗读" onclick="toast('朗读 ${w.w}（TTS 缓存命中 32ms）')">${ICONS.speaker}</button>
-        <button class="btn ghost sm" title="上移">↑</button>
-        <button class="btn ghost sm" title="移出词集">移除</button>
-      </div>`).join('')}
-      ${S.setTab==='words'?`
-      <div class="between card-pad" style="border-top:1px solid var(--line-2)">
-        <span class="sm muted">前 8 条（共 ${set.n}）· 顺序就是学生首次预习的顺序</span>
-        <button class="btn sm">查看全部</button>
-      </div>`:''}
-    </div>
+  <div class="toolbar">
+    <input class="input grow" placeholder="搜索词集" value="${S.setQ}" oninput="S.setQ=this.value;render()">
+    <div style="flex:1"></div>
+    <button class="btn primary" onclick="S.setEdit=null;S.screen='wordsetEdit';render()">${ICONS.plus} 新建词集</button>
   </div>
-  <div class="foot-note">词集是内容资产：改词集不会影响已经发出去的布置（发送时做了快照）。</div>`;
+  ${S.setSelRows.length?`<div class="batchbar">
+      <b>已选 ${S.setSelRows.length} 个</b>
+      <button class="btn sm" onclick="setBulk('active')">启用</button>
+      <button class="btn sm" onclick="setBulk('inactive')">停用</button>
+      <button class="btn sm" onclick="setBulk('delete')">删除</button>
+      <button class="btn sm" onclick="S.setSelRows=[];render()">取消选择</button>
+    </div>`:''}
+  <div class="card">
+    <table>
+      <thead><tr>
+        <th style="width:38px"><input type="checkbox" ${allSel?'checked':''} onchange="setAll(${allSel})"></th>
+        <th>名称</th><th style="width:80px">语言</th><th style="width:80px">词数</th>
+        <th style="width:96px">状态</th><th style="width:120px">已发给</th><th style="width:130px">更新时间</th><th style="width:80px">操作</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(s=>`<tr>
+          <td><input type="checkbox" ${S.setSelRows.includes(s.id)?'checked':''} onchange="setSel('${s.id}')"></td>
+          <td onclick="openSet('${s.id}')" style="cursor:pointer;font-weight:500">${s.name}</td>
+          <td class="sm muted">${s.lang}</td>
+          <td class="mono">${s.n}</td>
+          <td>${s.active?'<span class="chip ok">启用</span>':'<span class="chip">已停用</span>'}</td>
+          <td class="sm muted">${s.classes.length?s.classes.length+' 个班':'—'}</td>
+          <td class="sm muted mono">${s.updated}</td>
+          <td><button class="btn sm" onclick="openSet('${s.id}')">更新</button></td>
+        </tr>`).join('')}
+      </tbody>
+    </table>
+    <div class="card-pad sm muted" style="border-top:1px solid var(--line-2)">共 ${rows.length} 个词集 · 点名称或「更新」进入编辑</div>
+  </div>
+  <div class="foot-note">词集是内容资产：改词集不会影响已经发出去的布置（发送时做了快照）。停用的词集不能再发词。</div>`;
 }
 
-/* ---------------- 屏 4：教师 · 发词 ---------------- */
-function screenAssign(){
-  if (S.ds!=='data') return stateBlock(S.ds);
-  const set = SETS.find(s=>s.id==='u5');
-  const picked = CLASSES.filter(c=>S.picked.includes(c.id));
+function screenWordsetEdit(){
+  const isNew = !S.setEdit;
+  const set = isNew ? { name:'', n:0, classes:[], active:true, lang:'英语', updated:'' }
+                    : (SETS.find(s=>s.id===S.setEdit) || SETS[0]);
+  const words = WORDS.slice(0,8);
   return `
-  <div class="two-col" style="grid-template-columns:minmax(0,1fr) 360px">
-    <div class="card card-pad">
-      <div class="form-grid">
-        <div class="field" style="grid-column:1/-1">
-          <label>选择词集</label>
-          <select class="input">
-            ${SETS.map(s=>`<option ${s.id==='u5'?'selected':''}>${s.name}（${s.n} 词）</option>`).join('')}
-          </select>
-        </div>
-        <div class="field" style="grid-column:1/-1">
-          <label>发给哪些班 <span class="muted-2">（只能选自己带的班）</span></label>
-          <div class="class-pick">
-            ${CLASSES.map(c=>`<button class="class-chip ${S.picked.includes(c.id)?'on':''}"
-              ${c.taught?'':'disabled style="opacity:.45;cursor:not-allowed" title="不是你的班"'}
-              onclick="toggleClass('${c.id}')">${S.picked.includes(c.id)?'✓ ':''}${c.name} · ${c.n} 人${c.taught?'':'（非本人班级）'}</button>`).join('')}
-          </div>
-        </div>
-        <div class="field">
-          <label>预习截止（可选）</label>
-          <input class="input" type="datetime-local" value="2026-10-27T22:00">
-        </div>
-        <div class="field">
-          <label>给学生的说明（可选）</label>
-          <input class="input" value="下节课听写 Unit 5，先过一遍">
-        </div>
+  <div class="toolbar">
+    <button class="btn" onclick="S.screen='wordset';render()">← 返回词集</button>
+    <div style="flex:1"></div>
+    <button class="btn" onclick="toast('打开导入：CSV / MD / TXT')">${ICONS.upload} 导入单词</button>
+    <button class="btn" onclick="toast('打开粘贴加词框')">${ICONS.plus} 加词</button>
+    <button class="btn primary" onclick="toast('已保存');S.screen='wordset';render()">保存</button>
+  </div>
+  <div class="two-col" style="grid-template-columns:minmax(0,1fr) 320px">
+    <div class="card">
+      <div class="card-pad" style="border-bottom:1px solid var(--line-2)">
+        <div style="font-size:16px;font-weight:600">${isNew?'新建词集':'编辑：'+set.name}</div>
+        <div class="sm muted">${isNew?'填名称、选语言，然后用右上角的「导入单词」或「加词」往里放词':'改名称与说明不影响已发出的布置（快照）'}</div>
       </div>
-      <div class="between" style="margin-top:16px">
-        <span class="sm muted">共 ${picked.length} 个班 · 预计 ${picked.length*40} 名学生收到待办</span>
-        <div class="row">
-          <button class="btn">取消</button>
-          <button class="btn primary" onclick="doAssign()">${ICONS.send} 发送</button>
-        </div>
+      <div class="card-pad form-grid" style="border-bottom:1px solid var(--line-2)">
+        <div class="field"><label>名称</label><input class="input" value="${set.name}" placeholder="如 Unit 5 生词"></div>
+        <div class="field"><label>学习语言</label><select class="input"><option>英语</option><option>中文</option><option>西班牙语</option></select></div>
+        <div class="field" style="grid-column:1/-1"><label>说明（可选）</label><input class="input" placeholder="给学生的说明"></div>
       </div>
-      ${S.assigned?`<div class="card-pad" style="margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--green);border-radius:8px">
-        <b>已发送</b> · ${picked.map(c=>c.name).join('、')} · 共 ${picked.length*40} 名学生收到待办
-        <div class="sm muted" style="margin-top:2px">已对词集做快照；之后改词集不影响这次布置。</div></div>`:''}
+      ${set.n===0?`<div class="state" style="padding:36px 20px">
+        <div class="ic">${ICONS.inbox}</div><h3>这个词集还没有词</h3>
+        <p>用右上角的「导入单词」上传 CSV/MD/TXT，或「加词」把词粘贴进来。入库后内容会自动生成。</p>
+      </div>`:`
+      <table>
+        <thead><tr><th style="width:60px">#</th><th>单词</th><th>释义</th><th style="width:90px">操作</th></tr></thead>
+        <tbody>${words.map((w,i)=>`<tr>
+          <td class="mono sm muted">${i+1}</td>
+          <td style="font-weight:500">${w.w} <span class="ph">${w.ph}</span></td>
+          <td class="sm">${w.def}</td>
+          <td><button class="btn ghost sm" onclick="toast('已移出词集（不删词条）')">移除</button></td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div class="card-pad sm muted" style="border-top:1px solid var(--line-2)">前 8 条（共 ${set.n}）· 顺序即学生首次预习顺序</div>`}
     </div>
-
     <aside>
       <div class="card card-pad">
-        <div class="sm muted" style="margin-bottom:8px">学生端会看到</div>
-        <div class="preview-mini">
-          <div class="sm muted-2">王砚秋老师发来</div>
-          <div style="font-weight:600;margin:2px 0">Unit 5 生词 · 28 个词</div>
-          <div class="sm muted">3 天后截止</div>
-          <div class="sm muted-2" style="margin-top:6px">下节课听写 Unit 5，先过一遍</div>
-          <button class="btn sm primary" style="margin-top:10px">查看并加入</button>
-        </div>
-      </div>
-      <div class="card card-pad" style="margin-top:12px">
-        <div class="sm muted" style="margin-bottom:6px">发送后发生什么</div>
-        <div class="sm muted-2">词进学生的总词库；已在库的词只追加来源，不重置进度；删除这次布置也不会删掉学生学过的词。</div>
+        <div class="sm muted" style="margin-bottom:6px">这个词集的去向</div>
+        <div class="between"><span>状态</span><span>${set.active?'启用':'已停用'}</span></div>
+        <div class="between"><span>已发给</span><span>${set.classes.length?set.classes.length+' 个班':'还没发'}</span></div>
+        <div class="between"><span>最近更新</span><span class="mono sm">${set.updated||'—'}</span></div>
+        <div class="sm muted-2" style="margin-top:8px">停用后不能再发词；已发出的布置不受影响。</div>
       </div>
     </aside>
   </div>`;
 }
+
+function screenAssign(){
+  if (S.ds!=='data') return stateBlock(S.ds);
+  const picked = CLASSES.filter(c=>S.picked.includes(c.id));
+  const taught = CLASSES.filter(c=>c.taught);
+  const q = S.classQ.trim();
+  const groups = ['高一','高二'];
+  const chip = c => `<button class="class-chip ${S.picked.includes(c.id)?'on':''}" onclick="toggleClass('${c.id}')">
+      ${S.picked.includes(c.id)?'✓ ':''}${c.name} · ${c.n} 人</button>`;
+  return `
+  <div class="two-col" style="grid-template-columns:minmax(0,1fr)">
+    <div class="card card-pad">
+      <div class="between" style="margin-bottom:10px">
+        <b>发词给班级</b>
+        <button class="btn ghost sm" title="说明" onclick="S.assignInfo=!S.assignInfo;render()">ⓘ 说明</button>
+      </div>
+
+      ${S.assignInfo?`<div class="card-pad" style="margin-bottom:14px;border-left:3px solid var(--accent);background:var(--panel-2);border-radius:8px">
+        <div class="sm"><b>学生端会看到</b>：首页一条待办「王砚秋老师发来 Unit 5 生词 · 3 天后截止」，点进去可一键加入词库。</div>
+        <div class="sm" style="margin-top:6px"><b>发送后发生什么</b>：词进学生总词库；已在库的词只追加来源、不重置进度；删除这次布置也不会删掉学生学过的词。</div>
+      </div>`:''}
+
+      <div class="form-grid">
+        <div class="field" style="grid-column:1/-1"><label>选择词集（可输入搜索）</label>
+          <div class="combo">
+            <input class="input" placeholder="输入词集名称搜索…" value="${S.setQ}" oninput="S.setQ=this.value;S.comboOpen=true;render()" onfocus="S.comboOpen=true;render()">
+            ${S.comboOpen?`<div class="combo-list">
+              ${SETS.filter(s=>s.active && (!S.setQ || s.name.toLowerCase().includes(S.setQ.toLowerCase())))
+                .map(s=>`<button onclick="S.setQ='${s.name}';S.comboOpen=false;render()">${s.name} <span class="sm muted">· ${s.n} 词${s.classes.length?' · 已发给 '+s.classes.length+' 个班':''}</span></button>`).join('')
+                || '<div class="card-pad sm muted">没有匹配的词集</div>'}
+            </div>`:''}
+          </div>
+        </div>
+
+        <div class="field" style="grid-column:1/-1">
+          <label>发给哪些班 <span class="muted-2">（只能选自己带的班，共 ${taught.length} 个）</span></label>
+          <div class="between" style="margin-bottom:6px">
+            <input class="input" style="flex:1" placeholder="搜索班级，如 高一(3)" value="${S.classQ}" oninput="S.classQ=this.value;render()">
+            <button class="btn sm" onclick="pickAll()">全选</button>
+            <button class="btn sm" onclick="S.picked=[];render()">清空</button>
+          </div>
+          <div class="class-panel">
+            ${groups.map(g=>{
+              const list = taught.filter(c=>c.grade===g && (!q || c.name.includes(q)));
+              if (!list.length) return '';
+              return `<div class="cp-group">
+                <div class="between" style="margin-bottom:6px">
+                  <b class="sm">${g} · ${list.length} 个班</b>
+                  <button class="btn ghost sm" onclick="pickGrade('${g}')">本年级全选</button>
+                </div>
+                <div class="class-pick">${list.map(chip).join('')}</div>
+              </div>`;
+            }).join('') || '<div class="sm muted">没有匹配的班级</div>'}
+          </div>
+          <div class="sm muted" style="margin-top:6px">已选 <b>${picked.length}</b> 个班 · 预计 ${picked.reduce((a,c)=>a+c.n,0)} 名学生收到待办</div>
+        </div>
+
+        <div class="field"><label>预习截止（可选）</label><input class="input" type="datetime-local" value="2026-10-27T22:00"></div>
+        <div class="field"><label>给学生的说明（可选）</label><input class="input" value="下节课听写 Unit 5，先过一遍"></div>
+      </div>
+
+      <div class="between" style="margin-top:16px">
+        <span class="sm muted">发送时会做内容快照</span>
+        <div class="row">
+          <button class="btn">取消</button>
+          <button class="btn primary" onclick="doAssign()">${ICONS.send} 发送给 ${picked.length} 个班</button>
+        </div>
+      </div>
+      ${S.assigned?`<div class="card-pad" style="margin-top:14px;border:1px solid var(--line);border-left:3px solid var(--green);border-radius:8px">
+        <b>已发送</b> · ${picked.map(c=>c.name).join('、')} · 共 ${picked.reduce((a,c)=>a+c.n,0)} 名学生收到待办
+        <div class="sm muted" style="margin-top:2px">已对词集做快照；之后改词集不影响这次布置。</div></div>`:''}
+    </div>
+  </div>`;
+}
+function pickAll(){ S.picked = CLASSES.filter(c=>c.taught).map(c=>c.id); render(); }
+function pickGrade(g){ const ids = CLASSES.filter(c=>c.taught && c.grade===g).map(c=>c.id);
+  S.picked = [...new Set([...S.picked, ...ids])]; render(); }
+
 function toggleClass(id){ S.picked = S.picked.includes(id)?S.picked.filter(x=>x!==id):[...S.picked,id]; render(); }
 function doAssign(){ S.assigned=true; render(); toast('已发送给 '+S.picked.length+' 个班'); }
 
@@ -1052,7 +1120,7 @@ function render(){
   renderNav();
   const main = document.getElementById('main');
   main.innerHTML = ({library:screenLibrary, review:screenReview, detail:screenDetail, summary:screenSummary, add:screenAdd,
-                     wordset:screenWordset, assign:screenAssign})[S.screen]();
+                     wordset:screenWordset, wordsetEdit:screenWordsetEdit, assign:screenAssign})[S.screen]();
 }
 let toastTimer;
 function toast(msg){
@@ -1080,9 +1148,10 @@ document.addEventListener('keydown', e=>{
 (function initFromHash(){
   const raw = location.hash.replace('#',''); if(!raw) return;
   const [scr, qs] = raw.split('?');
-  if (['library','review','detail','summary','add','wordset','assign'].includes(scr)) {
+  if (['library','review','detail','summary','add','wordset','wordsetEdit','assign'].includes(scr)) {
     S.screen = scr;
     S.role = ['review','library','detail','summary','add'].includes(scr) ? 'student' : 'teacher';
+  if (scr==='wordsetEdit') S.setEdit = null;
   }
   if (scr==='review' && /free=1/.test(qs||'')) { S.free=true; S.freeTotal=46; S.freeIdx=12; S.freeKnown=4; }
   if (scr==='detail') S.detail = 'abandon';
