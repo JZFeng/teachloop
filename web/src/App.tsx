@@ -12,6 +12,7 @@ import { ExamFocusLayout, Shell } from './app/Shell'
 import VocabLibraryPage from './vocab/LibraryPage'
 import VocabReviewPage from './vocab/ReviewPage'
 import VocabSetsPage from './vocab/SetsPage'
+import VocabSetEditPage from './vocab/SetEditPage'
 import VocabAssignPage from './vocab/AssignPage'
 import VocabWordDetailPage from './vocab/WordDetailPage'
 import VocabFreeReviewPage from './vocab/FreeReviewPage'
@@ -103,6 +104,8 @@ export default function App() {
               <Route path="vocab/library" element={<VocabLibraryPage />} />
               <Route path="vocab/review" element={<VocabReviewPage />} />
               <Route path="vocab/sets" element={<VocabSetsPage />} />
+              <Route path="vocab/sets/new" element={<VocabSetEditPage />} />
+              <Route path="vocab/sets/:id" element={<VocabSetEditPage />} />
               <Route path="vocab/assign" element={<VocabAssignPage />} />
               <Route path="vocab/words/by-form/:form" element={<VocabWordDetailPage />} />
               <Route path="vocab/review/session/:id" element={<VocabFreeReviewPage />} />

@@ -53,7 +53,7 @@ public class VocabularySetEndpoint {
     }
 
     public record SetView(UUID id, String name, String language, String description, boolean active,
-                          Instant updatedAt, int wordCount) {
+                          Instant updatedAt, int wordCount, int assignedClasses) {
     }
 
     public record SetWordView(UUID id, int position, String form, String normalizedForm, Integer band) {
@@ -88,13 +88,16 @@ public class VocabularySetEndpoint {
         requireTeacher(me);
         return jdbc.query("""
                 select s.id, s.name, s.language, s.description, s.active, s.updated_at,
-                       (select count(*) from vocab_set_words w where w.set_id = s.id) as word_count
+                       (select count(*) from vocab_set_words w where w.set_id = s.id) as word_count,
+                       (select count(distinct ac.class_id) from vocab_assignments a
+                          join vocab_assignment_classes ac on ac.assignment_id = a.id
+                         where a.set_id = s.id) as assigned_classes
                   from vocab_sets s
                  where s.teacher_id = ? and s.deleted = false
                  order by s.updated_at desc
                 """, (rs, rowNumber) -> new SetView(
                 rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
-                rs.getBoolean(5), rs.getTimestamp(6).toInstant(), rs.getInt(7)),
+                rs.getBoolean(5), rs.getTimestamp(6).toInstant(), rs.getInt(7), rs.getInt(8)),
                 me.id());
     }
 
@@ -277,12 +280,15 @@ public class VocabularySetEndpoint {
     private SetView find(UUID id, UUID teacherId) {
         List<SetView> rows = jdbc.query("""
                 select s.id, s.name, s.language, s.description, s.active, s.updated_at,
-                       (select count(*) from vocab_set_words w where w.set_id = s.id)
+                       (select count(*) from vocab_set_words w where w.set_id = s.id),
+                       (select count(distinct ac.class_id) from vocab_assignments a
+                          join vocab_assignment_classes ac on ac.assignment_id = a.id
+                         where a.set_id = s.id)
                   from vocab_sets s
                  where s.id = ? and s.teacher_id = ? and s.deleted = false
                 """, (rs, rowNumber) -> new SetView(
                 rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
-                rs.getBoolean(5), rs.getTimestamp(6).toInstant(), rs.getInt(7)),
+                rs.getBoolean(5), rs.getTimestamp(6).toInstant(), rs.getInt(7), rs.getInt(8)),
                 id, teacherId);
         if (rows.isEmpty()) {
             throw ApiException.notFound("word set not found");
