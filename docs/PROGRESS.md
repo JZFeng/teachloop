@@ -151,9 +151,10 @@
   （T334 起正文只在「学生正文」显示一次，重复块已删）
 - 已确认：初始化/登录/资料三处配 DeepSeek Key、Key 永不明文、反馈语言跟学生界面语言、
   作业 rubric 优先、问候语不计段、AI 反馈预填 + 批量通过
-- 背单词：`teachloop-vocab` 空模块已接线（**无表、无端口、无路由**），规格目录 `specs/004-vocab/` 待写
-- 分支 / HEAD：`main`（`feat/ui-standard` 已合入并删除）；背单词的实现分支尚未创建，
-  届时用 `git switch -c feat/vocab main`
+- 背单词：`teachloop-vocab` 已实现并合 main（T387–T413；17+3 张表 V040–V049，28,276 族 / 80,579 形词表索引，
+  词库/详情/复习/自由复习/加词导入/词集/发词/预习页，SM-2 两档调度）；详情与已知偏差见本文件
+  「背单词（004-vocab，2026-10-24）」
+- 分支 / HEAD：`main`（`feat/ui-standard` 与背单词分支均已合入并删除，当前只剩 `main`）
 - 未提交 WIP：以 `git status` 为准（本行不再写快照，避免文档腐化）
 - 最近验证：真实 DeepSeek（教师个人 DB Key，不设环境变量）对 Maria/Mark 与 Iam/Alejandro 判分成功；
   golden set 逐项 exact 29/30、总分 9/10、契约失败 0、英文语言合规 10/10；
