@@ -7,6 +7,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -95,7 +96,7 @@ class VocabGenerationTest {
 
         for (int attempt = 1; attempt <= 3; attempt++) {
             if (attempt > 1) {
-                jdbc.update("update vocab_generation_jobs set next_run_at = now() where subject_id = ?",
+                jdbc.update("update vocab_generation_jobs set next_run_at = now() - interval '1 minute' where subject_id = ?",
                         wordId);
             }
             worker.poll();
@@ -132,6 +133,45 @@ class VocabGenerationTest {
         assertThat(jdbc.queryForObject(
                 "select count(*) from vocab_generation_jobs where subject_id = ? and state = 'QUEUED'",
                 Integer.class, wordId)).isZero();
+    }
+
+
+    @Test
+    @DisplayName("T395 重试：3 次失败后手动重试 → job QUEUED、attempts 归零、词条回 PENDING，再 poll 会重新领取")
+    void retryAfterFinalFailure() throws Exception {
+        String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
+        String cookie = login(base);
+        UUID wordId = importWord(base, cookie, "failagain");
+        for (int attempt = 1; attempt <= 3; attempt++) {
+            if (attempt > 1) {
+                jdbc.update("update vocab_generation_jobs set next_run_at = now() - interval '1 minute' where subject_id = ?", wordId);
+            }
+            worker.poll();
+        }
+        assertThat(jdbc.queryForObject(
+                "select state from vocab_generation_jobs where subject_id = ?", String.class, wordId))
+                .isEqualTo("FAILED");
+
+        String retryBody = MAPPER.writeValueAsString(Map.of("ids", List.of(wordId)));
+        HttpResponse<String> retry = client.send(HttpRequest.newBuilder(
+                                URI.create(base + "/api/vocab/words/retry"))
+                        .header("Content-Type", "application/json")
+                        .header("Cookie", cookie)
+                        .POST(HttpRequest.BodyPublishers.ofString(retryBody))
+                        .build(),
+                HttpResponse.BodyHandlers.ofString());
+        assertThat(retry.statusCode()).as(retry.body()).isEqualTo(200);
+        assertThat(jdbc.queryForObject(
+                "select state from vocab_generation_jobs where subject_id = ?", String.class, wordId))
+                .isEqualTo("QUEUED");
+        assertThat(jdbc.queryForObject(
+                "select attempts from vocab_generation_jobs where subject_id = ?", Integer.class, wordId))
+                .isZero();
+        assertThat(wordStatus(wordId)).isEqualTo("PENDING");
+        worker.poll();
+        assertThat(jdbc.queryForObject(
+                "select attempts from vocab_generation_jobs where subject_id = ?", Integer.class, wordId))
+                .isEqualTo(1);
     }
 
     private UUID importWord(String base, String cookie, String word) throws Exception {

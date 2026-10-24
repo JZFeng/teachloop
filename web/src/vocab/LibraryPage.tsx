@@ -142,6 +142,14 @@ export default function VocabLibraryPage() {
     return () => { alive = false }
   }, [queryString, reloadKey])
 
+  // T395：只有存在「内容生成中」的词才轮询；间隔 5s，生成完自动刷新并停表（无轮询风暴）
+  const hasPending = (data?.items ?? []).some((word) => word.contentStatus === 'PENDING')
+  useEffect(() => {
+    if (!hasPending) return
+    const timer = setInterval(() => setReloadKey((value) => value + 1), 5000)
+    return () => clearInterval(timer)
+  }, [hasPending])
+
   useEffect(() => {
     let alive = true
     api.get<Stats>('/api/vocab/words/stats')
@@ -255,6 +263,13 @@ export default function VocabLibraryPage() {
     refresh()
   }
 
+  const retryContent = async (ids: string[]) => {
+    if (ids.length === 0) return
+    await api.post('/api/vocab/words/retry', { ids })
+    toast.success(t('vocab.library.retryDone'))
+    refresh()
+  }
+
   const toggleFavorite = async (word: WordItem) => {
     await api.put(`/api/vocab/words/${word.id}/favorite`, { favorite: !word.favorite })
     refresh()
@@ -347,7 +362,15 @@ export default function VocabLibraryPage() {
           ? t('vocab.library.sourceKind.SELF')
           : word.sources.map((source) => source.label ?? t(`vocab.library.sourceKind.${source.kind}`)).join(' · ')
       case 'state':
-        return <span className="chip">{stateLabel(word)}</span>
+        return (
+          <span className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
+            <span className="chip">{stateLabel(word)}</span>
+            {word.contentStatus === 'PENDING'
+              && <span className="chip">{t('vocab.library.contentGenerating')}</span>}
+            {word.contentStatus === 'FAILED'
+              && <span className="chip">{t('vocab.library.contentFailed')}</span>}
+          </span>
+        )
       case 'due':
         return word.dueAt ? new Date(word.dueAt).toLocaleDateString() : '—'
       case 'actions':
@@ -361,6 +384,9 @@ export default function VocabLibraryPage() {
               title={word.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
               onClick={() => void toggleFavorite(word)}
             />
+            {word.contentStatus === 'FAILED' && (
+              <Button size="small" onClick={() => void retryContent([word.id])}>{t('vocab.library.retry')}</Button>
+            )}
             {word.paused
               ? <Button size="small" onClick={() => void resume(word)}>{t('vocab.library.resume')}</Button>
               : <Button size="small" onClick={() => void pause(word)}>{t('vocab.library.pause')}</Button>}
@@ -425,6 +451,11 @@ export default function VocabLibraryPage() {
           <span>{t('vocab.library.selected', { count: selected.size })}</span>
           <Button size="small" onClick={() => void batch('PAUSE')}>{t('vocab.library.batchPause')}</Button>
           <Button size="small" variant="danger" onClick={() => void batch('DELETE')}>{t('vocab.library.batchDelete')}</Button>
+          {items.some((word) => selected.has(word.id) && word.contentStatus === 'FAILED') && (
+            <Button size="small" onClick={() => void retryContent([...selected])}>
+              {t('vocab.library.batchRetry')}
+            </Button>
+          )}
         </div>
       )}
 

@@ -1481,7 +1481,12 @@
       "moveDown": "下移",
       "prefsFailed": "列配置保存失败，稍后重试",
       "favorite": "收藏",
-      "unfavorite": "取消收藏"
+      "unfavorite": "取消收藏",
+      "contentGenerating": "内容生成中",
+      "contentFailed": "内容生成失败",
+      "retry": "重试",
+      "retryDone": "已重新入队，稍后自动刷新",
+      "batchRetry": "批量重试"
     },
     "review": {
       "title": "今日复习",

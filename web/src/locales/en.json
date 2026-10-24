@@ -1481,7 +1481,12 @@
       "moveDown": "Down",
       "prefsFailed": "Could not save column settings; try again",
       "favorite": "Favourite",
-      "unfavorite": "Remove favourite"
+      "unfavorite": "Remove favourite",
+      "contentGenerating": "Generating",
+      "contentFailed": "Generation failed",
+      "retry": "Retry",
+      "retryDone": "Queued again; this list refreshes automatically",
+      "batchRetry": "Retry selected"
     },
     "review": {
       "title": "Today's review",

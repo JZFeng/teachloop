@@ -2,6 +2,7 @@ package com.teachloop.vocab.query;
 
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.security.CurrentUser;
+import com.teachloop.vocab.generation.GenerationJobStore;
 import com.teachloop.vocab.word.VocabWordRepository;
 import java.util.List;
 import java.util.UUID;
@@ -33,16 +34,21 @@ public class VocabularyWordActionsEndpoint {
     private static final int MAX_BATCH = 200;
 
     private final VocabWordRepository words;
+    private final GenerationJobStore jobs;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public VocabularyWordActionsEndpoint(VocabWordRepository words) {
+    public VocabularyWordActionsEndpoint(VocabWordRepository words, GenerationJobStore jobs) {
         this.words = words;
+        this.jobs = jobs;
     }
 
     public record BatchRequest(List<UUID> ids, String action) {
     }
 
     public record FavoriteRequest(boolean favorite) {
+    }
+
+    public record RetryRequest(List<UUID> ids) {
     }
 
     public record Affected(int affected) {
@@ -79,6 +85,27 @@ public class VocabularyWordActionsEndpoint {
             throw ApiException.badRequest("favorite is required");
         }
         return new Affected(words.setFavorite(me.id(), id, request.favorite()) ? 1 : notFound());
+    }
+
+    /** T395：单条/批量重试内容生成（词条回 PENDING，job 回 QUEUED）。 */
+    @PostMapping("/words/retry")
+    public Affected retry(@RequestBody(required = false) RetryRequest request,
+                          @RequestAttribute("currentUser") CurrentUser me) {
+        if (request == null || request.ids() == null || request.ids().isEmpty()) {
+            throw ApiException.badRequest("ids is required");
+        }
+        if (request.ids().size() > MAX_BATCH) {
+            throw ApiException.badRequest("at most " + MAX_BATCH + " ids per batch");
+        }
+        for (UUID id : request.ids()) {
+            if (!words.belongsTo(me.id(), id)) {
+                throw ApiException.notFound("word not found");
+            }
+        }
+        for (UUID id : request.ids()) {
+            jobs.retryWord(id, java.time.Instant.now());
+        }
+        return new Affected(request.ids().size());
     }
 
     @PostMapping("/words/batch")
