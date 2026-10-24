@@ -349,7 +349,7 @@ const S = {
   modal:false,
   popFilters:{src:[], deck:'all', status:'all', lang:'en'},
   free:false, freeTotal:0, freeIdx:0, freeKnown:0, freeRated:{again:0,hard:0,good:0,easy:0},
-  detail:null, fav:['abandon','accumulate'], paused:[], info:false,
+  detail:null, fav:['abandon','accumulate'], paused:[], info:false, rated:null,
   addTab:'paste', setTab:'words', paste: SAMPLE_PASTE, parseDone:false,
 };
 
@@ -449,8 +449,8 @@ function markKnown(word){
   render();
 }
 function unmarkKnown(w){ S.known=S.known.filter(x=>x!==w); render(); toast('已重新加入生词本，今天可再次复习'); }
-function nextCard(){ if(S.free){S.freeIdx++;} else {S.idx++;} S.flipped=false; render(); }
-function prevCard(){ if(S.free){ if(S.freeIdx>0) S.freeIdx--; } else { if(S.idx>0) S.idx--; } S.flipped=false; render(); }
+function nextCard(){ if(S.free){S.freeIdx++;} else {S.idx++;} S.flipped=false; S.rated=null; render(); }
+function prevCard(){ if(S.free){ if(S.freeIdx>0) S.freeIdx--; } else { if(S.idx>0) S.idx--; } S.flipped=false; S.rated=null; render(); }
 function endFree(){ S.screen='summary'; render(); }
 function openDetail(w){ S.detail=w; S.screen='detail'; render(); }
 function nextDue(w){ const i = WORDS.indexOf(w); return i; }
@@ -792,14 +792,18 @@ function screenReview(){
       </div>`:''}
       <div class="card">${S.flipped?back:front}</div>
       <div class="rates" style="grid-template-columns:repeat(2,1fr)">
-        <button class="rate again" onclick="rate('again')"><span class="n">不认识</span><span class="d">5 分钟后再来</span><span class="kbd">1</span></button>
-        <button class="rate good" onclick="rate('good')"><span class="n">认识</span><span class="d">1 天后再来</span><span class="kbd">2</span></button>
+        <button class="rate again" ${S.rated?'disabled style="opacity:.45"':''} onclick="rate('again')">
+          <span class="n">不认识</span><span class="d">${S.rated==='again'?'已记为不认识':'翻面看答案 · 5 分钟后再来'}</span><span class="kbd">1</span></button>
+        <button class="rate good" ${S.rated?'disabled style="opacity:.45"':''} onclick="rate('good')">
+          <span class="n">认识</span><span class="d">${S.rated==='good'?'已记为认识':'直接下一张 · 1 天后再来'}</span><span class="kbd">2</span></button>
       </div>
+      ${S.rated==='again'?`<div class="card-pad sm" style="margin-top:10px;text-align:center;color:var(--muted)">
+        已记为「不认识」，答案已展开；看完点下面「下一个 →」继续</div>`:''}
       <div class="row" style="justify-content:center;margin-top:12px;gap:10px">
         <button class="btn sm" ${(S.free?S.freeIdx:S.idx)<=0?'disabled':''} onclick="prevCard()">← 上一个</button>
         <button class="btn sm" onclick="nextCard()">下一个 →</button>
       </div>
-      <div class="hint">「认识」直接进入下一个 · 点卡片翻面看全部释义 · 数字键 1 / 2 · 空格翻面${S.free?" · S 移出复习":""}</div>
+      <div class="hint">「认识」直接进入下一个 · 「不认识」自动翻面看答案 · 点卡片也可翻面 · 数字键 1 / 2${S.free?" · S 移出复习":""}</div>
       ${S.free?`<div class="row" style="justify-content:center;margin-top:8px">
         <button class="btn" onclick="markKnown(currentWord().w);toast('已移出复习')">移出复习（S）</button>
         <button class="btn" onclick="endFree()">结束复习</button>
@@ -809,9 +813,21 @@ function screenReview(){
   </div>`;
 }
 function rate(k){
-  toast(`已记录「${({again:'忘记',hard:'困难',good:'良好',easy:'容易'})[k]}」· 进入下一张`);
-  if (S.free) { S.freeRated[k]++; S.freeIdx++; }
-  S.flipped=false; S.idx++; render();
+  if (S.rated) return;                    // 一张卡只评一次，避免重复写日志
+  S.rated = k;
+  if (S.free) { if (k in S.freeRated) S.freeRated[k]++; }
+  if (k === 'again') {
+    // 不认识：记录为「忘记」，把答案翻出来给用户看，停在当前卡
+    S.flipped = true;
+    toast('已记为「不认识」· 答案已展开');
+    render();
+    return;
+  }
+  // 认识：记录后直接下一张
+  toast('已记为「认识」');
+  if (S.free) S.freeIdx++; else S.idx++;
+  S.flipped = false; S.rated = null;
+  render();
 }
 
 /* ---------------- 屏 3：教师 · 词集 ---------------- */
@@ -1072,6 +1088,7 @@ document.addEventListener('keydown', e=>{
   if (scr==='detail') S.detail = 'abandon';
   if (/modal=1/.test(qs||'')) S.modal = true;
   if (/preview=1/.test(qs||'')) S.parseDone = true;
+  if (/rated=again/.test(qs||'')) { S.rated='again'; S.flipped=true; }
   if (/tab=history/.test(qs||'')) S.setTab = 'history';
   const m = /ds=(\w+)/.exec(qs||''); if (m) S.ds = m[1];
   if (/flip=1/.test(qs||'')) S.flipped = true;
