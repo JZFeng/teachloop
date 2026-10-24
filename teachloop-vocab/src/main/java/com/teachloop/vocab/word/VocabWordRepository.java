@@ -257,6 +257,21 @@ public class VocabWordRepository {
         return id == null ? 0 : id;
     }
 
+    public void setContent(UUID wordId, String contentJson, String status) {
+        jdbc.update("update vocab_words set content = cast(? as jsonb), content_status = ?, updated_at = ?"
+                        + " where id = ?", contentJson, status, Timestamp.from(clock.instant()), wordId);
+    }
+
+    /** 领取班级布置时追加来源（同一布置对同一个词只记一次）。 */
+    public void addAssignmentSource(UUID wordId, UUID assignmentId, UUID teacherId) {
+        jdbc.update("""
+                        insert into vocab_word_sources
+                            (word_id, kind, assignment_id, teacher_id, created_at)
+                        values (?, 'ASSIGNMENT', ?, ?, ?)
+                        on conflict do nothing
+                        """, wordId, assignmentId, teacherId, Timestamp.from(clock.instant()));
+    }
+
     /** 追加来源；同一批次内重复调用由唯一键兜底（on conflict do nothing）。 */
     public void addImportSource(UUID wordId, UUID batchId, String label) {
         jdbc.update("""
