@@ -254,7 +254,7 @@ lookup(form):
 ## 13. 风险与待定
 
 1. **词表许可**：原始 txt 不入库（已定）；manifest 里记来源与 sha256。
-2. **预生成 HTML 的托管**：走 app 的 `/api/vocab/words/{id}/page` 还是 nginx 静态，取决于 T386 之后 BlobStore 能否提供公开读；task 阶段定。
+2. **预生成 HTML 的托管 —— 2026-10-23 决定暂缓（T400 可选）**：V1 只走「模板 + 实时 JSON」，不做静态预生成与 Bloom 否定判断；BlobStore 接缝保留（T386 已落地），需要时再补。
 3. **多语言**：表结构已带 `language`，但 zh/es 的词表与 TTS 数据没有；V1 只开 en。
 4. **时区**：A-3 暂定 `Asia/Shanghai`；若之后要用户级时区，`due_at` 已是绝对时间，只需改「今日」的边界计算。
 5. **Bloom filter**：只做否定判断；实现放在 word 页缓存层，非强一致。
