@@ -773,7 +773,6 @@ function resetWord(w){
   render();
 }
 function toggleFav(w){ S.fav = S.fav.includes(w)?S.fav.filter(x=>x!==w):[...S.fav,w]; render(); toast(S.fav.includes(w)?'已收藏':'已取消收藏'); }
-function togglePause(w){ S.paused = S.paused.includes(w)?S.paused.filter(x=>x!==w):[...S.paused,w]; render(); toast(S.paused.includes(w)?'已暂停复习，可在词库筛选「已暂停」恢复':'已恢复复习'); }
 
 function screenSummary(){
   const done = S.freeIdx, total = S.freeTotal;
@@ -785,7 +784,7 @@ function screenSummary(){
       <div class="card stat"><div class="k mono" style="color:var(--green)">${S.freeKnown}</div><div class="l">移出复习</div></div>
       <div class="card stat"><div class="k mono">${done-S.freeKnown}</div><div class="l">评分过</div></div>
     </div>
-    <div class="sm muted" style="margin-bottom:16px">忘记 ${S.freeRated.again} · 困难 ${S.freeRated.hard} · 良好 ${S.freeRated.good} · 容易 ${S.freeRated.easy}</div>
+    <div class="sm muted" style="margin-bottom:16px">不认识 ${S.freeRated.again} · 认识 ${S.freeRated.good}</div>
     <div class="row" style="justify-content:center">
       <button class="btn" onclick="S.free=false;go('library')">返回词库</button>
       <button class="btn primary" onclick="S.free=true;S.screen='review';render()">继续复习剩余</button>
@@ -1223,6 +1222,7 @@ document.addEventListener('keydown', e=>{
   if (/preview=1/.test(qs||'')) S.parseDone = true;
   if (/rated=again/.test(qs||'')) { S.rated='again'; S.flipped=true; }
   if (/tab=assignments/.test(qs||'')) S.wordsetTab = 'assignments';
+  if (scr==='summary') { S.free=true; S.freeTotal=46; S.freeIdx=12; S.freeKnown=4; S.freeRated={again:2,good:6,hard:0,easy:0}; }
   const m = /ds=(\w+)/.exec(qs||''); if (m) S.ds = m[1];
   if (/flip=1/.test(qs||'')) S.flipped = true;
   const t = /theme=(\w+)/.exec(qs||''); if (t) { S.theme = t[1]; document.documentElement.dataset.theme = t[1]; }
