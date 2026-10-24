@@ -10,7 +10,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import com.teachloop.shared.error.ApiException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Repository;
 
 /**
@@ -95,6 +97,109 @@ public class VocabWordRepository {
     public void restore(UUID wordId) {
         jdbc.update("update vocab_words set deleted = false, deleted_at = null, updated_at = ? where id = ?",
                 Timestamp.from(clock.instant()), wordId);
+    }
+
+    /** 暂停复习：词仍在库、可搜索，只是不排期（AC-59.2）。 */
+    public boolean pause(UUID userId, UUID wordId) {
+        Instant now = clock.instant();
+        return jdbc.update("update vocab_words set removed = true, removed_at = ?, updated_at = ?"
+                        + " where id = ? and user_id = ?",
+                Timestamp.from(now), Timestamp.from(now), wordId, userId) > 0;
+    }
+
+    /** 恢复复习：回到「新词」，当天进队列；历史日志保留（AC-59.3）。 */
+    @Transactional
+    public boolean resume(UUID userId, UUID wordId) {
+        Timestamp timestamp = Timestamp.from(clock.instant());
+        int updated = jdbc.update("""
+                update vocab_words
+                   set removed = false, removed_at = null, updated_at = ?
+                 where id = ? and user_id = ?
+                """, timestamp, wordId, userId);
+        if (updated == 0) {
+            return false;
+        }
+        jdbc.update("""
+                update vocab_progress
+                   set state = 'NEW', due_at = ?, interval_days = 0, ease = 2.50, updated_at = ?
+                 where word_id = ?
+                """, timestamp, timestamp, wordId);
+        return true;
+    }
+
+    /** 软删除：列表/搜索/队列/统计都不可见；历史日志保留（AC-59.11）。 */
+    public boolean delete(UUID userId, UUID wordId) {
+        Instant now = clock.instant();
+        return jdbc.update("update vocab_words set deleted = true, deleted_at = ?, updated_at = ?"
+                        + " where id = ? and user_id = ?",
+                Timestamp.from(now), Timestamp.from(now), wordId, userId) > 0;
+    }
+
+    public int batch(UUID userId, Collection<UUID> wordIds, String action) {
+        int affected = 0;
+        for (UUID wordId : wordIds) {
+            affected += switch (action) {
+                case "PAUSE" -> pause(userId, wordId) ? 1 : 0;
+                case "DELETE" -> delete(userId, wordId) ? 1 : 0;
+                default -> throw ApiException.badRequest("unknown batch action");
+            };
+        }
+        return affected;
+    }
+
+    public record Stats(long total, long dueToday, long newWords, long mastered, long paused) {
+    }
+
+    public Stats stats(UUID userId, String language) {
+        return jdbc.queryForObject("""
+                select count(*) as total,
+                       count(*) filter (where p.due_at <= now() and w.removed = false) as due_today,
+                       count(*) filter (where p.state = 'NEW') as new_words,
+                       count(*) filter (where p.state = 'GRADUATED') as mastered,
+                       count(*) filter (where w.removed) as paused
+                  from vocab_words w
+                  join vocab_progress p on p.word_id = w.id
+                 where w.user_id = ? and w.language = ? and w.deleted = false
+                """, (rs, rowNumber) -> new Stats(
+                rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5)),
+                userId, language);
+    }
+
+    public String prefs(UUID userId) {
+        List<String> rows = jdbc.query(
+                "select cast(table_columns as text) from vocab_user_prefs where user_id = ?",
+                (rs, rowNumber) -> rs.getString(1), userId);
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    public void savePrefs(UUID userId, String tableColumnsJson) {
+        jdbc.update("""
+                insert into vocab_user_prefs (user_id, table_columns, updated_at)
+                values (?, cast(? as jsonb), ?)
+                on conflict (user_id) do update
+                   set table_columns = excluded.table_columns, updated_at = excluded.updated_at
+                """, userId, tableColumnsJson, Timestamp.from(clock.instant()));
+    }
+
+    public record SourceOption(String kind, UUID batchId, UUID assignmentId, String label, long words) {
+    }
+
+    /** 来源筛选项：按批次/布置聚合，带词数（来源多选弹窗用）。 */
+    public List<SourceOption> sources(UUID userId, String language) {
+        return jdbc.query("""
+                select s.kind, s.batch_id, s.assignment_id, s.label, count(distinct w.id) as words
+                  from vocab_word_sources s
+                  join vocab_words w on w.id = s.word_id
+                 where w.user_id = ? and w.language = ? and w.deleted = false
+                 group by s.kind, s.batch_id, s.assignment_id, s.label
+                 order by max(s.id) desc
+                """, (rs, rowNumber) -> new SourceOption(
+                rs.getString(1),
+                rs.getObject(2, UUID.class),
+                rs.getObject(3, UUID.class),
+                rs.getString(4),
+                rs.getLong(5)),
+                userId, language);
     }
 
     /** 追加来源；同一批次内重复调用由唯一键兜底（on conflict do nothing）。 */

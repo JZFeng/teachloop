@@ -25,6 +25,7 @@ export {
   HomeOutlined,
   LogoutOutlined,
   MoonOutlined,
+  PlusOutlined,
   RobotOutlined,
   SendOutlined,
   SunOutlined,

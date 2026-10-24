@@ -38,7 +38,7 @@ public class VocabularyQueryRepository {
     }
 
     public record WordQuery(UUID userId, String language, String search, List<String> states,
-                            List<String> sources, List<String> tags, Boolean favorite, UUID deckId,
+                            List<String> sources, List<String> tags, Boolean favorite, Boolean paused, Boolean due, UUID deckId,
                             String sort, String direction, int page, int size) {
     }
 
@@ -94,6 +94,13 @@ public class VocabularyQueryRepository {
         if (favorite != null) {
             where.add("w.favorite = ?");
             arguments.add(favorite);
+        }
+        if (query.paused() != null) {
+            where.add("w.removed = ?");
+            arguments.add(query.paused());
+        }
+        if (Boolean.TRUE.equals(query.due())) {
+            where.add("(p.due_at <= now() and w.removed = false)");
         }
         if (!tags.isEmpty()) {
             where.add("jsonb_exists_any(w.tags, array[" + placeholders(tags.size()) + "]::text[])");

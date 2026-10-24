@@ -39,6 +39,8 @@ public class VocabularyWordsEndpoint {
             @RequestParam(required = false) List<String> source,
             @RequestParam(required = false) List<String> tag,
             @RequestParam(required = false) Boolean favorite,
+            @RequestParam(required = false) Boolean paused,
+            @RequestParam(required = false) Boolean due,
             @RequestParam(required = false) UUID deckId,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false, name = "dir") String direction,
@@ -52,7 +54,7 @@ public class VocabularyWordsEndpoint {
             throw ApiException.badRequest("page must be >= 1");
         }
         return repository.query(new VocabularyQueryRepository.WordQuery(
-                me.id(), language, search, state, source, tag, favorite, deckId,
+                me.id(), language, search, state, source, tag, favorite, paused, due, deckId,
                 sort, direction, page, size));
     }
 }

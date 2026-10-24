@@ -1,0 +1,55 @@
+/* T397 词库页：常驻搜索、批量条、列配置与表格。颜色只用令牌。 */
+.vocab-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+.vocab-toolbar .vocab-search { flex: 1 1 260px; min-width: 220px; }
+.vocab-batch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin: 8px 0;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.vocab-table { width: 100%; border-collapse: collapse; }
+.vocab-table th,
+.vocab-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+.vocab-table th { font-weight: 650; color: var(--muted); white-space: nowrap; }
+.vocab-table th.is-sortable { cursor: pointer; user-select: none; }
+.vocab-table td.vocab-actions { white-space: nowrap; }
+.vocab-table tr.is-selected { background: var(--panel-2); }
+.vocab-word { cursor: pointer; font-weight: 600; }
+.vocab-pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 10px;
+}
+.vocab-col-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line);
+}
+.vocab-col-row .grow { flex: 1; }
+.vocab-filter-group { margin-bottom: 12px; }
+.vocab-filter-group .row { flex-wrap: wrap; gap: 6px; margin-top: 6px; }
