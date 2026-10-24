@@ -691,6 +691,7 @@ function screenDetail(){
             ${isNewWord?`<button class="btn primary" onclick="addFromDetail()">＋ 加入词库</button>`:`
               <button class="fav ${isFav?'on':''}" onclick="toggleFav('${w.w}')">${isFav?'★ 已收藏':'☆ 收藏'}</button>
               <button class="btn" onclick="S.known.includes('${w.w}')?unmarkKnown('${w.w}'):markKnown('${w.w}')">${S.known.includes('${w.w}')?'恢复复习':'暂停复习'}</button>`}
+            <button class="btn ghost sm" title="反馈这个词的问题（带上词 id）" onclick="toast('反馈已提交（附带 word id，可追溯详情）')">⚑ 反馈</button>
           </div>
         </div>
       </div>
@@ -740,11 +741,7 @@ function screenDetail(){
         </div>`}
       </div>
 
-      <div class="card card-pad">
-        <div class="between" style="margin-bottom:8px">
-          <div class="sm muted">我的笔记</div><button class="btn sm">编辑</button></div>
-        <div class="sm muted-2">${w.note || '还没有笔记。写到这里的例句和联想，复习时会一起显示。'}</div>
-      </div>
+
     </div>
 
     <aside>
@@ -758,14 +755,8 @@ function screenDetail(){
         <div class="between"><span>易度</span><span class="mono">2.50</span></div>
         <div class="between"><span>间隔</span><span class="mono">12 天</span></div>`}
       </div>
-      <div class="card card-pad" style="margin-bottom:12px">
-        <div class="sm muted" style="margin-bottom:6px">图片（V2）</div>
-        <div class="preview-mini sm muted-2" style="text-align:center;padding:22px">这里预留单词配图位，V1 不接图源</div>
-      </div>
-      <div class="card card-pad">
-        <div class="sm muted" style="margin-bottom:6px">这个词有问题？</div>
-        <button class="btn" style="width:100%" onclick="toast('已带上该词的 JSON 提交反馈')">反馈（附单词 JSON）</button>
-      </div>
+
+
     </aside>
   </div>
   <div class="foot-note">同一份 HTML 模板 + 不同的 word JSON；已预生成时由反向代理直出，未生成时先用模板实时渲染。</div>`;
@@ -825,7 +816,7 @@ function screenReview(){
         <div class="def">${w.def}</div>
         ${w.ex.map(e=>`<div class="ex">· ${e}</div>`).join('')}
         <div class="sm" style="margin-top:10px;color:var(--muted)">构词：${w.an}</div>
-        ${w.note?`<div class="sm" style="margin-top:6px;color:var(--muted)">我的笔记：${w.note}</div>`:''}
+
         <div class="sm" style="margin-top:10px"><span class="chip ${w.srcType}">${w.src}</span></div>
       </div>
     </div>`;
