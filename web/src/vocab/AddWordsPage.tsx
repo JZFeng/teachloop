@@ -100,7 +100,7 @@ export default function VocabAddWordsPage() {
         </div>
 
         {preview && !result && (
-          <div className="card" style={{ marginTop: 12, background: 'var(--panel-2)' }}>
+          <div className="card vocab-preview-panel" style={{ marginTop: 12 }}>
             <div className="row" style={{ gap: 16, flexWrap: 'wrap' }}>
               <span>{t('vocab.add.countTotal', { count: preview.counts.total })}</span>
               <span>{t('vocab.add.countCreate', { count: preview.counts.created })}</span>

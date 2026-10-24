@@ -140,3 +140,5 @@
   border: 1px solid var(--line);
   border-radius: 10px;
 }
+
+.vocab-preview-panel { background: var(--panel-2); }
