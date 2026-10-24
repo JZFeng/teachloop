@@ -143,4 +143,39 @@ class DictionaryTextParserTest {
         assertThat(blanks.tokens()).isEmpty();
         assertThat(blanks.skipped()).isEmpty();
     }
+
+    @Test
+    @DisplayName("T391：BOM 被去掉并留下清洗记录")
+    void bomCleanup() {
+        ParseResult result = parser.parse("\uFEFFapple", "en");
+        assertThat(result.tokens()).extracting(ParseResult.ParsedToken::raw).containsExactly("apple");
+        assertThat(result.cleanups()).singleElement().satisfies(cleanup -> {
+            assertThat(cleanup.rule()).isEqualTo("去 BOM");
+            assertThat(cleanup.lineNumber()).isEqualTo(1);
+        });
+    }
+
+    @Test
+    @DisplayName("T391：行首序号/项目符号与连续空格可追溯")
+    void markerAndSpacesCleanup() {
+        ParseResult result = parser.parse("1. apple   brave", "en");
+        assertThat(result.tokens()).extracting(ParseResult.ParsedToken::raw)
+                .containsExactly("apple", "brave");
+        assertThat(result.cleanups()).extracting(ParseResult.Cleanup::rule)
+                .contains("去行首序号/项目符号", "去多余空格");
+    }
+
+    @Test
+    @DisplayName("T391：每条清洗记录都带行号、规则与非空 before")
+    void cleanupsAreTraceable() {
+        ParseResult result = parser.parse("\uFEFF\"take off\", apple n.，brave", "en");
+        assertThat(result.cleanups()).isNotEmpty();
+        assertThat(result.cleanups()).allSatisfy(cleanup -> {
+            assertThat(cleanup.lineNumber()).isGreaterThanOrEqualTo(1);
+            assertThat(cleanup.rule()).isNotBlank();
+            assertThat(cleanup.before()).isNotBlank();
+        });
+        assertThat(result.tokens()).extracting(ParseResult.ParsedToken::raw)
+                .containsExactly("take off", "apple", "brave");
+    }
 }

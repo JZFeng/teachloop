@@ -7,18 +7,20 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 /**
- * 词表文本解析器（T390 / FR-108 / spec §15）：CSV、MD、TXT 与「粘贴加词」共用同一个入口。
+ * 词表文本解析器（T390 / T391 / FR-108 / spec §15）：CSV、MD、TXT 与「粘贴加词」共用同一个入口。
  *
  * <p>行类型按 spec §15.1 处理：空行跳过；`#` 标题与 `>` 引用当说明文字跳过；
  * ``` 围栏切换代码块（块内按普通词行）；表格行按单元格切、分隔行跳过、首个非分隔行当表头；
  * 列表标记去掉后按普通词行；普通行再按「逗号（中英文）/ 分号 / 空白」切分，
- * 忽略空 token 与行尾分隔符，双引号或中文引号内的空格保留（`"take off"`）。
+ * 忽略空 token 与行尾分隔符，引号内的空格保留（`"take off"`）。
+ *
+ * <p>格式清洗（T391）自动执行但逐条留痕：BOM、行首序号/项目符号、连续/首尾空格在这里处理，
+ * 全角标点、引号、音标、词性标注在 {@link ImportTextCleaner} 里处理；全部进入
+ * {@link ParseResult#cleanups()}（行号 + 规则 + 前后值）。
  *
  * <p>说明文字规则（spec §15.2）：语言 {@code en} 时整行含中日韩字符即跳过；
  * 语言 {@code zh} 时纯 ASCII 短行不擅自丢弃，标为 {@link ParseResult.PendingLine} 交预览页确认。
- * 所有跳过都在结果里带行号与原文，不静默。
- *
- * <p>列映射（有表头时哪一列是正面/释义）不在这里做：那是预览与入库管线（T391/T393）的职责。
+ * 所有跳过都在结果里带行号与原文，不静默。列映射（有表头时哪一列是正面/释义）留给 T393。
  */
 @Component
 public class DictionaryTextParser {
@@ -28,6 +30,7 @@ public class DictionaryTextParser {
 
     private static final Pattern LIST_MARKER = Pattern.compile("^(?:[-*+]|\\d+[.)])\\s+");
     private static final Pattern TABLE_SEPARATOR_CELL = Pattern.compile("^:?-{3,}:?$");
+    private static final Pattern REPEATED_SPACES = Pattern.compile("[ \\t]{2,}");
 
     public ParseResult parse(String text) {
         return parse(text, LANGUAGE_EN);
@@ -38,14 +41,20 @@ public class DictionaryTextParser {
         List<ParseResult.ParsedToken> tokens = new ArrayList<>();
         List<ParseResult.SkippedLine> skipped = new ArrayList<>();
         List<ParseResult.PendingLine> pending = new ArrayList<>();
+        List<ParseResult.Cleanup> cleanups = new ArrayList<>();
         if (text == null || text.isEmpty()) {
-            return new ParseResult(0, tokens, skipped, pending);
+            return new ParseResult(0, tokens, skipped, pending, cleanups);
         }
 
-        String[] lines = text.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
+        String source = text;
+        if (source.startsWith("\uFEFF")) {
+            cleanups.add(new ParseResult.Cleanup(1, "去 BOM", "\uFEFF", ""));
+            source = source.substring(1);
+        }
+        String[] lines = source.replace("\r\n", "\n").replace('\r', '\n').split("\n", -1);
         int lineCount = lines.length;
         if (lineCount > 0 && lines[lineCount - 1].isEmpty()) {
-            lineCount--; // 末尾换行不算一行
+            lineCount--;
         }
         boolean inFence = false;
         boolean inTable = false;
@@ -62,7 +71,7 @@ public class DictionaryTextParser {
                 if (trimmed.startsWith("```")) {
                     inFence = false;
                 } else {
-                    parseWordLine(lineNumber, trimmed, lang, tokens, skipped, pending);
+                    parseWordLine(lineNumber, raw, trimmed, lang, tokens, skipped, pending, cleanups);
                 }
                 continue;
             }
@@ -88,8 +97,9 @@ public class DictionaryTextParser {
                     continue;
                 }
                 for (String cell : cells) {
-                    if (!cell.isEmpty()) {
-                        tokens.add(new ParseResult.ParsedToken(cell, lineNumber));
+                    String cleaned = ImportTextCleaner.cleanToken(cell, lineNumber, cleanups);
+                    if (cleaned != null && !cleaned.isEmpty()) {
+                        tokens.add(new ParseResult.ParsedToken(cleaned, lineNumber));
                     }
                 }
                 continue;
@@ -101,24 +111,28 @@ public class DictionaryTextParser {
                 skipped.add(new ParseResult.SkippedLine(lineNumber, raw, "Markdown 标题/引用（说明文字）"));
                 continue;
             }
-            String content = trimmed;
+            String content = collapseSpaces(lineNumber, raw, trimmed, cleanups);
             var marker = LIST_MARKER.matcher(content);
             if (marker.find()) {
-                content = content.substring(marker.end()).strip();
+                String withoutMarker = content.substring(marker.end()).strip();
+                cleanups.add(new ParseResult.Cleanup(
+                        lineNumber, "去行首序号/项目符号", content, withoutMarker));
+                content = withoutMarker;
             }
             if (content.isEmpty()) {
                 skipped.add(new ParseResult.SkippedLine(lineNumber, raw, "只有列表标记，没有单词"));
                 continue;
             }
-            parseWordLine(lineNumber, content, lang, tokens, skipped, pending);
+            parseWordLine(lineNumber, raw, content, lang, tokens, skipped, pending, cleanups);
         }
-        return new ParseResult(lineCount, tokens, skipped, pending);
+        return new ParseResult(lineCount, tokens, skipped, pending, cleanups);
     }
 
-    private void parseWordLine(int lineNumber, String content, String language,
+    private void parseWordLine(int lineNumber, String raw, String content, String language,
                                List<ParseResult.ParsedToken> tokens,
                                List<ParseResult.SkippedLine> skipped,
-                               List<ParseResult.PendingLine> pending) {
+                               List<ParseResult.PendingLine> pending,
+                               List<ParseResult.Cleanup> cleanups) {
         if (LANGUAGE_EN.equals(language) && containsCjk(content)) {
             skipped.add(new ParseResult.SkippedLine(
                     lineNumber, content, "含中日韩字符，按说明文字跳过（spec §15.2）"));
@@ -129,59 +143,25 @@ public class DictionaryTextParser {
                     lineNumber, content, "语言为 zh 时，纯 ASCII 短行可能是外语说明，需在预览页确认"));
             return;
         }
-        List<String> words = tokenize(content);
-        if (words.isEmpty()) {
-            skipped.add(new ParseResult.SkippedLine(lineNumber, content, "没有解析出单词"));
+        ImportTextCleaner.CleanedLine cleaned = ImportTextCleaner.cleanLine(content, lineNumber);
+        if (cleaned.tokens().isEmpty()) {
+            skipped.add(new ParseResult.SkippedLine(lineNumber, raw, "没有解析出单词"));
             return;
         }
-        for (String word : words) {
+        cleanups.addAll(cleaned.cleanups());
+        for (String word : cleaned.tokens()) {
             tokens.add(new ParseResult.ParsedToken(word, lineNumber));
         }
     }
 
-    /** 按「逗号（中英文）/ 分号 / 顿号 / 空白」切；引号内空格保留。 */
-    static List<String> tokenize(String line) {
-        List<String> tokens = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        boolean quoted = false;
-        char closingQuote = 0;
-        for (int index = 0; index < line.length(); index++) {
-            char ch = line.charAt(index);
-            if (quoted) {
-                if (ch == closingQuote) {
-                    quoted = false;
-                } else {
-                    current.append(ch);
-                }
-                continue;
-            }
-            if (ch == '"') {
-                quoted = true;
-                closingQuote = '"';
-            } else if (ch == '\u201C') {
-                quoted = true;
-                closingQuote = '\u201D';
-            } else if (isSeparator(ch)) {
-                flush(tokens, current);
-            } else {
-                current.append(ch);
-            }
+    /** 首尾/连续空格清洗；返回用于后续解析的文本。 */
+    private static String collapseSpaces(int lineNumber, String raw, String content,
+                                         List<ParseResult.Cleanup> cleanups) {
+        String collapsed = REPEATED_SPACES.matcher(content).replaceAll(" ");
+        if (!collapsed.equals(content) || !raw.equals(raw.strip())) {
+            cleanups.add(new ParseResult.Cleanup(lineNumber, "去多余空格", raw, collapsed));
         }
-        flush(tokens, current);
-        return tokens;
-    }
-
-    private static void flush(List<String> tokens, StringBuilder current) {
-        String token = current.toString().strip();
-        if (!token.isEmpty()) {
-            tokens.add(token);
-        }
-        current.setLength(0);
-    }
-
-    private static boolean isSeparator(char ch) {
-        return ch == ',' || ch == '\uFF0C' || ch == ';' || ch == '\uFF1B' || ch == '\u3001'
-                || Character.isWhitespace(ch);
+        return collapsed;
     }
 
     private static List<String> tableCells(String line) {
