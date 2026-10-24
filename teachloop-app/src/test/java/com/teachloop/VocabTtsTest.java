@@ -8,6 +8,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,18 +62,20 @@ class VocabTtsTest {
         String base = base();
         String cookie = login(base);
         int before = engine.calls();
+        // 本地缓存 ./uploads 跨测试运行保留：用唯一词形，避免首播被上次的缓存命中
+        String form = "ttsprobe" + UUID.randomUUID().toString().replace("-", "");
 
-        HttpResponse<byte[]> first = send(base, cookie, "/api/vocab/audio?form=apple");
+        HttpResponse<byte[]> first = send(base, cookie, "/api/vocab/audio?form=" + form);
         assertThat(first.statusCode()).isEqualTo(200);
         assertThat(first.body()).isNotEmpty();
         assertThat(first.headers().firstValue("Content-Type").orElseThrow()).contains("audio/mpeg");
         assertThat(first.headers().firstValue("Cache-Control").orElseThrow()).contains("immutable");
         assertThat(first.headers().firstValue("ETag")).isPresent();
         assertThat(engine.calls()).isEqualTo(before + 1);
-        assertThat(engine.lastText()).isEqualTo("apple");
+        assertThat(engine.lastText()).isEqualTo(form);
 
         String etag = first.headers().firstValue("ETag").orElseThrow().replace("\"", "");
-        HttpResponse<byte[]> second = send(base, cookie, "/api/vocab/audio?form=Apple");
+        HttpResponse<byte[]> second = send(base, cookie, "/api/vocab/audio?form=" + form.toUpperCase());
         assertThat(second.statusCode()).isEqualTo(200);
         assertThat(engine.calls()).isEqualTo(before + 1);
 
