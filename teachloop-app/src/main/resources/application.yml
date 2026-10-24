@@ -64,6 +64,9 @@ teachloop:
     word-family:
       # spec §14.4：详情页最多显示 N 个同族词（默认 8）
       max-members: ${VOCAB_WORD_FAMILY_MAX_MEMBERS:8}
+    sets:
+      # T406：单条词集词数上限（可配）
+      max-words: ${VOCAB_SETS_MAX_WORDS:2000}
     generation:
       # T394：新词内容异步生成（释义/例句/构词/词族/音标）。engine=ai 默认，stub 仅测试/演示。
       enabled: ${VOCAB_GENERATION_ENABLED:true}
