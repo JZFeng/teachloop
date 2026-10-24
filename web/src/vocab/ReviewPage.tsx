@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { Button, Empty, ErrorState, Loading, PageHeader, Popover, useToast } from '../ui'
+import { SpeakerButton } from './SpeakerButton'
 import './vocab.css'
 
 interface QueueItem {
@@ -172,6 +173,7 @@ export default function VocabReviewPage() {
             }}
           >
             <div className="review-word">{current.form}</div>
+            <div><SpeakerButton form={current.form} /></div>
             {phonetic && (
               <div className="row muted" style={{ gap: 12, justifyContent: 'center' }}>
                 <span>{t('vocab.detail.phoneticUk')} {phonetic.uk ?? '—'}</span>

@@ -1612,6 +1612,10 @@
       "backToLibrary": "返回词库",
       "continue": "继续复习剩余词",
       "backToToday": "去看今日复习"
+    },
+    "audio": {
+      "play": "发音",
+      "stop": "停止"
     }
   }
 }

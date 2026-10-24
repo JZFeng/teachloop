@@ -13,6 +13,7 @@ import {
   useConfirm,
   useToast,
 } from '../ui'
+import { SpeakerButton } from './SpeakerButton'
 import './vocab.css'
 
 interface Sense {
@@ -165,7 +166,9 @@ export default function VocabWordDetailPage() {
 
   return (
     <>
-      <PageHeader title={detail.form} sub={detail.inLibrary ? undefined : t('vocab.detail.notInLibraryHint')} actions={actions} />
+      <PageHeader title={detail.form} sub={detail.inLibrary ? undefined : t('vocab.detail.notInLibraryHint')} actions={(
+        <div className="row" style={{ gap: 8 }}><SpeakerButton form={detail.form} />{actions}</div>
+      )} />
       <div className="vocab-detail-grid">
         <section className="card">
           <h3>{t('vocab.detail.phonetic')}</h3>

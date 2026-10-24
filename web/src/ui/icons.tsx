@@ -29,6 +29,7 @@ export {
   RobotOutlined,
   SendOutlined,
   StarOutlined,
+  SoundOutlined,
   SunOutlined,
   SyncOutlined,
   TeamOutlined,

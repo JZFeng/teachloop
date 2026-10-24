@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { Button, Empty, ErrorState, Input, Loading, PageHeader, TextArea, useToast } from '../ui'
+import { SpeakerButton } from './SpeakerButton'
 import './vocab.css'
 
 interface SetView {
@@ -200,7 +201,7 @@ export default function VocabSetEditPage() {
                 <tbody>
                   {words.map((word, index) => (
                     <tr key={word.id}>
-                      <td>{word.form}</td>
+                      <td><span className="row" style={{ gap: 6 }}>{word.form}<SpeakerButton form={word.form} compact /></span></td>
                       <td>{word.band ? t('vocab.detail.familyBand', { band: word.band }) : '—'}</td>
                       <td>
                         <span className="row" style={{ gap: 6 }}>

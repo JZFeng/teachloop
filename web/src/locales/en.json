@@ -1612,6 +1612,10 @@
       "backToLibrary": "Back to library",
       "continue": "Continue remaining",
       "backToToday": "Go to today's review"
+    },
+    "audio": {
+      "play": "Play",
+      "stop": "Stop"
     }
   }
 }

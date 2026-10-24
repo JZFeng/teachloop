@@ -78,6 +78,14 @@ teachloop:
       # 日预算（按 Asia/Shanghai 的今天计算已建 job 数）；打满时暂停入队
       daily-budget: ${VOCAB_GENERATION_DAILY_BUDGET:2000}
       timeout-ms: ${VOCAB_GENERATION_TIMEOUT_MS:60000}
+    tts:
+      # T410/T411：缓存 → 本地 Piper → 浏览器；只读单词本身
+      provider: ${VOCAB_TTS_PROVIDER:local}
+      engine: ${VOCAB_TTS_ENGINE:piper}
+      engine-url: ${VOCAB_TTS_ENGINE_URL:http://127.0.0.1:5002}
+      voice: ${VOCAB_TTS_VOICE:en_US-amy-medium}
+      rate: ${VOCAB_TTS_RATE:1.0}
+      timeout-ms: ${VOCAB_TTS_TIMEOUT_MS:2000}
     srs:
       # T401：调度参数（spec §5）；改这里重启生效，不写死在代码里（FR-106）
       graduation:
