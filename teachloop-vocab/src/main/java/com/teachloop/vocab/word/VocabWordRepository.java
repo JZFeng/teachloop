@@ -135,6 +135,13 @@ public class VocabWordRepository {
                 Timestamp.from(now), Timestamp.from(now), wordId, userId) > 0;
     }
 
+    /** 收藏是纯标记：只改 favorite，不碰进度与排期（AC-59.9）。 */
+    public boolean setFavorite(UUID userId, UUID wordId, boolean favorite) {
+        return jdbc.update("update vocab_words set favorite = ?, updated_at = ?"
+                        + " where id = ? and user_id = ?",
+                favorite, Timestamp.from(clock.instant()), wordId, userId) > 0;
+    }
+
     public int batch(UUID userId, Collection<UUID> wordIds, String action) {
         int affected = 0;
         for (UUID wordId : wordIds) {

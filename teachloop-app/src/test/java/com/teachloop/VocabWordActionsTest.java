@@ -128,6 +128,39 @@ class VocabWordActionsTest {
         assertThat(get(base, teacherCookie, "/api/vocab/prefs").get("tableColumns").isObject()).isTrue();
     }
 
+
+    @Test
+    @DisplayName("收藏是纯标记：不改变进度/排期；已收藏筛选命中；越权 404")
+    void favoriteIsPureMark() throws Exception {
+        String base = base();
+        String cookie = login(base, "student@teachloop.local");
+        UUID userId = me(base, cookie);
+        commit(base, cookie, "favoriteword", "Unit 7");
+        UUID wordId = wordId(userId, "favoriteword");
+        String beforeState = jdbc.queryForObject(
+                "select state from vocab_progress where word_id = ?", String.class, wordId);
+        var beforeDue = jdbc.queryForObject(
+                "select due_at from vocab_progress where word_id = ?", java.sql.Timestamp.class, wordId);
+
+        assertThat(put(base, cookie, "/api/vocab/words/" + wordId + "/favorite",
+                Map.of("favorite", true)).statusCode()).isEqualTo(200);
+        assertThat(get(base, cookie, "/api/vocab/words?favorite=true").get("total").asInt()).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "select state from vocab_progress where word_id = ?", String.class, wordId))
+                .isEqualTo(beforeState);
+        assertThat(jdbc.queryForObject(
+                "select due_at from vocab_progress where word_id = ?", java.sql.Timestamp.class, wordId))
+                .isEqualTo(beforeDue);
+
+        String teacherCookie = login(base, "teacher@teachloop.local");
+        assertThat(put(base, teacherCookie, "/api/vocab/words/" + wordId + "/favorite",
+                Map.of("favorite", false)).statusCode()).isEqualTo(404);
+
+        assertThat(put(base, cookie, "/api/vocab/words/" + wordId + "/favorite",
+                Map.of("favorite", false)).statusCode()).isEqualTo(200);
+        assertThat(get(base, cookie, "/api/vocab/words?favorite=true").get("total").asInt()).isZero();
+    }
+
     private String base() {
         return "http://127.0.0.1:" + env.getProperty("local.server.port");
     }

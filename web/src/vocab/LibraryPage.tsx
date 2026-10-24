@@ -11,6 +11,7 @@ import {
   Modal,
   PageHeader,
   StatCard,
+  StarOutlined,
   useConfirm,
   useToast,
 } from '../ui'
@@ -254,6 +255,11 @@ export default function VocabLibraryPage() {
     refresh()
   }
 
+  const toggleFavorite = async (word: WordItem) => {
+    await api.put(`/api/vocab/words/${word.id}/favorite`, { favorite: !word.favorite })
+    refresh()
+  }
+
   const remove = async (word: WordItem) => {
     const ok = await confirm({
       title: t('vocab.library.deleteTitle'),
@@ -347,6 +353,14 @@ export default function VocabLibraryPage() {
       case 'actions':
         return (
           <span className="row" style={{ gap: 6 }}>
+            <Button
+              size="small"
+              variant={word.favorite ? 'primary' : 'default'}
+              icon={<StarOutlined />}
+              aria-label={word.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
+              title={word.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
+              onClick={() => void toggleFavorite(word)}
+            />
             {word.paused
               ? <Button size="small" onClick={() => void resume(word)}>{t('vocab.library.resume')}</Button>
               : <Button size="small" onClick={() => void pause(word)}>{t('vocab.library.pause')}</Button>}

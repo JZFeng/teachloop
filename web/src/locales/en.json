@@ -1479,7 +1479,9 @@
       "columnsHint": "Choose visible columns and move them up or down. Saved per student.",
       "moveUp": "Up",
       "moveDown": "Down",
-      "prefsFailed": "Could not save column settings; try again"
+      "prefsFailed": "Could not save column settings; try again",
+      "favorite": "Favourite",
+      "unfavorite": "Remove favourite"
     },
     "review": {
       "title": "Today's review",

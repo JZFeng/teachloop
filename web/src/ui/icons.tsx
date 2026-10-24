@@ -28,6 +28,7 @@ export {
   PlusOutlined,
   RobotOutlined,
   SendOutlined,
+  StarOutlined,
   SunOutlined,
   SyncOutlined,
   TeamOutlined,

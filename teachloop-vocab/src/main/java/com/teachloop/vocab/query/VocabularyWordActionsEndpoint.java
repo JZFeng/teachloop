@@ -42,6 +42,9 @@ public class VocabularyWordActionsEndpoint {
     public record BatchRequest(List<UUID> ids, String action) {
     }
 
+    public record FavoriteRequest(boolean favorite) {
+    }
+
     public record Affected(int affected) {
     }
 
@@ -67,6 +70,15 @@ public class VocabularyWordActionsEndpoint {
     @DeleteMapping("/words/{id}")
     public Affected delete(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
         return new Affected(words.delete(me.id(), id) ? 1 : notFound());
+    }
+
+    @PutMapping("/words/{id}/favorite")
+    public Affected favorite(@PathVariable UUID id, @RequestBody FavoriteRequest request,
+                             @RequestAttribute("currentUser") CurrentUser me) {
+        if (request == null) {
+            throw ApiException.badRequest("favorite is required");
+        }
+        return new Affected(words.setFavorite(me.id(), id, request.favorite()) ? 1 : notFound());
     }
 
     @PostMapping("/words/batch")
