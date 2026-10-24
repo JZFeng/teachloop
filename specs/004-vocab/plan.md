@@ -218,7 +218,7 @@ lookup(form):
 
 1. `V040__vocab_lexicon.sql`（词表两表）
 2. `V041__vocab_words.sql`（words / sources / progress）
-3. `V042__vocab_decks_sessions.sql`
+3. `V042__vocab_review.sql`（review_logs / decks / review_sessions）
 4. `V043__vocab_sets_assignments.sql`
 5. `V044__vocab_jobs_feedback_audio.sql`
 6. 功能开关：`teachloop.vocab.enabled=false` 时不注册路由、导航不出现（宪法第十五条：不放占位空承诺）。

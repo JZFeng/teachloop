@@ -54,6 +54,25 @@ TABLE_OWNER: dict[str, str] = {
 
     "audit_logs": "observability",
     "daily_stats": "observability",
+
+    # T387：背单词模块（17 张表，见 specs/004-vocab/plan.md §2）
+    "vocab_lexicon_families": "vocab",
+    "vocab_lexicon_forms": "vocab",
+    "vocab_words": "vocab",
+    "vocab_word_sources": "vocab",
+    "vocab_progress": "vocab",
+    "vocab_review_logs": "vocab",
+    "vocab_decks": "vocab",
+    "vocab_review_sessions": "vocab",
+    "vocab_sets": "vocab",
+    "vocab_set_words": "vocab",
+    "vocab_assignments": "vocab",
+    "vocab_assignment_words": "vocab",
+    "vocab_assignment_classes": "vocab",
+    "vocab_assignment_recipients": "vocab",
+    "vocab_generation_jobs": "vocab",
+    "vocab_feedback": "vocab",
+    "vocab_audio_assets": "vocab",
 }
 
 # plan §3.5：允许的跨模块外键（(引用方表, 被引用表)）。新增一条要在这里和 plan 同时登记。
