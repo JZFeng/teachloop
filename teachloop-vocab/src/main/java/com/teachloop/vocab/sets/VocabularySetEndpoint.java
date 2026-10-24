@@ -4,17 +4,17 @@ import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.vocab.lexicon.WordFamily;
 import com.teachloop.vocab.lexicon.WordFamilyIndex;
+import com.teachloop.vocab.sets.VocabularySetRepository.SetView;
+import com.teachloop.vocab.sets.VocabularySetRepository.SetWordView;
 import com.teachloop.vocab.word.WordNormalizer;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -31,6 +31,9 @@ import org.springframework.web.bind.annotation.RestController;
  * 词条顺序即学生首次预习顺序；「移除」只把词移出词集，不删词条、不影响学生词库。
  *
  * <p>只允许 TEACHER / ADMIN；不属于自己的词集按 404 处理（AC-54.2）。
+ *
+ * <p>分层：HTTP 形状、字段校验、词表归一化与词族解析留在这里；SQL 在
+ * {@link VocabularySetRepository}。
  */
 @RestController
 @RequestMapping("/api/vocab/sets")
@@ -39,24 +42,17 @@ public class VocabularySetEndpoint {
 
     private static final int MAX_BATCH = 200;
 
-    private final JdbcTemplate jdbc;
+    private final VocabularySetRepository sets;
     private final WordFamilyIndex lexicon;
     private final Clock clock;
     private final int maxWordsPerSet;
 
-    public VocabularySetEndpoint(JdbcTemplate jdbc, WordFamilyIndex lexicon, Clock clock,
+    public VocabularySetEndpoint(VocabularySetRepository sets, WordFamilyIndex lexicon, Clock clock,
                                  @Value("${teachloop.vocab.sets.max-words:2000}") int maxWordsPerSet) {
-        this.jdbc = jdbc;
+        this.sets = sets;
         this.lexicon = lexicon;
         this.clock = clock;
         this.maxWordsPerSet = Math.max(1, maxWordsPerSet);
-    }
-
-    public record SetView(UUID id, String name, String language, String description, boolean active,
-                          Instant updatedAt, int wordCount, int assignedClasses) {
-    }
-
-    public record SetWordView(UUID id, int position, String form, String normalizedForm, Integer band) {
     }
 
     public record SetDetail(SetView set, List<SetWordView> words) {
@@ -86,19 +82,7 @@ public class VocabularySetEndpoint {
     @GetMapping
     public List<SetView> list(@RequestAttribute("currentUser") CurrentUser me) {
         requireTeacher(me);
-        return jdbc.query("""
-                select s.id, s.name, s.language, s.description, s.active, s.updated_at,
-                       (select count(*) from vocab_set_words w where w.set_id = s.id) as word_count,
-                       (select count(distinct ac.class_id) from vocab_assignments a
-                          join vocab_assignment_classes ac on ac.assignment_id = a.id
-                         where a.set_id = s.id) as assigned_classes
-                  from vocab_sets s
-                 where s.teacher_id = ? and s.deleted = false
-                 order by s.updated_at desc
-                """, (rs, rowNumber) -> new SetView(
-                rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
-                rs.getBoolean(5), rs.getTimestamp(6).toInstant(), rs.getInt(7), rs.getInt(8)),
-                me.id());
+        return sets.listByTeacher(me.id());
     }
 
     @PostMapping
@@ -109,40 +93,27 @@ public class VocabularySetEndpoint {
         String language = request == null || request.language() == null || request.language().isBlank()
                 ? "en" : request.language();
         UUID id = UUID.randomUUID();
-        Instant now = clock.instant();
         try {
-            jdbc.update("""
-                    insert into vocab_sets (id, teacher_id, language, name, description, active, deleted,
-                                            created_at, updated_at)
-                    values (?, ?, ?, ?, ?, true, false, ?, ?)
-                    """, id, me.id(), language, name,
-                    request == null ? null : request.description(),
-                    Timestamp.from(now), Timestamp.from(now));
-        } catch (org.springframework.dao.DuplicateKeyException ex) {
+            sets.create(id, me.id(), language, name,
+                    request == null ? null : request.description(), clock.instant());
+        } catch (DuplicateKeyException ex) {
             throw ApiException.conflict("a word set with this name already exists");
         }
-        return find(id, me.id());
+        return requireOwned(id, me.id());
     }
 
     @GetMapping("/{id}")
     public SetDetail detail(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
         requireTeacher(me);
-        SetView set = find(id, me.id());
-        List<SetWordView> words = jdbc.query("""
-                select id, position, form, normalized_form, band
-                  from vocab_set_words where set_id = ? order by position
-                """, (rs, rowNumber) -> new SetWordView(
-                rs.getObject(1, UUID.class), rs.getInt(2), rs.getString(3), rs.getString(4),
-                rs.getObject(5) == null ? null : rs.getInt(5)),
-                id);
-        return new SetDetail(set, words);
+        SetView set = requireOwned(id, me.id());
+        return new SetDetail(set, sets.wordsOf(id));
     }
 
     @PutMapping("/{id}")
     public SetView update(@PathVariable UUID id, @RequestBody(required = false) UpdateRequest request,
                           @RequestAttribute("currentUser") CurrentUser me) {
         requireTeacher(me);
-        SetView current = find(id, me.id());
+        SetView current = requireOwned(id, me.id());
         String name = request == null || request.name() == null ? current.name() : validName(request.name());
         String language = request == null || request.language() == null || request.language().isBlank()
                 ? current.language() : request.language();
@@ -150,23 +121,17 @@ public class VocabularySetEndpoint {
                 ? current.description() : request.description();
         boolean active = request == null || request.active() == null ? current.active() : request.active();
         try {
-            jdbc.update("""
-                    update vocab_sets set name = ?, language = ?, description = ?, active = ?, updated_at = ?
-                     where id = ? and teacher_id = ?
-                    """, name, language, description, active, Timestamp.from(clock.instant()),
-                    id, me.id());
-        } catch (org.springframework.dao.DuplicateKeyException ex) {
+            sets.updateMeta(id, me.id(), name, language, description, active, clock.instant());
+        } catch (DuplicateKeyException ex) {
             throw ApiException.conflict("a word set with this name already exists");
         }
-        return find(id, me.id());
+        return requireOwned(id, me.id());
     }
 
     @DeleteMapping("/{id}")
     public Affected delete(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
         requireTeacher(me);
-        int updated = jdbc.update("""
-                update vocab_sets set deleted = true, updated_at = ? where id = ? and teacher_id = ?
-                """, Timestamp.from(clock.instant()), id, me.id());
+        int updated = sets.softDelete(id, me.id(), clock.instant());
         if (updated == 0) {
             throw ApiException.notFound("word set not found");
         }
@@ -183,18 +148,13 @@ public class VocabularySetEndpoint {
         if (request.ids().size() > MAX_BATCH) {
             throw ApiException.badRequest("at most " + MAX_BATCH + " ids per batch");
         }
+        Instant now = clock.instant();
         int affected = 0;
         for (UUID id : request.ids()) {
             affected += switch (request.action() == null ? "" : request.action()) {
-                case "ACTIVATE" -> jdbc.update("update vocab_sets set active = true, updated_at = ?"
-                        + " where id = ? and teacher_id = ? and deleted = false",
-                        Timestamp.from(clock.instant()), id, me.id());
-                case "DEACTIVATE" -> jdbc.update("update vocab_sets set active = false, updated_at = ?"
-                        + " where id = ? and teacher_id = ? and deleted = false",
-                        Timestamp.from(clock.instant()), id, me.id());
-                case "DELETE" -> jdbc.update("update vocab_sets set deleted = true, updated_at = ?"
-                        + " where id = ? and teacher_id = ? and deleted = false",
-                        Timestamp.from(clock.instant()), id, me.id());
+                case "ACTIVATE" -> sets.setActive(id, me.id(), true, now);
+                case "DEACTIVATE" -> sets.setActive(id, me.id(), false, now);
+                case "DELETE" -> sets.softDeleteIfActive(id, me.id(), now);
                 default -> throw ApiException.badRequest("action must be ACTIVATE, DEACTIVATE or DELETE");
             };
         }
@@ -206,11 +166,9 @@ public class VocabularySetEndpoint {
     public AddWordsResult addWords(@PathVariable UUID id, @RequestBody(required = false) AddWordsRequest request,
                                    @RequestAttribute("currentUser") CurrentUser me) {
         requireTeacher(me);
-        find(id, me.id());
-        int existing = jdbc.queryForObject(
-                "select count(*) from vocab_set_words where set_id = ?", Integer.class, id);
-        int position = jdbc.queryForObject(
-                "select coalesce(max(position), 0) from vocab_set_words where set_id = ?", Integer.class, id);
+        requireOwned(id, me.id());
+        int existing = sets.countWords(id);
+        int position = sets.maxPosition(id);
         LinkedHashSet<String> seen = new LinkedHashSet<>();
         int added = 0;
         int skipped = 0;
@@ -230,21 +188,16 @@ public class VocabularySetEndpoint {
                 continue;
             }
             WordFamily family = lexicon.lookup(form).orElse(null);
-            int inserted = jdbc.update("""
-                    insert into vocab_set_words
-                        (id, set_id, position, form, normalized_form, content, family_id, band, created_at)
-                    values (?, ?, ?, ?, ?, null, ?, ?, ?)
-                    on conflict (set_id, normalized_form) do nothing
-                    """, UUID.randomUUID(), id, ++position, form, normalized,
+            int inserted = sets.insertWord(UUID.randomUUID(), id, ++position, form, normalized,
                     family == null ? null : family.familyId(),
-                    family == null ? null : family.band(), Timestamp.from(clock.instant()));
+                    family == null ? null : family.band(), clock.instant());
             if (inserted == 0) {
                 skipped++;
             } else {
                 added++;
             }
         }
-        touch(id);
+        sets.touch(id, clock.instant());
         return new AddWordsResult(added, skipped);
     }
 
@@ -252,12 +205,12 @@ public class VocabularySetEndpoint {
     public Affected removeWord(@PathVariable UUID id, @PathVariable UUID wordId,
                                @RequestAttribute("currentUser") CurrentUser me) {
         requireTeacher(me);
-        find(id, me.id());
-        int removed = jdbc.update("delete from vocab_set_words where id = ? and set_id = ?", wordId, id);
+        requireOwned(id, me.id());
+        int removed = sets.removeWord(wordId, id);
         if (removed == 0) {
             throw ApiException.notFound("word not in this set");
         }
-        touch(id);
+        sets.touch(id, clock.instant());
         return new Affected(removed);
     }
 
@@ -266,39 +219,19 @@ public class VocabularySetEndpoint {
     public Affected reorder(@PathVariable UUID id, @RequestBody(required = false) OrderRequest request,
                             @RequestAttribute("currentUser") CurrentUser me) {
         requireTeacher(me);
-        find(id, me.id());
+        requireOwned(id, me.id());
         int position = 0;
         for (UUID wordId : request == null || request.wordIds() == null ? List.<UUID>of() : request.wordIds()) {
             position++;
-            jdbc.update("update vocab_set_words set position = ? where id = ? and set_id = ?",
-                    position, wordId, id);
+            sets.updateWordPosition(wordId, id, position);
         }
-        touch(id);
+        sets.touch(id, clock.instant());
         return new Affected(position);
     }
 
-    private SetView find(UUID id, UUID teacherId) {
-        List<SetView> rows = jdbc.query("""
-                select s.id, s.name, s.language, s.description, s.active, s.updated_at,
-                       (select count(*) from vocab_set_words w where w.set_id = s.id),
-                       (select count(distinct ac.class_id) from vocab_assignments a
-                          join vocab_assignment_classes ac on ac.assignment_id = a.id
-                         where a.set_id = s.id)
-                  from vocab_sets s
-                 where s.id = ? and s.teacher_id = ? and s.deleted = false
-                """, (rs, rowNumber) -> new SetView(
-                rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
-                rs.getBoolean(5), rs.getTimestamp(6).toInstant(), rs.getInt(7), rs.getInt(8)),
-                id, teacherId);
-        if (rows.isEmpty()) {
-            throw ApiException.notFound("word set not found");
-        }
-        return rows.get(0);
-    }
-
-    private void touch(UUID id) {
-        jdbc.update("update vocab_sets set updated_at = ? where id = ?",
-                Timestamp.from(clock.instant()), id);
+    private SetView requireOwned(UUID id, UUID teacherId) {
+        return sets.findOwned(id, teacherId)
+                .orElseThrow(() -> ApiException.notFound("word set not found"));
     }
 
     private static String validName(String raw) {

@@ -2,10 +2,10 @@ package com.teachloop.vocab.review;
 
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.security.CurrentUser;
+import com.teachloop.vocab.review.ReviewSessionRepository.SessionRow;
 import com.teachloop.vocab.word.VocabWordRepository;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -14,7 +14,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -34,6 +33,8 @@ import tools.jackson.databind.ObjectMapper;
  * 「暂停复习」只停该词排期并跳下一张；随时结束并给出小结；再次进入默认从上次 cursor 续位。
  *
  * <p>本期不写入「今日复习」完成数：队列的 todayReviewed 只数 `session_id is null` 的日志。
+ *
+ * <p>分层：范围指纹、wordIds 解析与评分提交留在这里；SQL 在 {@link ReviewSessionRepository}。
  */
 @RestController
 @RequestMapping("/api/vocab/review-sessions")
@@ -42,15 +43,15 @@ public class ReviewSessionEndpoint {
 
     private static final int MAX_WORDS = 1000;
 
-    private final JdbcTemplate jdbc;
+    private final ReviewSessionRepository sessions;
     private final ReviewSubmitEndpoint submit;
     private final VocabWordRepository words;
     private final Clock clock;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public ReviewSessionEndpoint(JdbcTemplate jdbc, ReviewSubmitEndpoint submit,
+    public ReviewSessionEndpoint(ReviewSessionRepository sessions, ReviewSubmitEndpoint submit,
                                  VocabWordRepository words, Clock clock) {
-        this.jdbc = jdbc;
+        this.sessions = sessions;
         this.submit = submit;
         this.words = words;
         this.clock = clock;
@@ -74,10 +75,6 @@ public class ReviewSessionEndpoint {
     public record Summary(int total, int seen, int known, int unknown, int paused) {
     }
 
-    private record SessionRow(UUID id, UUID userId, String scopeJson, int total, int cursor,
-                              int knownCount, int pausedCount, String status) {
-    }
-
     @PostMapping
     @Transactional
     public SessionView create(@RequestBody(required = false) CreateRequest request,
@@ -90,7 +87,7 @@ public class ReviewSessionEndpoint {
         }
         List<UUID> eligible = new ArrayList<>();
         for (UUID wordId : request.wordIds()) {
-            if (words.belongsTo(me.id(), wordId) && !isPaused(wordId)) {
+            if (words.belongsTo(me.id(), wordId) && !sessions.isPaused(wordId)) {
                 eligible.add(wordId);
             }
         }
@@ -98,18 +95,11 @@ public class ReviewSessionEndpoint {
             throw ApiException.badRequest("no reviewable words");
         }
         String scopeKey = scopeKey(eligible);
-        SessionRow previous = latestByScope(me.id(), scopeKey);
+        SessionRow previous = sessions.latestByScope(me.id(), scopeKey).orElse(null);
         int cursor = !request.fromStart() && previous != null ? previous.cursor() : 0;
         UUID id = UUID.randomUUID();
-        Instant now = clock.instant();
         String scope = mapper.writeValueAsString(Map.of("key", scopeKey, "wordIds", eligible));
-        jdbc.update("""
-                insert into vocab_review_sessions
-                    (id, user_id, scope, total, cursor, known_count, paused_count, status,
-                     started_at, updated_at)
-                values (?, ?, cast(? as jsonb), ?, ?, 0, 0, 'ACTIVE', ?, ?)
-                """, id, me.id(), scope, eligible.size(), cursor,
-                Timestamp.from(now), Timestamp.from(now));
+        sessions.insertSession(id, me.id(), scope, eligible.size(), cursor, clock.instant());
         return new SessionView(id, eligible.size(), cursor, cursor, scopeKey);
     }
 
@@ -121,15 +111,11 @@ public class ReviewSessionEndpoint {
             return null;
         }
         UUID wordId = ids.get(session.cursor());
-        List<CurrentWord> rows = jdbc.query("""
-                        select id, form, cast(content as text) from vocab_words
-                         where id = ? and user_id = ? and deleted = false
-                        """, (rs, rowNumber) -> new CurrentWord(
-                        rs.getObject(1, UUID.class), rs.getString(2),
-                        rs.getString(3) == null ? null : mapper.readTree(rs.getString(3)),
-                        session.cursor(), session.total()),
-                wordId, me.id());
-        return rows.isEmpty() ? null : rows.get(0);
+        return sessions.currentWord(wordId, me.id())
+                .map(row -> new CurrentWord(row.id(), row.form(),
+                        row.contentJson() == null ? null : mapper.readTree(row.contentJson()),
+                        session.cursor(), session.total()))
+                .orElse(null);
     }
 
     @PostMapping("/{id}/advance")
@@ -162,12 +148,7 @@ public class ReviewSessionEndpoint {
             default -> throw ApiException.badRequest("action must be KNOWN, DONT_KNOW or PAUSE");
         }
         int cursor = session.cursor() + 1;
-        jdbc.update("""
-                update vocab_review_sessions
-                   set cursor = ?, known_count = known_count + ?, paused_count = paused_count + ?,
-                       updated_at = ?
-                 where id = ?
-                """, cursor, knownIncrement, pausedIncrement, Timestamp.from(clock.instant()), id);
+        sessions.advance(id, cursor, knownIncrement, pausedIncrement, clock.instant());
         return new AdvanceResult(cursor, session.total(), cursor >= ids.size());
     }
 
@@ -176,58 +157,24 @@ public class ReviewSessionEndpoint {
     public SessionView continueSession(@PathVariable UUID id,
                                        @RequestAttribute("currentUser") CurrentUser me) {
         SessionRow session = requireSession(id, me.id());
-        List<UUID> ids = wordIds(session.scopeJson());
         UUID newId = UUID.randomUUID();
         Instant now = clock.instant();
-        jdbc.update("""
-                insert into vocab_review_sessions
-                    (id, user_id, scope, total, cursor, known_count, paused_count, status,
-                     started_at, updated_at)
-                values (?, ?, cast(? as jsonb), ?, ?, 0, 0, 'ACTIVE', ?, ?)
-                """, newId, me.id(), session.scopeJson(), session.total(), session.cursor(),
-                Timestamp.from(now), Timestamp.from(now));
+        sessions.insertSession(newId, me.id(), session.scopeJson(), session.total(),
+                session.cursor(), now);
         return new SessionView(newId, session.total(), session.cursor(), session.cursor(), null);
     }
 
     @PostMapping("/{id}/end")
     public Summary end(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
         SessionRow session = requireSession(id, me.id());
-        jdbc.update("update vocab_review_sessions set status = 'ENDED', updated_at = ? where id = ?",
-                Timestamp.from(clock.instant()), id);
-        int known = jdbc.queryForObject(
-                "select count(*) from vocab_review_logs where session_id = ? and rating = 2",
-                Integer.class, id);
-        int unknown = jdbc.queryForObject(
-                "select count(*) from vocab_review_logs where session_id = ? and rating = 1",
-                Integer.class, id);
-        return new Summary(session.total(), session.cursor(), known, unknown, session.pausedCount());
+        sessions.end(id, clock.instant());
+        return new Summary(session.total(), session.cursor(),
+                sessions.countLogs(id, 2), sessions.countLogs(id, 1), session.pausedCount());
     }
 
     private SessionRow requireSession(UUID id, UUID userId) {
-        List<SessionRow> rows = jdbc.query("""
-                select id, user_id, cast(scope as text), total, cursor, known_count, paused_count, status
-                  from vocab_review_sessions where id = ? and user_id = ?
-                """, (rs, rowNumber) -> new SessionRow(
-                rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), rs.getString(8)),
-                id, userId);
-        if (rows.isEmpty()) {
-            throw ApiException.notFound("session not found");
-        }
-        return rows.get(0);
-    }
-
-    private SessionRow latestByScope(UUID userId, String scopeKey) {
-        List<SessionRow> rows = jdbc.query("""
-                select id, user_id, cast(scope as text), total, cursor, known_count, paused_count, status
-                  from vocab_review_sessions
-                 where user_id = ? and scope->>'key' = ?
-                 order by started_at desc limit 1
-                """, (rs, rowNumber) -> new SessionRow(
-                rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
-                rs.getInt(4), rs.getInt(5), rs.getInt(6), rs.getInt(7), rs.getString(8)),
-                userId, scopeKey);
-        return rows.isEmpty() ? null : rows.get(0);
+        return sessions.findOwned(id, userId)
+                .orElseThrow(() -> ApiException.notFound("session not found"));
     }
 
     private List<UUID> wordIds(String scopeJson) {
@@ -236,12 +183,6 @@ public class ReviewSessionEndpoint {
             ids.add(UUID.fromString(node.asString()));
         }
         return ids;
-    }
-
-    private boolean isPaused(UUID wordId) {
-        Boolean removed = jdbc.queryForObject(
-                "select removed from vocab_words where id = ?", Boolean.class, wordId);
-        return Boolean.TRUE.equals(removed);
     }
 
     private static String scopeKey(List<UUID> wordIds) {
