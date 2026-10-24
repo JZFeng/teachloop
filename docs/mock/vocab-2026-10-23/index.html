@@ -236,7 +236,7 @@
   .cp-group + .cp-group { border-top:1px dashed var(--line-2); margin-top:10px; padding-top:10px; }
 
   .review-row { display:flex; align-items:center; gap:16px; }
-  .review-row > .card { flex:1; min-width:0; }
+  .review-main { flex:1; min-width:0; }
   .next-outside { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px;
                   padding:12px 18px; border-radius:999px; border:1px solid var(--line);
                   background:var(--panel); color:var(--muted); font-size:14px;
@@ -840,12 +840,9 @@ function screenReview(){
         <div class="sm muted-2" style="margin-top:6px">「认识」= 良好（间隔 × 易度），「不认识」= 忘记（5 分钟后重来）；连续 4 次认识且间隔 ≥45 天自动标为已掌握。参数都在 application.yml 里。</div>
       </div>`:''}
       <div class="review-row">
-        <div class="card">${S.flipped?back:front}</div>
-        <button class="next-outside ${(S.flipped||S.rated==='again')?'on':''}" onclick="nextCard()" title="下一个（N / →）">
-          下一个 <span class="kbd">N</span>
-        </button>
-      </div>
-      <div class="rates" style="grid-template-columns:repeat(2,1fr)">
+        <div class="review-main">
+          <div class="card">${S.flipped?back:front}</div>
+          <div class="rates" style="grid-template-columns:repeat(2,1fr)">
         <button class="rate again" ${S.rated?'disabled style="opacity:.45"':''} onclick="rate('again')">
           <span class="n">不认识</span><span class="d">${S.rated==='again'?'已记为不认识':'翻面看答案 · 5 分钟后再来'}</span><span class="kbd">1</span></button>
         <button class="rate good" ${S.rated?'disabled style="opacity:.45"':''} onclick="rate('good')">
@@ -854,11 +851,16 @@ function screenReview(){
       ${S.rated==='again'?`<div class="card-pad sm" style="margin-top:10px;text-align:center;color:var(--muted)">
         已记为「不认识」，答案已展开；看完点下面「下一个 →」继续</div>`:''}
 
-      <div class="hint">「认识」直接下一个 · 「不认识」自动翻面 · 卡片外右侧「下一个」或按 N / → 继续 · 数字键 1 / 2${S.free?" · S 移出复习":""}</div>
-      ${S.free?`<div class="row" style="justify-content:center;margin-top:8px">
-        <button class="btn" onclick="markKnown(currentWord().w);toast('已移出复习')">移出复习（S）</button>
-        <button class="btn" onclick="endFree()">结束复习</button>
-      </div>`:''}
+          <div class="hint">「认识」直接下一个 · 「不认识」自动翻面 · 卡片外右侧「下一个」或按 N / → 继续 · 数字键 1 / 2${S.free?" · S 移出复习":""}</div>
+          ${S.free?`<div class="row" style="justify-content:center;margin-top:8px">
+            <button class="btn" onclick="markKnown(currentWord().w);toast('已移出复习')">移出复习（S）</button>
+            <button class="btn" onclick="endFree()">结束复习</button>
+          </div>`:''}
+        </div>
+        <button class="next-outside ${(S.flipped||S.rated==='again')?'on':''}" onclick="nextCard()" title="下一个（N / →）">
+          下一个 <span class="kbd">N</span>
+        </button>
+      </div>
     </div>
 
   </div>`;
@@ -1075,15 +1077,7 @@ function screenWordsetEdit(){
                     : (SETS.find(s=>s.id===S.setEdit) || SETS[0]);
   const words = WORDS.slice(0,8);
   return `
-  <div class="toolbar">
-    <button class="btn" onclick="S.screen='wordset';render()">← 返回词集</button>
-    <div style="flex:1"></div>
-    <button class="btn" onclick="toast('打开导入：CSV / MD / TXT')">${ICONS.upload} 导入单词</button>
-    <button class="btn" onclick="toast('打开粘贴加词框')">${ICONS.plus} 加词</button>
-    <button class="btn primary" onclick="toast('已保存');S.screen='wordset';render()">保存</button>
-  </div>
-  <div class="two-col" style="grid-template-columns:minmax(0,1fr) 320px">
-    <div class="card">
+  <div class="card" style="max-width:920px">
       <div class="card-pad" style="border-bottom:1px solid var(--line-2)">
         <div style="font-size:16px;font-weight:600">${isNew?'新建词集':'编辑：'+set.name}</div>
         <div class="sm muted">${isNew?'填名称、选语言，然后用右上角的「导入单词」或「加词」往里放词':'改名称与说明不影响已发出的布置（快照）'}</div>
@@ -1092,10 +1086,22 @@ function screenWordsetEdit(){
         <div class="field"><label>名称</label><input class="input" value="${set.name}" placeholder="如 Unit 5 生词"></div>
         <div class="field"><label>学习语言</label><select class="input"><option>英语</option><option>中文</option><option>西班牙语</option></select></div>
         <div class="field" style="grid-column:1/-1"><label>说明（可选）</label><input class="input" placeholder="给学生的说明"></div>
+        <div class="field" style="grid-column:1/-1">
+          <div class="row" style="justify-content:space-between">
+            <div class="row">
+              <button class="btn" onclick="toast('打开导入：CSV / MD / TXT')">${ICONS.upload} 导入单词</button>
+              <button class="btn" onclick="toast('打开粘贴加词框')">${ICONS.plus} 加词</button>
+            </div>
+            <div class="row">
+              <button class="btn" onclick="S.screen='wordset';render()">取消</button>
+              <button class="btn primary" onclick="toast('已保存');S.screen='wordset';render()">保存</button>
+            </div>
+          </div>
+        </div>
       </div>
       ${set.n===0?`<div class="state" style="padding:36px 20px">
         <div class="ic">${ICONS.inbox}</div><h3>这个词集还没有词</h3>
-        <p>用右上角的「导入单词」上传 CSV/MD/TXT，或「加词」把词粘贴进来。入库后内容会自动生成。</p>
+        <p>用上面的「导入单词」上传 CSV/MD/TXT，或「加词」把词粘贴进来。入库后内容会自动生成。</p>
       </div>`:`
       <table>
         <thead><tr><th style="width:60px">#</th><th>单词</th><th>释义</th><th style="width:90px">操作</th></tr></thead>
@@ -1107,17 +1113,6 @@ function screenWordsetEdit(){
         </tr>`).join('')}</tbody>
       </table>
       <div class="card-pad sm muted" style="border-top:1px solid var(--line-2)">前 8 条（共 ${set.n}）· 顺序即学生首次预习顺序</div>`}
-    </div>
-    <aside>
-      <div class="card card-pad">
-        <div class="sm muted" style="margin-bottom:6px">这个词集的去向</div>
-        <div class="between"><span>状态</span>
-          <button class="btn sm" onclick="toast('${set.active?'已停用：不能再发词，已发出的布置不受影响':'已启用'}')">${set.active?'启用中 · 点此停用':'已停用 · 点此启用'}</button></div>
-        <div class="between"><span>已发给</span><span>${set.classes.length?set.classes.length+' 个班':'还没发'}</span></div>
-        <div class="between"><span>最近更新</span><span class="mono sm">${set.updated||'—'}</span></div>
-        <div class="sm muted-2" style="margin-top:8px">停用后不能再发词；已发出的布置不受影响。</div>
-      </div>
-    </aside>
   </div>`;
 }
 
@@ -1126,7 +1121,6 @@ function screenAssign(){
   const picked = CLASSES.filter(c=>S.picked.includes(c.id));
   const taught = CLASSES.filter(c=>c.taught);
   const q = S.classQ.trim();
-  const groups = ['高一','高二'];
   const chip = c => `<button class="class-chip ${S.picked.includes(c.id)?'on':''}" onclick="toggleClass('${c.id}')">
       ${S.picked.includes(c.id)?'✓ ':''}${c.name} · ${c.n} 人</button>`;
   return `
@@ -1162,17 +1156,11 @@ function screenAssign(){
             <button class="btn sm" onclick="S.picked=[];render()">清空</button>
           </div>
           <div class="class-panel">
-            ${groups.map(g=>{
-              const list = taught.filter(c=>c.grade===g && (!q || c.name.includes(q)));
-              if (!list.length) return '';
-              return `<div class="cp-group">
-                <div class="between" style="margin-bottom:6px">
-                  <b class="sm">${g} · ${list.length} 个班</b>
-                  <button class="btn ghost sm" onclick="pickGrade('${g}')">本年级全选</button>
-                </div>
-                <div class="class-pick">${list.map(chip).join('')}</div>
-              </div>`;
-            }).join('') || '<div class="sm muted">没有匹配的班级</div>'}
+            ${(() => {
+              const list = taught.filter(c => !q || c.name.includes(q));
+              if (!list.length) return '<div class="sm muted">没有匹配的班级</div>';
+              return `<div class="class-pick">${list.map(chip).join('')}</div>`;
+            })()}
           </div>
           <div class="sm muted" style="margin-top:6px">已选 <b>${picked.length}</b> 个班 · 预计 ${picked.reduce((a,c)=>a+c.n,0)} 名学生收到待办</div>
         </div>
@@ -1195,7 +1183,6 @@ function screenAssign(){
   </div>`;
 }
 function pickAll(){ S.picked = CLASSES.filter(c=>c.taught).map(c=>c.id); render(); }
-function pickGrade(g){ const ids = CLASSES.filter(c=>c.taught && c.grade===g).map(c=>c.id);
   S.picked = [...new Set([...S.picked, ...ids])]; render(); }
 
 function toggleClass(id){ S.picked = S.picked.includes(id)?S.picked.filter(x=>x!==id):[...S.picked,id]; render(); }
