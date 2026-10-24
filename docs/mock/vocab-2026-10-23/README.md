@@ -8,7 +8,7 @@
 
 | 反馈 | 落点 |
 | :--- | :--- |
-| 词集页改成 table view，一行一个词集 | 列：名称/语言/词数/状态/已发给/更新时间/操作 |
+| 词集页改成 table view，一行一个词集 | 列：名称/语言/词数/状态/已发给/更新时间/操作；顶部两个 tab：词集 / 发词记录 |
 | 行操作支持批量 | 复选框多选后出现「启用 / 停用 / 删除」批量条；「更新」在单行 |
 | 点词集进入 new/update 界面 | 点名称或「更新」进入 `#wordsetEdit`，含名称/语言/说明/词条列表 |
 | 导入/加词移到编辑页 | 词集列表不再有这两个按钮；编辑页右上角有「导入单词」「加词」 |
@@ -84,7 +84,8 @@
 | `#wordset?tab=history` | 教师发词记录 |
 | `#summary` | 复习小结 |
 | `#review?theme=dark&flip=1` | 暗色 |
-| `#wordset` / `#assign` | 教师词集 / 发词 |
+| `#wordset` / `#wordset?tab=assignments` | 教师词集 / 发词记录 |
+| `#wordsetEdit` / `#assign` | 词集编辑页 / 发词 |
 
 ## 追踪的规格条目（spec §14–15）
 
@@ -101,7 +102,7 @@
 
 `library.png`、`library-empty.png`、`library-error.png`、`library-filter.png`、
 `review.png`、`review-flipped.png`、`review-free.png`、`review-empty.png`、`review-dark.png`、
-`detail.png`、`summary.png`、`wordset.png`、`wordset-history.png`、`assign.png`、`add.png`、`add-preview.png`
+`detail.png`、`summary.png`、`wordset.png`、`wordset-assignments.png`、`wordset-edit.png`、`assign.png`、`add.png`、`add-preview.png`
 
 重新生成（示例）：
 

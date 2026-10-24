@@ -362,7 +362,7 @@ const S = {
   popFilters:{src:[], deck:'all', status:'all', lang:'en'},
   free:false, freeTotal:0, freeIdx:0, freeKnown:0, freeRated:{again:0,hard:0,good:0,easy:0},
   detail:null, fav:['abandon','accumulate'], paused:[], info:false, rated:null,
-  setSelRows:[], setEdit:null, setQ:'', setActiveTab:'words', assignInfo:false, classQ:'', comboOpen:false,
+  setSelRows:[], setEdit:null, setQ:'', wordsetTab:'sets', setActiveTab:'words', assignInfo:false, classQ:'', comboOpen:false,
   addTab:'paste', setTab:'words', paste: SAMPLE_PASTE, parseDone:false,
 };
 
@@ -946,7 +946,30 @@ function screenWordset(){
   const q = S.setQ.trim().toLowerCase();
   const rows = SETS.filter(s=>!q || s.name.toLowerCase().includes(q));
   const allSel = rows.length>0 && rows.every(s=>S.setSelRows.includes(s.id));
-  return `
+  const tabs = `<div class="seg" style="margin-bottom:12px">
+      <button class="${S.wordsetTab==='sets'?'on':''}" onclick="S.wordsetTab='sets';render()">词集</button>
+      <button class="${S.wordsetTab==='assignments'?'on':''}" onclick="S.wordsetTab='assignments';render()">发词记录</button>
+    </div>`;
+  if (S.wordsetTab==='assignments') {
+    const hist = [
+      ['Unit 5 生词','高二(3)班','今天 09:12','3 天后截止','38/42 已领'],
+      ['Unit 5 生词','高二(5)班','今天 09:12','3 天后截止','31/40 已领'],
+      ['Unit 4 生词','高二(3)班','10-21 14:30','已过期','40/42 已领'],
+    ];
+    return tabs + `
+    <div class="card">
+      <table>
+        <thead><tr><th>词集</th><th>班级</th><th>发送时间</th><th>截止</th><th>领取情况</th><th style="width:90px">操作</th></tr></thead>
+        <tbody>${hist.map(([set,cls,when,due,claim])=>`<tr>
+          <td style="font-weight:500">${set}</td><td>${cls}</td><td class="mono sm muted">${when}</td>
+          <td class="sm">${due}</td><td class="sm">${claim}</td>
+          <td><button class="btn sm" onclick="toast('已复制布置链接')">复制链接</button></td>
+        </tr>`).join('')}</tbody>
+      </table>
+      <div class="card-pad sm muted" style="border-top:1px solid var(--line-2)">发出去的是快照：之后改词集不影响这些布置。</div>
+    </div>`;
+  }
+  return tabs + `
   <div class="toolbar">
     <input class="input grow" placeholder="搜索词集" value="${S.setQ}" oninput="S.setQ=this.value;render()">
     <div style="flex:1"></div>
@@ -1026,7 +1049,8 @@ function screenWordsetEdit(){
     <aside>
       <div class="card card-pad">
         <div class="sm muted" style="margin-bottom:6px">这个词集的去向</div>
-        <div class="between"><span>状态</span><span>${set.active?'启用':'已停用'}</span></div>
+        <div class="between"><span>状态</span>
+          <button class="btn sm" onclick="toast('${set.active?'已停用：不能再发词，已发出的布置不受影响':'已启用'}')">${set.active?'启用中 · 点此停用':'已停用 · 点此启用'}</button></div>
         <div class="between"><span>已发给</span><span>${set.classes.length?set.classes.length+' 个班':'还没发'}</span></div>
         <div class="between"><span>最近更新</span><span class="mono sm">${set.updated||'—'}</span></div>
         <div class="sm muted-2" style="margin-top:8px">停用后不能再发词；已发出的布置不受影响。</div>
@@ -1158,7 +1182,7 @@ document.addEventListener('keydown', e=>{
   if (/modal=1/.test(qs||'')) S.modal = true;
   if (/preview=1/.test(qs||'')) S.parseDone = true;
   if (/rated=again/.test(qs||'')) { S.rated='again'; S.flipped=true; }
-  if (/tab=history/.test(qs||'')) S.setTab = 'history';
+  if (/tab=assignments/.test(qs||'')) S.wordsetTab = 'assignments';
   const m = /ds=(\w+)/.exec(qs||''); if (m) S.ds = m[1];
   if (/flip=1/.test(qs||'')) S.flipped = true;
   const t = /theme=(\w+)/.exec(qs||''); if (t) { S.theme = t[1]; document.documentElement.dataset.theme = t[1]; }
