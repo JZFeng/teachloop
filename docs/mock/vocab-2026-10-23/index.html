@@ -349,7 +349,7 @@ const S = {
   modal:false,
   popFilters:{src:[], deck:'all', status:'all', lang:'en'},
   free:false, freeTotal:0, freeIdx:0, freeKnown:0, freeRated:{again:0,hard:0,good:0,easy:0},
-  detail:null, fav:['abandon','accumulate'], paused:[],
+  detail:null, fav:['abandon','accumulate'], paused:[], info:false,
   addTab:'paste', setTab:'words', paste: SAMPLE_PASTE, parseDone:false,
 };
 
@@ -449,6 +449,8 @@ function markKnown(word){
   render();
 }
 function unmarkKnown(w){ S.known=S.known.filter(x=>x!==w); render(); toast('已重新加入生词本，今天可再次复习'); }
+function nextCard(){ if(S.free){S.freeIdx++;} else {S.idx++;} S.flipped=false; render(); }
+function prevCard(){ if(S.free){ if(S.freeIdx>0) S.freeIdx--; } else { if(S.idx>0) S.idx--; } S.flipped=false; render(); }
 function endFree(){ S.screen='summary'; render(); }
 function openDetail(w){ S.detail=w; S.screen='detail'; render(); }
 function nextDue(w){ const i = WORDS.indexOf(w); return i; }
@@ -651,10 +653,30 @@ function screenDetail(){
       </div>
 
       <div class="card card-pad" style="margin-bottom:12px">
-        <div class="sm muted" style="margin-bottom:6px">释义（按词性）</div>
-        <div style="font-size:16px;font-weight:600;margin-bottom:4px">v. 放弃；抛弃</div>
-        <div class="sm muted">He abandoned the plan without a word. / 他一句话没说就放弃了计划。</div>
-        <div class="row" style="margin-top:10px;gap:8px"><span class="chip insights">词频 A2</span><span class="chip ${w.srcType}">${w.src}</span></div>
+        <div class="between" style="margin-bottom:6px">
+          <div class="sm muted">释义（按词性，来自异步生成）</div>
+          <div class="row" style="gap:6px"><span class="chip insights">词频 A2</span><span class="chip ${w.srcType}">${w.src}</span></div>
+        </div>
+        <div style="font-size:15px;font-weight:600">v. 放弃；抛弃；离弃</div>
+        <div class="sm muted" style="margin:2px 0 8px">to leave someone or something you are responsible for</div>
+        <div style="font-size:15px;font-weight:600">v. 中止；放弃（计划、想法）</div>
+        <div class="sm muted">to stop doing something before it is finished</div>
+      </div>
+
+      <div class="card card-pad" style="margin-bottom:12px">
+        <div class="between" style="margin-bottom:6px">
+          <div class="sm muted">例句（每条可单独朗读）</div>
+          <button class="btn ghost sm" onclick="toast('展开全部例句')">全部 6 条</button>
+        </div>
+        ${[
+          ['He abandoned the plan without a word.','他一句话没说就放弃了计划。'],
+          ['The crew abandoned the sinking ship.','船员弃船逃生。'],
+          ['She never abandoned hope of finding her brother.','她从未放弃寻找弟弟的希望。'],
+        ].map(([en,zh])=>`<div style="margin-bottom:10px">
+          <div class="between"><span>${en}</span>
+            <button class="btn ghost sm" title="朗读例句" onclick="toast('朗读例句（TTS 缓存命中 40ms）')">${ICONS.speaker}</button></div>
+          <div class="sm muted-2">${zh}</div>
+        </div>`).join('')}
       </div>
 
       <div class="card card-pad" style="margin-bottom:12px">
@@ -752,43 +774,38 @@ function screenReview(){
       </div>
     </div>`;
   return `
-  <div class="review-wrap">
+  <div class="review-wrap" style="grid-template-columns:minmax(0,1fr)">
     <div>
       <div class="between" style="margin-bottom:6px">
         ${S.free
           ? `<span class="sm muted">自由复习 <b class="mono" style="color:var(--text)">${S.freeIdx} / ${S.freeTotal}</b> · 已标熟悉 ${S.freeKnown}</span>
              <span class="sm muted-2">随时可停 · 进度会保留</span>`
           : `<span class="sm muted">今日进度 <b class="mono" style="color:var(--text)">12 / 46</b> · 新词 3 / 20</span>
-             <span class="sm muted-2">预计还需 6 分钟</span>`}
+             <span class="row" style="gap:6px"><span class="sm muted-2">预计还需 6 分钟</span>
+          <button class="btn ghost sm" title="这一轮在复习什么" onclick="S.info=!S.info;render()">ⓘ</button></span>`}
       </div>
       <div class="progress" style="margin-bottom:14px"><i style="width:26%"></i></div>
+      ${S.info?`<div class="card card-pad" style="margin-bottom:12px;border-left:3px solid var(--accent)">
+        <div class="between"><b class="sm">这一轮在复习什么</b><button class="btn ghost sm" onclick="S.info=false;render()">关闭</button></div>
+        <div class="sm muted" style="margin-top:6px">新词 12 · 到期复习 34 · 今天已复习 12 · 卡组视图：易错 46 / Unit 5 28</div>
+        <div class="sm muted-2" style="margin-top:6px">「认识」按当前间隔往后推，「不认识」回到很短的重来间隔；具体倍数由调度策略决定（§5，待讨论）。</div>
+      </div>`:''}
       <div class="card">${S.flipped?back:front}</div>
-      <div class="rates" ${S.flipped?'':'style="opacity:.45"'}>
-        <button class="rate again" ${S.flipped?'':'disabled'} onclick="S.flipped&&rate('again')"><span class="n">忘记</span><span class="d">5 分钟后</span><span class="kbd">1</span></button>
-        <button class="rate hard" ${S.flipped?'':'disabled'} onclick="S.flipped&&rate('hard')"><span class="n">困难</span><span class="d">10 分钟后</span><span class="kbd">2</span></button>
-        <button class="rate good" ${S.flipped?'':'disabled'} onclick="S.flipped&&rate('good')"><span class="n">良好</span><span class="d">1 天后</span><span class="kbd">3</span></button>
-        <button class="rate easy" ${S.flipped?'':'disabled'} onclick="S.flipped&&rate('easy')"><span class="n">容易</span><span class="d">4 天后</span><span class="kbd">4</span></button>
+      <div class="rates" style="grid-template-columns:repeat(2,1fr)">
+        <button class="rate again" onclick="rate('again')"><span class="n">不认识</span><span class="d">5 分钟后再来</span><span class="kbd">1</span></button>
+        <button class="rate good" onclick="rate('good')"><span class="n">认识</span><span class="d">1 天后再来</span><span class="kbd">2</span></button>
       </div>
-      <div class="hint">翻面后才能评分 · 空格翻面 · 数字键 1–4${S.free?' · S 移出复习':''}</div>
+      <div class="row" style="justify-content:center;margin-top:12px;gap:10px">
+        <button class="btn sm" ${(S.free?S.freeIdx:S.idx)<=0?'disabled':''} onclick="prevCard()">← 上一个</button>
+        <button class="btn sm" onclick="nextCard()">下一个 →</button>
+      </div>
+      <div class="hint">「认识」直接进入下一个 · 点卡片翻面看全部释义 · 数字键 1 / 2 · 空格翻面${S.free?" · S 移出复习":""}</div>
       ${S.free?`<div class="row" style="justify-content:center;margin-top:8px">
         <button class="btn" onclick="markKnown(currentWord().w);toast('已移出复习')">移出复习（S）</button>
         <button class="btn" onclick="endFree()">结束复习</button>
       </div>`:''}
     </div>
-    <aside>
-      <div class="card card-pad" style="margin-bottom:12px">
-        <div class="sm muted" style="margin-bottom:8px">这轮在复习什么</div>
-        <div class="row" style="justify-content:space-between"><span>新词</span><span class="mono">12</span></div>
-        <div class="row" style="justify-content:space-between"><span>到期复习</span><span class="mono">34</span></div>
-        <div class="row" style="justify-content:space-between"><span>今天已复习</span><span class="mono">12</span></div>
-        <div style="border-top:1px solid var(--line-2);margin:10px 0"></div>
-        <div class="sm muted">卡组视图：易错 46 · Unit 5 28</div>
-      </div>
-      <div class="card card-pad">
-        <div class="sm muted" style="margin-bottom:6px">评分会改变什么</div>
-        <div class="sm muted-2">忘记 → 5 分钟后再来；困难 → 间隔×1.2；良好 → 按易度放大；容易 → 再乘 1.3。参数在 <code style="font-family:ui-monospace,Menlo,monospace">application.yml</code> 里改。</div>
-      </div>
-    </aside>
+
   </div>`;
 }
 function rate(k){
@@ -1040,7 +1057,7 @@ document.getElementById('themeBtn').addEventListener('click', ()=>{
 document.addEventListener('keydown', e=>{
   if (S.screen!=='review' || S.ds!=='data') return;
   if (e.code==='Space'){ e.preventDefault(); S.flipped=!S.flipped; render(); }
-  if (['1','2','3','4'].includes(e.key) && S.flipped) rate({1:'again',2:'hard',3:'good',4:'easy'}[e.key]);
+  if (e.key==='1'||e.key==='2') rate(e.key==='1'?'again':'good');
   if (e.key.toLowerCase()==='s' && S.free) { markKnown(currentWord().w); toast('已移出复习'); }
 });
 /* 支持 #review / #wordset / #assign / #library?ds=empty 深链，方便截图与评审 */
