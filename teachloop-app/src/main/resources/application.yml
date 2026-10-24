@@ -48,8 +48,8 @@ teachloop:
       path-prefix: ${STORAGE_S3_PATH_PREFIX:teachloop/}
   vocab:
     # T389 功能开关（plan §11）：false 时不注册 vocab 路由、导航不出现（宪法第十五条）。
-    # 四个页面（T397/T403/T407/T408）落地前默认关闭；T413 收尾验收后置 true。
-    enabled: ${VOCAB_ENABLED:false}
+    # T413：页面（词库/复习/详情/加词/词集/编辑/发词/预习）已齐，默认打开；仍可用 VOCAB_ENABLED=false 关掉。
+    enabled: ${VOCAB_ENABLED:true}
     lexicon:
       # T388：本地词族索引（28,276 族 / 80,579 形）。产物不进 git，先 `make vocab-lexicon`；
       # 目录不存在时词族区块降级隐藏（spec §8），不影响应用启动。
