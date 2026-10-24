@@ -472,6 +472,12 @@ function markKnown(word){
   render();
 }
 function unmarkKnown(w){ S.known=S.known.filter(x=>x!==w); render(); toast('已重新加入生词本，今天可再次复习'); }
+function searchGo(q){
+  const key = (q||'').trim().toLowerCase();
+  if (!key) { toast('输入一个单词再按 Enter'); return; }
+  S.detail = key; S.newWord = null;
+  S.screen = 'detail'; render();
+}
 function nextCard(){ if(S.free){S.freeIdx++;} else {S.idx++;} S.flipped=false; S.rated=null; render(); }
 function prevCard(){ if(S.free){ if(S.freeIdx>0) S.freeIdx--; } else { if(S.idx>0) S.idx--; } S.flipped=false; S.rated=null; render(); }
 function endFree(){ S.screen='summary'; render(); }
@@ -535,7 +541,9 @@ function screenLibrary(){
   </div>
 
   <div class="toolbar sticky-tool">
-    <input class="input grow" placeholder="搜索单词或释义（滚动时保持可见）" value="${S.q}" oninput="S.q=this.value;render()">
+    <input class="input grow" placeholder="搜索单词或释义；不在词库的词按 Enter 查看详情"
+      value="${S.q}" oninput="S.q=this.value;render()"
+      onkeydown="if(event.key==='Enter'){searchGo(this.value)}">
     <button class="btn" onclick="S.modal=true;render()">筛选${filterCount()?' · '+filterCount():''}</button>
     <button class="btn" onclick="S.colPop=!S.colPop;render()">列 ▾</button>
     <div style="flex:1"></div>
@@ -649,7 +657,9 @@ function startFree(n){ S.free=true; S.freeTotal=n; S.freeIdx=0; S.freeKnown=0; S
 function showToast(m){ toast(m); }
 
 function screenDetail(){
-  const w = WORDS.find(x=>x.w===S.detail) || WORDS[0];
+  const found = WORDS.find(x=>x.w===S.detail);
+  const isNewWord = !found;
+  const w = found || { w:S.detail, ph:'', def:'（内容待生成）', ex:[], an:'', note:'', src:'词表', srcType:'', due:'—', st:'new' };
   const isFav = S.fav.includes(w.w);
   const paused = S.paused.includes(w.w);
   const family = [
@@ -662,15 +672,18 @@ function screenDetail(){
           <div>
             <div style="font-size:34px;font-weight:600;line-height:1.2">${w.w}</div>
             <div class="row" style="margin-top:6px;gap:14px">
+              ${isNewWord ? '<span class="sm muted-2">音标与发音在加入词库后生成</span>' : `
               <span class="sm muted">UK <span class="mono">/əˈbændən/</span></span>
               <button class="speaker" onclick="toast('朗读 UK（缓存命中 28ms）')">${ICONS.speaker}</button>
               <span class="sm muted">US <span class="mono">/əˈbændən/</span></span>
-              <button class="speaker" onclick="toast('朗读 US（缓存命中 31ms）')">${ICONS.speaker}</button>
+              <button class="speaker" onclick="toast('朗读 US（缓存命中 31ms）')">${ICONS.speaker}</button>`}
             </div>
           </div>
           <div class="row">
-            <button class="fav ${isFav?'on':''}" onclick="toggleFav('${w.w}')">${isFav?'★ 已收藏':'☆ 收藏'}</button>
-            <button class="btn" onclick="S.known.includes('${w.w}')?unmarkKnown('${w.w}'):markKnown('${w.w}')">${S.known.includes('${w.w}')?'重新加入':'移出复习'}</button>
+            ${isNewWord?`<button class="btn primary" onclick="addFromDetail()">＋ 加入词库</button>`:`
+              <button class="fav ${isFav?'on':''}" onclick="toggleFav('${w.w}')">${isFav?'★ 已收藏':'☆ 收藏'}</button>
+              <button class="btn" title="回到新词，历史日志保留" onclick="resetWord('${w.w}')">重新加入生词本</button>
+              <button class="btn" onclick="S.known.includes('${w.w}')?unmarkKnown('${w.w}'):markKnown('${w.w}')">${S.known.includes('${w.w}')?'取消移出':'移出复习'}</button>`}
           </div>
         </div>
       </div>
@@ -680,10 +693,12 @@ function screenDetail(){
           <div class="sm muted">释义（按词性，来自异步生成）</div>
           <div class="row" style="gap:6px"><span class="chip insights">词频 A2</span><span class="chip ${w.srcType}">${w.src}</span></div>
         </div>
-        <div style="font-size:15px;font-weight:600">v. 放弃；抛弃；离弃</div>
+        ${isNewWord?`<div class="sm muted-2">这个词还没加入你的词库。加入后会自动生成释义、例句、构词与词族（通常几秒）。</div>
+        <div class="row" style="margin-top:10px;gap:8px"><span class="chip">词表里存在</span><span class="chip">BNC 第 3 千词族</span></div>`
+        :`<div style="font-size:15px;font-weight:600">v. 放弃；抛弃；离弃</div>
         <div class="sm muted" style="margin:2px 0 8px">to leave someone or something you are responsible for</div>
         <div style="font-size:15px;font-weight:600">v. 中止；放弃（计划、想法）</div>
-        <div class="sm muted">to stop doing something before it is finished</div>
+        <div class="sm muted">to stop doing something before it is finished</div>`}
       </div>
 
       <div class="card card-pad" style="margin-bottom:12px">
@@ -691,7 +706,7 @@ function screenDetail(){
           <div class="sm muted">例句（每条可单独朗读）</div>
           <button class="btn ghost sm" onclick="toast('展开全部例句')">全部 6 条</button>
         </div>
-        ${[
+        ${isNewWord ? '<div class="sm muted-2">加入词库后这里会显示例句。</div>' : [
           ['He abandoned the plan without a word.','他一句话没说就放弃了计划。'],
           ['The crew abandoned the sinking ship.','船员弃船逃生。'],
           ['She never abandoned hope of finding her brother.','她从未放弃寻找弟弟的希望。'],
@@ -704,8 +719,8 @@ function screenDetail(){
 
       <div class="card card-pad" style="margin-bottom:12px">
         <div class="sm muted" style="margin-bottom:6px">构词</div>
-        <div>${w.an}</div>
-        <div class="sm muted-2" style="margin-top:6px">相同的 a- 前缀：aboard / abroad / absence</div>
+        ${isNewWord ? '<div class="sm muted-2">加入词库后自动生成词根词缀分析。</div>'
+          : `<div>${w.an}</div><div class="sm muted-2" style="margin-top:6px">相同的 a- 前缀：aboard / abroad / absence</div>`}
       </div>
 
       <div class="card card-pad" style="margin-bottom:12px">
@@ -713,9 +728,9 @@ function screenDetail(){
           <div class="sm muted">词族（word family · BNC 词频 · 最多 8 个）</div>
           <span class="sm muted-2">频段来自本地 BNC 词族表</span>
         </div>
-        <div class="wf">
+        ${isNewWord ? '<div class="sm muted-2">加入词库后显示同族词与频段。</div>' : `<div class="wf">
           ${family.map(([f,pos,n])=>`<span class="wfc"><b>${f}</b> <span>${pos} · ${n}</span></span>`).join('')}
-        </div>
+        </div>`}
       </div>
 
       <div class="card card-pad">
@@ -728,10 +743,13 @@ function screenDetail(){
     <aside>
       <div class="card card-pad" style="margin-bottom:12px">
         <div class="sm muted" style="margin-bottom:6px">学习状态</div>
+        ${isNewWord ? `<div class="between"><span>状态</span><span class="muted">未加入词库</span></div>
+        <div class="between"><span>下次复习</span><span class="mono">—</span></div>
+        <div class="sm muted-2" style="margin-top:8px">加入后进入「新词」队列，今天就能复习。</div>` : `
         <div class="between"><span>状态</span><span>${S.known.includes(w.w)?'已移出复习':'复习中'}</span></div>
         <div class="between"><span>下次复习</span><span class="mono">${S.known.includes(w.w)?'—':w.due}</span></div>
         <div class="between"><span>易度</span><span class="mono">2.50</span></div>
-        <div class="between"><span>间隔</span><span class="mono">12 天</span></div>
+        <div class="between"><span>间隔</span><span class="mono">12 天</span></div>`}
       </div>
       <div class="card card-pad" style="margin-bottom:12px">
         <div class="sm muted" style="margin-bottom:6px">图片（V2）</div>
@@ -744,6 +762,15 @@ function screenDetail(){
     </aside>
   </div>
   <div class="foot-note">同一份 HTML 模板 + 不同的 word JSON；已预生成时由反向代理直出，未生成时先用模板实时渲染。</div>`;
+}
+function addFromDetail(){
+  const word = (S.detail||'').trim();
+  toast(`已加入词库：${word} · 内容生成中，完成后释义与例句会自动出现`);
+}
+function resetWord(w){
+  toast(`已重置「${w}」为新词，历史复习日志保留`);
+  S.known = S.known.filter(x=>x!==w);
+  render();
 }
 function toggleFav(w){ S.fav = S.fav.includes(w)?S.fav.filter(x=>x!==w):[...S.fav,w]; render(); toast(S.fav.includes(w)?'已收藏':'已取消收藏'); }
 function togglePause(w){ S.paused = S.paused.includes(w)?S.paused.filter(x=>x!==w):[...S.paused,w]; render(); toast(S.paused.includes(w)?'已暂停复习，可在词库筛选「已暂停」恢复':'已恢复复习'); }
@@ -1191,6 +1218,7 @@ document.addEventListener('keydown', e=>{
   }
   if (scr==='review' && /free=1/.test(qs||'')) { S.free=true; S.freeTotal=46; S.freeIdx=12; S.freeKnown=4; }
   if (scr==='detail') S.detail = 'abandon';
+  const wm = /word=([a-zA-Z'-]+)/.exec(qs||''); if (wm) S.detail = wm[1];
   if (/modal=1/.test(qs||'')) S.modal = true;
   if (/preview=1/.test(qs||'')) S.parseDone = true;
   if (/rated=again/.test(qs||'')) { S.rated='again'; S.flipped=true; }
