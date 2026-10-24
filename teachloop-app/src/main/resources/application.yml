@@ -60,6 +60,17 @@ teachloop:
     word-family:
       # spec §14.4：详情页最多显示 N 个同族词（默认 8）
       max-members: ${VOCAB_WORD_FAMILY_MAX_MEMBERS:8}
+    generation:
+      # T394：新词内容异步生成（释义/例句/构词/词族/音标）。engine=ai 默认，stub 仅测试/演示。
+      enabled: ${VOCAB_GENERATION_ENABLED:true}
+      engine: ${VOCAB_GENERATION_ENGINE:ai}
+      poll-ms: ${VOCAB_GENERATION_POLL_MS:2000}
+      batch-size: 5
+      # 失败 3 次后标 FAILED；24 小时仍未完成标「内容缺失」并移出队列
+      max-attempts: 3
+      # 日预算（按 Asia/Shanghai 的今天计算已建 job 数）；打满时暂停入队
+      daily-budget: ${VOCAB_GENERATION_DAILY_BUDGET:2000}
+      timeout-ms: ${VOCAB_GENERATION_TIMEOUT_MS:60000}
   grading:
     engine: ${TEACHLOOP_GRADING_ENGINE:ai}
     poll-ms: 2000

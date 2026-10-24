@@ -24,7 +24,7 @@ import tools.jackson.databind.ObjectMapper;
  * 开关关闭时路由不存在由 T389 的 `/api/features` + `@ConditionalOnProperty` 保证。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"teachloop.vocab.enabled=true", "teachloop.vocab.lexicon.enabled=false"})
+        properties = {"teachloop.vocab.enabled=true", "teachloop.vocab.lexicon.enabled=false", "teachloop.vocab.generation.enabled=false"})
 @Testcontainers
 class VocabImportPreviewTest {
 

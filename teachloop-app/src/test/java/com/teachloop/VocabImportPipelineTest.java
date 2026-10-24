@@ -28,7 +28,7 @@ import tools.jackson.databind.ObjectMapper;
  * 索引命中时写 family_id 由 T399 的词族展示覆盖。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
-        properties = {"teachloop.vocab.enabled=true", "teachloop.vocab.lexicon.enabled=false"})
+        properties = {"teachloop.vocab.enabled=true", "teachloop.vocab.lexicon.enabled=false", "teachloop.vocab.generation.enabled=false"})
 @Testcontainers
 class VocabImportPipelineTest {
 

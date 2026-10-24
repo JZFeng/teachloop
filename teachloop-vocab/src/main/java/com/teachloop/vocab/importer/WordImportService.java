@@ -1,6 +1,7 @@
 package com.teachloop.vocab.importer;
 
 import com.teachloop.shared.error.ApiException;
+import com.teachloop.vocab.generation.VocabularyGenerationService;
 import com.teachloop.vocab.lexicon.WordFamily;
 import com.teachloop.vocab.lexicon.WordFamilyIndex;
 import com.teachloop.vocab.word.VocabWordRepository;
@@ -44,12 +45,14 @@ public class WordImportService {
     private final DictionaryTextParser parser;
     private final VocabWordRepository words;
     private final WordFamilyIndex lexicon;
+    private final VocabularyGenerationService generation;
 
     public WordImportService(DictionaryTextParser parser, VocabWordRepository words,
-                             WordFamilyIndex lexicon) {
+                             WordFamilyIndex lexicon, VocabularyGenerationService generation) {
         this.parser = parser;
         this.words = words;
         this.lexicon = lexicon;
+        this.generation = generation;
     }
 
     public PreviewResult preview(UUID userId, String language, String text) {
@@ -91,6 +94,7 @@ public class WordImportService {
         int created = 0;
         int duplicated = 0;
         int failed = 0;
+        List<UUID> createdIds = new ArrayList<>();
         for (ParseResult.ParsedToken token : parsed.tokens()) {
             total++;
             if (!WordNormalizer.valid(token.raw())) {
@@ -118,8 +122,10 @@ public class WordImportService {
                     family.map(WordFamily::familyId).orElse(null),
                     family.map(WordFamily::band).orElse(null));
             words.addImportSource(wordId, batchId, cleanLabel);
+            createdIds.add(wordId);
             created++;
         }
+        generation.enqueueNewWords(createdIds);
         return new CommitResult(new Counts(total, created, duplicated, failed), batchId, errors);
     }
 }
