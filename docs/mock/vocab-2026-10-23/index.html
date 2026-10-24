@@ -788,7 +788,7 @@ function screenReview(){
       ${S.info?`<div class="card card-pad" style="margin-bottom:12px;border-left:3px solid var(--accent)">
         <div class="between"><b class="sm">这一轮在复习什么</b><button class="btn ghost sm" onclick="S.info=false;render()">关闭</button></div>
         <div class="sm muted" style="margin-top:6px">新词 12 · 到期复习 34 · 今天已复习 12 · 卡组视图：易错 46 / Unit 5 28</div>
-        <div class="sm muted-2" style="margin-top:6px">「认识」按当前间隔往后推，「不认识」回到很短的重来间隔；具体倍数由调度策略决定（§5，待讨论）。</div>
+        <div class="sm muted-2" style="margin-top:6px">「认识」= 良好（间隔 × 易度），「不认识」= 忘记（5 分钟后重来）；连续 4 次认识且间隔 ≥45 天自动标为已掌握。参数都在 application.yml 里。</div>
       </div>`:''}
       <div class="card">${S.flipped?back:front}</div>
       <div class="rates" style="grid-template-columns:repeat(2,1fr)">
