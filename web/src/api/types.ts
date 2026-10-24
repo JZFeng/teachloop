@@ -380,6 +380,8 @@ export interface MyFeedback {
   wrongItems: FeedbackWrongItem[]
   review: FeedbackReviewNote | null
   overview: FeedbackOverview
+  /** 本卷客观题满分；0 表示整卷没有客观题，页面不显示「客观题」一行。 */
+  objectiveMax: number
 }
 
 export interface ReviewView {
@@ -486,6 +488,7 @@ export interface AiProviderView {
   baseUrl: string
   protocol: string
   model: string
+  models: string[]
   apiKeySet: boolean
   apiKeyMasked: string | null
   active: boolean
@@ -499,9 +502,11 @@ export interface AiProviderRequest {
   protocol: string
   apiKey: string | null
   model: string
+  models: string[]
 }
 
 export interface AiModelOption {
+  key: string
   providerId: string
   displayName: string
   model: string
@@ -511,6 +516,8 @@ export interface AiModelOption {
 export interface AiModelsView {
   options: AiModelOption[]
   currentProviderId: string | null
+  currentModel: string | null
+  currentKey: string | null
 }
 
 export interface AiTestResult {

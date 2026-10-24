@@ -18,4 +18,4 @@
 
 截图：`admin-list.png` / `admin-add.png` / `admin-models.png` / `teacher.png`。
 
-**状态**：2026-10-23 用户按此方向确认（管理员 provider 列表 + 教师全局下拉）；代码已按这版替换旧的自定义 provider 表单。
+**状态**：2026-10-23 用户按此方向确认（管理员 provider 列表 + 教师全局下拉）；代码已按这版替换旧的自定义 provider 表单。实现额外支持一个 provider 保存多个模型，教师下拉按 provider+model 展开。

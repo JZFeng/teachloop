@@ -38,6 +38,10 @@ public class AiSettingsEntity {
     @Column(name = "active_provider_id")
     private UUID activeProviderId;
 
+    /** 当前全站使用的模型（provider 下的某个 model）；为空时回退 provider.model。 */
+    @Column(name = "active_model")
+    private String activeModel;
+
     protected AiSettingsEntity() {
     }
 
@@ -50,6 +54,7 @@ public class AiSettingsEntity {
     public Instant getUpdatedAt() { return updatedAt; }
     public UUID getUpdatedBy() { return updatedBy; }
     public UUID getActiveProviderId() { return activeProviderId; }
+    public String getActiveModel() { return activeModel; }
 
     public void setProvider(String provider) { this.provider = provider; }
     public void setBaseUrl(String baseUrl) { this.baseUrl = baseUrl; }
@@ -59,4 +64,5 @@ public class AiSettingsEntity {
     public void setUpdatedAt(Instant updatedAt) { this.updatedAt = updatedAt; }
     public void setUpdatedBy(UUID updatedBy) { this.updatedBy = updatedBy; }
     public void setActiveProviderId(UUID activeProviderId) { this.activeProviderId = activeProviderId; }
+    public void setActiveModel(String activeModel) { this.activeModel = activeModel; }
 }

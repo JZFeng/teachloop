@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /*
- * 验证 D-30 修订：管理员 provider 列表 + 教师全局模型下拉；学生看不到 AI 设置。
+ * 验证 D-30 修订：管理员 provider 列表 + 多模型勾选 + 教师全局模型下拉；学生看不到 AI 设置。
  * 用法：node scripts/verify/ai-model-settings.mjs（QA 5174 已部署）
+ * 依赖：本机 Chrome；脚本自带一个假 OpenAI 服务，不需要真实 Ollama。
  */
 import { spawn } from 'node:child_process'
+import { createServer } from 'node:http'
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { setTimeout as sleep } from 'node:timers/promises'
 import path from 'node:path'
@@ -14,12 +16,34 @@ const BASE = process.env.BASE ?? 'http://127.0.0.1:5174'
 const CDP = process.env.CDP ?? 'http://127.0.0.1:9343'
 const OUT = path.join(ROOT, process.env.OUT_DIR ?? 'docs/reports/t386-ai-model-settings')
 const PROFILE = path.join(ROOT, '.cache/chrome-ai-model-settings')
+const FAKE_PORT = Number(process.env.FAKE_PORT ?? 18089)
 const ADMIN = { email: 'qa-admin@teachloop.local', password: 'qa-admin-pass-123' }
 const TEACHER = { email: 'teacher@teachloop.local', password: 'teachloop123' }
 const STUDENT = { email: 'student@teachloop.local', password: 'teachloop123' }
+const MODELS = ['qwen3.8', 'qwen3.8-instruct']
 
 mkdirSync(OUT, { recursive: true })
 mkdirSync(PROFILE, { recursive: true })
+
+const fake = createServer((req, res) => {
+  const send = (code, body) => {
+    res.writeHead(code, { 'Content-Type': 'application/json' })
+    res.end(JSON.stringify(body))
+  }
+  if (req.method === 'GET' && req.url?.endsWith('/models')) {
+    send(200, { object: 'list', data: MODELS.map((id) => ({ id, object: 'model' })) })
+    return
+  }
+  if (req.method === 'POST' && req.url?.endsWith('/chat/completions')) {
+    send(200, {
+      id: 'chatcmpl-qa', object: 'chat.completion', model: MODELS[0],
+      choices: [{ index: 0, message: { role: 'assistant', content: '{"ok":true}' }, finish_reason: 'stop' }],
+      usage: { prompt_tokens: 1, completion_tokens: 1 },
+    })
+    return
+  }
+  send(404, { error: 'not found' })
+})
 
 const chrome = spawn(CHROME, [
   '--headless=new', '--no-sandbox', '--disable-gpu', '--disable-crash-reporter',
@@ -96,6 +120,27 @@ async function api(pathname, method = 'GET', body = null) {
   }).then(async r => ({ status: r.status, body: await r.json().catch(() => null) }))`)
 }
 
+async function setInput(id, value) {
+  await evaluate(`(() => {
+    const el = document.querySelector(${JSON.stringify('#' + id)});
+    if (!el) return false;
+    const proto = el instanceof HTMLTextAreaElement ? HTMLTextAreaElement.prototype : HTMLInputElement.prototype;
+    const setter = Object.getOwnPropertyDescriptor(proto, 'value').set;
+    setter.call(el, ${JSON.stringify(value)});
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    return true;
+  })()`)
+}
+
+async function clickButton(label) {
+  return evaluate(`(() => {
+    const btn = [...document.querySelectorAll('button')].find(b => b.textContent.trim() === ${JSON.stringify(label)});
+    if (!btn) return false;
+    btn.click();
+    return true;
+  })()`)
+}
+
 const results = []
 function check(name, ok, detail = '') {
   results.push({ name, ok, detail })
@@ -113,10 +158,14 @@ async function ensureAdmin() {
     return
   }
   const status = await login(ADMIN)
-  if (status !== 200) throw new Error(`QA 已有管理员但没有 qa-admin 账号，无法验证管理员页（HTTP ${status}）`)
+  if (status !== 200) throw new Error(`QA 已有管理员但不是 qa-admin，无法验证管理员页（HTTP ${status}）`)
 }
 
 async function main() {
+  await new Promise((resolve, reject) => {
+    fake.once('error', reject)
+    fake.listen(FAKE_PORT, '127.0.0.1', resolve)
+  })
   await waitForChrome()
   const target = await (await fetch(`${CDP}/json/new?${encodeURIComponent('about:blank')}`, { method: 'PUT' })).json()
   ws = new WebSocket(target.webSocketDebuggerUrl)
@@ -135,56 +184,62 @@ async function main() {
   })
   await send('Page.enable')
   await send('Runtime.enable')
-  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1300, deviceScaleFactor: 1, mobile: false })
+  await send('Emulation.setDeviceMetricsOverride', { width: 1440, height: 1400, deviceScaleFactor: 1, mobile: false })
 
-  // ---- 管理员：创建/登录，添加一个测试 provider（第一个自动成为当前模型） ----
+  // ---- 管理员：通过 UI 添加 provider，真实点“获取可用模型”并勾选两个模型 ----
   await ensureAdmin()
   if ((await login(ADMIN)) !== 200) throw new Error('管理员登录失败')
-  let providers = (await api('/api/admin/ai-providers')).body ?? []
-  let provider = providers.find((p) => p.providerId === 'qaval')
-  if (!provider) {
-    const created = await api('/api/admin/ai-providers', 'POST', {
-      providerId: 'qaval', displayName: 'Local Qwen', protocol: 'openai',
-      baseUrl: 'http://127.0.0.1:11434/v1', apiKey: null, model: 'qwen3.8',
-    })
-    if (created.status !== 200) throw new Error(`添加 provider 失败：${created.status} ${JSON.stringify(created.body)}`)
-    provider = created.body
+  const existing = (await api('/api/admin/ai-providers')).body ?? []
+  for (const p of existing.filter((x) => x.providerId === 'qaval')) {
+    await api(`/api/admin/ai-providers/${p.id}`, 'DELETE')
   }
-  check('管理员创建 provider 并自动成为当前模型', provider.active === true, JSON.stringify(provider))
 
   await navigate('/admin/ai')
-  await waitUntil(`document.body.innerText.includes('已配置的 provider')`, { label: '管理员模型页' })
-  const adminView = await evaluate(`({
-    hasLocal: document.body.innerText.includes('Local Qwen'),
-    hasAdd: [...document.querySelectorAll('button')].some(b => b.textContent.includes('添加 provider')),
-    hasActive: document.body.innerText.includes('当前使用'),
-    hasProviderKeyField: !!document.querySelector('#provider-key'),
-  })`)
-  check('管理员页显示 provider 列表与当前标记', adminView.hasLocal && adminView.hasActive, JSON.stringify(adminView))
-  check('管理员页有添加入口', adminView.hasAdd)
+  await waitUntil(`[...document.querySelectorAll('button')].some(b => b.textContent.includes('添加 provider'))`, { label: '管理员模型页' })
   await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent.includes('添加 provider'))?.click()`)
   await waitUntil(`!!document.querySelector('#provider-key')`, { label: 'provider 表单' })
-  check('provider 表单有 ID/地址/协议/Key/模型字段', await evaluate(`!!document.querySelector('#provider-key') && !!document.querySelector('#provider-base-url') && !!document.querySelector('#provider-protocol') && !!document.querySelector('#provider-key-secret') && !!document.querySelector('#provider-model')`))
+  await setInput('provider-key', 'qaval')
+  await setInput('provider-name', 'Local Qwen')
+  await setInput('provider-base-url', `http://127.0.0.1:${FAKE_PORT}/v1`)
+  await setInput('provider-key-secret', '')
+  await clickButton('获取可用模型')
+  await waitUntil(`document.querySelectorAll('.tl-field input[type=checkbox]').length >= 2`, { label: '模型勾选列表' })
+  const loaded = await evaluate(`({
+    count: document.querySelectorAll('.tl-field input[type=checkbox]').length,
+    labels: [...document.querySelectorAll('.tl-field label')].map(l => l.textContent.trim()),
+  })`)
+  check('获取可用模型后显示可勾选列表', loaded.count === 2, JSON.stringify(loaded))
+  await evaluate(`document.querySelectorAll('.tl-field input[type=checkbox]').forEach(cb => { if (!cb.checked) cb.click() })`)
+  await clickButton('保存 provider')
+  await waitUntil(`document.body.innerText.includes('Local Qwen') && document.body.innerText.includes('qwen3.8-instruct')`, { label: 'provider 保存后列表' })
+  const providers = (await api('/api/admin/ai-providers')).body ?? []
+  const saved = providers.find((p) => p.providerId === 'qaval')
+  check('保存后 provider 存了两个模型', saved?.models?.length === 2 && saved?.models?.includes('qwen3.8-instruct'), JSON.stringify(saved))
   await shot('admin')
 
-  // ---- 教师：只看到下拉；切换全局模型 ----
+  // ---- 教师：下拉出现两个模型；选第二个并保存 ----
   await evaluate(`fetch('/api/auth/logout', { method: 'POST' })`)
   check('教师登录', (await login(TEACHER)) === 200)
   await navigate('/profile')
   await waitUntil(`!!document.querySelector('#teacher-ai-model')`, { label: '教师模型下拉' })
   const teacherView = await evaluate(`({
-    options: [...document.querySelector('#teacher-ai-model').options].map(o => o.textContent),
+    options: [...document.querySelector('#teacher-ai-model').options].map(o => ({ text: o.textContent, value: o.value })),
     hasOldProviderFields: !!document.querySelector('#ai-provider') || !!document.querySelector('#ai-base-url') || !!document.querySelector('#ai-key'),
     hasGrading: !!document.querySelector('#grading-mode'),
-    current: document.body.innerText.match(/当前全站模型：([^\\n]+)/)?.[1] ?? null,
   })`)
-  check('教师页只看到模型下拉', teacherView.options.some(t => t.includes('Local Qwen')) && !teacherView.hasOldProviderFields, JSON.stringify(teacherView))
-  check('教师页仍有批改时机', teacherView.hasGrading)
-  await evaluate(`document.querySelector('#teacher-ai-model').value = 'qaval'; document.querySelector('#teacher-ai-model').dispatchEvent(new Event('change', { bubbles: true }))`)
-  await evaluate(`[...document.querySelectorAll('button')].find(b => b.textContent.trim() === '保存选择')?.click()`)
+  check('教师下拉有两个模型', teacherView.options.length === 2 && teacherView.options.some(o => o.text.includes('qwen3.8-instruct')), JSON.stringify(teacherView))
+  check('教师页没有旧自定义 provider 字段', !teacherView.hasOldProviderFields)
+  await evaluate(`(() => {
+    const el = document.querySelector('#teacher-ai-model');
+    const target = [...el.options].find(o => o.value.includes('qwen3.8-instruct'));
+    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
+    setter.call(el, target.value);
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`)
+  await clickButton('保存选择')
   await sleep(700)
-  const teacherCurrent = await api('/api/ai-models')
-  check('教师保存后全站当前模型为 qaval', teacherCurrent.body?.currentProviderId === 'qaval', JSON.stringify(teacherCurrent.body))
+  const current = await api('/api/ai-models')
+  check('教师选中第二个模型后全站生效', current.body?.currentModel === 'qwen3.8-instruct', JSON.stringify(current.body))
   await shot('teacher')
 
   // ---- 学生：看不到 AI ----
@@ -223,4 +278,5 @@ main().catch((err) => {
   process.exitCode = 1
 }).finally(() => {
   try { chrome.kill('SIGTERM') } catch { /* ignore */ }
+  try { fake.close() } catch { /* ignore */ }
 })

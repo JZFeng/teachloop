@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/ai-models")
 public class AiModelEndpoint {
 
-    public record SelectRequest(String providerId) {
+    public record SelectRequest(String providerId, String model) {
     }
 
     private final AiProviderService service;
@@ -35,7 +35,7 @@ public class AiModelEndpoint {
         if (body == null || body.providerId() == null || body.providerId().isBlank()) {
             throw ApiException.badRequest("error.ai.providerId");
         }
-        return service.select(me.id(), body.providerId().strip());
+        return service.select(me.id(), body.providerId().strip(), body.model());
     }
 
     private static void requireTeacherOrAdmin(CurrentUser me) {

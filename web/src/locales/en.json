@@ -52,7 +52,12 @@
       "cancel": "Cancel",
       "keyOptional": "no key",
       "apiKeyHint": "Leave blank for local models; cloud services usually need one. Only a mask is shown after saving.",
-      "providerSaved": "Provider saved."
+      "providerSaved": "Provider saved.",
+      "models": "Model catalog",
+      "modelsHint": "Click \"Get available models\" to list models from the backend; check the ones you need, or type one and add it.",
+      "manualModelPlaceholder": "Type a model ID",
+      "addModel": "Add",
+      "modelRequired": "Choose at least one model."
     },
     "name": "TeachLoop",
     "setup": {
@@ -605,6 +610,7 @@
     "colType": "Type",
     "commentError": "The comment could not be read (API unavailable), so nothing is guessed here.",
     "commentFrom": "Comment dated {{date}}",
+    "commentLabel": "Comment: ",
     "commentMissing": "No comment has been generated.",
     "commentTitle": "Written feedback",
     "detailSub": "Feedback detail",

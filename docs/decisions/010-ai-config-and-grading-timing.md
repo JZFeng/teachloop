@@ -23,13 +23,13 @@
 
 | 项 | 决定 |
 | :--- | :--- |
-| 表 | 新增 `ai_providers`：`id`、`provider_key`（Provider ID）、`display_name`、`base_url`、`protocol`、`api_key_cipher`、`model`、`created_at`、`updated_at`、`updated_by` |
-| 当前模型 | `ai_settings.active_provider_id` 指向正在使用的 provider；v1 只有这一份全局选择 |
+| 表 | 新增 `ai_providers`：`id`、`provider_key`（Provider ID）、`display_name`、`base_url`、`protocol`、`api_key_cipher`、`model`（兼容列，第一个模型）、`models`（JSON 数组，可多个）、`created_at`、`updated_at`、`updated_by` |
+| 当前模型 | `ai_settings.active_provider_id` + `active_model` 指向正在使用的 provider 和模型；v1 只有这一份全局选择 |
 | 谁能配 | 只有 ADMIN：`/admin/ai` 新增/编辑/删除 provider，`POST /models` 拉 `GET {baseUrl}/models`，`POST /test` 测试连接 |
 | 谁能选 | 教师与管理员：`GET /api/ai-models` 返回下拉选项，`PUT /api/ai-models/current` 切换当前 provider；**教师切换后全站生效** |
 | Key | 可空；本地 provider 不需要 Key；只存密文、接口只回掩码；留空表示不修改已保存的 Key |
 | 协议 | v1 只实现 OpenAI 兼容（DeepSeek / Ollama / LM Studio / vLLM）；`anthropic` 字段保留但界面置灰、后端拒绝 |
-| 模型 | 一个 provider 保存一个当前模型；「获取可用模型」失败时仍可手填 |
+| 模型 | 一个 provider 可以保存多个模型；「获取可用模型」后以勾选列表展示，可勾多个/手填；失败时仍可手填 |
 | 旧数据 | `user_ai_settings` 保留但不再读取；旧 `ai_settings` 四字段保留为没有 active provider 时的兼容回退 |
 
 ### B. 角色化资料页
@@ -49,7 +49,7 @@
 | 挂载层级 | **教师级**，作用于该教师的所有作业；单份/整场「立即派发」仍是不受限制的例外 |
 | 模式 | `FIXED_TIME`（默认）与 `DUE_DATE` |
 | 固定时间 | 默认 **02:30 Asia/Shanghai**；教师可改时刻与时区；按教师本地日期每天最多跑一次；`catch_up` 控制错过后是否补跑 |
-| 截止时间 | 复用 `due_at + grace_hours`；60 秒扫描派发；**不看峰谷**（峰谷只保留给考试 / DeepSeek 成本策略） |
+| 截止时间 | 复用 `due_at + grace_hours`；60 秒扫描派发；不看任何时段（峰谷调度已于 2026-10-24 整体撤除，见决策 014） |
 | 调度 | 每分钟扫描教师偏好；固定时间到达后派发该教师的作业；due-date 按到期派发 |
 | 幂等 | 派发仍用 `offerings.grading_dispatched_at` 条件更新；固定时间用 `last_fixed_run_at` 防止每分钟重复派发 |
 
@@ -66,14 +66,20 @@ create table ai_providers (
   protocol varchar(20) not null default 'openai',
   api_key_cipher text,
   model varchar(100) not null,
+  models jsonb not null,
   created_at timestamptz not null,
   updated_at timestamptz not null,
   updated_by uuid
 );
 alter table ai_settings add column active_provider_id uuid references ai_providers (id) on delete set null;
+-- V060：多模型
+alter table ai_providers add column models jsonb;
+update ai_providers set models = jsonb_build_array(model) where models is null;
+alter table ai_providers alter column models set not null;
+alter table ai_settings add column active_model varchar(100);
 ```
 
-`V037__sitting_teacher_grading_preferences.sql` 保持不变。`user_ai_settings` 与 `V038` 保留兼容，不再读取。
+`V037__sitting_teacher_grading_preferences.sql` 保持不变；`V060__identity_ai_provider_models.sql` 增加多模型列与 `active_model`。`user_ai_settings` 与 `V038` 保留兼容，不再读取。
 
 ## 代价与对策
 
@@ -81,7 +87,7 @@ alter table ai_settings add column active_provider_id uuid references ai_provide
 | :--- | :--- |
 | 任何教师切换会改变所有人的模型 | 这是用户确认的 v1 口径；下拉旁明确写「对全站生效」；v2 再做按作业/考试覆盖 |
 | 本地模型从教师电脑不可达 | provider 地址从**后端服务器**发起连接；设置页写明 localhost 指后端所在机器 |
-| 一个 provider 只启用一个模型 | v1 够用；多模型/多端点等 v2 再把 `model` 拆成模型目录 |
+| 一个 provider 可保存多个模型，但全站只启用一个 | 教师下拉按 provider+model 展开；v1 不按作业/考试覆盖 |
 | 旧 `user_ai_settings` 数据变成死数据 | 保留表与迁移，不删数据；评审时注明不再读取 |
 | 白天固定时间批改按原价计费 | 这是教师自己的选择；默认 02:30 仍是夜间折扣时段 |
 

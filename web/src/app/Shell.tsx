@@ -84,7 +84,7 @@ export function Shell({ children }: { children: ReactNode }) {
     }
     let alive = true
     api.get<AiModelsView>('/api/ai-models')
-      .then((value) => { if (alive) setAiMissing(!value.currentProviderId) })
+      .then((value) => { if (alive) setAiMissing(!value.currentKey) })
       .catch(() => { if (alive) setAiMissing(false) })
     return () => { alive = false }
   }, [me?.id, me?.role])

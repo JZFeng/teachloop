@@ -75,7 +75,10 @@ public class AiSettingsService {
         Optional<AiProviderEntity> active = activeProvider(e);
         String provider = active.map(AiProviderEntity::getProviderKey).orElse(e.getProvider());
         String baseUrl = active.map(AiProviderEntity::getBaseUrl).orElse(e.getBaseUrl());
-        String model = active.map(AiProviderEntity::getModel).orElse(e.getModel());
+        String model = active.map(p -> {
+            String activeModel = e.getActiveModel();
+            return activeModel == null || activeModel.isBlank() ? p.getModel() : activeModel;
+        }).orElse(e.getModel());
         return new View(provider, baseUrl, model,
                 e.getTemperature().stripTrailingZeros().toPlainString(),
                 lookup().map(Ports.AiSettings::configured).orElse(false),
@@ -91,7 +94,9 @@ public class AiSettingsService {
         if (active.isPresent()) {
             AiProviderEntity p = active.get();
             String key = secretBox.decrypt(p.getApiKeyCipher());
-            return Optional.of(new Ports.AiSettings(p.getProviderKey(), p.getBaseUrl(), p.getModel(), key,
+            String model = e.getActiveModel() == null || e.getActiveModel().isBlank()
+                    ? p.getModel() : e.getActiveModel();
+            return Optional.of(new Ports.AiSettings(p.getProviderKey(), p.getBaseUrl(), model, key,
                     e.getTemperature(), true, "global"));
         }
         String key = secretBox.decrypt(e.getApiKeyCipher());
@@ -108,10 +113,15 @@ public class AiSettingsService {
         return repo.findById(1).map(AiSettingsEntity::getActiveProviderId).orElse(null);
     }
 
+    public String activeModel() {
+        return repo.findById(1).map(AiSettingsEntity::getActiveModel).orElse(null);
+    }
+
     @Transactional
-    public void setActiveProvider(UUID providerId, UUID actorId) {
+    public void setActiveProvider(UUID providerId, String model, UUID actorId) {
         AiSettingsEntity e = repo.findById(1).orElseThrow();
         e.setActiveProviderId(providerId);
+        e.setActiveModel(model);
         e.setUpdatedAt(clock.instant());
         e.setUpdatedBy(actorId);
         repo.save(e);
@@ -122,6 +132,7 @@ public class AiSettingsService {
         AiSettingsEntity e = repo.findById(1).orElseThrow();
         if (providerId.equals(e.getActiveProviderId())) {
             e.setActiveProviderId(null);
+            e.setActiveModel(null);
             e.setUpdatedAt(clock.instant());
             e.setUpdatedBy(actorId);
             repo.save(e);
@@ -266,7 +277,9 @@ public class AiSettingsService {
         if (req.model() != null && !req.model().isBlank()) {
             return req.model().strip();
         }
-        return repo.findById(1).map(e -> activeProvider(e).map(AiProviderEntity::getModel)
+        return repo.findById(1).map(e -> activeProvider(e)
+                .map(p -> e.getActiveModel() == null || e.getActiveModel().isBlank()
+                        ? p.getModel() : e.getActiveModel())
                 .orElse(e.getModel())).orElse(null);
     }
 

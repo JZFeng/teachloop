@@ -52,7 +52,12 @@
       "cancel": "取消",
       "keyOptional": "无需 Key",
       "apiKeyHint": "本地模型可留空；云端服务通常需要。保存后只显示掩码。",
-      "providerSaved": "Provider 已保存。"
+      "providerSaved": "Provider 已保存。",
+      "models": "模型目录",
+      "modelsHint": "点“获取可用模型”列出后端返回的模型；勾选需要的模型，也可手填后添加。",
+      "manualModelPlaceholder": "手填模型 ID",
+      "addModel": "添加",
+      "modelRequired": "至少选择一个模型。"
     },
     "name": "TeachLoop",
     "setup": {
@@ -605,6 +610,7 @@
     "colType": "类型",
     "commentError": "评语读取失败（接口不可用），不展示推测内容。",
     "commentFrom": "评语时间 {{date}}",
+    "commentLabel": "评语：",
     "commentMissing": "评语未生成。",
     "commentTitle": "主观评语",
     "detailSub": "反馈详情",

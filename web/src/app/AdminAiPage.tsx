@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { Alert, Button, Field, Input, PageHeader } from '../ui'
-import type { AiProviderRequest, AiProviderView, AiTestResult } from '../api/types'
+import type { AiModelsView, AiProviderRequest, AiProviderView, AiTestResult } from '../api/types'
 
 interface ModelsResult { ok: boolean; models: string[]; message: string }
 
@@ -12,11 +12,10 @@ interface FormState {
   baseUrl: string
   protocol: string
   apiKey: string
-  model: string
 }
 
 const EMPTY: FormState = {
-  providerId: '', displayName: '', baseUrl: '', protocol: 'openai', apiKey: '', model: '',
+  providerId: '', displayName: '', baseUrl: '', protocol: 'openai', apiKey: '',
 }
 
 /**
@@ -29,7 +28,10 @@ export default function AdminAiPage() {
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY)
-  const [models, setModels] = useState<string[]>([])
+  const [availableModels, setAvailableModels] = useState<string[]>([])
+  const [selectedModels, setSelectedModels] = useState<string[]>([])
+  const [manualModel, setManualModel] = useState('')
+  const [currentModel, setCurrentModel] = useState<string | null>(null)
   const [modelsMessage, setModelsMessage] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -38,7 +40,12 @@ export default function AdminAiPage() {
 
   const load = async () => {
     try {
-      setProviders(await api.get<AiProviderView[]>('/api/admin/ai-providers'))
+      const [list, current] = await Promise.all([
+        api.get<AiProviderView[]>('/api/admin/ai-providers'),
+        api.get<AiModelsView>('/api/ai-models'),
+      ])
+      setProviders(list)
+      setCurrentModel(current.currentModel)
     } catch (e) {
       setError((e as Error).message)
     }
@@ -51,7 +58,9 @@ export default function AdminAiPage() {
   const openAdd = () => {
     setEditingId(null)
     setForm(EMPTY)
-    setModels([])
+    setAvailableModels([])
+    setSelectedModels([])
+    setManualModel('')
     setModelsMessage(null)
     setTest(null)
     setFormOpen(true)
@@ -61,9 +70,11 @@ export default function AdminAiPage() {
     setEditingId(p.id)
     setForm({
       providerId: p.providerId, displayName: p.displayName, baseUrl: p.baseUrl,
-      protocol: p.protocol || 'openai', apiKey: '', model: p.model,
+      protocol: p.protocol || 'openai', apiKey: '',
     })
-    setModels([p.model])
+    setAvailableModels([])
+    setSelectedModels(p.models?.length ? p.models : [p.model])
+    setManualModel('')
     setModelsMessage(null)
     setTest(null)
     setFormOpen(true)
@@ -76,10 +87,10 @@ export default function AdminAiPage() {
     try {
       const result = await api.post<ModelsResult>('/api/admin/ai-providers/models', {
         baseUrl: form.baseUrl,
-        model: form.model,
+        model: '',
         apiKey: form.apiKey || null,
       })
-      setModels(result.models)
+      setAvailableModels(result.models)
       setModelsMessage(result.ok
         ? t('app.ai.modelsLoaded', { count: result.models.length })
         : t('app.ai.modelsFailed', { message: result.message }))
@@ -92,7 +103,7 @@ export default function AdminAiPage() {
     setBusy(true); setError(null); setTest(null)
     try {
       setTest(await api.post<AiTestResult>('/api/admin/ai-providers/test', {
-        baseUrl: form.baseUrl, model: form.model, apiKey: form.apiKey || null,
+        baseUrl: form.baseUrl, model: selectedModels[0] ?? '', apiKey: form.apiKey || null,
       }))
     } catch (e) {
       setError((e as Error).message)
@@ -100,14 +111,20 @@ export default function AdminAiPage() {
   }
 
   const save = async () => {
-    setBusy(true); setError(null); setMessage(null)
+    setError(null); setMessage(null)
+    if (selectedModels.length === 0) {
+      setError(t('app.ai.modelRequired'))
+      return
+    }
+    setBusy(true)
     const body: AiProviderRequest = {
       providerId: form.providerId,
       displayName: form.displayName,
       baseUrl: form.baseUrl,
       protocol: form.protocol,
       apiKey: form.apiKey.trim() || null,
-      model: form.model,
+      model: selectedModels[0],
+      models: selectedModels,
     }
     try {
       if (editingId) await api.put<AiProviderView>(`/api/admin/ai-providers/${editingId}`, body)
@@ -120,15 +137,29 @@ export default function AdminAiPage() {
     } finally { setBusy(false) }
   }
 
-  const activate = async (p: AiProviderView) => {
+  const activate = async (p: AiProviderView, model: string) => {
     setBusy(true); setError(null); setMessage(null)
     try {
-      await api.put('/api/ai-models/current', { providerId: p.providerId })
+      await api.put('/api/ai-models/current', { providerId: p.providerId, model })
       await load()
-      setMessage(t('app.ai.activated', { name: p.displayName }))
+      setMessage(t('app.ai.activated', { name: `${p.displayName} · ${model}` }))
     } catch (e) {
       setError((e as Error).message)
     } finally { setBusy(false) }
+  }
+
+  const toggleModel = (model: string) => {
+    setSelectedModels((prev) => prev.includes(model)
+      ? prev.filter((m) => m !== model)
+      : [...prev, model])
+  }
+
+  const addManualModel = () => {
+    const model = manualModel.trim()
+    if (!model) return
+    setSelectedModels((prev) => prev.includes(model) ? prev : [...prev, model])
+    setAvailableModels((prev) => prev.includes(model) ? prev : [...prev, model])
+    setManualModel('')
   }
 
   const remove = async (p: AiProviderView) => {
@@ -154,7 +185,7 @@ export default function AdminAiPage() {
         <h2>{t('app.ai.currentModel')}</h2>
         <p className="small muted">
           {active
-            ? <><b>{active.displayName}</b> · <span className="mono">{active.model}</span> · {active.baseUrl}</>
+            ? <><b>{active.displayName}</b> · <span className="mono">{currentModel ?? active.model}</span> · {active.baseUrl}</>
             : t('app.ai.noProvider')}
         </p>
         {active && (
@@ -170,17 +201,25 @@ export default function AdminAiPage() {
         {providers.map((p) => (
           <div key={p.id} className="card" style={{ marginTop: 10 }}>
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
-              <div>
+              <div className="grow">
                 <b>{p.displayName}</b>
-                {p.active && <span className="badge" style={{ marginLeft: 8 }}>{t('app.ai.active')}</span>}
                 <div className="small muted mono">{p.providerId} · {p.baseUrl}</div>
                 <div className="small muted">
-                  {p.protocol === 'openai' ? t('app.ai.protocolOpenai') : p.protocol} · <span className="mono">{p.model}</span>
+                  {p.protocol === 'openai' ? t('app.ai.protocolOpenai') : p.protocol}
                   {p.apiKeyMasked ? ` · ${t('app.ai.keySet', { mask: p.apiKeyMasked })}` : ` · ${t('app.ai.keyOptional')}`}
+                </div>
+                <div className="row" style={{ gap: 6, flexDirection: 'column', alignItems: 'stretch', marginTop: 8 }}>
+                  {(p.models?.length ? p.models : [p.model]).map((model) => (
+                    <div key={model} className="row" style={{ gap: 8, justifyContent: 'space-between' }}>
+                      <span className="mono">{model}</span>
+                      {p.active && currentModel === model
+                        ? <span className="badge">{t('app.ai.active')}</span>
+                        : <Button size="small" variant="text" onClick={() => void activate(p, model)}>{t('app.ai.activate')}</Button>}
+                    </div>
+                  ))}
                 </div>
               </div>
               <div className="row" style={{ gap: 6 }}>
-                {!p.active && <Button size="small" onClick={() => void activate(p)}>{t('app.ai.activate')}</Button>}
                 <Button size="small" onClick={() => openEdit(p)}>{t('app.ai.edit')}</Button>
                 <Button size="small" variant="danger" onClick={() => void remove(p)}>{t('app.ai.delete')}</Button>
               </div>
@@ -218,14 +257,34 @@ export default function AdminAiPage() {
               placeholder={t('app.ai.keyOptionalPlaceholder')} autoComplete="off"
               onChange={(e) => change({ apiKey: e.target.value })} />
           </Field>
-          <Field label={t('app.ai.model')} hint={t('app.ai.modelHint')} htmlFor="provider-model"
+          <Field label={t('app.ai.models')} hint={t('app.ai.modelsHint')} htmlFor="provider-model"
             extra={<Button size="small" onClick={() => void loadModels()} busy={busy}>{t('app.ai.loadModels')}</Button>}>
-            <Input id="provider-model" list="provider-model-options" value={form.model}
-              placeholder="qwen3.8-flash-next-iq2_xs"
-              onChange={(e) => change({ model: e.target.value })} />
-            <datalist id="provider-model-options">
-              {models.map((m) => <option key={m} value={m} />)}
-            </datalist>
+            {availableModels.length > 0 && (
+              <div className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6, marginBottom: 8 }}>
+                {availableModels.map((model) => (
+                  <label key={model} className="row" style={{ gap: 8 }}>
+                    <input type="checkbox" checked={selectedModels.includes(model)}
+                      onChange={() => toggleModel(model)} />
+                    <span className="mono">{model}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+            <div className="row" style={{ gap: 8 }}>
+              <Input id="provider-model" value={manualModel} placeholder={t('app.ai.manualModelPlaceholder')}
+                onChange={(e) => setManualModel(e.target.value)} />
+              <Button size="small" onClick={addManualModel}>{t('app.ai.addModel')}</Button>
+            </div>
+            {selectedModels.length > 0 && (
+              <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+                {selectedModels.map((model) => (
+                  <span key={model} className="mono" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    {model}
+                    <Button size="small" variant="text" onClick={() => toggleModel(model)}>×</Button>
+                  </span>
+                ))}
+              </div>
+            )}
           </Field>
           {modelsMessage && <p className="small muted">{modelsMessage}</p>}
           {test && (

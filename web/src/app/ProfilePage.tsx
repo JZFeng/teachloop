@@ -93,8 +93,8 @@ export default function ProfilePage() {
     if (!canConfigureAi) return
     api.get<AiModelsView>('/api/ai-models').then((value) => {
       setAiOptions(value.options)
-      setAiCurrent(value.currentProviderId)
-      setAiSelected(value.currentProviderId || value.options[0]?.providerId || '')
+      setAiCurrent(value.currentKey)
+      setAiSelected(value.currentKey || value.options[0]?.key || '')
     }).catch((e: Error) => setAiError(e.message))
   }, [canConfigureAi])
 
@@ -132,10 +132,17 @@ export default function ProfilePage() {
     setAiError(null)
     setAiMessage(null)
     try {
-      const saved = await api.put<AiModelsView>('/api/ai-models/current', { providerId: aiSelected })
+      const option = aiOptions.find((item) => item.key === aiSelected)
+      if (!option) {
+        setAiError(t('profile.aiNoOptions'))
+        return
+      }
+      const saved = await api.put<AiModelsView>('/api/ai-models/current', {
+        providerId: option.providerId, model: option.model,
+      })
       setAiOptions(saved.options)
-      setAiCurrent(saved.currentProviderId)
-      setAiSelected(saved.currentProviderId || aiSelected)
+      setAiCurrent(saved.currentKey)
+      setAiSelected(saved.currentKey || aiSelected)
       setAiMessage(t('profile.aiSaved'))
     } catch (e) {
       setAiError((e as Error).message)
@@ -250,7 +257,7 @@ export default function ProfilePage() {
                 <select id="teacher-ai-model" value={aiSelected}
                   onChange={(e) => setAiSelected(e.target.value)}>
                   {aiOptions.map((option) => (
-                    <option key={option.providerId} value={option.providerId}>{option.label}</option>
+                    <option key={option.key} value={option.key}>{option.label}</option>
                   ))}
                 </select>
               </Field>
@@ -259,7 +266,7 @@ export default function ProfilePage() {
               </div>
               <p className="small muted" style={{ marginTop: 10 }}>
                 {aiCurrent
-                  ? t('profile.aiCurrent', { model: aiOptions.find((o) => o.providerId === aiCurrent)?.label ?? aiCurrent })
+                  ? t('profile.aiCurrent', { model: aiOptions.find((o) => o.key === aiCurrent)?.label ?? aiCurrent })
                   : t('profile.aiNoCurrent')}
               </p>
             </>

@@ -1,23 +1,13 @@
 [
   {
-    "name": "管理员创建 provider 并自动成为当前模型",
+    "name": "获取可用模型后显示可勾选列表",
     "ok": true,
-    "detail": "{\"id\":\"87e92a5c-ab60-416b-b54a-7a223a977e4f\",\"providerId\":\"qaval\",\"displayName\":\"Local Qwen\",\"baseUrl\":\"http://127.0.0.1:11434/v1\",\"protocol\":\"openai\",\"model\":\"qwen3.8\",\"apiKeySet\":false,\"apiKeyMasked\":null,\"active\":true,\"updatedAt\":\"2026-10-23T22:29:08.114672Z\"}"
+    "detail": "{\"count\":2,\"labels\":[\"Provider ID\",\"显示名称\",\"API 地址\",\"API 协议\",\"API Key（可空）\",\"模型目录\",\"qwen3.8\",\"qwen3.8-instruct\"]}"
   },
   {
-    "name": "管理员页显示 provider 列表与当前标记",
+    "name": "保存后 provider 存了两个模型",
     "ok": true,
-    "detail": "{\"hasLocal\":true,\"hasAdd\":true,\"hasActive\":true,\"hasProviderKeyField\":false}"
-  },
-  {
-    "name": "管理员页有添加入口",
-    "ok": true,
-    "detail": ""
-  },
-  {
-    "name": "provider 表单有 ID/地址/协议/Key/模型字段",
-    "ok": true,
-    "detail": ""
+    "detail": "{\"id\":\"e93febd6-ac68-4934-99de-66629373bda3\",\"providerId\":\"qaval\",\"displayName\":\"Local Qwen\",\"baseUrl\":\"http://127.0.0.1:18089/v1\",\"protocol\":\"openai\",\"model\":\"qwen3.8\",\"models\":[\"qwen3.8\",\"qwen3.8-instruct\"],\"apiKeySet\":false,\"apiKeyMasked\":null,\"active\":true,\"updatedAt\":\"2026-10-24T18:43:39.970519Z\"}"
   },
   {
     "name": "教师登录",
@@ -25,19 +15,19 @@
     "detail": ""
   },
   {
-    "name": "教师页只看到模型下拉",
+    "name": "教师下拉有两个模型",
     "ok": true,
-    "detail": "{\"options\":[\"Local Qwen · qwen3.8\"],\"hasOldProviderFields\":false,\"hasGrading\":true,\"current\":\"Local Qwen · qwen3.8\"}"
+    "detail": "{\"options\":[{\"text\":\"Local Qwen · qwen3.8\",\"value\":\"qaval::qwen3.8\"},{\"text\":\"Local Qwen · qwen3.8-instruct\",\"value\":\"qaval::qwen3.8-instruct\"}],\"hasOldProviderFields\":false,\"hasGrading\":true}"
   },
   {
-    "name": "教师页仍有批改时机",
+    "name": "教师页没有旧自定义 provider 字段",
     "ok": true,
     "detail": ""
   },
   {
-    "name": "教师保存后全站当前模型为 qaval",
+    "name": "教师选中第二个模型后全站生效",
     "ok": true,
-    "detail": "{\"options\":[{\"providerId\":\"qaval\",\"displayName\":\"Local Qwen\",\"model\":\"qwen3.8\",\"label\":\"Local Qwen · qwen3.8\"}],\"currentProviderId\":\"qaval\"}"
+    "detail": "{\"options\":[{\"key\":\"qaval::qwen3.8\",\"providerId\":\"qaval\",\"displayName\":\"Local Qwen\",\"model\":\"qwen3.8\",\"label\":\"Local Qwen · qwen3.8\"},{\"key\":\"qaval::qwen3.8-instruct\",\"providerId\":\"qaval\",\"displayName\":\"Local Qwen\",\"model\":\"qwen3.8-instruct\",\"label\":\"Local Qwen · qwen3.8-instruct\"}],\"currentProviderId\":\"qaval\",\"currentModel\":\"qwen3.8-instruct\",\"currentKey\":\"qaval::qwen3.8-instruct\"}"
   },
   {
     "name": "学生登录",

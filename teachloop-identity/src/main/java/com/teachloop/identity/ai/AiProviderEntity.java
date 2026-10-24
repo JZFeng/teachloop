@@ -3,6 +3,8 @@ package com.teachloop.identity.ai;
 import jakarta.persistence.*;
 import java.time.Instant;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 /** 全局 AI provider（决策 010 修订）：管理员维护，教师只在下拉里选当前模型。 */
 @Entity
@@ -28,9 +30,14 @@ public class AiProviderEntity {
     @Column(name = "api_key_cipher", columnDefinition = "text")
     private String apiKeyCipher;
 
-    /** 这个 provider 当前选中的模型；一个 provider 只启用一个模型。 */
+    /** 兼容旧行/旧接口：第一个模型。新代码读 modelsJson。 */
     @Column(nullable = false)
     private String model;
+
+    /** provider 可用模型列表（JSON 数组）；一个 provider 可以保存多个模型。 */
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "models", columnDefinition = "jsonb", nullable = false)
+    private String modelsJson;
 
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
@@ -66,6 +73,7 @@ public class AiProviderEntity {
     public String getProtocol() { return protocol; }
     public String getApiKeyCipher() { return apiKeyCipher; }
     public String getModel() { return model; }
+    public String getModelsJson() { return modelsJson; }
     public Instant getCreatedAt() { return createdAt; }
     public Instant getUpdatedAt() { return updatedAt; }
     public UUID getUpdatedBy() { return updatedBy; }
@@ -76,6 +84,7 @@ public class AiProviderEntity {
     public void setProtocol(String v) { this.protocol = v; }
     public void setApiKeyCipher(String v) { this.apiKeyCipher = v; }
     public void setModel(String v) { this.model = v; }
+    public void setModelsJson(String v) { this.modelsJson = v; }
     public void setUpdatedAt(Instant v) { this.updatedAt = v; }
     public void setUpdatedBy(UUID v) { this.updatedBy = v; }
 }

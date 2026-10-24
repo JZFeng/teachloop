@@ -93,10 +93,12 @@ class AiSetupTest {
         Map<String, Object> provider = Json.parse(request(base, admin, "POST", "/api/admin/ai-providers",
                 Map.of("providerId", "local", "displayName", "Local Qwen",
                         "baseUrl", "http://127.0.0.1:8080/v1", "protocol", "openai",
-                        "apiKey", "sk-provider-9999", "model", "qwen3.8")).body());
+                        "apiKey", "sk-provider-9999", "model", "qwen3.8",
+                        "models", java.util.List.of("qwen3.8", "qwen3.8-instruct"))).body());
         assertThat(provider.get("providerId")).isEqualTo("local");
         assertThat(provider.get("active")).isEqualTo(true);
         assertThat(provider.get("apiKeyMasked")).isEqualTo("sk-****9999");
+        assertThat((java.util.List<?>) provider.get("models")).hasSize(2);
         assertThat(provider.toString()).doesNotContain("sk-provider-9999");
         String providerCipher = jdbc.queryForObject(
                 "select api_key_cipher from ai_providers where provider_key = 'local'", String.class);
@@ -105,10 +107,11 @@ class AiSetupTest {
         // 教师只看到下拉选项并切换全局模型；学生 403。
         Map<String, Object> options = Json.parse(request(base, teacher, "GET", "/api/ai-models", null).body());
         assertThat(options.get("currentProviderId")).isEqualTo("local");
+        assertThat(options.get("currentModel")).isEqualTo("qwen3.8");
         assertThat(options.toString()).contains("Local Qwen");
         Map<String, Object> switched = Json.parse(request(base, teacher, "PUT", "/api/ai-models/current",
-                Map.of("providerId", "local")).body());
-        assertThat(switched.get("currentProviderId")).isEqualTo("local");
+                Map.of("providerId", "local", "model", "qwen3.8-instruct")).body());
+        assertThat(switched.get("currentModel")).isEqualTo("qwen3.8-instruct");
 
         String student = login(base, "student@teachloop.local");
         assertThat(request(base, student, "GET", "/api/ai-models", null).statusCode()).isEqualTo(403);
