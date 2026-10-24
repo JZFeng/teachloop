@@ -14,7 +14,7 @@ import java.util.List;
  * <ul>
  *   <li>主观分 = 各篇之和；空白作文记 0、不调用；</li>
  *   <li>逐项评分带 {@code itemNumber}，复核页可分组；</li>
- *   <li>评语/总评/优点/建议按「第 N 题（X 分）」分段，模型与 prompt 版本取最后一次调用；</li>
+ *   <li>多篇时评语/总评/优点/建议按「第 N 题（满分 X 分）」分段（单篇不加前缀），模型与 prompt 版本取最后一次调用；</li>
  *   <li>任意一篇失败按整份失败处理（异常向上抛，由 worker 标 failed），不落假分。</li>
  * </ul>
  */
@@ -50,8 +50,12 @@ public final class SubjectiveGradingLoop {
         String promptVersion = null;
         String keySource = null;
 
+        // 单篇作文不加「第 N 题（满分 X 分）」前缀：学生只写过这一篇，前缀是纯噪音；
+        // 多篇才需要靠前缀区分段落归属。
+        boolean multiEssay = essays.size() > 1;
+
         for (Ports.ItemSpec essay : essays) {
-            String header = header(essay);
+            String header = multiEssay ? header(essay) : "";
             String text = SubjectiveGradeRequest.essayText(work, essay);
             if (text.isBlank()) {
                 feedback.add(header + "未作答。");
@@ -82,8 +86,13 @@ public final class SubjectiveGradingLoop {
                 model, promptVersion, keySource);
     }
 
+    /**
+     * 多篇作文时的分段前缀。
+     *
+     * <p>写「满分 X 分」而不是「（X 分）」：这个数字是本题满分，不是得分，和成绩并排时容易误读。
+     */
     private static String header(Ports.ItemSpec essay) {
-        return "第 " + essay.number() + " 题（" + plain(essay.points()) + " 分）：";
+        return "第 " + essay.number() + " 题（满分 " + plain(essay.points()) + " 分）：";
     }
 
     private static void append(List<String> target, String header, String value) {

@@ -5,6 +5,8 @@ import com.teachloop.grading.ai.GradeOutputValidator;
 import com.teachloop.grading.ai.LlmCallException;
 import com.teachloop.grading.ai.LlmClient;
 import com.teachloop.grading.ai.LlmClientProvider;
+import com.teachloop.grading.ai.RetryPolicy;
+import com.teachloop.grading.ai.RetryingLlmClient;
 import com.teachloop.grading.ai.SpringAiLlmClient;
 import com.teachloop.grading.domain.AiCallRepository;
 import com.teachloop.grading.prompt.EssayRubricWeights;
@@ -43,6 +45,16 @@ import org.springframework.beans.factory.ObjectProvider;
 @ConditionalOnProperty(name = "teachloop.grading.engine", havingValue = "ai")
 public class AiGradingConfig {
 
+    /** D-31：调用层退避重试参数；非法退避串在启动时失败。 */
+    @Bean
+    public RetryPolicy aiRetryPolicy(
+            @Value("${teachloop.ai.retry.max-attempts:2}") int maxAttempts,
+            @Value("${teachloop.ai.retry.backoff-ms:2000,8000}") String backoffMs,
+            @Value("${teachloop.ai.retry.jitter:0.2}") double jitter,
+            @Value("${teachloop.ai.retry.retry-after-max-seconds:30}") long retryAfterMaxSeconds) {
+        return RetryPolicy.of(maxAttempts, backoffMs, jitter, retryAfterMaxSeconds);
+    }
+
     @Bean
     @ConditionalOnProperty(name = "teachloop.ai.client", havingValue = "spring-ai", matchIfMissing = true)
     public LlmClient springAiLlmClient(
@@ -51,7 +63,7 @@ public class AiGradingConfig {
             @Value("${teachloop.ai.model:deepseek-flash}") String model,
             @Value("${teachloop.ai.temperature:0.2}") BigDecimal temperature,
             @Value("${teachloop.ai.timeout-seconds:180}") int timeoutSeconds,
-            ObjectProvider<Ports.AiSettingsLookup> lookup) {
+            ObjectProvider<Ports.AiSettingsLookup> lookup, RetryPolicy retryPolicy) {
         Ports.AiSettings db = configured(lookup);
         if (db != null) {
             apiKey = db.apiKey();
@@ -59,7 +71,9 @@ public class AiGradingConfig {
             model = db.model();
             temperature = db.temperature();
         }
-        return new SpringAiLlmClient(apiKey, baseUrl, model, temperature, Duration.ofSeconds(timeoutSeconds));
+        return RetryingLlmClient.wrap(
+                new SpringAiLlmClient(apiKey, baseUrl, model, temperature, Duration.ofSeconds(timeoutSeconds)),
+                retryPolicy);
     }
 
     @Bean
@@ -70,7 +84,7 @@ public class AiGradingConfig {
             @Value("${teachloop.ai.model:deepseek-flash}") String model,
             @Value("${teachloop.ai.temperature:0.2}") BigDecimal temperature,
             @Value("${teachloop.ai.timeout-seconds:180}") int timeoutSeconds,
-            ObjectProvider<Ports.AiSettingsLookup> lookup) {
+            ObjectProvider<Ports.AiSettingsLookup> lookup, RetryPolicy retryPolicy) {
         Ports.AiSettings db = configured(lookup);
         if (db != null) {
             apiKey = db.apiKey();
@@ -78,7 +92,9 @@ public class AiGradingConfig {
             model = db.model();
             temperature = db.temperature();
         }
-        return new DeepSeekLlmClient(apiKey, baseUrl, model, temperature, Duration.ofSeconds(timeoutSeconds));
+        return RetryingLlmClient.wrap(
+                new DeepSeekLlmClient(apiKey, baseUrl, model, temperature, Duration.ofSeconds(timeoutSeconds)),
+                retryPolicy);
     }
 
     private static Ports.AiSettings configured(ObjectProvider<Ports.AiSettingsLookup> lookup) {
@@ -104,7 +120,7 @@ public class AiGradingConfig {
             @Value("${teachloop.ai.temperature:0.2}") BigDecimal envTemperature,
             @Value("${teachloop.ai.timeout-seconds:180}") int timeoutSeconds,
             @Value("${teachloop.grading.essay-default-rubric.content-percent:80}") int contentPercent,
-            ObjectProvider<Ports.AiSettingsLookup> lookup) {
+            ObjectProvider<Ports.AiSettingsLookup> lookup, RetryPolicy retryPolicy) {
         Duration timeout = Duration.ofSeconds(timeoutSeconds);
         // D-28：没有 rubric 的作文按「内容 X% + 语法与拼写 (100-X)%」合成默认评分项
         EssayRubricWeights essayWeights = new EssayRubricWeights(contentPercent);
@@ -113,11 +129,11 @@ public class AiGradingConfig {
             public LlmClient forTeacher(UUID teacherId) {
                 Ports.AiSettings settings = resolve(teacherId);
                 if ("http".equalsIgnoreCase(clientKind)) {
-                    return new DeepSeekLlmClient(settings.apiKey(), settings.baseUrl(), settings.model(),
-                            settings.temperature(), timeout);
+                    return RetryingLlmClient.wrap(new DeepSeekLlmClient(settings.apiKey(), settings.baseUrl(),
+                            settings.model(), settings.temperature(), timeout), retryPolicy);
                 }
-                return new SpringAiLlmClient(settings.apiKey(), settings.baseUrl(), settings.model(),
-                        settings.temperature(), timeout);
+                return RetryingLlmClient.wrap(new SpringAiLlmClient(settings.apiKey(), settings.baseUrl(),
+                        settings.model(), settings.temperature(), timeout), retryPolicy);
             }
 
             @Override

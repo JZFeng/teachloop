@@ -156,10 +156,16 @@ public final class SittingDtos {
                                    BigDecimal classAverage, boolean peersVisible) {
     }
 
+    /**
+     * 学生反馈详情。
+     *
+     * @param objectiveMax 本卷客观题满分；0 表示整卷没有客观题（前端据此隐藏「客观题」一行）
+     */
     public record MyFeedbackView(String offeringId, String paperTitle, BigDecimal totalPoints,
                                  boolean feedbackPublished, String feedbackMessage,
                                  AttemptView latestAttempt, List<FeedbackWrongItem> wrongItems,
-                                 FeedbackReviewNote review, FeedbackOverview overview) {
+                                 FeedbackReviewNote review, FeedbackOverview overview,
+                                 BigDecimal objectiveMax) {
     }
 
     /** 手动派发结果（T092）：runId 幂等，firstDispatch 区分「刚创建 run」与「本来就派过」。 */

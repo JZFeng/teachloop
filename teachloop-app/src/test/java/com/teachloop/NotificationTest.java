@@ -213,6 +213,64 @@ class NotificationTest {
         assertThat(targetType).as("作业通知要能跳到作业页").isEqualTo("assignment");
     }
 
+    @Test
+    @DisplayName("A1：通知文案按请求的 Accept-Language 渲染；没有 payload 的历史行回退原文")
+    void rendersTextByAcceptLanguage() throws Exception {
+        // 先写一条「只有成品文案」的旧式通知，再写一条「只有 payload」的新式通知。
+        notifications.notify(List.of(message(studentAId, "scores_published",
+                UUID.randomUUID().toString(), "旧行原文", "旧行正文")));
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "offering_published",
+                "offering", UUID.randomUUID().toString(), null, null,
+                Map.of("title", "第一次月考", "offeringKind", "exam"))));
+
+        Map<?, ?> zh = byKind(getListLang(studentA, "/api/notifications", "zh-CN"), "offering_published");
+        assertThat(zh.get("title")).as("中文界面按中文模板渲染").isEqualTo("新考试：第一次月考");
+        assertThat(zh.get("body")).isEqualTo("老师已布置新的考试，请按时完成。");
+
+        Map<?, ?> en = byKind(getListLang(studentA, "/api/notifications", "en"), "offering_published");
+        assertThat(en.get("title")).as("同一个 kind 在英文界面切成英文模板").isEqualTo("New exam: 第一次月考");
+
+        Map<?, ?> legacy = byKind(getListLang(studentA, "/api/notifications", "en"), "scores_published");
+        assertThat(legacy.get("title")).as("历史行没有 payload 时原样返回").isEqualTo("旧行原文");
+        assertThat(legacy.get("body")).isEqualTo("旧行正文");
+    }
+
+    @Test
+    @DisplayName("A1：空 payload（无参数模板，如发词）也要按语言渲染，不能被当成空通知丢掉")
+    void rendersEmptyPayloadTemplate() throws Exception {
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "VOCAB_ASSIGNMENT",
+                "VOCAB_ASSIGNMENT", UUID.randomUUID().toString(), null, null, Map.of())));
+
+        Map<?, ?> zh = byKind(getListLang(studentA, "/api/notifications", "zh-CN"), "VOCAB_ASSIGNMENT");
+        assertThat(zh.get("title")).isEqualTo("新的单词预习");
+        assertThat(zh.get("body")).isEqualTo("老师发来一组生词，请在截止前预习。");
+
+        Map<?, ?> en = byKind(getListLang(studentA, "/api/notifications", "en"), "VOCAB_ASSIGNMENT");
+        assertThat(en.get("title")).isEqualTo("New word preview");
+    }
+
+    private static Map<?, ?> byKind(List<?> rows, String kind) {
+        return rows.stream()
+                .map(row -> (Map<?, ?>) row)
+                .filter(row -> kind.equals(row.get("kind")))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("没有 kind=" + kind + " 的通知"));
+    }
+
+    private List<?> getListLang(String cookie, String path, String lang) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base + path))
+                .header("Content-Type", "application/json")
+                .header("Accept-Language", lang)
+                .method("GET", HttpRequest.BodyPublishers.noBody());
+        if (cookie != null) {
+            b.header("Cookie", cookie);
+        }
+        HttpResponse<String> res = client.send(b.build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(res.statusCode()).withFailMessage("GET %s -> %s %s", path, res.statusCode(), res.body())
+                .isBetween(200, 299);
+        return Json.parseList(res.body());
+    }
+
     private Ports.NotificationMessage message(UUID recipientId, String kind, String targetId,
                                               String title, String body) {
         return new Ports.NotificationMessage(recipientId, kind, "offering", targetId, title, body);

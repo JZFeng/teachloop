@@ -56,6 +56,9 @@ class AiGradingEngineTest {
         assertThat(result.criteria()).extracting(Ports.CriterionScore::maxPoints)
                 .containsExactly(new BigDecimal("10"), new BigDecimal("5"));
         assertThat(result.feedback()).contains("优点：").contains("建议：");
+        assertThat(result.feedback())
+                .as("单篇作文不加「第 N 题（满分 X 分）」前缀，只有多篇才需要分段")
+                .doesNotContain("第 1 题");
         assertThat(llm.requests).hasSize(1);
 
         ArgumentCaptor<AiCall> saved = ArgumentCaptor.forClass(AiCall.class);
@@ -170,7 +173,7 @@ class AiGradingEngineTest {
         assertThat(llm.requests.get(1).user())
                 .contains("Our Debate Club meets weekly")
                 .doesNotContain("I understand your feeling");
-        assertThat(result.feedback()).contains("第 15 题（15 分）").contains("第 16 题（15 分）");
+        assertThat(result.feedback()).contains("第 15 题（满分 15 分）").contains("第 16 题（满分 15 分）");
     }
 
     @Test
@@ -183,7 +186,7 @@ class AiGradingEngineTest {
 
         assertThat(result.subjectivePoints()).isEqualByComparingTo("13");
         assertThat(llm.requests).hasSize(1);
-        assertThat(result.feedback()).contains("第 16 题（15 分）：未作答。");
+        assertThat(result.feedback()).contains("第 16 题（满分 15 分）：未作答。");
         assertThat(result.criteria()).extracting(Ports.CriterionScore::itemNumber)
                 .containsExactly(15, 15);
     }

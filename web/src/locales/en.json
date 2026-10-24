@@ -1,4 +1,8 @@
 {
+  "aiCircuit": {
+    "title": "AI grading paused (circuit open): {{provider}}",
+    "body": "{{count}} consecutive failures; last error: {{reason}}. The system retries one submission around {{next}} and resumes on success."
+  },
   "app": {
     "ai": {
       "apiKey": "API key (optional)",

@@ -50,7 +50,8 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
 
     /** T182：把这一场 FAILED 的提交退回 PENDING 重批；只动失败项，幂等。 */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
-    @Query(value = "update submissions set grading_state = 'PENDING', grading_error = null "
+    @Query(value = "update submissions set grading_state = 'PENDING', grading_error = null, "
+            + "grading_failed_at = null "
             + "where offering_id = :offeringId and grading_state = 'FAILED' "
             + "and submitted_at is not null and rejected_at is null", nativeQuery = true)
     int retryFailed(UUID offeringId);
@@ -86,7 +87,7 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
      */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "update submissions set grading_state = 'PENDING', grading_error = null, "
-            + "grading_started_at = null "
+            + "grading_started_at = null, grading_failed_at = null "
             + "where id = :id and grading_state in ('QUEUED', 'FAILED') "
             + "and submitted_at is not null and rejected_at is null", nativeQuery = true)
     int enqueueOne(UUID id);
@@ -153,6 +154,22 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
             + "count(*) filter (where grading_state = 'FAILED') as failed "
             + "from submissions where offering_id = :offeringId", nativeQuery = true)
     GradingProgress progressOf(UUID offeringId);
+
+    /** D-31：熔断通知用——这一串失败涉及的作业创建者。 */
+    @Query(value = "select distinct o.created_by from submissions s "
+            + "join offerings o on o.id = s.offering_id "
+            + "where s.grading_state = 'FAILED' and s.grading_failed_at >= :since "
+            + "and o.created_by is not null", nativeQuery = true)
+    List<UUID> teacherIdsWithFailedGradingSince(Instant since);
+
+    /** D-31：熔断恢复后自动重派；每份上限 1 次。 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "update submissions set grading_state = 'PENDING', grading_error = null, "
+            + "grading_failed_at = null, grading_circuit_requeues = grading_circuit_requeues + 1 "
+            + "where grading_state = 'FAILED' and grading_failed_at >= :since "
+            + "and grading_failed_at <= :until and grading_circuit_requeues = 0 "
+            + "and submitted_at is not null and rejected_at is null", nativeQuery = true)
+    int requeueCircuitFailed(Instant since, Instant until);
 
     /** 投影接口：字段名与 SQL 别名一一对应。 */
     interface GradingProgress {

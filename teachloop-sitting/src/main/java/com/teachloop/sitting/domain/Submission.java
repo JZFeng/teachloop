@@ -82,6 +82,14 @@ public class Submission {
     @Column(name = "grading_error", columnDefinition = "text")
     private String gradingError;
 
+    /** D-31：失败时刻；熔断恢复后自动重派的窗口依据。 */
+    @Column(name = "grading_failed_at")
+    private Instant gradingFailedAt;
+
+    /** D-31：被熔断恢复自动重派的次数；上限 1，避免「失败→恢复→重派→再失败」的循环。 */
+    @Column(name = "grading_circuit_requeues", nullable = false)
+    private int gradingCircuitRequeues = 0;
+
     /** 交卷时间（含自动交卷）；null 表示仍在作答（草稿）。 */
     @Column(name = "submitted_at")
     private Instant submittedAt;
@@ -133,6 +141,7 @@ public class Submission {
     public GradingState getGradingState() { return gradingState; }
     public int getGradingAttempts() { return gradingAttempts; }
     public String getGradingError() { return gradingError; }
+    public Instant getGradingFailedAt() { return gradingFailedAt; }
 
     public void setActive(boolean active) { this.active = active; }
     public void setInputKind(String kind) { this.inputKind = kind; }
@@ -164,6 +173,9 @@ public class Submission {
     public void setGradingState(GradingState s) { this.gradingState = s; }
     public void setGradingError(String e) { this.gradingError = e; }
     public void setGradingAttempts(int n) { this.gradingAttempts = n; }
+    public void setGradingFailedAt(Instant t) { this.gradingFailedAt = t; }
+    public int getGradingCircuitRequeues() { return gradingCircuitRequeues; }
+    public void setGradingCircuitRequeues(int n) { this.gradingCircuitRequeues = n; }
     public void setContentText(String t) { this.contentText = t; }
     public void setContentHtml(String html) { this.contentHtml = html; }
     public void setAttachmentPath(String path) { this.attachmentPath = path; }

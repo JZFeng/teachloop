@@ -1,4 +1,8 @@
 {
+  "aiCircuit": {
+    "title": "AI 批改已暂停（熔断）：{{provider}}",
+    "body": "连续 {{count}} 份失败，最后错误：{{reason}}。预计 {{next}} 自动试探一份，成功即恢复。"
+  },
   "app": {
     "ai": {
       "apiKey": "API Key（可空）",

@@ -5,17 +5,25 @@ import com.teachloop.grading.domain.ReviewRepository;
 import com.teachloop.grading.domain.ReviewStatus;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.teachloop.grading.ai.LlmCallException;
 import com.teachloop.grading.engine.GradingEngine;
 import com.teachloop.grading.prompt.PromptBuilder;
+import com.teachloop.shared.audit.AuditEvent;
+import com.teachloop.shared.audit.AuditPort;
 import com.teachloop.shared.port.Ports;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.MessageSource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -36,6 +44,9 @@ public class GradingWorker {
 
     private static final Logger log = LoggerFactory.getLogger(GradingWorker.class);
 
+    /** 正常一轮最多领 5 份；半开试探时 acquire 返回 1。 */
+    private static final int BATCH_SIZE = 5;
+
     private final Ports.SittingLedger ledger;
     private final Ports.GradingWorkQueue queue;
     /** 只用来把逐项意见序列化成 JSON，不参与 Spring 的 JSON 配置。 */
@@ -45,21 +56,56 @@ public class GradingWorker {
     private final ReviewRepository reviews;
     /** T335：一批跑完后把这一场的 run 收尾（有新工作进队时由派发侧重新打开）。 */
     private final GradingRunLifecycle runLifecycle;
+    /** D-31：熔断状态；读不到时放行（可用性优先）。 */
+    private final Ports.AiCircuit circuit;
+    /** D-31：熔断打开/恢复通知。 */
+    private final Ports.NotificationPort notifications;
+    private final AuditPort audit;
+    private final MessageSource messages;
+    private final ObjectProvider<Ports.AiSettingsLookup> settings;
     private final Clock clock;
 
     public GradingWorker(Ports.SittingLedger ledger, Ports.GradingWorkQueue queue, GradingEngine engine,
-                         ReviewRepository reviews, GradingRunLifecycle runLifecycle, Clock clock) {
+                         ReviewRepository reviews, GradingRunLifecycle runLifecycle,
+                         Ports.AiCircuit circuit, Ports.NotificationPort notifications,
+                         AuditPort audit, MessageSource messages,
+                         ObjectProvider<Ports.AiSettingsLookup> settings, Clock clock) {
         this.ledger = ledger;
         this.queue = queue;
         this.engine = engine;
         this.reviews = reviews;
         this.runLifecycle = runLifecycle;
+        this.circuit = circuit;
+        this.notifications = notifications;
+        this.audit = audit;
+        this.messages = messages;
+        this.settings = settings;
         this.clock = clock;
     }
 
     @Scheduled(fixedDelayString = "${teachloop.grading.poll-ms:2000}")
     public void tick() {
-        processBatch(5);
+        int permit = permit();
+        if (permit <= 0) {
+            // 熔断打开：不领新工作项；已在跑的份会自然跑完。
+            log.debug("AI circuit open; skipping this polling round");
+            return;
+        }
+        processBatch(Math.min(permit, 5));
+    }
+
+    /** D-31：本轮最多领几份（0 = 熔断中；1 = 半开试探；5 = 正常）。读不到状态时放行。 */
+    private int permit() {
+        String providerKey = providerKey();
+        if (providerKey == null) {
+            return BATCH_SIZE;
+        }
+        try {
+            return circuit.acquire(providerKey, Instant.now(clock));
+        } catch (RuntimeException ex) {
+            log.error("Cannot read AI circuit state; allowing grading (availability first)", ex);
+            return BATCH_SIZE;
+        }
     }
 
     public int processBatch(int limit) {
@@ -86,6 +132,7 @@ public class GradingWorker {
                     continue;
                 }
                 queue.markDone(id, result);
+                recordCircuit(true, null);
                 log.debug("grading done {}", id);
                 // T101：建复核行时捕获 AI 主观草稿。教师改分后的前后对比以这一列为基准；
                 // 当前端口没有「读 submission 分数」的方法，所以在这里落库而不是在编辑时再查。
@@ -129,6 +176,7 @@ public class GradingWorker {
                 } catch (Throwable marking) {
                     log.error("grading failed AND mark-failed failed for {}", id, marking);
                 }
+                recordCircuit(false, kindOf(ex));
             } finally {
                 if (item != null) {
                     touchedOfferings.add(item.offeringId());
@@ -172,6 +220,106 @@ public class GradingWorker {
             return JSON.writeValueAsString(criteria);
         } catch (JsonProcessingException ex) {
             log.warn("grading criteria serialization failed: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    /** D-31：每份结束上报熔断状态；失败不影响已落库的判分结果。 */
+    private void recordCircuit(boolean success, String errorKind) {
+        String providerKey = providerKey();
+        if (providerKey == null) {
+            return;
+        }
+        Instant now = Instant.now(clock);
+        try {
+            if (success) {
+                Ports.CircuitSnapshot before = circuit.snapshot(providerKey);
+                if (circuit.reportSuccess(providerKey, now)) {
+                    onCircuitClosed(providerKey, before.streakStartedAt(), now);
+                }
+            } else {
+                Ports.CircuitOpenEvent event = circuit.reportFailure(providerKey, errorKind, now);
+                if (event.opened()) {
+                    onCircuitOpened(providerKey, event);
+                }
+            }
+        } catch (RuntimeException ex) {
+            log.error("AI circuit update failed (grading result unaffected): {}", ex.getMessage(), ex);
+        }
+    }
+
+    /** 熔断打开：给这一串失败涉及的教师与全部管理员各发一条通知，只发一次。 */
+    private void onCircuitOpened(String providerKey, Ports.CircuitOpenEvent event) {
+        String title = messages.getMessage("notification.aiCircuit.openTitle", null, Locale.SIMPLIFIED_CHINESE);
+        String body = messages.getMessage("notification.aiCircuit.openBody",
+                new Object[]{providerKey}, Locale.SIMPLIFIED_CHINESE);
+        try {
+            List<UUID> teachers = ledger.teacherIdsWithFailedGradingSince(event.streakStartedAt());
+            List<Ports.NotificationMessage> messages = teachers.stream()
+                    .filter(Objects::nonNull)
+                    .distinct()
+                    .map(teacherId -> new Ports.NotificationMessage(teacherId, "ai_circuit_open",
+                            "provider", providerKey, title, body))
+                    .toList();
+            notifications.notify(messages);
+            notifications.notifyAdmins(new Ports.NotificationMessage(null, "ai_circuit_open",
+                    "provider", providerKey, title, body));
+        } catch (RuntimeException ex) {
+            log.warn("AI circuit open notification failed: {}", ex.getMessage());
+        }
+        try {
+            audit.record(new AuditEvent(null, "ai:circuit_open", "provider", providerKey,
+                    Map.of("openedAt", String.valueOf(event.openedAt()),
+                            "streakStartedAt", String.valueOf(event.streakStartedAt()))));
+        } catch (RuntimeException ex) {
+            log.warn("AI circuit open audit failed: {}", ex.getMessage());
+        }
+    }
+
+    /** 熔断关闭：把这一串失败涉及的份自动重派一次，并通知管理员。 */
+    private void onCircuitClosed(String providerKey, Instant streakStartedAt, Instant now) {
+        int requeued = 0;
+        if (streakStartedAt != null) {
+            try {
+                requeued = queue.requeueCircuitFailed(streakStartedAt, now);
+            } catch (RuntimeException ex) {
+                log.error("AI circuit auto-requeue failed: {}", ex.getMessage(), ex);
+            }
+        }
+        try {
+            audit.record(new AuditEvent(null, "ai:circuit_close", "provider", providerKey,
+                    Map.of("requeued", String.valueOf(requeued))));
+        } catch (RuntimeException ex) {
+            log.warn("AI circuit close audit failed: {}", ex.getMessage());
+        }
+        try {
+            notifications.notifyAdmins(new Ports.NotificationMessage(null, "ai_circuit_close",
+                    "provider", providerKey,
+                    messages.getMessage("notification.aiCircuit.closeTitle", null, Locale.SIMPLIFIED_CHINESE),
+                    messages.getMessage("notification.aiCircuit.closeBody",
+                            new Object[]{providerKey, requeued}, Locale.SIMPLIFIED_CHINESE)));
+        } catch (RuntimeException ex) {
+            log.warn("AI circuit close notification failed: {}", ex.getMessage());
+        }
+    }
+
+    /** 失败类别：优先用 LlmCallException 的结构化 kind，其余沿用原有归类。 */
+    private static String kindOf(Throwable ex) {
+        if (ex instanceof LlmCallException call) {
+            return call.kind().name();
+        }
+        return classify(ex);
+    }
+
+    private String providerKey() {
+        Ports.AiSettingsLookup lookup = settings.getIfAvailable();
+        if (lookup == null) {
+            return null;
+        }
+        try {
+            return lookup.current().map(Ports.AiSettings::provider).orElse(null);
+        } catch (RuntimeException ex) {
+            log.warn("Cannot resolve current AI provider: {}", ex.getMessage());
             return null;
         }
     }

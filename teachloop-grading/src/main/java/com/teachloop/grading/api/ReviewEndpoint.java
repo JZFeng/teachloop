@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -330,17 +331,30 @@ public class ReviewEndpoint {
     private void notifyPublished(UUID submissionId) {
         try {
             Ports.WorkItem item = ledger.load(submissionId);
-            boolean en = "en".equalsIgnoreCase(item.feedbackLanguage());
+            // A1：只传事实，文案由 identity 在读取时按学生界面语言渲染。
             // 学生要看的是「这次布置的反馈」页，路由参数是 offeringId 而不是 submissionId，
             // 所以 target 存 offeringId，才能点通知直接跳过去（T250）。
+            Map<String, String> payload = new LinkedHashMap<>();
+            payload.put("title", item.offeringTitle() == null ? "" : item.offeringTitle());
+            Ports.SubmissionScores scores = ledger.scores(submissionId);
+            BigDecimal total = item.items().stream()
+                    .map(Ports.ItemSpec::points)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+            BigDecimal score = scores.objectiveTotal().add(scores.subjectiveTotal());
+            payload.put("score", plain(score));
+            payload.put("total", plain(total));
             notifications.notify(List.of(new Ports.NotificationMessage(item.studentId(),
                     "feedback_published", "offering", item.offeringId().toString(),
-                    en ? "Feedback published" : "反馈已发布",
-                    en ? "Your teacher published the feedback for this submission."
-                        : "老师已发布这份提交的反馈，可以查看得分与评语。")));
+                    null, null, payload)));
         } catch (RuntimeException ex) {
             log.warn("review publish notification failed for {}: {}", submissionId, ex.getMessage());
         }
+    }
+
+    /** 通知模板里显示分数用：去掉多余的小数零（14.00 → 14）。 */
+    private static String plain(BigDecimal value) {
+        return value == null ? null : value.stripTrailingZeros().toPlainString();
     }
 
     /** T103：撤回；未发布 409。撤回后状态保留（edited 仍可再次发布）。 */

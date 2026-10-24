@@ -279,10 +279,11 @@ public class VocabularyAssignmentEndpoint {
 
     private void notifyStudents(UUID assignmentId, Set<UUID> recipients) {
         try {
+            // A1：文案在读取时按学生界面语言渲染（模板见 messages*.properties）。
             List<Ports.NotificationMessage> messages = recipients.stream()
                     .map(studentId -> new Ports.NotificationMessage(studentId, "VOCAB_ASSIGNMENT",
                             "VOCAB_ASSIGNMENT", assignmentId.toString(),
-                            "新的单词预习", "老师发来一组生词，请在截止前预习。"))
+                            null, null, java.util.Map.of()))
                     .toList();
             notifications.notify(messages);
         } catch (RuntimeException ex) {

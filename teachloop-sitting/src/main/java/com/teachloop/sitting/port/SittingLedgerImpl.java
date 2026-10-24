@@ -70,7 +70,8 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
         String paperLevelRubric = o.getKind() == OfferingKind.EXAM ? null : o.getRubricMarkdown();
         return new Ports.WorkItem(s.getId(), o.getId(), s.getStudentId(), "",
                 s.getInputKind(), s.getContentText(), s.getContentHtml(), rows, snap.items(),
-                paperLevelRubric, o.getGradingPromptTemplate(), language, o.getCreatedBy(), o.getAnchorExamples());
+                paperLevelRubric, o.getGradingPromptTemplate(), language, o.getCreatedBy(), o.getAnchorExamples(),
+                snap.title());
     }
 
     @Override
@@ -111,6 +112,7 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
         Submission s = submissions.findById(submissionId).orElseThrow();
         s.setGradingState(GradingState.FAILED);
         s.setGradingError(error);
+        s.setGradingFailedAt(Instant.now(clock));
     }
 
     @Override
@@ -124,6 +126,19 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
         s.setSubjectiveTotal(nz(result.subjectivePoints()));
         s.setGradingState(GradingState.DONE);
         s.setGradingError(null);
+        s.setGradingFailedAt(null);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UUID> teacherIdsWithFailedGradingSince(Instant since) {
+        return submissions.teacherIdsWithFailedGradingSince(since);
+    }
+
+    @Override
+    @Transactional
+    public int requeueCircuitFailed(Instant since, Instant until) {
+        return submissions.requeueCircuitFailed(since, until);
     }
 
     private static BigDecimal nz(BigDecimal v) {

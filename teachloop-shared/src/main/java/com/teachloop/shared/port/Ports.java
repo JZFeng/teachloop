@@ -85,15 +85,16 @@ public final class Ports {
     public record WorkItem(UUID submissionId, UUID offeringId, UUID studentId, String studentName,
                            String inputKind, String contentText, String contentHtml,
                            List<AnswerRow> answers, List<ItemSpec> items, String rubricMarkdown,
-                           String gradingPrompt, String feedbackLanguage, UUID createdBy, String anchors) {
+                           String gradingPrompt, String feedbackLanguage, UUID createdBy, String anchors,
+                           String offeringTitle) {
 
-        /** 兼容既有测试与调用方：没有作业创建者/锚点时按全局 Key、无锚点处理。 */
+        /** 兼容既有测试与调用方：没有作业创建者/锚点/作业标题时按全局 Key、无锚点、无标题处理。 */
         public WorkItem(UUID submissionId, UUID offeringId, UUID studentId, String studentName,
                         String inputKind, String contentText, String contentHtml,
                         List<AnswerRow> answers, List<ItemSpec> items, String rubricMarkdown,
                         String gradingPrompt, String feedbackLanguage) {
             this(submissionId, offeringId, studentId, studentName, inputKind, contentText, contentHtml,
-                    answers, items, rubricMarkdown, gradingPrompt, feedbackLanguage, null, null);
+                    answers, items, rubricMarkdown, gradingPrompt, feedbackLanguage, null, null, null);
         }
 
         public WorkItem(UUID submissionId, UUID offeringId, UUID studentId, String studentName,
@@ -101,7 +102,7 @@ public final class Ports {
                         List<AnswerRow> answers, List<ItemSpec> items, String rubricMarkdown,
                         String gradingPrompt, String feedbackLanguage, UUID createdBy) {
             this(submissionId, offeringId, studentId, studentName, inputKind, contentText, contentHtml,
-                    answers, items, rubricMarkdown, gradingPrompt, feedbackLanguage, createdBy, null);
+                    answers, items, rubricMarkdown, gradingPrompt, feedbackLanguage, createdBy, null, null);
         }
     }
 
@@ -172,6 +173,9 @@ public final class Ports {
          * <p>只读，不改任何状态；人工判分的「当前实际分」以这里为准。
          */
         SubmissionScores scores(UUID submissionId);
+
+        /** D-31：从 since 起失败的提交所涉及的作业创建者（熔断通知与重派范围用）。 */
+        List<UUID> teacherIdsWithFailedGradingSince(Instant since);
     }
 
     /**
@@ -193,6 +197,9 @@ public final class Ports {
          * T335：worker 用它判断「这一批跑完了没有」，跑完了就把 grading_runs 收尾。
          */
         boolean hasOpenWork(UUID offeringId);
+
+        /** D-31：熔断恢复后把窗口内的 FAILED 退回 PENDING；每份上限 1 次。返回重派份数。 */
+        int requeueCircuitFailed(Instant since, Instant until);
     }
 
     /**
@@ -316,9 +323,23 @@ public final class Ports {
         java.util.Map<UUID, String> locales(java.util.Collection<UUID> userIds);
     }
 
-    /** 一条站内通知：接收方与标题正文由调用方给出，identity 只负责存储与投递。 */
+    /**
+     * 一条站内通知。
+     *
+     * <p>A1（2026-10-24）：文案不再由调用方按语言拼好再落库，而是传 {@code payload}（事实），
+     * identity 在<b>读取时</b>按请求的 {@code Accept-Language} 渲染。这样学生切语言后历史通知也跟着变。
+     *
+     * @param payload 模板参数（如 {@code title} / {@code score}）；{@code null} 表示历史行或未知 kind，
+     *                直接回退显示 {@code title}/{@code body} 里存的原文
+     */
     public record NotificationMessage(UUID recipientId, String kind, String targetType, String targetId,
-                                      String title, String body) {
+                                      String title, String body, java.util.Map<String, String> payload) {
+
+        /** 兼容既有调用方与测试：只给成品文案，读的时候原样显示（不回退模板）。 */
+        public NotificationMessage(UUID recipientId, String kind, String targetType, String targetId,
+                                   String title, String body) {
+            this(recipientId, kind, targetType, targetId, title, body, null);
+        }
     }
 
     /** identity 暴露；接收方与联系方式不外出。 */
@@ -327,8 +348,38 @@ public final class Ports {
 
         void notifyScoresPublished(UUID offeringId);
 
+        /** D-31：给全部管理员发一条站内通知；接收方由 identity 解析，调用方不需要知道管理员是谁。 */
+        void notifyAdmins(NotificationMessage message);
+
         /** 批量写入站内通知；重复调用不保证去重（由调用方保证语义）。 */
         default void notify(java.util.List<NotificationMessage> messages) {
         }
+    }
+
+    /**
+     * D-31：AI 调用熔断。状态按 provider_key 存库，app 与 worker 两个进程共享。
+     *
+     * <p>{@link #acquire} 返回本轮允许领取的份数：0 = 熔断中；1 = 正常或半开试探（只放 1 份）。
+     */
+    /** D-31：熔断打开事件；{@code opened=true} 表示本次触发了 OPEN（含半开失败重新 OPEN）。 */
+    public record CircuitOpenEvent(boolean opened, Instant openedAt, Instant streakStartedAt) {
+    }
+
+    /** D-31：熔断状态快照（状态接口与测试用）。 */
+    public record CircuitSnapshot(String providerKey, String state, int consecutiveFailures,
+                                  Instant openedAt, Instant nextProbeAt, String lastErrorKind,
+                                  Instant streakStartedAt) {
+    }
+
+    public interface AiCircuit {
+        int acquire(String providerKey, Instant now);
+
+        /** 一份成功；返回 true 表示本次把 HALF_OPEN 关回了 CLOSED。 */
+        boolean reportSuccess(String providerKey, Instant now);
+
+        /** 一份失败；返回的事件里 opened 表示本次是否触发了 OPEN。 */
+        CircuitOpenEvent reportFailure(String providerKey, String errorKind, Instant now);
+
+        CircuitSnapshot snapshot(String providerKey);
     }
 }

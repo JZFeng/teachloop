@@ -5,6 +5,7 @@ import type { ClassView, OfferingView } from '../api/types'
 import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard, Segmented } from '../ui'
 import type { Column } from '../ui'
 import { useListState } from '../components/useListState'
+import { AiCircuitBanner } from '../components/AiCircuitBanner'
 import {
   classNamesText,
   loadAggregates,
@@ -211,6 +212,7 @@ export default function GradingOverviewPage() {
   return (
     <TeacherPage>
       <PageHeader title={t('teacher.grading.title')} sub={t('teacher.grading.sub')} />
+      <AiCircuitBanner />
 
       {loading && <Loading label={t('teacher.common.loading')} />}
       {error && <ErrorState error={error} onRetry={reload} />}

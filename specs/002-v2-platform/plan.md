@@ -2,7 +2,7 @@
 
 - 项目名：**TeachLoop**（2026-10-19 定名；仓库 `teachloop`，groupId / 包根 `com.teachloop`）
 - 特性编号：`002-v2-platform`
-- 上游：`spec.md`（29 用户故事 / 272 验收标准 / 70 功能需求）、`.specify/memory/constitution.md`（v2.1）
+- 上游：`spec.md`（30 用户故事 / 281 验收标准 / 77 功能需求）、`.specify/memory/constitution.md`（v2.1）
 - 日期：2026-10-19（本版为整份重写，非增量修补）
 - 技术栈变更说明：早期方案用 Python/FastAPI，理由是复用 v1 资产与 `dsh` 子进程。用户 review 后确定部署阿里云、取消 OCR、生产直连模型 API，这两条理由都不再成立；且用户最熟悉 Java。故整体改用 Java。
 - 名字为什么叫 TeachLoop：`loop` 同时指两件事——批改反馈的闭环（出卷→作答→批改→复核→发布），与将来背单词模块的间隔重复循环。所以加模块不需要改名。
@@ -15,9 +15,9 @@ Plan 的退出条件是下面 6 条全部打勾。每条标注了自评结果与
 
 | # | 检查项 | 自评 | 验法 |
 | :--- | :--- | :--- | :--- |
-| 1 | 每个用户故事在本文件里有承接结构 | ✅ | 附录 A 逐条对照 29 个故事。**追溯粒度到故事与 FR**：258 条 AC 不逐条映射（理由见 `tasks.md` 追踪矩阵开头） |
-| 2 | 每个实体的表、字段、索引、状态迁移写全 | ✅ | §5（含 `ai_providers` / `ai_settings.active_provider_id` / `offerings.created_by` / `submission_metrics` / `reviews` AI 溯源列）；状态机见 §7 与 §7.6 |
-| 3 | 每条外部依赖写了失败与重试路径 | ✅ | §6.4 失败处理、§6.6 Key 失败分类（NO_KEY/AUTH/TIMEOUT/INVALID_OUTPUT/RATE_LIMITED）、§7.2 崩溃恢复、§9 上传、§15 字体自检 |
+| 1 | 每个用户故事在本文件里有承接结构 | ✅ | 附录 A 逐条对照 30 个故事。**追溯粒度到故事与 FR**：281 条 AC 不逐条映射（理由见 `tasks.md` 追踪矩阵开头） |
+| 2 | 每个实体的表、字段、索引、状态迁移写全 | ✅ | §5（含 `ai_providers` / `ai_settings.active_provider_id` / `ai_circuit_state` / `submissions.grading_failed_at` / `offerings.created_by` / `submission_metrics` / `reviews` AI 溯源列）；状态机见 §7、§7.6、§7.7 |
+| 3 | 每条外部依赖写了失败与重试路径 | ✅ | §6.4 失败处理、§6.6 Key 失败分类（NO_KEY/AUTH/TIMEOUT/INVALID_OUTPUT/RATE_LIMITED）、§7.2 崩溃恢复、§7.7 调用重试与熔断（429/5xx/连接失败）、§9 上传、§15 字体自检 |
 | 4 | 模块依赖无环、跨模块只走端口 | ✅ | §3.1 编译期强制；§3.2 端口表；T203 专门验证 |
 | 5 | 每张表只有一个属主、无跨模块 JOIN | ✅ | §3.3 归属清单；T204 验证越界写入与 `@Entity` 泄漏 |
 | 6 | 拆服务路径写得出来 | ✅ | §3.5：哪两个进程、先拆谁、外键清单 |
@@ -154,7 +154,7 @@ teachloop-app ──▶ paper / sitting / grading / report / observability
 
 | 模块 | 拥有的表 | 迁移目录（模块内） |
 | :--- | :--- | :--- |
-| identity | `users`、`credentials`、`spring_session`、`spring_session_attributes`、`teacher_invites`、`rate_limits`、`notifications`、`ai_settings`、`ai_providers`、`user_ai_settings`（遗留，不再读取） | `teachloop-identity/src/main/resources/db/migration/` |
+| identity | `users`、`credentials`、`spring_session`、`spring_session_attributes`、`teacher_invites`、`rate_limits`、`notifications`、`ai_settings`、`ai_providers`、`ai_circuit_state`（D-31）、`user_ai_settings`（遗留，不再读取） | `teachloop-identity/src/main/resources/db/migration/` |
 | classroom | `classes`、`class_members` | `teachloop-classroom/…/db/migration/` |
 | paper | `papers`、`paper_sections`、`objective_items`、`section_criteria` | `teachloop-paper/…/db/migration/` |
 | sitting | `offerings`、`offering_classes`、`submissions`、`objective_answers`、`submission_metrics`、`teacher_grading_preferences` | `teachloop-sitting/…/db/migration/` |
@@ -292,7 +292,7 @@ papers ──< paper_sections ──< objective_items
 - `submissions` 计时与迟交列：`started_at`、`deadline_at`、`auto_submitted`、`late_by_seconds`、`rejected_at`、`reject_reason`。
 - `submissions` 工作项状态列（替代独立队列表，见 §7）：`grading_state`、`grading_attempts`、`grading_started_at`、`grading_error`、`grading_run_id`。
 - 篇幅指标不新增表：`TextLengthCounter` 在判分与复核详情里按 `content_text` 现算（policy_default 段数 + 四模型边界标记）；数据量是单班几十份，无需为它建表。
-- `ai_settings` 保持全局单行（id=1），V039 增 `active_provider_id` 指向当前全局模型；新增 `ai_providers`（V039：`provider_key` 唯一、`display_name`、`base_url`、`protocol`、`api_key_cipher`、`model`、`created_at/updated_at/updated_by`）。v1 只有一份全局当前模型；`user_ai_settings` 与 V038 保留兼容但不再读取。
+- `ai_settings` 保持全局单行（id=1），V039 增 `active_provider_id` 指向当前全局模型；新增 `ai_providers`（V039：`provider_key` 唯一、`display_name`、`base_url`、`protocol`、`api_key_cipher`、`model`、`created_at/updated_at/updated_by`；V060 增 `models` JSONB），`ai_settings` V060 增 `active_model`。v1 只有一份全局当前模型；`user_ai_settings` 与 V038 保留兼容但不再读取。
 - 新增 `teacher_grading_preferences`（V037，D-30）：`teacher_id` 主键、`trigger_mode`（FIXED_TIME / DUE_DATE）、`fixed_time`、`time_zone`、`catch_up`、`last_fixed_run_at`、`updated_at`、`updated_by`。不建跨模块外键；没有行时按默认 02:30 Asia/Shanghai 解释。
 - `reviews` 增 `ai_overall`（总评）、`ai_model`、`ai_prompt_version`、`ai_key_source`、`ai_failure`（失败分类）、`feedback_language`（本次 AI 实际输出语言）；`ai_criteria` / `ai_feedback` 保留。
 - `ai_calls` 增 `key_source` 与 `prompt_version`（已有）；不记录 Key 本体。
@@ -575,14 +575,15 @@ GradingWorker 领取 submission
   └─ engine.grade(item, client) → ai_calls 写 model/prompt_version/key_source
 ```
 
-- **数据**：`ai_settings` 保持全局单行（id=1），V039 增 `active_provider_id`；新增 `ai_providers`
-  （`provider_key` 唯一、`display_name`、`base_url`、`protocol`、`api_key_cipher`、`model`、
-  `created_at/updated_at/updated_by`）。一个 provider 保存一个当前模型；v1 全站只有一份当前选择。
+- **数据**：`ai_settings` 保持全局单行（id=1），V039 增 `active_provider_id`，V060 增
+  `active_model`；新增 `ai_providers`（`provider_key` 唯一、`display_name`、`base_url`、`protocol`、
+  `api_key_cipher`、`model`、`models` JSONB、`created_at/updated_at/updated_by`）。一个 provider
+  可保存多个模型；v1 全站只有一个「当前 provider + 当前 model」。
   `user_ai_settings` 与 V038 保留兼容，但不再读取。
 - **谁能配**：`/admin/ai` 仅 ADMIN；`POST /api/admin/ai-providers` 新增，`PUT/DELETE /{id}` 编辑/删除，
   `POST /models` 拉 `GET {baseUrl}/models`，`POST /test` 测试连接。第一个 provider 自动设为当前。
-- **谁能选**：`GET /api/ai-models` 返回下拉选项；`PUT /api/ai-models/current` 写
-  `ai_settings.active_provider_id`。教师与管理员都可切；**教师切换对全站生效**（v1 口径）。
+- **谁能选**：`GET /api/ai-models` 按 provider+model 展开下拉选项；`PUT /api/ai-models/current`
+  写 `active_provider_id` + `active_model`。教师与管理员都可切；**教师切换对全站生效**（v1 口径）。
 - **可用性**：provider 行只要 `base_url` 与 `model` 非空就可用；Key 可空，本地模型不需要 Key。
   空 Key 的 JDK 客户端不发 `Authorization`；Spring AI 客户端用 `local-no-key` 占位值。
 - **协议**：v1 只接受 `openai`；`anthropic` 字段保留但后端 400、界面置灰。
@@ -767,6 +768,139 @@ MVP 用数据库状态机 + 轮询。将来若换消息队列（RabbitMQ / Redis
 - `NotificationPort` 目前只写审计痕迹；站内通知表属 T208，建表后替换投递实现。
 
 ---
+
+### 7.7 AI 调用重试与熔断（D-31，2026-10-24）
+
+承接：US-62
+
+**现状**：调用失败只在「输出不合规」时重试 1 次；429 / 5xx / 超时直接 FAILED；多个 provider 不自动切换（D-31 保持）。provider 整体挂掉时，一份接一份地失败，没有任何止损与通知。
+
+**重试（调用层）**
+
+- `RetryingLlmClient` 装饰 `LlmClient`；`LlmCallException` 增 `kind`：`RATE_LIMIT` / `SERVER` / `CONNECT` / `AUTH` / `BAD_REQUEST` / `TIMEOUT` / `EMPTY` / `OTHER`。
+- 可重试：`RATE_LIMIT` / `SERVER` / `CONNECT`；不可重试：其余。
+- 退避 2s、8s（可配）+ ±20% 抖动；429 带 `Retry-After` 且 ≤ 30 秒时优先用它。
+- 与输出纠正重试分开计数（后者仍在 `AiGradingEngine` 内，1 次）。
+- 失败尝试只写 WARN 日志，不写 `ai_calls`（该表是成功调用的留痕）。
+
+**熔断状态机**
+
+```
+CLOSED --同一 provider 连续 5 份 FAILED--> OPEN
+OPEN --满 5 分钟且抢到试探权--> HALF_OPEN（只允许 1 份）
+HALF_OPEN --成功--> CLOSED（清零）
+HALF_OPEN --失败--> OPEN（重新计时）
+HALF_OPEN --超过 5 分钟没有结果--> OPEN（试探进程崩溃）
+```
+
+计数单位是**份**：一份提交最终 FAILED 记 1 次；任意一份成功即清零；老师人工判分覆盖的份不计（沿用 worker 的 `teacherLocked` 闸门）。
+
+**表**
+
+identity 属主，`V050__identity_ai_circuit_state.sql`：
+
+| 列 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `provider_key` | text PK | 跟随 `ai_providers.provider_key` |
+| `state` | text | CLOSED / OPEN / HALF_OPEN |
+| `consecutive_failures` | int | 连续失败的份数 |
+| `streak_started_at` | timestamptz | 这一串失败的第一份时刻（自动重派的窗口起点） |
+| `opened_at` | timestamptz | 本轮打开时刻 |
+| `half_open_started_at` | timestamptz | 试探开始时刻（崩溃判定） |
+| `last_error_kind` | text | 最后一次失败的 kind |
+| `last_failure_at` | timestamptz | 最后一次失败时刻 |
+| `updated_at` | timestamptz | 更新时间 |
+
+sitting 属主，`V051__sitting_grading_circuit.sql` 给 `submissions` 加两列：
+
+| 列 | 类型 | 说明 |
+| :--- | :--- | :--- |
+| `grading_failed_at` | timestamptz | 失败时刻；自动重派的窗口依据 |
+| `grading_circuit_requeues` | int default 0 | 自动重派次数，上限 1 |
+
+**端口**
+
+- 新增 `Ports.AiCircuit`（`acquire` / `reportSuccess` / `reportFailure` / `snapshot`，DTO 用 record）；identity 实现，grading 只依赖端口。
+- `Ports.NotificationPort` 增 `notifyAdmins(NotificationMessage)`。
+- `Ports.SittingLedger` 增 `teacherIdsWithFailedGradingSince(Instant)`（通知与重派范围用）。
+- `scripts/check-boundaries.py` 的 `REQUIRED_PORTS` 从 7 个增加到 8 个（T204 会验）。
+
+**多进程**
+
+- app 与 worker 都开 `@Scheduled`，所以状态必须落库；半开选举用条件更新：
+
+```sql
+UPDATE ai_circuit_state SET state = 'HALF_OPEN', half_open_started_at = :now
+WHERE provider_key = :key AND state = 'OPEN' AND opened_at <= :cutoff;
+```
+
+  返回 1 的进程才允许本轮领 1 份；返回 0 的继续熔断。
+- `acquire()` 顺手处理试探超时：`HALF_OPEN` 且 `half_open_started_at < now - probe-timeout` → 退回 `OPEN`。
+
+**worker 接入**
+
+1. `tick()` 先 `acquire()`：0 份 → 本轮不领（debug 日志每分钟最多一条）；1 份 → 只领 1 份（半开）。
+2. 每份结束按结果调用 `reportSuccess` / `reportFailure`；provider key 取 `AiSettingsLookup.current().provider()`。
+3. `reportFailure` 返回「是否刚打开」→ 刚打开时：由 sitting 端口取失败教师清单 → 发通知 → 审计 `ai:circuit_open`。
+4. `reportSuccess` 返回「是否刚从 HALF_OPEN 关闭」→ 关闭时：自动重派、通知管理员、审计 `ai:circuit_close`。
+
+**恢复后自动重派**
+
+```sql
+UPDATE submissions
+SET grading_state = 'PENDING', grading_error = NULL, grading_failed_at = NULL,
+    grading_circuit_requeues = grading_circuit_requeues + 1
+WHERE grading_state = 'FAILED'
+  AND grading_failed_at >= :streakStartedAt
+  AND grading_failed_at <= :closedAt
+  AND grading_circuit_requeues = 0
+  AND submitted_at IS NOT NULL AND rejected_at IS NULL;
+```
+
+- 只动 AI 失败的份；老师已判分 / 已发布的份由 `teacherLocked` 在领取时拦住。
+- 上限 1 次，避免「失败 → 恢复 → 重派 → 再失败」的循环。
+
+**接口与界面**
+
+- `GET /api/ai-circuit`：TEACHER / ADMIN 可读，返回 `{state, providerKey, providerDisplayName, consecutiveFailures, openedAt, nextProbeAt, lastErrorKind}`；CLOSED 时 `state=CLOSED`。
+- 批改总览与批改详情页顶部显示熔断横幅（复用现有 `Alert` 组件），关闭后消失；不新增路由；文案全走 zh-CN / en。
+
+**失败模式**
+
+| 情况 | 行为 |
+| :--- | :--- |
+| 熔断表读不到 | 放行 + ERROR（可用性优先） |
+| 通知写失败 | WARN，不影响批改 |
+| 自动重派失败 | ERROR，项保持 FAILED，老师仍可手动重试 |
+| 半开试探进程崩溃 | 5 分钟后 `acquire()` 退回 OPEN |
+| 切换 provider | 按 `provider_key` 隔离，新 provider 从 CLOSED 开始 |
+
+**测试**
+
+- 单测：kind 分类、退避序列与抖动、`Retry-After` 上限（注入 `Sleeper`，不真睡）。
+- 状态机（Testcontainers Postgres）：5 次打开、半开唯一、试探成功 / 失败、超时退回、并发 `acquire`。
+- worker：OPEN 不领取、HALF_OPEN 只领 1 份；打开发通知；关闭后重派一次且不重派第二次。
+- 前端：横幅只在 OPEN / HALF_OPEN 出现；i18n 对齐；`check-ui` 无新增。
+
+---
+
+### 7.8 站内通知的语言（D-33，2026-10-24）
+
+通知文案不在写入时固化。`notifications` 增 `payload jsonb`（V052 同时去掉 `title` 的 NOT NULL），
+调用方只传事实：
+
+| kind | payload |
+| :--- | :--- |
+| `offering_published` | `{title, offeringKind}`；kind 取 `exam` / `assignment`，决定模板变体 |
+| `scores_published` | `{title}` |
+| `feedback_published` | `{title, score, total}`；带分数时用 `.scored` 变体 |
+| `vocab_assignment` | 空 |
+
+`NotificationEndpoint` 用 `LocaleContextHolder.getLocale()`（与 `ApiException` 同一套机制）渲染
+`notification.<kind>[.<variant>].title|body`；`title`/`body` 只作为历史行与未知 kind 的回退原文。
+历史 714 行保留写入时的语言，不做补迁移——这是有意的回退。
+
+`Ports.WorkItem` 因此增加 `offeringTitle`（`SittingLedgerImpl` 从快照带出），复核发布时用它拼「《作业名》的反馈已发布」。
 
 ## 8. 进度查询（轮询，不用 SSE）
 
@@ -1091,6 +1225,7 @@ make seed             # 1 个班 + 30 个学生 + 1 份带标准答案的试卷
 | US-27 | AI 批改质量与密钥 | §6.1（prompt v2）、§6.5（预填/批量）、§6.6（Key 解析）、§6.7（篇幅/语言）、§9、§11、§18.5 |
 | US-28 | 评分标准契约与质量基准 | §5（rubric 快照/锚点/指标）、§6.1、§18.5、§3.3 |
 | US-45 | 全局 AI provider、教师选模型与批改时机 | §5（`ai_providers` / `ai_settings.active_provider_id` / `teacher_grading_preferences`）、§6.6、§7.3、§7.4、§3.3 |
+| US-62 | AI 调用重试、熔断与失败通知 | §7.7、§3.3（`ai_circuit_state` / `submissions.grading_failed_at`）、§18 |
 
 ## 附录 B：本文件与下游文档的约定
 

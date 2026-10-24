@@ -72,10 +72,13 @@ export default function FeedbackDetailPage() {
                 <small> / {fmtScore(feedback.totalPoints)}</small>
               </div>
               <div className="result-facts">
-                <div className="kv">
-                  <span>{t('student.objective')}</span>
-                  <span className="mono">{fmtScore(attempt.objectiveScore)}</span>
-                </div>
+                {/* 无客观题（objectiveMax=0）时不显示这一行；老后端不返回该字段，用 !== 0 保留原行为 */}
+                {feedback.objectiveMax !== 0 && (
+                  <div className="kv">
+                    <span>{t('student.objective')}</span>
+                    <span className="mono">{fmtScore(attempt.objectiveScore)}</span>
+                  </div>
+                )}
                 <div className="kv">
                   <span>{t('student.subjective')}</span>
                   <span className="mono">{fmtScore(attempt.subjectiveScore)}</span>
@@ -143,7 +146,10 @@ export default function FeedbackDetailPage() {
             {!feedback.feedbackPublished && <div className="inline-note">{feedback.feedbackMessage}</div>}
             {feedback.feedbackPublished && feedback.review?.comment && (
               <>
-                <p style={{ marginTop: 0, whiteSpace: 'pre-wrap' }}>{feedback.review.comment}</p>
+                <p style={{ marginTop: 0, whiteSpace: 'pre-wrap' }}>
+                  <b>{t('student.commentLabel')}</b>
+                  {feedback.review.comment}
+                </p>
                 {feedback.review.strengths && (
                   <p style={{ whiteSpace: 'pre-wrap' }}>
                     <b>{t('student.strengthsLabel')}</b>

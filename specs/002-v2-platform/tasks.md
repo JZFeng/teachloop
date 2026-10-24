@@ -147,7 +147,7 @@
 | T111 | 学生反馈详情：客观得分 + 错题、主观项、优点、建议、总分 | T110 | 他人反馈一律 404 |
 | T112 | 班级概览：姓名、是否提交、attempt、提交时间、状态、分数 | T110 | `publish_scores=0` 时他人分数只显示"已批改"；**自己的分永远可见** |
 | T113 | 概览内容隔离 | T112 | 他人正文/附件/评语一律 404；`show_peer_overview=false` 时学生看不到概览 |
-| T114 | 通知：发布生成、列表、已读 | T103 | 读数正确 |
+| T114 | 通知：发布生成、列表、已读；2026-10-24 起只存 `payload jsonb`，读取时按 `Accept-Language` 渲染（D-33） | T103 | 读数正确；中英文界面各收到对应语言的通知 |
 | T115 | 学生反馈中为每道错题附上该题解析（查表复用）；未生成的显示「解析未生成」，不编造 | T111,T087 | 解析到达后自动补上；缺解析时不显示假内容 |
 
 ## 阶段 11 — 导出
@@ -527,12 +527,12 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
-| T380 | **全局 provider 列表 + 当前模型**：V039 `ai_providers` 与 `ai_settings.active_provider_id`；`AiProviderService` 增删改查、`POST /models`、`POST /test`、`PUT /api/ai-models/current`；第一个 provider 自动设为当前；空 Key 可用；JDK 客户端空 Key 不发 `Authorization`，Spring AI 用 `local-no-key` 占位；`/setup` 不再强制 Key | — | `AiSetupTest` 覆盖管理员建 provider、教师选当前模型、学生 403；`DeepSeekLlmClientTest`/`SpringAiLlmClientTest`/`AiGradingConfigTest` 全绿 |
+| T380 | **全局 provider 列表 + 多模型 + 当前模型**：V039 `ai_providers`/`ai_settings.active_provider_id`，V060 `ai_providers.models` JSONB + `ai_settings.active_model`；`AiProviderService` 增删改查、`POST /models`、`POST /test`、`PUT /api/ai-models/current`（providerId + model）；第一个 provider 自动设为当前；空 Key 可用；JDK 客户端空 Key 不发 `Authorization`，Spring AI 用 `local-no-key` 占位；`/setup` 不再强制 Key | — | `AiSetupTest` 覆盖管理员建 provider（两个模型）、教师切换到第二个模型、学生 403；`DeepSeekLlmClientTest`/`SpringAiLlmClientTest`/`AiGradingConfigTest` 全绿 |
 | T381 | **教师级批改偏好**：V037 `teacher_grading_preferences`；`TeacherGradingPreference`/Repository/Service/Endpoint；`GET/PUT /api/profile/grading-preferences`（仅 TEACHER）；默认 02:30 Asia/Shanghai、`catch_up=true`；校验模式/时刻/IANA 时区 | T380 | 端点读写往返；学生 403；非法时刻/时区 400；没有行时返回默认 |
 | T382 | **调度器与按教师派发**：`TeacherGradingScheduler` 每分钟扫描；`dispatchAssignmentsForTeacher`（固定时间，不看 due）与 `dispatchAssignmentsDueForTeacher`（due+grace）；`last_fixed_run_at` 同日短路；考试仍由 `GradingDispatchJob` 处理；删除全局 `AssignmentGradingJob` 与 `assignment-cron/zone/catch-up` | T381 | `NightlyAssignmentGradingTest` 覆盖固定时间不看 due、同日不重复、due-date 到期即派、考试不在作业调度、重交队列只留最新 |
-| T383 | **前端 `/profile` 角色分栏 + 教师模型下拉**：学生只看到账号/语言/主题；教师只看到全局模型下拉、当前模型、保存与批改时机（模式、时刻、时区、补跑）；教师页不再出现 provider ID/地址/Key/拉模型；`Shell` 无模型提示改「设置 AI 模型」 | T380,T381 | `tsc --noEmit` 0；`pnpm build` 0；`check-i18n` 中英对齐；`check-ui` 无新增；QA 教师页只渲染下拉 |
-| T384 | **管理员页改成 provider 列表**：`AdminAiPage` 展示已配置 provider、当前标记、设为当前、编辑/删除；表单含 Provider ID/显示名/Base URL/协议（仅 OpenAI）/Key/获取可用模型/保存；`SetupPage` 不强制 Key；文案更新 | T380 | `AiSetupTest` 通过；QA 管理员页显示 provider 列表、表单字段齐全、第一个 provider 自动成为当前 |
-| T385 | **回归与收尾**：`make test`、`check-deps`/`check-boundaries`/`check-i18n`/`check-ui`；spec/plan/tasks/PROGRESS 计数；QA 浏览器验收 `scripts/verify/ai-model-settings.mjs` | T382,T383,T384 | 全绿；计数吻合；浏览器 12/12 PASS，报告写清哪些是接口/界面/端到端验证 |
+| T383 | **前端 `/profile` 角色分栏 + 教师模型下拉**：学生只看到账号/语言/主题；教师只看到按 provider+model 展开的全局下拉、当前模型、保存与批改时机（模式、时刻、时区、补跑）；教师页不再出现 provider ID/地址/Key/拉模型；`Shell` 无模型提示改「设置 AI 模型」 | T380,T381 | `tsc --noEmit` 0；`pnpm build` 0；`check-i18n` 中英对齐；`check-ui` 无新增；QA 教师页下拉出现两个模型 |
+| T384 | **管理员页改成 provider 列表 + 多模型勾选**：`AdminAiPage` 展示已配置 provider、当前标记、每个模型行的设为当前、编辑/删除；表单含 Provider ID/显示名/Base URL/协议（仅 OpenAI）/Key/获取可用模型；点获取后显示可勾选列表，支持勾多个/手填；`SetupPage` 不强制 Key | T380 | `AiSetupTest` 通过；QA 管理员页获取模型后出现 2 个复选框，保存后 provider 存 2 个模型 |
+| T385 | **回归与收尾**：`make test`、`check-deps`/`check-boundaries`/`check-i18n`/`check-ui`；spec/plan/tasks/PROGRESS 计数；QA 浏览器验收 `scripts/verify/ai-model-settings.mjs`（自带假 OpenAI 服务） | T382,T383,T384 | 全绿；计数吻合；浏览器 10/10 PASS（获取模型→勾两个→保存→教师下拉两个→切换生效），报告写清哪些是接口/界面/端到端验证 |
 
 ---
 
@@ -544,6 +544,23 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
 | T386 | **存储端口进 shared + 用 S3 协议落地对象存储**：新增 `com.teachloop.shared.storage.BlobStore`（`store`/`load`/`exists`，只放接口）；`LocalStorage` 与新的 `S3BlobStore`（AWS SDK v2 的 S3 客户端）实现之；sitting 的 6 处引用改 `shared` 类型、行为不变；`teachloop.storage.s3.*` 全部可配（endpoint / region / bucket / access-key-id / access-key-secret / path-style / path-prefix，path-style 默认 false 以适配 OSS 的 virtual-hosted 要求）；`STORAGE_BACKEND` 默认仍 `local`；选 `s3` 但缺配置时启动即失败；新增 `make oss-dev`（Docker 起 MinIO）与 `make test-oss`，S3 用例 `@Tag("oss")` 默认跳过；密钥不进仓库、日志与错误信息 | — | `make test` 退出码 0 且用例数与改动前一致；`check-deps`/`check-boundaries`/`check-i18n`/`check-ui` 全 0；`STORAGE_BACKEND=local` 下附件上传/下载行为与改前一致；MinIO 起来后 `make test-oss` 能上传后读回同字节（**这条不需要阿里云账号**）；缺配置的报错信息不含 AccessKey |
+
+---
+
+## 阶段 30 — 2026-10-24 AI 失败保护（US-62 / D-31，T414–T420）
+
+上游：决策 013（`docs/decisions/013-ai-failure-protection.md`）、US-62、plan §7.7。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T414 | **调用层重试**：`LlmCallException` 增 `kind`（`RATE_LIMIT` / `SERVER` / `CONNECT` / `AUTH` / `BAD_REQUEST` / `TIMEOUT` / `EMPTY` / `OTHER`），两个客户端按 HTTP 状态码与异常类型赋值；新增 `RetryingLlmClient` 装饰器（429/5xx/连接失败重试 2 次，2s、8s + 抖动；429 的 `Retry-After` ≤ 30 秒优先；`Sleeper` 注入）；grading 与 explanation 两条链路套上；与输出纠正重试分开计数；参数可配 | — | 单测覆盖 kind 分类、可重试/不可重试判定、退避序列与抖动（`Sleeper` 记录，不真睡）、`Retry-After` 上限；401/400/读超时 0 次重试，429/5xx/连接失败 2 次重试；`make test` 通过 |
+| T415 | **熔断表与端口**：`V050__identity_ai_circuit_state.sql`（只建 identity 的表）；`AiCircuitState` 实体 / Repository / `AiCircuitService` 实现 `Ports.AiCircuit`（acquire / reportSuccess / reportFailure / snapshot，条件更新做半开选举与试探超时）；`V051__sitting_grading_circuit.sql` 给 `submissions` 加 `grading_failed_at` / `grading_circuit_requeues`，`markFailed` 写失败时刻；`check-boundaries.py` 的 `REQUIRED_PORTS` 7→8 | — | 每条迁移只含本模块的表；状态机测试（Testcontainers）：连续 5 次打开、OPEN 期间 `acquire` 返回 0、5 分钟后并发 `acquire` 只有一个拿到 1 份、试探成功清零、试探失败重开、试探超时退回；`check-boundaries` 通过（28 表 / 8 端口） |
+| T416 | **worker 接入**：`tick()` 先 `acquire()`（0 不领、1 只领 1 份）；每份成功/失败上报；provider key 取当前 settings；OPEN 时 debug 日志每分钟最多一条 | T414,T415 | 集成测试：OPEN 不领取、HALF_OPEN 只领 1 份、成功清零、失败计数递增；现有 `make test` 不回归 |
+| T417 | **熔断通知**：`NotificationPort.notifyAdmins`（identity 解析 ADMIN）；`SittingLedger.teacherIdsWithFailedGradingSince`；打开时给失败教师 + 全部管理员各发 1 条聚合通知；关闭时给管理员发「已恢复，自动重派 N 份」；通知异常只记 WARN | T415,T416 | 通知表断言：打开一轮只写 1 条/收件人、教师集合正确；关闭 1 条；注入失败实现时批改仍成功 |
+| T418 | **恢复后自动重派**：关闭时把 `grading_failed_at` 落在本串窗口内且 `grading_circuit_requeues=0` 的 FAILED 退回 PENDING，计数 +1；不覆盖人工分 / 已发布 | T416 | 测试：熔断期间失败 3 份 → 关闭后全回 PENDING 且计数 1；再次熔断不重派（上限 1）；老师已判分的份不被重派；`teacherLocked` 兜底生效 |
+| T419 | **状态接口 + 前端横幅**：`GET /api/ai-circuit`（TEACHER/ADMIN）；批改总览与详情顶部横幅（provider、原因、份数、下次探测时间）；zh-CN/en 文案；不新增路由 | T415 | 接口：学生 403、CLOSED/OPEN 两种返回；`tsc`/`build`/`check-i18n`/`check-ui` 通过；浏览器：OPEN 时横幅出现、关闭后消失 |
+| T420 | **回归与收尾**：`make test`、`check-deps`/`check-boundaries`/`check-i18n`/`check-ui`；四份文档计数与重复编号；PROGRESS 与执行记录；QA 浏览器验收 | T414–T419 | 全绿；计数吻合；报告写清哪些是接口/界面/端到端验证，未验证项单列 |
+| T421 | **通知存事实、读取时渲染**（D-33）：`notifications.payload jsonb` + V052 去掉 `title` NOT NULL；`NotificationEndpoint` 按 `Accept-Language` 渲染；`OfferingEndpoint`/`ReviewEndpoint`/`VocabularyAssignmentEndpoint` 只传 payload；`WorkItem.offeringTitle` 由 `SittingLedgerImpl` 带出；历史行回退原文 | T114 | 中英文界面各收到对应语言的通知；历史行不变语言；发布/成绩/反馈/单词预习四类 kind 有模板；现有测试不回归 |
 
 ---
 
@@ -738,10 +755,12 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | 2026-10-22 | T368 无 rubric 的默认判分（D-28） | 完成 | 用户要求「内容 80% + 语法拼写 20%，比例可配置」。新增 `EssayRubricWeights`（只留 content-percent 一个旋钮，1–99，语法取其余；15 分→12+3、14 分→11+3）；`SubjectiveGradeRequest.forEssay` 在题项级与试卷级 rubric 都为空时合成两项默认 rubric，题目全文始终进 prompt；`AiGradingEngine` 注入配置 `teachloop.grading.essay-default-rubric.content-percent`（env `TEACHLOOP_ESSAY_CONTENT_PERCENT`，默认 80）；`PaperCatalogImpl` 不再伪造无分值默认 rubric；英文反馈用英文文案；非法比例启动失败；`PaperDetail.essayContentPercent` 把当前比例回显给向导。验证：`EssayRubricWeightsTest` 6/6、`AiGradingEngineTest` 10/10（无 rubric 时 12+3 且 prompt 含题目全文、70% 配置 11+4）、`AiGradingConfigTest` 5/5（70 可启动、0/100 启动失败）；`make test` 286/0/0/0，向导回显 80 有 app 断言 |
 | 2026-10-23 | T369 默认分值四舍五入 + 试卷级 rubric 文案 | 完成 | 用户指出「两项相加…这个要 round 的，四舍五入」并问「为啥还有试卷级、在哪设置」。`EssayRubricWeights.contentPoints` 改为 0 位小数 HALF_UP（14→11+3、15→12+3、70%→11+4），语法恒取余数保证相加等于满分；第 4 步试卷级编辑器改名「试卷默认 rubric（兜底）」、提示写明题项级优先，决策 008 补「两个层级分别在哪设置」表。验证：`EssayRubricWeightsTest` 6/6、`AiGradingEngineTest` 10/10（70% 期望改 11+4）、`tsc`/`build`、`check-i18n`（1219 键）、`check-ui`；`make test` 退出码 0（286/0/0/0 + 前端 28/28） |
 | 2026-10-23 | T370 试卷级 rubric 退役（D-29） | 完成 | 用户拍板「拿掉吧，没必要了」：写作题只保留题项级 rubric，没有就一律走默认（题目全文 + 内容/语法，比例可配）。向导第 4 步删除试卷级 rubric 与提示词编辑器；`PaperCatalogImpl` 快照 rubric 恒 null；`SittingLedgerImpl` 对考试传 null（旧 `offerings.rubric_markdown` 也忽略）；列、`PUT /api/papers/{id}/rubric`、`PaperDetail.rubricMarkdown` 保留兼容；独立作业不变。验证：`FlowIntegrationTest` 新断言（写入试卷级 rubric + 直接改旧 offering 行 → `SittingLedger.load().rubricMarkdown()==null`，两篇按题项 rubric 判分 22.6）；`tsc`/`build` 0；`check-i18n`（1219 键）/`check-ui`；`make test` 286/0/0/0 + 前端 28/28；决策 009 |
-| 2026-10-23 | T380 全局 provider 列表 + 当前模型 | 完成 | V039 新增 `ai_providers` 与 `ai_settings.active_provider_id`；`AiProviderService` 增删改查、`POST /models`、`POST /test`、`PUT /api/ai-models/current`；第一个 provider 自动设为当前；空 Key 客户端不发 Authorization，Spring AI 用 `local-no-key` 占位；`/setup` 不再强制 Key。验证：`AiSetupTest` 1/1（管理员建 provider、教师切全局模型、学生 403）；`DeepSeekLlmClientTest`/`SpringAiLlmClientTest`/`AiGradingConfigTest` 全绿 |
+| 2026-10-24 | T380 全局 provider 列表 + 多模型 + 当前模型 | 完成 | V039 `ai_providers`/`active_provider_id`，V060 `models` JSONB + `active_model`；`AiProviderService` 增删改查、`POST /models`、`POST /test`、`PUT /api/ai-models/current`（providerId + model）；第一个 provider 自动设为当前；空 Key 客户端不发 Authorization，Spring AI 用 `local-no-key` 占位；`/setup` 不再强制 Key。验证：`AiSetupTest` 1/1（两个模型、教师切第二个、学生 403）；干净 worktree 全量 370/0/0/0 |
 | 2026-10-23 | T381 教师级批改偏好 | 完成 | V037 `teacher_grading_preferences` + 实体/Repository/Service/Endpoint；`GET/PUT /api/profile/grading-preferences` 仅 TEACHER，默认 02:30 Asia/Shanghai、catch_up=true；`NightlyAssignmentGradingTest` 覆盖默认值、PUT 回读、学生 403、非法值 400（服务层） |
 | 2026-10-23 | T382 调度器与按教师派发 | 完成 | 新增 `TeacherGradingScheduler`（每分钟扫描，`last_fixed_run_at` 同日短路）；`dispatchAssignmentsForTeacher` 固定时间不看 due；`dispatchAssignmentsDueForTeacher` due+grace 且**不看峰谷**；删除全局 `AssignmentGradingJob` 与 `assignment-cron/zone/catch-up`。验证：`NightlyAssignmentGradingTest` 1/1（固定时间不看 due、同日不重复、due-date 高峰派发、考试不在作业调度、重交队列只留最新） |
-| 2026-10-23 | T383 `/profile` 角色分栏 + 教师模型下拉 | 完成 | 学生只看到账号/语言/主题；教师只看到全局模型下拉、当前模型、保存与批改时机（模式/时刻/时区/补跑），不再出现 provider ID/地址/Key/拉模型；`tsc --noEmit` 0、`pnpm build` 0、`pnpm test` 28/28、`check-i18n` 1296 键、`check-ui` 无新增；QA 5174 `scripts/verify/ai-model-settings.mjs` **12/12 PASS**，截图 `docs/reports/t386-ai-model-settings/` |
-| 2026-10-23 | T384 管理员页改成 provider 列表 | 完成 | `AdminAiPage` 展示已配置 provider、当前标记、设为当前、编辑/删除；表单含 Provider ID/显示名/Base URL/协议（仅 OpenAI）/Key/获取模型/保存；`SetupPage` 不强制 Key；`tsc`/`build` 通过；QA 管理员页 12/12 检查通过 |
-| 2026-10-23 | T385 回归与收尾 | 完成（含浏览器验收） | `./mvnw test` 281/0/0/0；`check-deps`/`check-boundaries`（27 表）/`check-i18n`（1296 键）/`check-ui` 通过；前端 `tsc`/`build`/28 测试；四份文档计数与重复编号检查（仅剩已知 AC-27/28、T341 存量）；QA 5174 `scripts/verify/ai-model-settings.mjs` **12/12 PASS**（管理员 provider 列表、表单字段、教师只选模型、学生看不到），截图 `docs/reports/t386-ai-model-settings/`。**未验证**：真实本地模型调用 |
+| 2026-10-24 | T383 `/profile` 角色分栏 + 教师模型下拉 | 完成 | 学生只看到账号/语言/主题；教师只看到按 provider+model 展开的全局下拉、当前模型、保存与批改时机，不再出现 provider ID/地址/Key/拉模型；`tsc --noEmit` 0、`pnpm build` 0、`pnpm test` 33/33、`check-i18n` 1552 键、`check-ui` 无新增；QA 下拉出现两个模型并切第二个生效 |
+| 2026-10-24 | T384 管理员页改成 provider 列表 + 多模型勾选 | 完成 | `AdminAiPage` 展示已配置 provider、当前标记、每个模型行的设为当前、编辑/删除；表单含 Provider ID/显示名/Base URL/协议（仅 OpenAI）/Key/获取模型；点获取后显示复选框列表，支持勾多个/手填；QA 实测获取 2 个模型、勾选保存后 provider 存 2 个模型 |
+| 2026-10-24 | T385 回归与收尾 | 完成（含浏览器验收） | 干净 worktree `./mvnw test` **370/0/0/0**；`check-deps`/`check-boundaries`（27 表）/`check-i18n`（1552 键）/`check-ui` 通过；前端 `tsc`/`build`/33 测试；四份文档计数与重复编号检查（仅剩已知 AC-27/28、T341 存量）；QA 5174 `scripts/verify/ai-model-settings.mjs` **10/10 PASS**（获取模型→勾两个→保存→教师下拉两个→切换生效），截图 `docs/reports/t386-ai-model-settings/`。**未验证**：真实本地模型调用 |
 | 2026-10-24 | 决策 014 撤除峰谷调度 | 完成 | 删除 `GradingPeakHours`、`GradingDispatchPolicy`、`autoDispatch()` 高峰前置判断与 `grading.peak-aware`；考试自动派发改为到点即派，迟到补派发不再被高峰跳过。验证：`GradingDispatchTest` 8/8（含 `autoDispatchIgnoresTimeOfDay`）、`NightlyAssignmentGradingTest` 1/1、`FlowIntegrationTest` 3/3；全仓无 `peak` 代码/配置引用 |
+| 2026-10-24 | T414–T420 AI 失败保护（D-31 / US-62） | 完成（含浏览器验收） | 重试：`LlmCallException.kind` + `RetryingLlmClient`（429/5xx/连接失败 2 次，2s/8s + 抖动，Retry-After ≤30s 优先）；熔断：V050 `ai_circuit_state` + V051 `submissions.grading_failed_at/grading_circuit_requeues`，`AiCircuitService` 条件更新做半开选举；worker：OPEN 不领取、半开只领 1 份、成功/失败上报、打开通知教师+管理员、关闭自动重派窗口内失败项（每份上限 1 次）；`GET /api/ai-circuit` + 批改总览/详情横幅。验证：`RetryingLlmClientTest` 11/11、`GradingWorkerCircuitTest` 5/5、`AiGradingConfigTest` 5/5、`AiCircuitTest` 5/5；`make test` 退出码 0（6m47s，48 表 / 8 端口 / 1552 键）；`tsc`/`build` 通过；浏览器 QA 5174：CLOSED 无横幅 → OPEN 显示「持续 5 份失败 / SERVER / 预计探测时间」→ 恢复后消失（`docs/reports/ai-circuit-2026-10-24/`）。**未验证**：真实 provider 连续失败下的端到端、双进程半开并发、通知按收件人语言分发。 |
+| 2026-10-24 | T421 通知存事实、读取时渲染（D-33） | 完成（接口层） | `notifications.payload jsonb`（V052 去掉 `title` NOT NULL）+ i18n 模板 `notification.<kind>[.<variant>].title|body`；`NotificationEndpoint` 用 `Accept-Language` 渲染；四类通知调用方只传 payload；`WorkItem.offeringTitle` 支撑「《作业名》的反馈已发布」；历史 714 行保留原文。验证：`NotificationTest` 覆盖中英文渲染与历史行回退；全量 `./mvnw -o clean test` **391/0/0/0**；前端 `tsc` 0、`pnpm test` 33/33 |

@@ -30,6 +30,7 @@ TABLE_OWNER: dict[str, str] = {
     "notifications": "identity",
     "ai_settings": "identity",
     "ai_providers": "identity",
+    "ai_circuit_state": "identity",
     "user_ai_settings": "identity",
 
     "classes": "classroom",
@@ -101,19 +102,20 @@ ALLOWED_CROSS_FKS: set[tuple[str, str]] = {
 # plan §3.2：T205 之后必须存在的端口。
 REQUIRED_PORTS = {
     "PaperCatalog", "SittingLedger", "GradingWorkQueue", "GradingOutcome",
-    "NotificationPort", "ClassMembership", "GradingDispatch",
+    "NotificationPort", "ClassMembership", "GradingDispatch", "AiCircuit",
 }
 
 # Ports.java 顶层 record（端口 DTO 白名单）。
 PORT_RECORDS = {
     "ItemSpec", "AnswerRow", "PaperSnapshot", "WorkItem",
     "CriterionScore", "ItemExplanation", "GradingResult",
+    "CircuitOpenEvent", "CircuitSnapshot",
 }
 
 # 端口签名里允许出现的 JDK 类型（基类名）。
 PORT_JDK_TYPES = {
     "void", "boolean", "int", "long", "String", "UUID", "BigDecimal",
-    "List", "Set", "Map", "Collection", "Optional", "Object",
+    "List", "Set", "Map", "Collection", "Optional", "Object", "Instant",
 }
 
 COMMENT_RE = re.compile(r"/\*.*?\*/|//[^\n]*", re.S)

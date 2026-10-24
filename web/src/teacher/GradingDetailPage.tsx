@@ -11,6 +11,7 @@ import type {
   ProgressView,
 } from '../api/types'
 import { AuditDrawer } from '../components/AuditDrawer'
+import { AiCircuitBanner } from '../components/AiCircuitBanner'
 import { useListState } from '../components/useListState'
 import { Alert, Button, DataTable, Empty, ErrorState, Field, Input, Loading, PageHeader, StatCard, Segmented } from '../ui'
 import type { Column } from '../ui'
@@ -416,6 +417,8 @@ export default function GradingDetailPage() {
               </>
             }
           />
+
+          <AiCircuitBanner />
 
           {offering.status === 'DRAFT' && <Alert type="warning" showIcon message={t('teacher.detail.draftNote')} />}
           {offering.kind === 'ASSIGNMENT' && (

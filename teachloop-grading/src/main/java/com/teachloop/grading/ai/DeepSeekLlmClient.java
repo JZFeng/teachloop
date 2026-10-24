@@ -65,16 +65,62 @@ public class DeepSeekLlmClient implements LlmClient {
             response = http.send(httpRequest, HttpResponse.BodyHandlers.ofString());
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
-            throw new LlmCallException("模型调用被中断", ex);
+            throw new LlmCallException("模型调用被中断", LlmCallException.Kind.OTHER, ex);
         } catch (IOException ex) {
-            throw new LlmCallException("模型调用失败: " + ex.getMessage(), ex);
+            throw new LlmCallException("模型调用失败: " + ex.getMessage(), classifyIo(ex), ex);
         }
         long latencyMs = Math.max(0, (System.nanoTime() - started) / 1_000_000);
         if (response.statusCode() < 200 || response.statusCode() >= 300) {
             throw new LlmCallException("模型返回 HTTP " + response.statusCode() + ": "
-                    + truncate(response.body()));
+                    + truncate(response.body()), classifyStatus(response.statusCode()), null,
+                    retryAfterSeconds(response));
         }
         return parseBody(response.body(), latencyMs);
+    }
+
+    /** D-31：HTTP 状态 → 重试/熔断分类。 */
+    static LlmCallException.Kind classifyStatus(int status) {
+        if (status == 429) {
+            return LlmCallException.Kind.RATE_LIMIT;
+        }
+        if (status >= 500) {
+            return LlmCallException.Kind.SERVER;
+        }
+        if (status == 401 || status == 403) {
+            return LlmCallException.Kind.AUTH;
+        }
+        if (status >= 400) {
+            return LlmCallException.Kind.BAD_REQUEST;
+        }
+        return LlmCallException.Kind.OTHER;
+    }
+
+    /** D-31：连接超时/拒绝连接/域名解析算可重试；读超时算不可重试。 */
+    static LlmCallException.Kind classifyIo(IOException ex) {
+        if (ex instanceof java.net.http.HttpConnectTimeoutException) {
+            return LlmCallException.Kind.CONNECT;
+        }
+        if (ex instanceof java.net.http.HttpTimeoutException) {
+            return LlmCallException.Kind.TIMEOUT;
+        }
+        if (ex instanceof java.net.ConnectException || ex instanceof java.net.UnknownHostException) {
+            return LlmCallException.Kind.CONNECT;
+        }
+        Throwable cause = ex.getCause();
+        if (cause instanceof java.net.ConnectException || cause instanceof java.net.UnknownHostException) {
+            return LlmCallException.Kind.CONNECT;
+        }
+        return LlmCallException.Kind.OTHER;
+    }
+
+    private static Long retryAfterSeconds(HttpResponse<String> response) {
+        return response.headers().firstValue("Retry-After").flatMap(value -> {
+            try {
+                return java.util.Optional.of(Long.parseLong(value.trim()));
+            } catch (NumberFormatException ex) {
+                return java.util.Optional.empty();
+            }
+        }).orElse(null);
     }
 
     private URI uri() {
@@ -101,19 +147,19 @@ public class DeepSeekLlmClient implements LlmClient {
         try {
             root = mapper.readTree(body);
         } catch (RuntimeException ex) {
-            throw new LlmCallException("模型响应不是合法 JSON: " + truncate(body), ex);
+            throw new LlmCallException("模型响应不是合法 JSON: " + truncate(body), LlmCallException.Kind.EMPTY, ex);
         }
         if (root == null || !root.isObject()) {
-            throw new LlmCallException("模型响应不是 JSON 对象: " + truncate(body));
+            throw new LlmCallException("模型响应不是 JSON 对象: " + truncate(body), LlmCallException.Kind.EMPTY);
         }
         JsonNode choices = root.path("choices");
         if (!choices.isArray() || choices.size() == 0) {
-            throw new LlmCallException("模型响应缺少 choices: " + truncate(body));
+            throw new LlmCallException("模型响应缺少 choices: " + truncate(body), LlmCallException.Kind.EMPTY);
         }
         JsonNode contentNode = choices.path(0).path("message").path("content");
         String content = contentNode.isString() ? contentNode.asString() : "";
         if (content.isBlank()) {
-            throw new LlmCallException("模型响应内容为空: " + truncate(body));
+            throw new LlmCallException("模型响应内容为空: " + truncate(body), LlmCallException.Kind.EMPTY);
         }
         JsonNode usage = root.path("usage");
         Integer tokensIn = usage.path("prompt_tokens").isNumber() ? usage.path("prompt_tokens").asInt() : null;

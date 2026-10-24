@@ -217,10 +217,16 @@ public class ExamSessionEndpoint {
 
         String message = !published ? "反馈尚未发布"
                 : base == null ? "还没有提交记录" : "反馈已发布";
+        // 整卷没有客观题时 objectiveMax=0：前端据此隐藏「客观题」一行，而不是显示一个 0。
+        BigDecimal objectiveMax = snap.items().stream()
+                .filter(item -> !"ESSAY".equals(item.questionType()))
+                .map(Ports.ItemSpec::points)
+                .filter(java.util.Objects::nonNull)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return new SittingDtos.MyFeedbackView(o.getId().toString(), snap.title(),
                 BigDecimal.valueOf(snap.totalPoints()), published, message,
-                base == null ? null : attemptView(base), wrong, review, overview);
+                base == null ? null : attemptView(base), wrong, review, overview, objectiveMax);
     }
 
     /** 开始答题：起算点落库，返回服务端剩余秒数。 */

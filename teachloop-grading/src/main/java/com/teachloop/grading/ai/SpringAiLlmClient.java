@@ -83,18 +83,18 @@ public class SpringAiLlmClient implements LlmClient {
                     .call()
                     .chatResponse();
         } catch (RuntimeException ex) {
-            throw new LlmCallException("Spring AI 调用失败: " + ex.getMessage(), ex);
+            throw new LlmCallException("Spring AI 调用失败: " + ex.getMessage(), classify(ex), ex);
         }
         long latencyMs = Math.max(0, (System.nanoTime() - started) / 1_000_000);
         if (response == null) {
-            throw new LlmCallException("Spring AI 返回空响应");
+            throw new LlmCallException("Spring AI 返回空响应", LlmCallException.Kind.EMPTY);
         }
         if (response.getResult() == null || response.getResult().getOutput() == null) {
-            throw new LlmCallException("Spring AI 响应缺少生成结果");
+            throw new LlmCallException("Spring AI 响应缺少生成结果", LlmCallException.Kind.EMPTY);
         }
         String content = response.getResult().getOutput().getText();
         if (content == null || content.isBlank()) {
-            throw new LlmCallException("Spring AI 响应内容为空");
+            throw new LlmCallException("Spring AI 响应内容为空", LlmCallException.Kind.EMPTY);
         }
         String responseModel = model;
         Integer tokensIn = null;
@@ -110,6 +110,46 @@ public class SpringAiLlmClient implements LlmClient {
             }
         }
         return new LlmResponse(responseModel, content, tokensIn, tokensOut, latencyMs);
+    }
+
+    /**
+     * D-31：从 Spring AI / OpenAI SDK 的异常链里认类别。
+     *
+     * <p>SDK 会把 HTTP 错误包装成 {@code com.openai.errors.*}；连接问题可能是
+     * {@code OpenAIIoException} 或 {@code SocketTimeoutException}。这里按「先具体、后一般」
+     * 遍历 cause 链，认不出的一律 {@code OTHER}（不重试）。
+     */
+    static LlmCallException.Kind classify(Throwable failure) {
+        for (Throwable t = failure; t != null; t = t.getCause()) {
+            if (t instanceof com.openai.errors.RateLimitException) {
+                return LlmCallException.Kind.RATE_LIMIT;
+            }
+            if (t instanceof com.openai.errors.InternalServerException) {
+                return LlmCallException.Kind.SERVER;
+            }
+            if (t instanceof com.openai.errors.UnauthorizedException
+                    || t instanceof com.openai.errors.PermissionDeniedException) {
+                return LlmCallException.Kind.AUTH;
+            }
+            if (t instanceof com.openai.errors.BadRequestException
+                    || t instanceof com.openai.errors.NotFoundException) {
+                return LlmCallException.Kind.BAD_REQUEST;
+            }
+            if (t instanceof java.net.http.HttpConnectTimeoutException) {
+                return LlmCallException.Kind.CONNECT;
+            }
+            if (t instanceof java.net.http.HttpTimeoutException
+                    || t instanceof java.net.SocketTimeoutException) {
+                return LlmCallException.Kind.TIMEOUT;
+            }
+            if (t instanceof java.net.ConnectException || t instanceof java.net.UnknownHostException) {
+                return LlmCallException.Kind.CONNECT;
+            }
+            if (t instanceof com.openai.errors.OpenAIIoException) {
+                return LlmCallException.Kind.CONNECT;
+            }
+        }
+        return LlmCallException.Kind.OTHER;
     }
 
     private ChatClient client() {

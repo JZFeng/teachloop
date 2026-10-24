@@ -19,17 +19,31 @@
   教师在 `/profile` 只从一个下拉里选当前模型，**切换对全站生效**；学生只看到账号/语言/主题。
   作业批改改为教师级偏好：默认固定时间 02:30 Asia/Shanghai（可改时刻/时区/补跑），可切 due-date；
   due-date 过 `due+grace` 后 60 秒扫描派发，不看任何时段。
-  验证：`./mvnw test` 281/0/0/0；`AiSetupTest` 覆盖管理员建 provider、教师切全局模型、学生 403；
-  前端 `tsc`/`build`/28 测试；`check-deps`/`check-boundaries`（27 表）/`check-i18n`（1296 键）/
-  `check-ui` 全过；QA 5174 浏览器 `scripts/verify/ai-model-settings.mjs` **12/12 PASS**，
-  截图 `docs/reports/t386-ai-model-settings/`。**未验证**：真实本地模型（Ollama/LM Studio）端到端判分
-  （provider 表单与全局切换已验证，实际模型调用未起服务）。
+  管理员表单可「获取可用模型」后勾选多个模型；教师下拉按 provider+model 展开。验证：干净 worktree
+  `./mvnw test` **370/0/0/0**；`AiSetupTest` 覆盖建 provider 两个模型、教师切第二个、学生 403；
+  前端 `tsc`/`build`/33 测试；`check-deps`/`check-boundaries`（27 表）/`check-i18n`（1552 键）/
+  `check-ui` 全过；QA 5174 自带假 OpenAI 服务，`scripts/verify/ai-model-settings.mjs`
+  **10/10 PASS**（获取模型→勾两个→保存→教师下拉两个→切换生效），截图 `docs/reports/t386-ai-model-settings/`。
+  **未验证**：真实本地模型（Ollama/LM Studio）端到端判分（假服务覆盖了模型发现与选择链路）。
 
 - 已改口径：**决策 014 撤除峰谷调度**（2026-10-24）。峰谷是 DeepSeek 一家的分时计价，provider 可换后不成立；
   避开高峰是管理员的成本判断，不该由代码替人决定。删除 `GradingPeakHours` / `GradingDispatchPolicy` /
   `autoDispatch()` 高峰前置判断 / `grading.peak-aware`，考试到期即派、迟到补派发不再被高峰跳过。
   验证：`GradingDispatchTest` 8/8（含 `autoDispatchIgnoresTimeOfDay`）、`NightlyAssignmentGradingTest` 1/1、
   `FlowIntegrationTest` 3/3。
+
+- 已实现：**T414–T420 AI 调用重试与熔断（D-31 / US-62，2026-10-24）**。
+  调用层对 429/5xx/连接失败重试 2 次（2s、8s + 抖动，`Retry-After` ≤30s 优先），
+  同一 provider 连续 5 份失败熔断、5 分钟半开只放 1 份；打开/恢复通知教师与管理员，
+  恢复后把熔断期间的失败项自动重派一次；教师与管理员在批改总览/详情看到熔断横幅。
+  状态存库（V050 `ai_circuit_state`），`submissions` 加 `grading_failed_at` / `grading_circuit_requeues`（V051）。
+  验证：`RetryingLlmClientTest`、`GradingWorkerCircuitTest`、`AiCircuitTest`、全量 `./mvnw test` 见执行记录；
+  QA 截图 `docs/reports/ai-circuit-2026-10-24/`。
+
+- 已改口径：**站内通知存事实、读取时渲染（D-33，2026-10-24）**。
+  用户反馈中文界面收到英文通知。根因是文案在写入那一刻按「作业 `feedback_language`」或「`users.locale`」固化成 text。
+  `notifications` 增 `payload jsonb`（V052 去掉 `title` NOT NULL），四类通知只传事实，
+  读取时按 `Accept-Language` 用 `messages*.properties` 渲染；历史 714 行保留原文，不补迁移。
 
 - 已改口径：**T371 首页/班级上色，报表改靛蓝**（2026-10-23，**推翻 T358 的「中性导航」结论**）。
   用户先说首页、班级「太素」，选定海军蓝 + 淡紫；随后说报表的玫红在暗色下像出错，从七种候选里选了靛蓝。

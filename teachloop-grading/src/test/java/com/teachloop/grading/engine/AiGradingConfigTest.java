@@ -5,6 +5,7 @@ import static org.mockito.Mockito.mock;
 
 import com.teachloop.grading.ai.DeepSeekLlmClient;
 import com.teachloop.grading.ai.LlmClient;
+import com.teachloop.grading.ai.RetryingLlmClient;
 import com.teachloop.grading.ai.SpringAiLlmClient;
 import com.teachloop.grading.domain.AiCallRepository;
 import java.time.Clock;
@@ -29,7 +30,9 @@ class AiGradingConfigTest {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(LlmClient.class);
-                    assertThat(context.getBean(LlmClient.class)).isInstanceOf(SpringAiLlmClient.class);
+                    assertThat(context.getBean(LlmClient.class)).isInstanceOf(RetryingLlmClient.class);
+                    assertThat(((RetryingLlmClient) context.getBean(LlmClient.class)).delegate())
+                            .isInstanceOf(SpringAiLlmClient.class);
                     assertThat(context).hasSingleBean(GradingEngine.class);
                     assertThat(context.getBean(GradingEngine.class)).isInstanceOf(AiGradingEngine.class);
                 });
@@ -43,7 +46,9 @@ class AiGradingConfigTest {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(LlmClient.class);
-                    assertThat(context.getBean(LlmClient.class)).isInstanceOf(DeepSeekLlmClient.class);
+                    assertThat(context.getBean(LlmClient.class)).isInstanceOf(RetryingLlmClient.class);
+                    assertThat(((RetryingLlmClient) context.getBean(LlmClient.class)).delegate())
+                            .isInstanceOf(DeepSeekLlmClient.class);
                 });
     }
 
@@ -85,7 +90,9 @@ class AiGradingConfigTest {
                 .run(context -> {
                     assertThat(context).hasNotFailed();
                     assertThat(context).hasSingleBean(LlmClient.class);
-                    assertThat(context.getBean(LlmClient.class)).isInstanceOf(SpringAiLlmClient.class);
+                    assertThat(context.getBean(LlmClient.class)).isInstanceOf(RetryingLlmClient.class);
+                    assertThat(((RetryingLlmClient) context.getBean(LlmClient.class)).delegate())
+                            .isInstanceOf(SpringAiLlmClient.class);
                 });
     }
 }

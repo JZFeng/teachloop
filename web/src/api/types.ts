@@ -380,8 +380,8 @@ export interface MyFeedback {
   wrongItems: FeedbackWrongItem[]
   review: FeedbackReviewNote | null
   overview: FeedbackOverview
-  /** 本卷客观题满分；0 表示整卷没有客观题，页面不显示「客观题」一行。 */
-  objectiveMax: number
+  /** 本卷客观题满分；0 表示整卷没有客观题，页面不显示「客观题」一行。老后端可能不返回该字段。 */
+  objectiveMax?: number
 }
 
 export interface ReviewView {
@@ -554,4 +554,14 @@ export interface NotificationView {
   body: string | null
   readAt: string | null
   createdAt: string
+}
+
+export interface AiCircuitView {
+  state: 'CLOSED' | 'OPEN' | 'HALF_OPEN'
+  providerKey: string | null
+  providerDisplayName: string | null
+  consecutiveFailures: number
+  openedAt: string | null
+  nextProbeAt: string | null
+  lastErrorKind: string | null
 }

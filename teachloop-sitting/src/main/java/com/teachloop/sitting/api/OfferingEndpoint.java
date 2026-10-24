@@ -259,10 +259,7 @@ public class OfferingEndpoint {
         o.setPublishScores(true);
         notifications.notifyScoresPublished(o.getId());
         notifyStudents(o, "scores_published",
-                "成绩已发布：" + codec.read(o.getPaperSnapshot()).title(),
-                "Scores published: " + codec.read(o.getPaperSnapshot()).title(),
-                "老师已发布本次成绩，可查看自己的得分与反馈。",
-                "Your teacher published the scores for this sitting. Open it to see your result and feedback.");
+                Map.of("title", codec.read(o.getPaperSnapshot()).title()));
         audit.record(AuditEvent.of(me.id(), "offering:scores_publish", "offering", id.toString()));
         return view(o);
     }
@@ -511,17 +508,15 @@ public class OfferingEndpoint {
         offerings.save(o);
         notifications.notifyOfferingPublished(o.getId());
         String paperTitle = codec.read(o.getPaperSnapshot()).title();
-        notifyStudents(o, "offering_published",
-                "新" + (o.getKind() == OfferingKind.EXAM ? "考试" : "作业") + "：" + paperTitle,
-                "New " + (o.getKind() == OfferingKind.EXAM ? "exam" : "assignment") + ": " + paperTitle,
-                "老师已布置新的" + (o.getKind() == OfferingKind.EXAM ? "考试" : "作业") + "，请按时完成。",
-                "Your teacher published a new " + (o.getKind() == OfferingKind.EXAM ? "exam" : "assignment") + ". Please complete it on time.");
+        // A1：只传事实（作业名 + 考试/作业），文案由 identity 在读取时按学生界面语言渲染。
+        notifyStudents(o, "offering_published", Map.of(
+                "title", paperTitle,
+                "offeringKind", o.getKind() == OfferingKind.EXAM ? "exam" : "assignment"));
         audit.record(AuditEvent.of(me.id(), "offering:publish", "offering", o.getId().toString()));
     }
 
     /** 发布类动作给参与班的学生生成站内通知（T114）；接收者由 sitting 解析，不泄漏给其他模块。 */
-    private void notifyStudents(Offering o, String kind, String zhTitle, String enTitle,
-                                String zhBody, String enBody) {
+    private void notifyStudents(Offering o, String kind, Map<String, String> payload) {
         Set<UUID> recipients = new java.util.LinkedHashSet<>();
         for (OfferingClass oc : offeringClasses.findByOfferingId(o.getId())) {
             recipients.addAll(membership.membersOf(oc.getClassId()));
@@ -529,12 +524,11 @@ public class OfferingEndpoint {
         if (recipients.isEmpty()) {
             return;
         }
-        boolean en = "en".equalsIgnoreCase(o.getFeedbackLanguage());
         // target_type 要能让前端直接跳页：考试去 /exams/{id}，作业去 /assignments/{id}。
         String targetType = o.getKind() == OfferingKind.EXAM ? "exam" : "assignment";
         List<Ports.NotificationMessage> messages = recipients.stream()
                 .map(id -> new Ports.NotificationMessage(id, kind, targetType, o.getId().toString(),
-                        en ? enTitle : zhTitle, en ? enBody : zhBody))
+                        null, null, payload))
                 .toList();
         notifications.notify(messages);
     }

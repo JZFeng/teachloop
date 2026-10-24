@@ -180,12 +180,12 @@ class PromptBuilderTest {
                 STUDENT_NAME, "TEXT", ESSAY, null, List.of(),
                 List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", null, new BigDecimal("15"),
                         "Write about your class.")),
-                rubric, null, "zh-CN", null, "");
+                rubric, null, "zh-CN", null, "", null);
         Ports.WorkItem with = new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), STUDENT_ID,
                 STUDENT_NAME, "TEXT", ESSAY, null, List.of(),
                 List.of(new Ports.ItemSpec(UUID.randomUUID(), 1, "ESSAY", null, new BigDecimal("15"),
                         "Write about your class.")),
-                rubric, null, "zh-CN", null, "示例：3 段，立场明确，4/4。片段：We learn English together.");
+                rubric, null, "zh-CN", null, "示例：3 段，立场明确，4/4。片段：We learn English together.", null);
 
         assertThat(builder.build(SubjectiveGradeRequest.from(without)).system())
                 .doesNotContain("参考范文");
