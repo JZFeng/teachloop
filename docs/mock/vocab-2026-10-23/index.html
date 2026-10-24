@@ -235,14 +235,16 @@
   .class-panel { border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px; max-height:240px; overflow:auto; }
   .cp-group + .cp-group { border-top:1px dashed var(--line-2); margin-top:10px; padding-top:10px; }
 
-  .card-next { position:absolute; right:14px; top:50%; transform:translateY(-50%);
-               display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:999px;
-               border:1px solid var(--line); background:var(--panel); color:var(--muted); font-size:13px;
-               box-shadow:var(--shadow); opacity:.55; transition:opacity .15s, background .15s; }
-  .card-next:hover { opacity:1; }
-  .card-next.on { opacity:1; background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:500; }
-  .card-next .kbd { font-size:11px; border:1px solid currentColor; border-radius:4px; padding:0 4px; opacity:.8; }
-  @media (max-width:760px) { .card-next { right:50%; transform:translate(50%,0); top:auto; bottom:-18px; } }
+  .review-row { display:flex; align-items:center; gap:16px; }
+  .review-row > .card { flex:1; min-width:0; }
+  .next-outside { flex:0 0 auto; display:inline-flex; align-items:center; gap:8px;
+                  padding:12px 18px; border-radius:999px; border:1px solid var(--line);
+                  background:var(--panel); color:var(--muted); font-size:14px;
+                  box-shadow:var(--shadow); opacity:.6; transition:opacity .15s, background .15s; }
+  .next-outside:hover { opacity:1; }
+  .next-outside.on { opacity:1; background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:500; }
+  .next-outside .kbd { font-size:11px; border:1px solid currentColor; border-radius:4px; padding:0 4px; opacity:.8; }
+  @media (max-width:900px) { .review-row { flex-direction:column; align-items:stretch; gap:10px; } .next-outside { align-self:flex-end; } }
 </style>
 </head>
 <body>
@@ -837,9 +839,9 @@ function screenReview(){
         <div class="sm muted" style="margin-top:6px">新词 12 · 到期复习 34 · 今天已复习 12 · 卡组视图：易错 46 / Unit 5 28</div>
         <div class="sm muted-2" style="margin-top:6px">「认识」= 良好（间隔 × 易度），「不认识」= 忘记（5 分钟后重来）；连续 4 次认识且间隔 ≥45 天自动标为已掌握。参数都在 application.yml 里。</div>
       </div>`:''}
-      <div style="position:relative">
+      <div class="review-row">
         <div class="card">${S.flipped?back:front}</div>
-        <button class="card-next ${(S.flipped||S.rated==='again')?'on':''}" onclick="nextCard()" title="下一个（N / →）">
+        <button class="next-outside ${(S.flipped||S.rated==='again')?'on':''}" onclick="nextCard()" title="下一个（N / →）">
           下一个 <span class="kbd">N</span>
         </button>
       </div>
@@ -852,7 +854,7 @@ function screenReview(){
       ${S.rated==='again'?`<div class="card-pad sm" style="margin-top:10px;text-align:center;color:var(--muted)">
         已记为「不认识」，答案已展开；看完点下面「下一个 →」继续</div>`:''}
 
-      <div class="hint">「认识」直接下一个 · 「不认识」自动翻面 · 卡片右侧「下一个」或按 N / → 继续 · 数字键 1 / 2${S.free?" · S 移出复习":""}</div>
+      <div class="hint">「认识」直接下一个 · 「不认识」自动翻面 · 卡片外右侧「下一个」或按 N / → 继续 · 数字键 1 / 2${S.free?" · S 移出复习":""}</div>
       ${S.free?`<div class="row" style="justify-content:center;margin-top:8px">
         <button class="btn" onclick="markKnown(currentWord().w);toast('已移出复习')">移出复习（S）</button>
         <button class="btn" onclick="endFree()">结束复习</button>
