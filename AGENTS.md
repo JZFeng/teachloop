@@ -1,6 +1,6 @@
 # 本仓库的工作方式（常驻规则）
 
-本项目 **TeachLoop**（公网 AI 教学平台：出卷 → 作答 → 批改 → 复核 → 报告；以后加背单词 + 间隔重复）。GitHub 仓库 `teachloop`，groupId / Java 包根 `com.teachloop`，十个 `teachloop-*` 子模块（`teachloop-vocab` 目前是空骨架）。
+本项目 **TeachLoop**（公网 AI 教学平台：出卷 → 作答 → 批改 → 复核 → 报告；背单词 + 间隔重复已并入，见 `specs/004-vocab`）。GitHub 仓库 `teachloop`，groupId / Java 包根 `com.teachloop`，十个 `teachloop-*` 子模块（`teachloop-vocab` 已实现，含词库导入、词汇集、SRS 复习队列、拼写检查与 AI 内容生成，不再是空骨架）。
 
 本项目的推进顺序**不可跳步**。完整手册见 `.dsh/skills/spec-first-delivery/SKILL.md`。
 
