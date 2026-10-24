@@ -1,5 +1,6 @@
 package com.teachloop.sitting.storage;
 
+import com.teachloop.shared.storage.BlobStore;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -16,10 +17,12 @@ import org.springframework.stereotype.Component;
  *
  * <p>只接受本模块生成的 key（字母、数字、{@code . _ - /}），拒绝 {@code ..} 与绝对路径，
  * 避免把用户可控的文件名拼进路径造成穿越。
+ *
+ * <p>T386：实现 shared 的 {@link BlobStore} 端口；路径校验与落盘行为与改前一致。
  */
 @Component
 @ConditionalOnProperty(name = "teachloop.storage.backend", havingValue = "local", matchIfMissing = true)
-public class LocalStorage implements StorageBackend {
+public class LocalStorage implements BlobStore {
 
     private static final Logger log = LoggerFactory.getLogger(LocalStorage.class);
 
@@ -53,6 +56,11 @@ public class LocalStorage implements StorageBackend {
         } catch (IOException ex) {
             throw new UncheckedIOException("读取附件失败：" + key, ex);
         }
+    }
+
+    @Override
+    public boolean exists(String key) {
+        return Files.isRegularFile(resolve(key));
     }
 
     /** key 只允许本模块生成的形态；任何越界都直接拒绝，不给「用 ../ 读别的文件」留口子。 */

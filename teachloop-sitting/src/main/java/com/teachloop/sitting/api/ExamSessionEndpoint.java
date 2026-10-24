@@ -284,7 +284,7 @@ public class ExamSessionEndpoint {
     /**
      * 文件提交（T061 / AC-6.1 / AC-6.5）：multipart {@code file}，≤ 100 MB，pdf/docx/txt/md。
      *
-     * <p>文件先存 StorageBackend、再复用 {@link ExamSessionService#submitFile} 的会话/截止/
+     * <p>文件先存 BlobStore、再复用 {@link ExamSessionService#submitFile} 的会话/截止/
      * attempts/定稿逻辑；解析失败或无文本层时响应里 {@code unreadable=true}，不进 AI 队列。
      */
     @PostMapping(value = "/submissions/file", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)

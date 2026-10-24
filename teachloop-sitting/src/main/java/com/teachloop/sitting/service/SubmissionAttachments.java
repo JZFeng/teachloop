@@ -1,7 +1,7 @@
 package com.teachloop.sitting.service;
 
 import com.teachloop.shared.error.ApiException;
-import com.teachloop.sitting.storage.StorageBackend;
+import com.teachloop.shared.storage.BlobStore;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.UUID;
@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
- * 文件提交的落库前处理（T061 / T067）：校验 → 提取文本 → 存进 StorageBackend。
+ * 文件提交的落库前处理（T061 / T067）：校验 → 提取文本 → 存进 shared 的 {@link BlobStore}（T386）。
  *
  * <p>key 由本模块生成：{@code submissions/<offeringId>/<uuid>.<ext>}，不含原始文件名，
  * 既避免路径穿越，也不把学生的文件名带进存储路径（下载时再从 {@code attachment_name} 读）。
@@ -20,10 +20,10 @@ public class SubmissionAttachments {
     public record Prepared(String storagePath, String fileName, String mime, String text, boolean unreadable) {
     }
 
-    private final StorageBackend storage;
+    private final BlobStore storage;
     private final SubmissionFileExtractor extractor;
 
-    public SubmissionAttachments(StorageBackend storage, SubmissionFileExtractor extractor) {
+    public SubmissionAttachments(BlobStore storage, SubmissionFileExtractor extractor) {
         this.storage = storage;
         this.extractor = extractor;
     }
@@ -45,7 +45,7 @@ public class SubmissionAttachments {
                 extraction.text(), extraction.unreadable());
     }
 
-    /** T062：视频不提取文本，只校验后落存储；能力与文件附件同一个 StorageBackend。 */
+    /** T062：视频不提取文本，只校验后落存储；能力与文件附件同一个 BlobStore。 */
     public String storeVideo(UUID offeringId, byte[] bytes, String extension, String mime) {
         String key = "submissions/" + offeringId + "/" + UUID.randomUUID() + "." + extension;
         storage.store(key, bytes, mime);
