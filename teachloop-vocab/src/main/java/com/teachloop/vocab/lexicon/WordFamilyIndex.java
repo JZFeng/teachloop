@@ -71,7 +71,7 @@ public class WordFamilyIndex {
                 .limit(maxMembers)
                 .map(member -> new WordFamily.Member(member.form(), member.freq(), member.head()))
                 .toList();
-        return Optional.of(new WordFamily(family.head(), family.band(), family.familyFreq(),
+        return Optional.of(new WordFamily(family.head(), family.id(), family.band(), family.familyFreq(),
                 hit.normalizedForm(), hit.formFreq(), foldedHit, members));
     }
 

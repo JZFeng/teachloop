@@ -37,7 +37,7 @@ teachloop-vocab（第 11 个模块）
 | 表 | 关键字段 | 约束 / 索引 |
 | :--- | :--- | :--- |
 | `vocab_words` | `id uuid`、`user_id`、`language`、`form`、`normalized_form`、`content jsonb`、`content_status`(PENDING/READY/FAILED)、`family_id`、`band`、`removed bool`、`removed_at`、`created_at/updated_at` | `unique(user_id, language, normalized_form)`；`index(user_id, removed)` |
-| `vocab_word_sources` | `word_id`、`kind`(ASSIGNMENT/IMPORT/SELF)、`set_id/assignment_id/class_id/teacher_id` 可空、`created_at` | `index(word_id)`；同一来源只记一次 |
+| `vocab_word_sources` | `word_id`、`kind`(ASSIGNMENT/IMPORT/SELF)、`set_id/assignment_id/class_id/teacher_id` 可空、`label varchar(80)`、`batch_id uuid`（T393，V046）、`created_at` | `index(word_id)`、`index(batch_id)`、`index(label)`；同一批次内同一来源只记一次 |
 | `vocab_progress` | `word_id`(pk)、`user_id`、`state`(NEW/LEARNING/REVIEW/GRADUATED)、`due_at`、`interval_days numeric(8,2)`、`ease numeric(4,2)`、`lapses`、`last_rating`、`reviewed_count`、`updated_at` | pk=`word_id`（一个词只有一份进度）；`index(user_id, due_at)`、`index(user_id, state)` |
 | `vocab_review_logs` | `id bigserial`、`user_id`、`word_id`、`rating`、`reviewed_at`、`elapsed_ms`、`session_id` 可空 | `index(user_id, reviewed_at)`、`index(word_id)` |
 | `vocab_decks` | `id uuid`、`user_id`、`name`、`criteria jsonb`、`position`、`deleted` | `unique(user_id, name) where not deleted` |

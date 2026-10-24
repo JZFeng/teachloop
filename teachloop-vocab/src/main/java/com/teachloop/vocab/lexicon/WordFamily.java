@@ -10,6 +10,7 @@ import java.util.List;
  */
 public record WordFamily(
         String head,
+        long familyId,
         int band,
         long familyFreq,
         String matchedForm,
