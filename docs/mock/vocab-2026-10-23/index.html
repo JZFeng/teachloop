@@ -695,8 +695,8 @@ function screenDetail(){
 
       <div class="card card-pad" style="margin-bottom:12px">
         <div class="between" style="margin-bottom:8px">
-          <div class="sm muted">词族（word family，按词频排序，最多显示 8 个）</div>
-          <span class="sm muted-2">词频来源待定 · §13</span>
+          <div class="sm muted">词族（word family · BNC 词频 · 最多 8 个）</div>
+          <span class="sm muted-2">频段来自本地 BNC 词族表</span>
         </div>
         <div class="wf">
           ${family.map(([f,pos,n])=>`<span class="wfc"><b>${f}</b> <span>${pos} · ${n}</span></span>`).join('')}
