@@ -347,7 +347,7 @@ const S = {
   cols:['def','src','st','next'],   // 除「单词」外的列，顺序即显示顺序
   colPop:false,
   modal:false,
-  popFilters:{src:'all', status:'all', lang:'en'},
+  popFilters:{src:[], deck:'all', status:'all', lang:'en'},
   free:false, freeTotal:0, freeIdx:0, freeKnown:0, freeRated:{again:0,hard:0,good:0,easy:0},
   detail:null, fav:['abandon','accumulate'], paused:[],
   addTab:'paste', setTab:'words', paste: SAMPLE_PASTE, parseDone:false,
@@ -373,7 +373,6 @@ const NAV = {
     { id:'classes', label:'班级', icon:'classes', disabled:true },
     { id:'library', label:'我的词库', icon:'library', screen:'library' },
     { id:'review', label:'今日复习', icon:'review', screen:'review' },
-    { id:'add', label:'加词 / 导入', icon:'upload', screen:'add' },
   ],
   teacher: [
     { id:'home', label:'首页', icon:'home', disabled:true },
@@ -443,79 +442,6 @@ function stateBlock(kind){
 }
 
 /* ---------------- 屏 1：我的词库 ---------------- */
-function screenLibraryLegacy(){
-  const BANNER = `
-  <div class="banner">
-    <div class="ic">${ICONS.inbox}</div>
-    <div style="flex:1;min-width:0">
-      <div style="font-weight:500">王砚秋老师发来「Unit 5 生词」· 28 个词</div>
-      <div class="sm muted">3 天后截止 · 你还没领取，领取后按顺序预习</div>
-    </div>
-    <button class="btn primary sm">查看并加入</button>
-  </div>`;
-  // 空库/出错时横幅仍然可见：新用户第一次进来，这个横幅就是唯一入口
-  if (S.ds!=='data') return BANNER + stateBlock(S.ds);
-  const srcOf = { all:'全部来源', class:'班级发的', import:'导入的', self:'自己加的' };
-  const filtered = WORDS.filter(w=>{
-    if (S.q && !(w.w.includes(S.q.toLowerCase()) || w.def.includes(S.q))) return false;
-    if (S.filter==='class' && !w.src.startsWith('班级')) return false;
-    if (S.filter==='import' && !w.src.startsWith('导入')) return false;
-    if (S.filter==='self' && !w.src.startsWith('自己')) return false;
-    if (S.view==='wrong' && !(w.st==='learn'||w.st==='due')) return false;
-    return true;
-  });
-  const stChip = w => w.st==='due' ? '<span class="chip due">今天到期</span>'
-    : w.st==='new' ? '<span class="chip assess">新词</span>'
-    : w.st==='learn' ? '<span class="chip">学习中</span>'
-    : '<span class="chip ok">已掌握</span>';
-  return BANNER + `
-  <div class="stats">
-    <div class="card stat"><div class="k mono">1,284</div><div class="l">总词数</div></div>
-    <div class="card stat"><div class="k mono" style="color:var(--amber)">46</div><div class="l">今天到期</div></div>
-    <div class="card stat"><div class="k mono">12</div><div class="l">新词（上限 20）</div></div>
-    <div class="card stat"><div class="k mono" style="color:var(--green)">203</div><div class="l">已掌握</div></div>
-  </div>
-
-  <div class="toolbar">
-    <input class="input grow" placeholder="搜索单词或释义" value="${S.q}" oninput="S.q=this.value;render()">
-    <select class="input" onchange="S.filter=this.value;render()">
-      ${['all','class','import','self'].map(k=>`<option value="${k}" ${S.filter===k?'selected':''}>${srcOf[k]}</option>`).join('')}
-    </select>
-    <div class="seg">
-      <button class="${S.view==='all'?'on':''}" onclick="S.view='all';render()">全部 1284</button>
-      <button class="${S.view==='wrong'?'on':''}" onclick="S.view='wrong';render()">易错 46</button>
-      <button onclick="toast('新建卡组视图：选来源、标签、学习状态 → 保存为筛选条件')">+ 卡组视图</button>
-    </div>
-    <div style="flex:1"></div>
-    <button class="btn">${ICONS.upload} 批量导入</button>
-    <button class="btn primary">${ICONS.plus} 加词</button>
-  </div>
-
-  <div class="card">
-    <table>
-      <thead><tr><th style="width:210px">单词</th><th>释义</th><th style="width:150px">来源</th><th style="width:110px">状态</th><th style="width:120px">下次复习</th><th style="width:70px"></th></tr></thead>
-      <tbody>
-        ${filtered.map(w=>`<tr>
-          <td><div class="word">${w.w}</div><div class="ph">${w.ph}</div></td>
-          <td>${w.def}${w.note?`<div class="sm muted-2">笔记：${w.note}</div>`:''}</td>
-          <td><span class="chip ${w.srcType}">${w.src}</span></td>
-          <td>${stChip(w)}</td>
-          <td class="mono sm muted">${w.due}</td>
-          <td><button class="btn ghost sm" title="朗读" onclick="toast('朗读 ${w.w}（TTS 缓存命中 32ms）')">${ICONS.speaker}</button></td>
-        </tr>`).join('')}
-        ${filtered.length===0?`<tr><td colspan="6"><div class="state" style="padding:28px"><h3>没有匹配的词</h3><p>换个关键词，或把来源切回「全部来源」。</p></div></td></tr>`:''}
-      </tbody>
-    </table>
-    <div class="between card-pad" style="border-top:1px solid var(--line-2)">
-      <span class="sm muted">共 ${filtered.length} 条（本页）· 显示前 10 条</span>
-      <div class="row"><button class="btn sm" disabled>上一页</button><button class="btn sm">下一页</button></div>
-    </div>
-  </div>
-  <div class="foot-note">卡组是「保存的筛选条件」，不拥有卡片：同一个词可以同时出现在「易错」和「Unit 5」两个视图里，但只排一次复习。「移出复习」= 不再安排这个词；词仍在库，可随时「重新加入」。</div>`;
-}
-
-/* ---------------- 屏 2：今日复习 ---------------- */
-
 function currentWord(){ return WORDS[(S.free? S.freeIdx : S.idx) % WORDS.length]; }
 function markKnown(word){
   if (!S.known.includes(word)) S.known.push(word);
@@ -542,10 +468,11 @@ function screenLibrary(){
   const known = w => S.known.includes(w) || w.st==='grad';
   let rows = WORDS.filter(w=>{
     if (S.q && !(w.w.includes(S.q.toLowerCase()) || w.def.includes(S.q))) return false;
-    if (S.filter==='class' && !w.src.startsWith('班级')) return false;
-    if (S.filter==='import' && !w.src.startsWith('导入')) return false;
-    if (S.filter==='self' && !w.src.startsWith('自己')) return false;
-    if (S.view==='wrong' && !(w.st==='learn'||w.st==='due')) return false;
+    if (S.popFilters.src.length && !S.popFilters.src.some(k =>
+          (k==='class' && w.src.startsWith('班级')) ||
+          (k==='import' && w.src.startsWith('导入')) ||
+          (k==='self' && w.src.startsWith('自己')))) return false;
+    if (S.popFilters.deck==='wrong' && !(w.st==='learn'||w.st==='due')) return false;
     if (S.card==='due' && w.st!=='due') return false;
     if (S.card==='new' && w.st!=='new') return false;
     if (S.card==='grad' && !known(w) && w.st!=='grad') return false;
@@ -558,6 +485,8 @@ function screenLibrary(){
     return (WORDS.indexOf(a)-WORDS.indexOf(b))*S.sortDir; // next：越靠前越早复习
   });
   const allSel = rows.length>0 && rows.every(w=>S.sel.includes(w.w));
+  // 「复习这些词」= 当前筛选结果里、没有被移出复习的词；不是本页显示的那几行
+  const reviewable = rows.filter(w=>!known(w));
   const COL = { def:'释义', src:'来源', st:'状态', next:'下次复习' };
   const genChip = w => w.gen==='pending' ? '<span class="chip due">内容生成中</span>'
     : w.gen==='failed' ? '<span class="chip" style="background:var(--red-weak);color:var(--red);border-color:transparent">生成失败 · 重试</span>' : '';
@@ -582,16 +511,12 @@ function screenLibrary(){
 
   <div class="toolbar sticky-tool">
     <input class="input grow" placeholder="搜索单词或释义（滚动时保持可见）" value="${S.q}" oninput="S.q=this.value;render()">
-    <button class="btn" onclick="S.modal=true;render()">筛选${S.card?' · 1':''}</button>
+    <button class="btn" onclick="S.modal=true;render()">筛选${filterCount()?' · '+filterCount():''}</button>
     <button class="btn" onclick="S.colPop=!S.colPop;render()">列 ▾</button>
-    <div class="seg">
-      <button class="${S.view==='all'?'on':''}" onclick="S.view='all';render()">全部 1284</button>
-      <button class="${S.view==='wrong'?'on':''}" onclick="S.view='wrong';render()">易错 46</button>
-    </div>
     <div style="flex:1"></div>
-    <button class="btn" onclick="startFree(rows.length)">▶ 复习这些词（${rows.length}）</button>
-    <button class="btn">${ICONS.upload} 导入</button>
-    <button class="btn primary">${ICONS.plus} 加词</button>
+    <button class="btn" onclick="startFree(reviewable.length)" ${reviewable.length?'':'disabled title="当前筛选结果里没有可复习的词"'}>▶ 复习这些词（${reviewable.length}）</button>
+    <button class="btn" onclick="S.addTab='file';S.screen='add';render()">${ICONS.upload} 导入</button>
+    <button class="btn primary" onclick="S.addTab='paste';S.screen='add';render()">${ICONS.plus} 加词</button>
   </div>
 
   ${S.colPop?`<div class="pop">
@@ -634,7 +559,7 @@ function screenLibrary(){
           ${S.cols.filter(c=>c==='next').map(()=>`<td class="mono sm muted">${known(w)?'—':w.due}</td>`).join('')}
           <td>${known(w)?`<button class="btn sm" onclick="unmarkKnown('${w.w}')">重新加入</button>`:`<button class="btn sm" onclick="markKnown('${w.w}');toast('已移出复习；可在词库筛「已移出」找回')">移出复习</button>`}</td>
         </tr>`).join('')}
-        ${rows.length===0?`<tr><td colspan="7"><div class="state" style="padding:28px"><h3>没有匹配的词</h3><p>清掉筛选或换个关键词试试。</p><button class="btn" onclick="S.card=null;S.q='';S.filters=null;S.popFilters={src:'all',status:'all',lang:'en'};render()">清空筛选</button></div></td></tr>`:''}
+        ${rows.length===0?`<tr><td colspan="7"><div class="state" style="padding:28px"><h3>没有匹配的词</h3><p>清掉筛选或换个关键词试试。</p><button class="btn" onclick="S.card=null;S.q='';S.popFilters={src:[],deck:'all',status:'all',lang:'en'};render()">清空筛选</button></div></td></tr>`:''}
       </tbody>
     </table>
     <div class="between card-pad" style="border-top:1px solid var(--line-2)">
@@ -652,10 +577,24 @@ function filterModal(){
     <div class="modal">
       <div class="hd"><b>筛选</b><button class="btn ghost sm" onclick="S.modal=false;render()">关闭</button></div>
       <div class="bd">
-        <div class="field"><label>来源</label>
-          <select class="input" onchange="S.popFilters.src=this.value">
-            <option value="all">全部来源</option><option>班级发的</option><option>导入的</option><option>自己加的</option>
-          </select></div>
+        <div class="field"><label>来源 <span class="muted-2">（可多选）</span></label>
+          <div class="class-pick">
+            ${[['class','班级发的'],['import','导入的'],['self','自己加的']].map(([v,l])=>{
+              const on = S.popFilters.src.includes(v);
+              return `<button class="class-chip ${on?'on':''}"
+                onclick="toggleSrc('${v}')">${on?'✓ ':''}${l}</button>`;
+            }).join('')}
+            <button class="class-chip ${S.popFilters.src.length?'':'on'}"
+              onclick="S.popFilters.src=[];render()">全部来源</button>
+          </div>
+          <div class="sm muted-2" style="margin-top:4px">不选 = 全部来源；选了多个就是并集。</div>
+        </div>
+        <div class="field"><label>卡组视图</label>
+          <div class="class-pick">
+            ${[['all','全部'],['wrong','易错 46'],['u5','Unit 5 28']].map(([v,l])=>
+              `<button class="class-chip ${S.popFilters.deck===v?'on':''}" onclick="S.popFilters.deck='${v}';render()">${l}</button>`).join('')}
+          </div>
+        </div>
         <div class="field"><label>学习状态</label>
           <div class="class-pick">
             ${[['all','全部'],['new','新词'],['due','今天到期'],['learn','学习中'],['grad','已掌握']].map(([v,l])=>
@@ -669,11 +608,13 @@ function filterModal(){
           <div class="sm muted-2" style="margin-top:4px">V1 只有英语；中文与西班牙语是数据结构先留好。</div></div>
         <div class="field"><label>标签</label><input class="input" placeholder="如 高考, 易错"></div>
       </div>
-      <div class="ft"><button class="btn" onclick="S.popFilters={src:'all',status:'all',lang:'en'};render()">重置</button>
+      <div class="ft"><button class="btn" onclick="S.popFilters={src:[],deck:'all',status:'all',lang:'en'};S.card=null;render()">重置</button>
         <button class="btn primary" onclick="S.modal=false;render();toast('筛选已应用（条件写进 URL）')">应用</button></div>
     </div></div>`;
 }
 
+function toggleSrc(v){ const a=S.popFilters.src; S.popFilters.src = a.includes(v)?a.filter(x=>x!==v):[...a,v]; render(); }
+function filterCount(){ let n=0; if(S.popFilters.src.length) n++; if(S.popFilters.deck!=='all') n++; if(S.popFilters.status!=='all') n++; if(S.popFilters.lang!=='en') n++; if(S.card) n++; return n; }
 function toggleSel(w){ S.sel = S.sel.includes(w)?S.sel.filter(x=>x!==w):[...S.sel,w]; render(); }
 function toggleAll(on){ S.sel = on?'':[]; if(on){} render(); }
 function bulkKnown(){ S.known=[...new Set([...S.known,...S.sel])]; toast(`已将 ${S.sel.length} 个词移出复习`); S.sel=[]; render(); }
