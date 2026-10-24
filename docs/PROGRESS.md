@@ -218,3 +218,14 @@
   反馈详情页、`/setup`、跨浏览器；证据与口径见 `specs/006-brand-visual/spec.md` 6.2
 - 其余无未完成任务；已知偏差见 docs/DELIVERY-STATUS.md
 - 已知偏差：PDF 中文非嵌入字体；OSS 仅骨架；解析自动生成（AC-18.5）未做；压测为 stub 引擎
+
+## 背单词（004-vocab，2026-10-24）
+
+- **已完成并合 main**：T387–T413（T400 预生成按决策暂缓）。17+3 张表（V040–V049）、词表索引（28,276 族 / 80,579 形）、
+  导入清洗/拼写三态/异步生成、词库/详情/复习/自由复习/加词导入/词集/发词/预习页、SM-2 两档调度、TTS 缓存+Piper sidecar。
+- **验证**：`make test` **375/0/0/0**（6m22s）+ web 33/33 + 词表脚本 8/8；四守卫全 0；paper/sitting/grading/report diff **0 行**；
+  队列 1 万词 p95 **25ms**；导入 1000 行 681ms、10000 行 5.3s。
+- **开关**：`teachloop.vocab.enabled` 默认 true（`VOCAB_ENABLED=false` 可关）。
+- **未验证/已知偏差**：① T403/T404/T407/预习页浏览器视觉（仅有 T389 导航、T399 详情截图）；② T411 容器内 sidecar `/health`（Piper 模型需网络）；
+  ③ AC-48.9 峰值内存（导入非流式，仅测前后堆差）；④ AC 未逐条勾选；⑤ T400 暂缓。
+  详见 `specs/004-vocab/tasks.md` 执行记录。
