@@ -1,5 +1,6 @@
 package com.teachloop.vocab.importer;
 
+import com.teachloop.vocab.spelling.SpellingChecker;
 import java.util.List;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ImportPreviewEndpoint {
 
     private final DictionaryTextParser parser;
+    private final SpellingChecker spelling;
 
-    public ImportPreviewEndpoint(DictionaryTextParser parser) {
+    public ImportPreviewEndpoint(DictionaryTextParser parser, SpellingChecker spelling) {
         this.parser = parser;
+        this.spelling = spelling;
     }
 
     @PostMapping("/preview")
@@ -31,12 +34,29 @@ public class ImportPreviewEndpoint {
         ParseResult result = parser.parse(
                 request == null ? "" : request.text(),
                 request == null ? null : request.language());
+        List<String> distinct = result.distinctNormalized();
+        boolean spellingChecked = spelling.available();
+        List<SpellingView> spellingViews = spellingChecked
+                ? distinct.stream().map(word -> {
+                    SpellingChecker.SpellingResult check = spelling.check(word);
+                    return new SpellingView(
+                            check.word(),
+                            check.state(),
+                            check.band(),
+                            check.candidates().stream()
+                                    .map(candidate -> new CandidateView(
+                                            candidate.form(), candidate.distance(), candidate.band()))
+                                    .toList());
+                }).toList()
+                : List.of();
         return new PreviewResponse(
                 result.lineCount(),
                 result.tokens().stream()
                         .map(token -> new TokenView(token.raw(), token.lineNumber()))
                         .toList(),
-                result.distinctNormalized(),
+                distinct,
+                spellingChecked,
+                spellingViews,
                 result.skipped().stream()
                         .map(line -> new SkippedView(line.lineNumber(), line.text(), line.reason()))
                         .toList(),
@@ -56,6 +76,8 @@ public class ImportPreviewEndpoint {
             int lineCount,
             List<TokenView> tokens,
             List<String> distinctWords,
+            boolean spellingChecked,
+            List<SpellingView> spelling,
             List<SkippedView> skipped,
             List<PendingView> pending,
             List<CleanupView> cleanups) {
@@ -72,5 +94,13 @@ public class ImportPreviewEndpoint {
 
     /** 第 line 行按 rule 把 before 改成 after；after 为空表示整词丢弃。 */
     public record CleanupView(int line, String rule, String before, String after) {
+    }
+
+    /** 三态：OK 词表命中（band 有值）；SUSPECT 给候选；UNKNOWN 词表外。 */
+    public record SpellingView(String word, SpellingChecker.State state, Integer band,
+                               List<CandidateView> candidates) {
+    }
+
+    public record CandidateView(String form, int distance, int band) {
     }
 }

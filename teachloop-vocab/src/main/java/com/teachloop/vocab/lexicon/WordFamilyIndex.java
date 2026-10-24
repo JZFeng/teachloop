@@ -87,6 +87,17 @@ public class WordFamilyIndex {
         return snapshot.forms().size();
     }
 
+    /** 全部词形（T392 拼写校验只对未命中词做受限扫描时用）。 */
+    public java.util.List<FormRow> allForms() {
+        return snapshot.formList();
+    }
+
+    /** 族所属频段；族不存在返回 -1。 */
+    public int bandOf(long familyId) {
+        FamilyRow family = snapshot.families().get(familyId);
+        return family == null ? -1 : family.band();
+    }
+
     void beginLoading() {
         loadStarted = true;
     }
@@ -123,9 +134,10 @@ public class WordFamilyIndex {
             Map<Long, FamilyRow> families,
             Map<String, FormRow> forms,
             Map<String, FormRow> folded,
-            Map<Long, List<MemberRow>> members) {
+            Map<Long, List<MemberRow>> members,
+            List<FormRow> formList) {
 
-        static final Snapshot EMPTY = new Snapshot(false, Map.of(), Map.of(), Map.of(), Map.of());
+        static final Snapshot EMPTY = new Snapshot(false, Map.of(), Map.of(), Map.of(), Map.of(), List.of());
 
         static Snapshot build(LexiconData data, int maxMembers) {
             Map<Long, FamilyRow> families = new HashMap<>(data.familyCount() * 2);
@@ -155,7 +167,7 @@ public class WordFamilyIndex {
                 }
             }
             return new Snapshot(true, Map.copyOf(families), Map.copyOf(forms),
-                    Map.copyOf(folded), Map.copyOf(members));
+                    Map.copyOf(folded), Map.copyOf(members), List.copyOf(data.forms()));
         }
     }
 }

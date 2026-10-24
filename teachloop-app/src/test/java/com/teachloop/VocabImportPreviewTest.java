@@ -65,6 +65,9 @@ class VocabImportPreviewTest {
         assertThat(body.get("cleanups").toString()).contains("去引号", "去词性标注", "全角标点转半角");
         assertThat(body.get("skipped")).hasSize(1);
         assertThat(body.get("skipped").get(0).get("reason").asString()).contains("标题");
+        // 本测试刻意关闭词表索引（避免每个 app 测试类都装载 4.3MB 词表），因此明确降级：
+        assertThat(body.get("spellingChecked").asBoolean()).isFalse();
+        assertThat(body.get("spelling")).isEmpty();
     }
 
     @Test
