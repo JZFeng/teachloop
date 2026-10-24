@@ -317,7 +317,7 @@ const S = {
   // 第二轮反馈新增
   card:null,            // 统计卡过滤：due | new | grad | null
   sel:[],               // 勾选的词
-  known:[],             // 已标记「已熟悉」的词
+  known:[],             // 已「移出复习」的词
   sort:'next',          // 默认按下次复习升序
   sortDir:1,
   cols:['def','src','st','next'],   // 除「单词」外的列，顺序即显示顺序
@@ -484,7 +484,7 @@ function screenLibraryLegacy(){
       <div class="row"><button class="btn sm" disabled>上一页</button><button class="btn sm">下一页</button></div>
     </div>
   </div>
-  <div class="foot-note">卡组是「保存的筛选条件」，不拥有卡片：同一个词可以同时出现在「易错」和「Unit 5」两个视图里，但只排一次复习。</div>`;
+  <div class="foot-note">卡组是「保存的筛选条件」，不拥有卡片：同一个词可以同时出现在「易错」和「Unit 5」两个视图里，但只排一次复习。「移出复习」= 不再安排这个词；词仍在库，可随时「重新加入」。</div>`;
 }
 
 /* ---------------- 屏 2：今日复习 ---------------- */
@@ -495,6 +495,7 @@ function markKnown(word){
   if (S.free) { S.freeKnown++; S.freeIdx++; }
   render();
 }
+function unmarkKnown(w){ S.known=S.known.filter(x=>x!==w); render(); toast('已重新加入生词本，今天可再次复习'); }
 function endFree(){ S.screen='summary'; render(); }
 function openDetail(w){ S.detail=w; S.screen='detail'; render(); }
 function nextDue(w){ const i = WORDS.indexOf(w); return i; }
@@ -531,7 +532,7 @@ function screenLibrary(){
   });
   const allSel = rows.length>0 && rows.every(w=>S.sel.includes(w.w));
   const COL = { def:'释义', src:'来源', st:'状态', next:'下次复习' };
-  const stChip = w => known(w) ? '<span class="chip ok">已掌握</span>'
+  const stChip = w => known(w) ? '<span class="chip">已移出</span>'
     : w.st==='due' ? '<span class="chip due">今天到期</span>'
     : w.st==='new' ? '<span class="chip assess">新词</span>'
     : w.st==='learn' ? '<span class="chip">学习中</span>'
@@ -544,7 +545,7 @@ function screenLibrary(){
       ['1,284','总词数','',null],
       ['46','今天到期','var(--amber)','due'],
       ['12','新词（上限 20）','','new'],
-      ['203','已掌握','var(--green)','grad']
+      ['203','已移出','var(--green)','grad']
     ].map(([k,l,c,f])=>`<div class="card stat ${f?'clickable':''} ${S.card===f?'on':''}"
       ${f?`onclick="S.card=S.card==='${f}'?null:'${f}';render()"`:''}>
       <div class="k mono" style="${c?`color:${c}`:''}">${k}</div><div class="l">${l}${f?' · 点击过滤':''}</div></div>`).join('')}
@@ -571,12 +572,12 @@ function screenLibrary(){
         <button class="btn ghost sm" onclick="moveCol(${i},-1)">↑</button>
         <button class="btn ghost sm" onclick="moveCol(${i},1)">↓</button></span></div>`).join('')}
     <div class="opt"><input type="checkbox"><span>标签</span></div>
-    <div class="sm muted-2" style="margin-top:6px">默认列：单词 / 释义 / 来源 / 状态 / 下次复习 / 已熟悉</div>
+    <div class="sm muted-2" style="margin-top:6px">默认列：单词 / 释义 / 来源 / 状态 / 下次复习 / 操作</div>
   </div>`:''}
 
   ${S.sel.length?`<div class="batchbar">
     <b>已选 ${S.sel.length} 个</b>
-    <button class="btn sm primary" onclick="bulkKnown()">全部标记「已熟悉」</button>
+    <button class="btn sm primary" onclick="bulkKnown()">批量移出复习</button>
     <button class="btn sm" onclick="S.sel=[];render()">取消选择</button>
     <span class="sm muted">批量操作会先二次确认，提示将影响 N 个词</span>
   </div>`:''}
@@ -590,7 +591,7 @@ function screenLibrary(){
         ${S.cols.filter(c=>c==='src').map(()=>`<th style="width:150px">来源</th>`).join('')}
         ${S.cols.filter(c=>c==='st').map(()=>`<th class="sortable" style="width:110px" onclick="setSort('st')">状态 ${arrow('st')}</th>`).join('')}
         ${S.cols.filter(c=>c==='next').map(()=>`<th class="sortable" style="width:120px" onclick="setSort('next')">下次复习 ${arrow('next')}</th>`).join('')}
-        <th style="width:104px">已熟悉</th>
+        <th style="width:104px">操作</th>
       </tr></thead>
       <tbody>
         ${rows.map(w=>`<tr>
@@ -602,7 +603,7 @@ function screenLibrary(){
           ${S.cols.filter(c=>c==='src').map(()=>`<td><span class="chip ${w.srcType}">${w.src}</span></td>`).join('')}
           ${S.cols.filter(c=>c==='st').map(()=>`<td>${stChip(w)}</td>`).join('')}
           ${S.cols.filter(c=>c==='next').map(()=>`<td class="mono sm muted">${known(w)?'—':w.due}</td>`).join('')}
-          <td>${known(w)?'<span class="sm muted-2">已掌握</span>':`<button class="btn sm" onclick="markKnown('${w.w}');toast('已标为「已熟悉」，不再安排复习')">已熟悉</button>`}</td>
+          <td>${known(w)?`<button class="btn sm" onclick="unmarkKnown('${w.w}')">重新加入</button>`:`<button class="btn sm" onclick="markKnown('${w.w}');toast('已移出复习；可在词库筛「已移出」找回')">移出复习</button>`}</td>
         </tr>`).join('')}
         ${rows.length===0?`<tr><td colspan="7"><div class="state" style="padding:28px"><h3>没有匹配的词</h3><p>清掉筛选或换个关键词试试。</p><button class="btn" onclick="S.card=null;S.q='';S.filters=null;S.popFilters={src:'all',status:'all',lang:'en'};render()">清空筛选</button></div></td></tr>`:''}
       </tbody>
@@ -613,7 +614,7 @@ function screenLibrary(){
     </div>
   </div>
   ${S.modal?filterModal():''}
-  <div class="foot-note">卡组是「保存的筛选条件」，不拥有卡片：同一个词可以同时出现在「易错」和「Unit 5」两个视图里，但只排一次复习。</div>`;
+  <div class="foot-note">卡组是「保存的筛选条件」，不拥有卡片：同一个词可以同时出现在「易错」和「Unit 5」两个视图里，但只排一次复习。「移出复习」= 不再安排这个词；词仍在库，可随时「重新加入」。</div>`;
 }
 
 function filterModal(){
@@ -646,7 +647,7 @@ function filterModal(){
 
 function toggleSel(w){ S.sel = S.sel.includes(w)?S.sel.filter(x=>x!==w):[...S.sel,w]; render(); }
 function toggleAll(on){ S.sel = on?'':[]; if(on){} render(); }
-function bulkKnown(){ S.known=[...new Set([...S.known,...S.sel])]; toast(`已将 ${S.sel.length} 个词标为「已熟悉」`); S.sel=[]; render(); }
+function bulkKnown(){ S.known=[...new Set([...S.known,...S.sel])]; toast(`已将 ${S.sel.length} 个词移出复习`); S.sel=[]; render(); }
 function setSort(k){ if(S.sort===k) S.sortDir=-S.sortDir; else {S.sort=k;S.sortDir=1;} render(); }
 function moveCol(i,d){ const j=i+d; if(j<0||j>=S.cols.length) return; const a=S.cols.slice(); [a[i],a[j]]=[a[j],a[i]]; S.cols=a; render(); }
 function startFree(n){ S.free=true; S.freeTotal=n; S.freeIdx=0; S.freeKnown=0; S.freeRated={again:0,hard:0,good:0,easy:0}; S.flipped=false; S.screen='review'; render(); }
@@ -674,7 +675,7 @@ function screenDetail(){
           </div>
           <div class="row">
             <button class="fav ${isFav?'on':''}" onclick="toggleFav('${w.w}')">${isFav?'★ 已收藏':'☆ 收藏'}</button>
-            <button class="btn" onclick="togglePause('${w.w}')">${paused?'恢复复习':'暂停复习'}</button>
+            <button class="btn" onclick="S.known.includes('${w.w}')?unmarkKnown('${w.w}'):markKnown('${w.w}')">${S.known.includes('${w.w}')?'重新加入':'移出复习'}</button>
           </div>
         </div>
       </div>
@@ -712,8 +713,8 @@ function screenDetail(){
     <aside>
       <div class="card card-pad" style="margin-bottom:12px">
         <div class="sm muted" style="margin-bottom:6px">学习状态</div>
-        <div class="between"><span>状态</span><span>${paused?'已暂停复习':'复习中'}</span></div>
-        <div class="between"><span>下次复习</span><span class="mono">${paused?'—':w.due}</span></div>
+        <div class="between"><span>状态</span><span>${S.known.includes(w.w)?'已移出复习':'复习中'}</span></div>
+        <div class="between"><span>下次复习</span><span class="mono">${S.known.includes(w.w)?'—':w.due}</span></div>
         <div class="between"><span>易度</span><span class="mono">2.50</span></div>
         <div class="between"><span>间隔</span><span class="mono">12 天</span></div>
       </div>
@@ -739,7 +740,7 @@ function screenSummary(){
     <div class="sm muted" style="margin-bottom:18px">未看的词保持原状，下次从第 ${done+1} 个继续</div>
     <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
       <div class="card stat"><div class="k mono">${done}</div><div class="l">看了</div></div>
-      <div class="card stat"><div class="k mono" style="color:var(--green)">${S.freeKnown}</div><div class="l">标为已熟悉</div></div>
+      <div class="card stat"><div class="k mono" style="color:var(--green)">${S.freeKnown}</div><div class="l">移出复习</div></div>
       <div class="card stat"><div class="k mono">${done-S.freeKnown}</div><div class="l">评分过</div></div>
     </div>
     <div class="sm muted" style="margin-bottom:16px">忘记 ${S.freeRated.again} · 困难 ${S.freeRated.hard} · 良好 ${S.freeRated.good} · 容易 ${S.freeRated.easy}</div>
@@ -748,7 +749,7 @@ function screenSummary(){
       <button class="btn primary" onclick="S.free=true;S.screen='review';render()">继续复习剩余</button>
       <button class="btn" onclick="S.free=false;go('review')">去看今日复习</button>
     </div>
-    <div class="sm muted-2" style="margin-top:16px">自由复习不计入「今日复习」完成数；标记「已熟悉」会真实改变该词状态。</div>
+    <div class="sm muted-2" style="margin-top:16px">自由复习不计入「今日复习」完成数；「移出复习」会真实改变该词状态。</div>
   </div>`;
 }
 
@@ -798,9 +799,9 @@ function screenReview(){
         <button class="rate good" ${S.flipped?'':'disabled'} onclick="S.flipped&&rate('good')"><span class="n">良好</span><span class="d">1 天后</span><span class="kbd">3</span></button>
         <button class="rate easy" ${S.flipped?'':'disabled'} onclick="S.flipped&&rate('easy')"><span class="n">容易</span><span class="d">4 天后</span><span class="kbd">4</span></button>
       </div>
-      <div class="hint">翻面后才能评分 · 空格翻面 · 数字键 1–4${S.free?' · S 标记已熟悉':''}</div>
+      <div class="hint">翻面后才能评分 · 空格翻面 · 数字键 1–4${S.free?' · S 移出复习':''}</div>
       ${S.free?`<div class="row" style="justify-content:center;margin-top:8px">
-        <button class="btn" onclick="markKnown(currentWord().w);toast('已标为「已熟悉」')">标记已熟悉（S）</button>
+        <button class="btn" onclick="markKnown(currentWord().w);toast('已移出复习')">移出复习（S）</button>
         <button class="btn" onclick="endFree()">结束复习</button>
       </div>`:''}
     </div>
@@ -970,7 +971,7 @@ document.addEventListener('keydown', e=>{
   if (S.screen!=='review' || S.ds!=='data') return;
   if (e.code==='Space'){ e.preventDefault(); S.flipped=!S.flipped; render(); }
   if (['1','2','3','4'].includes(e.key) && S.flipped) rate({1:'again',2:'hard',3:'good',4:'easy'}[e.key]);
-  if (e.key.toLowerCase()==='s' && S.free) { markKnown(currentWord().w); toast('已标为「已熟悉」'); }
+  if (e.key.toLowerCase()==='s' && S.free) { markKnown(currentWord().w); toast('已移出复习'); }
 });
 /* 支持 #review / #wordset / #assign / #library?ds=empty 深链，方便截图与评审 */
 (function initFromHash(){
