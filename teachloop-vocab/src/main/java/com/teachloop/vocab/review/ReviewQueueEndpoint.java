@@ -116,7 +116,7 @@ public class ReviewQueueEndpoint {
         Instant dayStart = LocalDate.ofInstant(clock.instant(), ZONE).atStartOfDay(ZONE).toInstant();
         Long count = jdbc.queryForObject("""
                 select count(*) from vocab_review_logs
-                 where user_id = ? and reviewed_at >= ?
+                 where user_id = ? and reviewed_at >= ? and session_id is null
                 """, Long.class, userId, Timestamp.from(dayStart));
         return count == null ? 0 : count;
     }
