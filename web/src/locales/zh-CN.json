@@ -1490,7 +1490,21 @@
     },
     "review": {
       "title": "今日复习",
-      "empty": "今天没有要复习的卡。"
+      "empty": "今天没有要复习的卡。",
+      "statsReviewed": "今日已复习",
+      "statsRemaining": "剩余待复习",
+      "statsNew": "本次新卡",
+      "newLimit": "今天的新卡已用完",
+      "ratingHint": "认识 / 不认识决定这个词下次什么时候出现",
+      "front": "正面",
+      "back": "背面",
+      "showAnswer": "点击卡片或按空格看答案",
+      "known": "认识",
+      "unknown": "不认识",
+      "next": "下一个 →",
+      "keys": "空格翻面 · 1 不认识 · 2 认识 · N/→ 下一个",
+      "info": "说明",
+      "goLibrary": "去词库加词"
     },
     "sets": {
       "title": "词集",

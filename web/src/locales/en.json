@@ -1490,7 +1490,21 @@
     },
     "review": {
       "title": "Today's review",
-      "empty": "Nothing due today."
+      "empty": "Nothing due today.",
+      "statsReviewed": "Reviewed today",
+      "statsRemaining": "Remaining",
+      "statsNew": "New cards",
+      "newLimit": "New-card limit reached today",
+      "ratingHint": "Known / Unknown decides when this word comes back",
+      "front": "Front",
+      "back": "Back",
+      "showAnswer": "Click the card or press Space to reveal",
+      "known": "Known",
+      "unknown": "Don't know",
+      "next": "Next →",
+      "keys": "Space flips · 1 don't know · 2 known · N/→ next",
+      "info": "About",
+      "goLibrary": "Go to library"
     },
     "sets": {
       "title": "Word sets",

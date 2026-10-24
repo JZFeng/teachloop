@@ -67,3 +67,43 @@
   flex-direction: column;
   gap: 8px;
 }
+
+/* T403 复习页：卡片居中，评分按钮与卡片同列，「下一个」在列外右侧 */
+.review-stage {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 18px;
+}
+.review-card-column { flex: 1; max-width: 720px; }
+.review-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  min-height: 280px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+}
+.review-card.is-flipped { text-align: left; }
+.review-word { font-size: 34px; font-weight: 750; }
+.review-back { margin-top: 12px; }
+.review-examples { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.review-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 12px;
+}
+.review-actions .ant-btn { min-width: 120px; }
+.review-keys { text-align: center; margin-top: 6px; }
+.review-next { margin-top: 150px; opacity: 0.55; }
+.review-next.is-highlighted { opacity: 1; }
+@media (max-width: 760px) {
+  .review-stage { flex-direction: column; align-items: stretch; }
+  .review-next { margin-top: 0; align-self: flex-end; }
+}

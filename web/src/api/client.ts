@@ -29,8 +29,9 @@ export async function ensureCsrf(): Promise<void> {
   }
 }
 
-async function request<T>(method: string, path: string, body?: unknown): Promise<T> {
-  const headers: Record<string, string> = { ...csrfHeaders() }
+async function request<T>(method: string, path: string, body?: unknown,
+                          extraHeaders?: Record<string, string>): Promise<T> {
+  const headers: Record<string, string> = { ...csrfHeaders(), ...extraHeaders }
   // 后端按 Accept-Language 决定 message 语言；跟着界面语言走，而不是浏览器的语言。
   headers['Accept-Language'] = i18n.language || 'zh-CN'
   if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -58,7 +59,7 @@ async function request<T>(method: string, path: string, body?: unknown): Promise
 
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
-  post: <T>(path: string, body?: unknown) => request<T>('POST', path, body),
+  post: <T>(path: string, body?: unknown, headers?: Record<string, string>) => request<T>('POST', path, body, headers),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   del: <T>(path: string) => request<T>('DELETE', path),
 }
