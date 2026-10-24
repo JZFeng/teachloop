@@ -234,6 +234,15 @@
   .combo-list button:hover { background:var(--panel-2); }
   .class-panel { border:1px solid var(--line); border-radius:var(--radius-sm); padding:10px 12px; max-height:240px; overflow:auto; }
   .cp-group + .cp-group { border-top:1px dashed var(--line-2); margin-top:10px; padding-top:10px; }
+
+  .card-next { position:absolute; right:14px; top:50%; transform:translateY(-50%);
+               display:inline-flex; align-items:center; gap:8px; padding:10px 14px; border-radius:999px;
+               border:1px solid var(--line); background:var(--panel); color:var(--muted); font-size:13px;
+               box-shadow:var(--shadow); opacity:.55; transition:opacity .15s, background .15s; }
+  .card-next:hover { opacity:1; }
+  .card-next.on { opacity:1; background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:500; }
+  .card-next .kbd { font-size:11px; border:1px solid currentColor; border-radius:4px; padding:0 4px; opacity:.8; }
+  @media (max-width:760px) { .card-next { right:50%; transform:translate(50%,0); top:auto; bottom:-18px; } }
 </style>
 </head>
 <body>
@@ -804,7 +813,12 @@ function screenReview(){
         <div class="sm muted" style="margin-top:6px">新词 12 · 到期复习 34 · 今天已复习 12 · 卡组视图：易错 46 / Unit 5 28</div>
         <div class="sm muted-2" style="margin-top:6px">「认识」= 良好（间隔 × 易度），「不认识」= 忘记（5 分钟后重来）；连续 4 次认识且间隔 ≥45 天自动标为已掌握。参数都在 application.yml 里。</div>
       </div>`:''}
-      <div class="card">${S.flipped?back:front}</div>
+      <div style="position:relative">
+        <div class="card">${S.flipped?back:front}</div>
+        <button class="card-next ${(S.flipped||S.rated==='again')?'on':''}" onclick="nextCard()" title="下一个（N / →）">
+          下一个 <span class="kbd">N</span>
+        </button>
+      </div>
       <div class="rates" style="grid-template-columns:repeat(2,1fr)">
         <button class="rate again" ${S.rated?'disabled style="opacity:.45"':''} onclick="rate('again')">
           <span class="n">不认识</span><span class="d">${S.rated==='again'?'已记为不认识':'翻面看答案 · 5 分钟后再来'}</span><span class="kbd">1</span></button>
@@ -813,11 +827,8 @@ function screenReview(){
       </div>
       ${S.rated==='again'?`<div class="card-pad sm" style="margin-top:10px;text-align:center;color:var(--muted)">
         已记为「不认识」，答案已展开；看完点下面「下一个 →」继续</div>`:''}
-      <div class="row" style="justify-content:center;margin-top:12px;gap:10px">
-        <button class="btn sm" ${(S.free?S.freeIdx:S.idx)<=0?'disabled':''} onclick="prevCard()">← 上一个</button>
-        <button class="btn sm" onclick="nextCard()">下一个 →</button>
-      </div>
-      <div class="hint">「认识」直接进入下一个 · 「不认识」自动翻面看答案 · 点卡片也可翻面 · 数字键 1 / 2${S.free?" · S 移出复习":""}</div>
+
+      <div class="hint">「认识」直接下一个 · 「不认识」自动翻面 · 卡片右侧「下一个」或按 N / → 继续 · 数字键 1 / 2${S.free?" · S 移出复习":""}</div>
       ${S.free?`<div class="row" style="justify-content:center;margin-top:8px">
         <button class="btn" onclick="markKnown(currentWord().w);toast('已移出复习')">移出复习（S）</button>
         <button class="btn" onclick="endFree()">结束复习</button>
@@ -1166,6 +1177,7 @@ document.addEventListener('keydown', e=>{
   if (S.screen!=='review' || S.ds!=='data') return;
   if (e.code==='Space'){ e.preventDefault(); S.flipped=!S.flipped; render(); }
   if (e.key==='1'||e.key==='2') rate(e.key==='1'?'again':'good');
+  if (e.key.toLowerCase()==='n' || e.key==='ArrowRight') { e.preventDefault(); nextCard(); }
   if (e.key.toLowerCase()==='s' && S.free) { markKnown(currentWord().w); toast('已移出复习'); }
 });
 /* 支持 #review / #wordset / #assign / #library?ds=empty 深链，方便截图与评审 */
