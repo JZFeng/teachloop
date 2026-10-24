@@ -20,8 +20,8 @@
   作业批改改为教师级偏好：默认固定时间 02:30 Asia/Shanghai（可改时刻/时区/补跑），可切 due-date；
   due-date 过 `due+grace` 后 60 秒扫描派发，不看任何时段。
   管理员表单可「获取可用模型」后勾选多个模型；教师下拉按 provider+model 展开。验证：干净 worktree
-  `./mvnw test` **370/0/0/0**；`AiSetupTest` 覆盖建 provider 两个模型、教师切第二个、学生 403；
-  前端 `tsc`/`build`/33 测试；`check-deps`/`check-boundaries`（27 表）/`check-i18n`（1552 键）/
+  `make test` **391/0/0/0**；`AiSetupTest` 覆盖建 provider 两个模型、教师切第二个、学生 403；
+  前端 `tsc`/`build`/33 测试；`check-deps`/`check-boundaries`（48 表）/`check-i18n`（1552 键）/
   `check-ui` 全过；QA 5174 自带假 OpenAI 服务，`scripts/verify/ai-model-settings.mjs`
   **10/10 PASS**（获取模型→勾两个→保存→教师下拉两个→切换生效），截图 `docs/reports/t386-ai-model-settings/`。
   **未验证**：真实本地模型（Ollama/LM Studio）端到端判分（假服务覆盖了模型发现与选择链路）。
