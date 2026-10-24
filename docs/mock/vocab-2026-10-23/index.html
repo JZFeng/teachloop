@@ -942,12 +942,37 @@ function screenAdd(){
       ${S.parseDone?`
       <div class="card-pad" style="margin-top:14px;border:1px solid var(--line);border-radius:8px">
         <div class="between" style="margin-bottom:8px">
-          <b>预览</b><span class="sm muted">40 条 → 唯一 10 · 重复 30 · 跳过 4 行</span>
+          <b>预览</b>
+          <span class="sm muted">40 条 → 唯一 10 · 重复 30 · 跳过 4 行 · <span style="color:var(--amber)">疑似拼错 1</span></span>
         </div>
-        <div class="wf" style="margin-bottom:12px">
-          ${['apple','brave','clever','dream','eager','fresh','giant','happy','ideal','jolly']
-            .map(w=>`<span class="wfc"><b>${w}</b></span>`).join('')}
+        <div class="between" style="margin-bottom:8px">
+          <span class="sm muted-2">词表命中 8 · 疑似拼错 1 · 词表外 1</span>
+          <button class="btn sm" onclick="toast('全部采用建议：将修改 1 个词（cleever → clever），确认后执行')">全部采用建议（1）</button>
         </div>
+        <table style="margin-bottom:12px">
+          <thead><tr><th style="width:150px">词</th><th style="width:120px">校验</th><th>说明</th><th style="width:150px">操作</th></tr></thead>
+          <tbody>
+            ${[
+              ['apple','ok','词表命中 · 第 1 千词族',''],
+              ['brave','ok','词表命中',''],
+              ['cleever','warn','疑似拼错，最接近 <b>clever</b>（第 2 千词族）',''],
+              ['dream','ok','词表命中',''],
+              ['eager','ok','词表命中',''],
+              ['fresh','ok','词表命中',''],
+              ['giant','ok','词表命中',''],
+              ['happy','ok','词表命中',''],
+              ['ideal','ok','词表命中',''],
+              ['zyzzyva','unknown','词表外（可能是专有名词/生僻词），照常导入',''],
+            ].map(([w,st,note])=>`<tr>
+              <td style="font-weight:500">${w}</td>
+              <td>${st==='ok'?'<span class="chip ok">命中</span>':st==='warn'?'<span class="chip due">疑似拼错</span>':'<span class="chip">词表外</span>'}</td>
+              <td class="sm muted">${note}</td>
+              <td>${st==='warn'?`<button class="btn sm primary" onclick="toast('已改为 clever')">用建议</button>
+                <button class="btn ghost sm" onclick="toast('保留 cleever')">忽略</button>`:''}</td>
+            </tr>`).join('')}
+          </tbody>
+        </table>
+        <div class="sm muted" style="margin-bottom:12px">格式清洗已自动完成：去掉行首序号 4 处、全角逗号 2 处、引号 1 处（逐条见下方「跳过的行」）。</div>
         <div class="sm muted" style="margin-bottom:4px">跳过的行（不会入库）</div>
         <table>
           <thead><tr><th style="width:70px">行号</th><th>原文</th><th style="width:150px">原因</th></tr></thead>
