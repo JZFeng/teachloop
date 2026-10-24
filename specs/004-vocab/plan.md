@@ -1,7 +1,7 @@
 # 实施计划 — 背单词与间隔重复（004-vocab）
 
-- 状态：**初稿，未过 review**（本文件写完后按 6 条清单逐条自检，见 §14）
-- 上游：`spec.md`（US-46–61 / AC-88 / FR-091–114）、`docs/decisions/011-vocab-requirements.md`、`docs/decisions/012-storage-port-and-oss.md`、`docs/research/2026-10-23-vocab-wordlists-feasibility.md`
+- 状态：**已认可（2026-10-23）**；6 条清单自检见 §14，收尾项见 §15
+- 上游：`spec.md`（US-46–61 / AC-100 / FR-091–115）、`docs/decisions/011-vocab-requirements.md`、`docs/decisions/012-storage-port-and-oss.md`、`docs/research/2026-10-23-vocab-wordlists-feasibility.md`
 - 日期：2026-10-23
 - 迁移起点：`V040`（当前最新是 `V039__identity_ai_providers.sql`）
 

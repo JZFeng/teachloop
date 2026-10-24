@@ -524,7 +524,7 @@ function screenLibrary(){
     return (WORDS.indexOf(a)-WORDS.indexOf(b))*S.sortDir; // next：越靠前越早复习
   });
   const allSel = rows.length>0 && rows.every(w=>S.sel.includes(w.w));
-  // 「复习这些词」= 当前筛选结果里、没有被移出复习的词；不是本页显示的那几行
+  // 「复习这些词」= 当前筛选结果里、没有被暂停的词；不是本页显示的那几行
   const reviewable = rows.filter(w=>!known(w));
   const COL = { def:'释义', src:'来源', st:'状态', next:'下次复习' };
   const genChip = w => w.gen==='pending' ? '<span class="chip due">内容生成中</span>'
@@ -613,7 +613,7 @@ function screenLibrary(){
     </div>
   </div>
   ${S.modal?filterModal():''}
-  <div class="foot-note">卡组是「保存的筛选条件」，不拥有卡片：同一个词可以同时出现在「易错」和「Unit 5」两个视图里，但只排一次复习。「移出复习」= 不再安排这个词；词仍在库，可随时「重新加入」。</div>`;
+  <div class="foot-note">卡组是「保存的筛选条件」，不拥有卡片：同一个词可以同时出现在「易错」和「Unit 5」两个视图里，但只排一次复习。「暂停复习」= 不再安排这个词；词仍在库，可随时「恢复」。</div>`;
 }
 
 function filterModal(){
@@ -785,7 +785,7 @@ function screenSummary(){
     <div class="sm muted" style="margin-bottom:18px">未看的词保持原状，下次从第 ${done+1} 个继续</div>
     <div class="stats" style="grid-template-columns:repeat(3,1fr);margin-bottom:16px">
       <div class="card stat"><div class="k mono">${done}</div><div class="l">看了</div></div>
-      <div class="card stat"><div class="k mono" style="color:var(--green)">${S.freeKnown}</div><div class="l">移出复习</div></div>
+      <div class="card stat"><div class="k mono" style="color:var(--green)">${S.freeKnown}</div><div class="l">暂停复习</div></div>
       <div class="card stat"><div class="k mono">${done-S.freeKnown}</div><div class="l">评分过</div></div>
     </div>
     <div class="sm muted" style="margin-bottom:16px">不认识 ${S.freeRated.again} · 认识 ${S.freeRated.good}</div>
@@ -794,7 +794,7 @@ function screenSummary(){
       <button class="btn primary" onclick="S.free=true;S.screen='review';render()">继续复习剩余</button>
       <button class="btn" onclick="S.free=false;go('review')">去看今日复习</button>
     </div>
-    <div class="sm muted-2" style="margin-top:16px">自由复习不计入「今日复习」完成数；「移出复习」会真实改变该词状态。</div>
+    <div class="sm muted-2" style="margin-top:16px">自由复习不计入「今日复习」完成数；「暂停复习」会真实改变该词状态。</div>
   </div>`;
 }
 
@@ -858,7 +858,7 @@ function screenReview(){
 
           <div class="hint">快捷键：1 不认识 · 2 认识 · N 下一个${S.free?" · S 暂停复习":""}</div>
           ${S.free?`<div class="row" style="justify-content:center;margin-top:8px">
-            <button class="btn" onclick="markKnown(currentWord().w);toast('已移出复习')">移出复习（S）</button>
+            <button class="btn" onclick="markKnown(currentWord().w);toast('已暂停复习')">暂停复习（S）</button>
             <button class="btn" onclick="endFree()">结束复习</button>
           </div>`:''}
         </div>
@@ -1220,7 +1220,7 @@ document.addEventListener('keydown', e=>{
   if (e.code==='Space'){ e.preventDefault(); S.flipped=!S.flipped; render(); }
   if (e.key==='1'||e.key==='2') rate(e.key==='1'?'again':'good');
   if (e.key.toLowerCase()==='n' || e.key==='ArrowRight') { e.preventDefault(); nextCard(); }
-  if (e.key.toLowerCase()==='s' && S.free) { markKnown(currentWord().w); toast('已移出复习'); }
+  if (e.key.toLowerCase()==='s' && S.free) { markKnown(currentWord().w); toast('已暂停复习'); }
 });
 /* 支持 #review / #wordset / #assign / #library?ds=empty 深链，方便截图与评审 */
 (function initFromHash(){
