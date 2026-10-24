@@ -1547,7 +1547,19 @@
       "removeHint": "「移除」只把词移出这个词集：不删词条、不影响学生已领的词与复习进度。",
       "savedToast": "已保存",
       "addDone": "已加入 {{added}} 个词，跳过 {{skipped}} 个",
-      "nameRequired": "名称不能为空"
+      "nameRequired": "名称不能为空",
+      "tabSets": "词集",
+      "tabRecords": "发词记录",
+      "recordsEmpty": "还没有发词记录。",
+      "recordSet": "词集",
+      "recordClasses": "班级数",
+      "recordSentAt": "发送时间",
+      "recordDue": "截止",
+      "recordClaimed": "已领 / 收件",
+      "noDue": "无截止",
+      "copyLink": "复制链接",
+      "copyDone": "已复制布置链接",
+      "copyFailed": "复制失败，请手动复制地址栏链接"
     },
     "assign": {
       "title": "发词",

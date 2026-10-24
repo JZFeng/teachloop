@@ -144,6 +144,32 @@ public class VocabularyAssignmentEndpoint {
         return new Created(assignmentId, setWords.size(), uniqueRecipients.size());
     }
 
+    public record AssignmentView(UUID id, UUID setId, String setName, Instant dueAt, Instant createdAt,
+                                 String note, int classCount, int recipientCount, int claimedCount) {
+    }
+
+    /** T409：教师发词记录，按时间倒序；领取情况是实发收件人与 claimed_at 的实时聚合。 */
+    @GetMapping
+    public List<AssignmentView> list(@RequestAttribute("currentUser") CurrentUser me) {
+        requireTeacher(me);
+        return jdbc.query("""
+                select a.id, a.set_id, s.name, a.due_at, a.created_at, a.note,
+                       (select count(*) from vocab_assignment_classes c where c.assignment_id = a.id),
+                       (select count(*) from vocab_assignment_recipients r where r.assignment_id = a.id),
+                       (select count(*) from vocab_assignment_recipients r
+                         where r.assignment_id = a.id and r.claimed_at is not null)
+                  from vocab_assignments a
+                  join vocab_sets s on s.id = a.set_id
+                 where a.teacher_id = ?
+                 order by a.created_at desc
+                """, (rs, rowNumber) -> new AssignmentView(
+                rs.getObject(1, UUID.class), rs.getObject(2, UUID.class), rs.getString(3),
+                rs.getTimestamp(4) == null ? null : rs.getTimestamp(4).toInstant(),
+                rs.getTimestamp(5).toInstant(), rs.getString(6),
+                rs.getInt(7), rs.getInt(8), rs.getInt(9)),
+                me.id());
+    }
+
     @GetMapping("/pending")
     public List<PendingView> pending(@RequestAttribute("currentUser") CurrentUser me) {
         return jdbc.query("""

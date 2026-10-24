@@ -83,6 +83,12 @@ class VocabAssignmentTest {
         assertThat(pending).hasSize(1);
         assertThat(pending.get(0).get("setName").asString()).isEqualTo("发词测试词集");
 
+        JsonNode recordsBefore = get(base, teacher, "/api/vocab/assignments");
+        assertThat(recordsBefore).hasSize(1);
+        assertThat(recordsBefore.get(0).get("setName").asString()).isEqualTo("发词测试词集");
+        assertThat(recordsBefore.get(0).get("recipientCount").asInt()).isEqualTo(1);
+        assertThat(recordsBefore.get(0).get("claimedCount").asInt()).isZero();
+
         // 发送后改词集：不影响已发布置的快照
         post(base, teacher, "/api/vocab/sets/" + setId + "/words", Map.of("words", List.of("gamma")));
         JsonNode claim = post(base, student, "/api/vocab/assignments/" + assignmentId + "/claim", Map.of());
@@ -101,6 +107,9 @@ class VocabAssignmentTest {
         JsonNode again = post(base, student, "/api/vocab/assignments/" + assignmentId + "/claim", Map.of());
         assertThat(again.get("added").asInt()).isZero();
         assertThat(again.get("duplicated").asInt()).isEqualTo(2);
+
+        assertThat(get(base, teacher, "/api/vocab/assignments").get(0).get("claimedCount").asInt())
+                .isEqualTo(1);
 
         // 非本人班级 404；学生发词 403
         HttpResponse<String> notOwned = postRaw(base, teacher, "/api/vocab/assignments", Map.of(

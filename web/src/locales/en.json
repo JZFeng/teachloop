@@ -1547,7 +1547,19 @@
       "removeHint": "\"Remove\" only takes the word out of this set: the word and students' progress are untouched.",
       "savedToast": "Saved",
       "addDone": "Added {{added}}, skipped {{skipped}}",
-      "nameRequired": "Name is required"
+      "nameRequired": "Name is required",
+      "tabSets": "Word sets",
+      "tabRecords": "Sent records",
+      "recordsEmpty": "No assignments sent yet.",
+      "recordSet": "Word set",
+      "recordClasses": "Classes",
+      "recordSentAt": "Sent at",
+      "recordDue": "Due",
+      "recordClaimed": "Claimed / recipients",
+      "noDue": "No due date",
+      "copyLink": "Copy link",
+      "copyDone": "Assignment link copied",
+      "copyFailed": "Copy failed; copy the address bar manually"
     },
     "assign": {
       "title": "Send words",
