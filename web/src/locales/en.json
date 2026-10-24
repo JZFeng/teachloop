@@ -1489,7 +1489,11 @@
       "batchRetry": "Retry selected",
       "reviewThese": "Review these ({{count}})",
       "import": "Import",
-      "addWords": "Add words"
+      "addWords": "Add words",
+      "pendingPrefix": "To preview:",
+      "pendingDue": "due {{date}}",
+      "pendingClaim": "Add to my library",
+      "claimedToast": "Added {{added}} words, {{duplicated}} already in library"
     },
     "review": {
       "title": "Today's review",
@@ -1565,7 +1569,27 @@
     },
     "assign": {
       "title": "Send words",
-      "empty": "No word sets available to send yet."
+      "empty": "No word sets available to send yet.",
+      "chooseSet": "Choose a word set",
+      "searchSet": "Filter word sets",
+      "noSets": "No active word sets",
+      "selectedSet": "Selected: {{name}} ({{words}} words)",
+      "chooseClasses": "Choose classes",
+      "searchClass": "Search classes",
+      "selectAll": "Select all",
+      "clear": "Clear",
+      "selection": "{{classes}} classes · about {{students}} students",
+      "noClasses": "No classes available",
+      "due": "Due time (optional)",
+      "note": "Note (optional, visible to students)",
+      "send": "Send",
+      "info": "About",
+      "infoStudents": "Students see a to-preview banner on the library page and add the words to their own library.",
+      "infoSnapshot": "Sending snapshots the word set; later edits do not affect sent assignments.",
+      "infoRepeat": "Sending the same set again does not duplicate words; claimed words only gain a source.",
+      "setRequired": "Choose a word set first",
+      "classRequired": "Choose at least one class",
+      "sent": "Sent"
     },
     "detail": {
       "phonetic": "Phonetic",

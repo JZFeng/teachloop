@@ -56,6 +56,13 @@ interface Stats {
   paused: number
 }
 
+interface PendingAssignment {
+  id: string
+  setName: string
+  dueAt: string | null
+  note?: string
+}
+
 interface Prefs {
   order?: string[]
   hidden?: string[]
@@ -110,6 +117,7 @@ export default function VocabLibraryPage() {
   const [columnsOpen, setColumnsOpen] = useState(false)
   const [prefs, setPrefs] = useState<Prefs>({ order: DEFAULT_ORDER, hidden: [] })
   const [reviewableCount, setReviewableCount] = useState(0)
+  const [pending, setPending] = useState<PendingAssignment | null>(null)
   const [draft, setDraft] = useState({
     states: [] as string[], sources: [] as string[], tag: '', favorite: false, paused: false, due: false,
   })
@@ -188,6 +196,29 @@ export default function VocabLibraryPage() {
       .catch(() => { if (alive) setReviewableCount(0) })
     return () => { alive = false }
   }, [reviewableQuery, reloadKey])
+
+  useEffect(() => {
+    let alive = true
+    api.get<PendingAssignment[]>('/api/vocab/assignments/pending')
+      .then((value) => { if (alive) setPending(value.length > 0 ? value[0] : null) })
+      .catch(() => { if (alive) setPending(null) })
+    return () => { alive = false }
+  }, [reloadKey])
+
+  const claimPending = async () => {
+    if (!pending) return
+    try {
+      const result = await api.post<{ added: number; duplicated: number }>(
+        `/api/vocab/assignments/${pending.id}/claim`, {})
+      toast.success(t('vocab.library.claimedToast', {
+        added: result.added, duplicated: result.duplicated,
+      }))
+      setPending(null)
+      refresh()
+    } catch (claimError) {
+      toast.error((claimError as Error).message)
+    }
+  }
 
   useEffect(() => {
     let alive = true
@@ -450,6 +481,19 @@ export default function VocabLibraryPage() {
   return (
     <>
       <PageHeader title={t('vocab.library.title')} />
+      {pending && (
+        <div className="vocab-banner">
+          <span>
+            {t('vocab.library.pendingPrefix')} <strong>{pending.setName}</strong>
+            {pending.dueAt ? ` · ${t('vocab.library.pendingDue', {
+              date: new Date(pending.dueAt).toLocaleDateString(),
+            })}` : ''}
+          </span>
+          <Button size="small" variant="primary" onClick={() => void claimPending()}>
+            {t('vocab.library.pendingClaim')}
+          </Button>
+        </div>
+      )}
       {stats && (
         <div className="row" style={{ gap: 12, marginBottom: 12, flexWrap: 'wrap' }}>
           <StatCard value={stats.dueToday} label={t('vocab.library.stats.due')} active={dueFilter}

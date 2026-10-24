@@ -1489,7 +1489,11 @@
       "batchRetry": "批量重试",
       "reviewThese": "复习这些词（{{count}}）",
       "import": "导入",
-      "addWords": "加词"
+      "addWords": "加词",
+      "pendingPrefix": "待预习：",
+      "pendingDue": "{{date}} 截止",
+      "pendingClaim": "加入我的词库",
+      "claimedToast": "已加入 {{added}} 个词，{{duplicated}} 个已在库"
     },
     "review": {
       "title": "今日复习",
@@ -1565,7 +1569,27 @@
     },
     "assign": {
       "title": "发词",
-      "empty": "还没有可发给班级的词集。"
+      "empty": "还没有可发给班级的词集。",
+      "chooseSet": "选择词集",
+      "searchSet": "输入关键词过滤词集",
+      "noSets": "没有启用的词集",
+      "selectedSet": "已选：{{name}}（{{words}} 词）",
+      "chooseClasses": "选择班级",
+      "searchClass": "搜索班级",
+      "selectAll": "全选",
+      "clear": "清空",
+      "selection": "已选 {{classes}} 个班 · 预计 {{students}} 名学生",
+      "noClasses": "没有可选的班级",
+      "due": "截止时间（可选）",
+      "note": "说明（可选，学生可见）",
+      "send": "发送",
+      "info": "说明",
+      "infoStudents": "学生会在词库页看到待预习横幅，加入后进入自己的词库。",
+      "infoSnapshot": "发送时对词集内容做快照，之后改词集不影响已发出的布置。",
+      "infoRepeat": "重复发同一词集不会重复建词；已领取的词只追加来源。",
+      "setRequired": "先选一个词集",
+      "classRequired": "至少选一个班级",
+      "sent": "已发送"
     },
     "detail": {
       "phonetic": "音标",
