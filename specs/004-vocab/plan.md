@@ -127,7 +127,7 @@ lookup(form):
   `SELECT ... WHERE state='QUEUED' AND next_run_at<=now() ORDER BY next_run_at LIMIT n FOR UPDATE SKIP LOCKED`。
 - 生成内容（写入 `content jsonb`）：`senses[]`（词性 + 中英释义）、`examples[]`（英文 + 中文）、`analysis`（构词）、`family[]`（词族，词表命中时以本地为准）、`phonetic {uk, us}`。
 - 幂等：同一词形已 `READY` 不再生成；重复导入不重复入队。
-- 重试：失败指数退避（1min / 5min / 30min），3 次后 `FAILED`；24h 仍失败标「内容缺失」，从队列移除并提醒（AC-48.4）。
+- 重试：失败指数退避（1min / 5min / 30min），3 次后 `FAILED`；24h 仍失败标「内容缺失」，从队列移除并提醒（AC-48.9）。
 - 成本：`teachloop.vocab.generation.{enabled,daily-budget,concurrency,timeout-ms,model}`；超预算暂停入队并告警。
 - 单条超时 60s，超时按失败计；**成功才写库**，不写半成品。
 
