@@ -81,7 +81,7 @@ jobs.state:     QUEUED → RUNNING → SUCCEEDED / FAILED(可回 QUEUED)
 ### 3.1 构建管线
 
 ```
-WORDLIST_DIR（本地，不入库）
+WORDLIST_DIR（本地，不入库；默认 fixtures-local/wordlists/basewords_130，已被 .gitignore 挡住）
    └─ scripts/vocab/build-wordlist-index.py
         ├─ 解析 35 个 txt（兼容 CRLF / Tab / 首尾 token）
         ├─ 产出 lexicon-families.json / lexicon-forms.json（或 TSV）
