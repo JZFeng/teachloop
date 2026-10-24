@@ -1,6 +1,6 @@
 # 阿里云部署（T162）
 
-目标形态：一台 ECS 跑 `docker compose`（app + worker + postgres），或 RDS 承担数据库；对象存储用 OSS（当前代码只有 `StorageBackend` 骨架，OSS 上传需后续补齐）。
+目标形态：一台 ECS 跑 `docker compose`（app + worker + postgres），或 RDS 承担数据库；对象存储用 OSS（T386 起走 S3 兼容协议，`STORAGE_BACKEND=s3`，不再需要阿里云私有 SDK）。
 
 ## 1. 前置
 
@@ -31,6 +31,24 @@ cp .env.example .env
 数据库可选择：
 - **RDS PostgreSQL 16**：`DB_URL=jdbc:postgresql://<rds-host>:5432/teachloop`，把 compose 里的 `db` 服务删掉；worker/app 都指向 RDS。RDS 白名单放 ECS 内网 IP。
 - **容器 Postgres**：保留 compose 的 `db`，数据在 `pgdata` 卷；务必配置每日备份（`pg_dump` 到 OSS）。
+
+对象存储（T386）：OSS 通过 **S3 兼容 API** 接入（AWS SDK v2），换 MinIO / R2 只改配置：
+
+```bash
+STORAGE_BACKEND=s3
+STORAGE_S3_ENDPOINT=https://oss-cn-hangzhou.aliyuncs.com
+STORAGE_S3_REGION=cn-hangzhou
+STORAGE_S3_BUCKET=<私有桶名>
+STORAGE_S3_ACCESS_KEY_ID=<RAM 用户的 AccessKeyId>
+STORAGE_S3_ACCESS_KEY_SECRET=<RAM 用户的 AccessKeySecret>
+STORAGE_S3_PATH_STYLE=false          # OSS 只支持 virtual-hosted 风格，必须 false
+STORAGE_S3_PATH_PREFIX=teachloop/
+```
+
+- 桶保持**私有**；附件下载仍走应用鉴权接口代理读取（后端 `load` 出字节再返回），不暴露桶地址。
+- RAM 用户只给该桶 `oss:PutObject` / `oss:GetObject` / `oss:HeadObject` 的最小权限（按前缀 `teachloop/*` 进一步收窄更好），不要用主账号 AccessKey。
+- 选 `s3` 但缺 `endpoint` / `bucket` / 密钥时**启动即失败**：报错只列缺失的配置项名，不含 AccessKey 或 secret 的值；日志同样不打印密钥。
+- 本地验证不需要阿里云账号：`make oss-dev` 起本地 MinIO（`path-style=true`），`make test-oss` 真上传并读回同样字节。
 
 ## 3. 起服务
 
@@ -77,7 +95,7 @@ TLS 用 certbot（`certbot --nginx -d teachloop.example.com`）或阿里云 SSL 
 ## 5. 备份与恢复
 
 - 每日 `pg_dump`：`docker compose exec -T db pg_dump -U teachloop teachloop | gzip > /backup/teachloop-$(date +%F).sql.gz`，再上传 OSS。
-- `uploads` 卷同样备份（学生附件）。
+- `uploads` 卷同样备份（学生附件）。切到 `STORAGE_BACKEND=s3` 后附件在 OSS 桶里：开启桶版本控制或跨区域复制，或定期 `ossutil cp -r oss://<bucket>/teachloop/ /backup/`。
 - 恢复演练：空库 → `gunzip -c ... | psql` → `app` 重启前先 `flyway` 校验（应用启动会自动 migrate）。
 - `audit_logs` 永不删除；日志/前端事件按 90 天清理（应用内置任务）。
 
@@ -93,10 +111,11 @@ TLS 用 certbot（`certbot --nginx -d teachloop.example.com`）或阿里云 SSL 
 - `TEACHLOOP_SEED_ENABLED=false`；管理员账号用 CLI 创建（T036，待实现）。
 - 反向代理开启 HSTS；Cookie 生产要求 `Secure`（T033 待加固）。
 - 上传目录不要被 Nginx 直接暴露；附件下载必须走鉴权接口。
-- OSS 桶私有 + 签名 URL（T067 骨架，待实现）。
+- OSS 桶私有；附件下载走应用鉴权接口代理读取（后端读字节再返回）。本期不做签名 URL / CDN / 公共读，桶不要开公共读。
 
 ## 8. 已知未完成（部署时注意）
 
-- OSS 上传只有骨架：`STORAGE_BACKEND=oss` 当前运行期返回 503。
+- 附件存储已支持 S3 兼容对象存储（OSS / MinIO），但**不做签名 URL、CDN、分片上传**：下载始终经应用代理，单文件上限 100 MB。
+- 切 `s3` 前先用测试桶跑一次上传/下载；凭据只放环境变量（`.env` 权限 600），不进镜像、不进日志。
 - PDF 中文用内置非嵌入 CJK 字体：视觉正常，复制/检索中文不可用；如需要请嵌入 Noto Sans CJK。
 - 微信登录、管理员 CLI/邀请码、CSRF 加固等任务尚未完成；上线前需补齐。

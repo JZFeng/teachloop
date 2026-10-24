@@ -5,13 +5,28 @@ DB_USER ?= teachloop
 DB_PASSWORD ?= teachloop
 PORT ?= 8010
 
-.PHONY: help status dev build test test-ai run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-test web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status vocab-lexicon vocab-lexicon-test
+# T386：本地 MinIO（S3 兼容）测试环境；容器名与端口独立，不碰 Postgres
+# 注意：MinIO 上游 2025-10 起不再发布免费镜像，Docker Hub 的 minio/minio 已删除（quay.io 也需登录）；
+# 默认用 Chainguard 的公开 MinIO 镜像，仍可用 OSS_MINIO_IMAGE 覆盖成自己的镜像仓库。
+OSS_MINIO_IMAGE ?= cgr.dev/chainguard/minio:latest
+OSS_MINIO_CONTAINER ?= teachloop-minio
+OSS_MINIO_PORT ?= 59000
+OSS_MINIO_CONSOLE_PORT ?= 59001
+OSS_MINIO_USER ?= teachloop
+OSS_MINIO_PASSWORD ?= teachloop-minio-secret
+OSS_TEST_BUCKET ?= teachloop-minio
+OSS_ENV_FILE ?= .envs/oss.env
+
+.PHONY: help status dev build test test-ai test-oss run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-test web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status oss-dev oss-down vocab-lexicon vocab-lexicon-test
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
 	@echo "make build      编译并打包"
 	@echo "make test       跑全部测试（需要 Docker；真机 AI 默认跳过）"
 	@echo "make test-ai    跑 @Tag(\"ai\") 真机 AI 测试（需要 DEEPSEEK_API_KEY）"
+	@echo "make oss-dev    用 Docker 起本地 MinIO（59000/59001），参数写入 .envs/oss.env"
+	@echo "make test-oss   跑 @Tag(\"oss\") 对象存储测试（需 oss-dev 或阿里云 S3 变量）"
+	@echo "make oss-down   停掉本地 MinIO 并清理数据目录"
 	@echo "make run        启动应用（8010）"
 	@echo "make web-install 安装前端依赖（pnpm）"
 	@echo "make web-build  构建前端（等价 cd web && pnpm build）"
@@ -76,6 +91,42 @@ test: check-deps check-boundaries check-i18n check-ui web-test vocab-lexicon-tes
 
 test-ai:
 	@$(MVN) -q -pl teachloop-grading -am -Pai test
+
+test-oss:
+	@if [ -z "$${STORAGE_S3_ENDPOINT:-}" ] && [ -f $(OSS_ENV_FILE) ]; then \
+	  set -a; . ./$(OSS_ENV_FILE); set +a; fi; \
+	 if [ -z "$${STORAGE_S3_ENDPOINT:-}" ]; then \
+	  echo "跳过 test-oss：未设置 STORAGE_S3_ENDPOINT（先 make oss-dev 起 MinIO，或导出阿里云 S3 变量）"; \
+	  exit 0; fi; \
+	 $(MVN) -q -pl teachloop-sitting -am -Poss test
+
+# 起本地 MinIO：独立容器与端口，数据目录在 .envs/minio-data（已 gitignore）
+oss-dev:
+	@mkdir -p .envs/minio-data
+	@docker rm -f $(OSS_MINIO_CONTAINER) >/dev/null 2>&1 || true
+	@docker run -d --name $(OSS_MINIO_CONTAINER) \
+	  -p $(OSS_MINIO_PORT):9000 -p $(OSS_MINIO_CONSOLE_PORT):9001 \
+	  -e MINIO_ROOT_USER=$(OSS_MINIO_USER) -e MINIO_ROOT_PASSWORD=$(OSS_MINIO_PASSWORD) \
+	  -v $(CURDIR)/.envs/minio-data:/data \
+	  $(OSS_MINIO_IMAGE) server /data --console-address ":9001"
+	@for i in 1 2 3 4 5 6 7 8 9 10; do \
+	  curl -fsS http://127.0.0.1:$(OSS_MINIO_PORT)/minio/health/live >/dev/null 2>&1 && break; \
+	  sleep 1; \
+	done
+	@{ echo "STORAGE_S3_ENDPOINT=http://127.0.0.1:$(OSS_MINIO_PORT)"; \
+	   echo "STORAGE_S3_REGION=us-east-1"; \
+	   echo "STORAGE_S3_BUCKET=$(OSS_TEST_BUCKET)"; \
+	   echo "STORAGE_S3_ACCESS_KEY_ID=$(OSS_MINIO_USER)"; \
+	   echo "STORAGE_S3_ACCESS_KEY_SECRET=$(OSS_MINIO_PASSWORD)"; \
+	   echo "STORAGE_S3_PATH_STYLE=true"; \
+	   echo "STORAGE_S3_PATH_PREFIX=teachloop/"; } > $(OSS_ENV_FILE)
+	@echo "MinIO 已启动：S3 http://127.0.0.1:$(OSS_MINIO_PORT)，控制台 http://127.0.0.1:$(OSS_MINIO_CONSOLE_PORT)（账号 $(OSS_MINIO_USER)）"
+	@echo "测试参数写入 $(OSS_ENV_FILE)（已 gitignore）；接着跑 make test-oss"
+
+oss-down:
+	@docker rm -f $(OSS_MINIO_CONTAINER) >/dev/null 2>&1 || true
+	@rm -rf .envs/minio-data $(OSS_ENV_FILE)
+	@echo "MinIO 已停止，数据目录 .envs/minio-data 已清理"
 
 web-install:
 	@cd web && pnpm install --store-dir .pnpm-store

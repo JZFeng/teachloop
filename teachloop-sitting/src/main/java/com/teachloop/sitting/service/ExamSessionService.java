@@ -46,7 +46,7 @@ public class ExamSessionService {
         this.clock = clock;
     }
 
-    /** T061：文件提交落库所需的一切（文件本体已经存进 StorageBackend，这里只带 key 与解析结果）。 */
+    /** T061：文件提交落库所需的一切（文件本体已经存进 BlobStore，这里只带 key 与解析结果）。 */
     public record FileAttachment(String storagePath, String fileName, String mime,
                                  String extractedText, boolean unreadable) {
     }
@@ -235,7 +235,7 @@ public class ExamSessionService {
 
     /**
      * 文件交卷（T061）：复用与文本交卷同一套会话/截止/attempts/定稿逻辑，
-     * 只把作答换成「附件 + 提取出的纯文本」。文件本体已经由调用方存进 StorageBackend。
+     * 只把作答换成「附件 + 提取出的纯文本」。文件本体已经由调用方存进 BlobStore。
      *
      * <p>提取失败或空文本 → {@code unreadable=true}，定稿状态为 SKIPPED（不进 AI 队列），
      * 绝不给 0 分。目标题作答保留自动保存里已写入的客观分，不会被文件提交清掉。
