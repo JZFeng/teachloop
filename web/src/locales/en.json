@@ -1492,7 +1492,7 @@
       "addWords": "Add words",
       "pendingPrefix": "To preview:",
       "pendingDue": "due {{date}}",
-      "pendingClaim": "Add to my library",
+      "pendingClaim": "Preview",
       "claimedToast": "Added {{added}} words, {{duplicated}} already in library"
     },
     "review": {
@@ -1664,6 +1664,17 @@
       "goLibrary": "Go to library",
       "done": "Imported",
       "tooLarge": "File is larger than 20MB"
+    },
+    "assignment": {
+      "due": "Due",
+      "expired": "Expired",
+      "claimed": "Already added",
+      "claim": "Add to my library",
+      "claimedDone": "Added {{added}} words, {{duplicated}} already in library",
+      "word": "Word",
+      "band": "Band",
+      "back": "Back to library",
+      "empty": "This assignment has no words."
     }
   }
 }

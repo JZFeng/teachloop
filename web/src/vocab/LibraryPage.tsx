@@ -489,7 +489,8 @@ export default function VocabLibraryPage() {
               date: new Date(pending.dueAt).toLocaleDateString(),
             })}` : ''}
           </span>
-          <Button size="small" variant="primary" onClick={() => void claimPending()}>
+          <Button size="small" variant="primary"
+            onClick={() => navigate(`/vocab/assignments/${pending.id}`)}>
             {t('vocab.library.pendingClaim')}
           </Button>
         </div>

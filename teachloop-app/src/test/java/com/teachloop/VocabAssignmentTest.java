@@ -79,6 +79,11 @@ class VocabAssignmentTest {
         assertThat(created.get("wordCount").asInt()).isEqualTo(2);
         assertThat(created.get("recipientCount").asInt()).isEqualTo(1);
 
+        JsonNode detail = get(base, student, "/api/vocab/assignments/" + assignmentId);
+        assertThat(detail.get("words")).hasSize(2);
+        assertThat(detail.get("claimed").asBoolean()).isFalse();
+        assertThat(detail.get("expired").asBoolean()).isFalse();
+
         JsonNode pending = get(base, student, "/api/vocab/assignments/pending");
         assertThat(pending).hasSize(1);
         assertThat(pending.get(0).get("setName").asString()).isEqualTo("发词测试词集");
@@ -103,6 +108,9 @@ class VocabAssignmentTest {
         assertThat(jdbc.queryForObject(
                 "select count(*) from vocab_word_sources where kind = 'ASSIGNMENT'", Integer.class))
                 .isEqualTo(2);
+
+        assertThat(get(base, student, "/api/vocab/assignments/" + assignmentId)
+                .get("claimed").asBoolean()).isTrue();
 
         JsonNode again = post(base, student, "/api/vocab/assignments/" + assignmentId + "/claim", Map.of());
         assertThat(again.get("added").asInt()).isZero();

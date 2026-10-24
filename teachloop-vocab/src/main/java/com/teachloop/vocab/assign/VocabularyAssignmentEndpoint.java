@@ -187,6 +187,40 @@ public class VocabularyAssignmentEndpoint {
                 me.id());
     }
 
+    public record PreviewWord(String form, Integer band) {
+    }
+
+    public record StudentDetail(UUID id, String setName, Instant dueAt, String note, boolean expired,
+                                boolean claimed, List<PreviewWord> words) {
+    }
+
+    /** T413 补：学生预习页（逐词预览；过期仍可加入，界面标「已过期」）。 */
+    @GetMapping("/{id}")
+    public StudentDetail detail(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
+        List<Map<String, Object>> rows = jdbc.queryForList("""
+                select s.name, a.due_at, a.note, r.claimed_at
+                  from vocab_assignment_recipients r
+                  join vocab_assignments a on a.id = r.assignment_id
+                  join vocab_sets s on s.id = a.set_id
+                 where r.assignment_id = ? and r.student_id = ?
+                """, id, me.id());
+        if (rows.isEmpty()) {
+            throw ApiException.notFound("assignment not found");
+        }
+        Map<String, Object> row = rows.get(0);
+        Instant dueAt = row.get("due_at") == null ? null
+                : ((java.sql.Timestamp) row.get("due_at")).toInstant();
+        List<PreviewWord> words = jdbc.query("""
+                        select form, band from vocab_assignment_words
+                         where assignment_id = ? order by position
+                        """, (rs, rowNumber) -> new PreviewWord(
+                        rs.getString(1), rs.getObject(2) == null ? null : rs.getInt(2)), id);
+        return new StudentDetail(id, String.valueOf(row.get("name")), dueAt,
+                row.get("note") == null ? null : String.valueOf(row.get("note")),
+                dueAt != null && dueAt.isBefore(clock.instant()),
+                row.get("claimed_at") != null, words);
+    }
+
     @PostMapping("/{id}/claim")
     @Transactional
     public ClaimResult claim(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {

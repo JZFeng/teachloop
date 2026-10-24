@@ -1492,7 +1492,7 @@
       "addWords": "加词",
       "pendingPrefix": "待预习：",
       "pendingDue": "{{date}} 截止",
-      "pendingClaim": "加入我的词库",
+      "pendingClaim": "去预习",
       "claimedToast": "已加入 {{added}} 个词，{{duplicated}} 个已在库"
     },
     "review": {
@@ -1664,6 +1664,17 @@
       "goLibrary": "去词库",
       "done": "已入库",
       "tooLarge": "文件超过 20MB"
+    },
+    "assignment": {
+      "due": "截止",
+      "expired": "已过期",
+      "claimed": "已加入词库",
+      "claim": "加入我的词库",
+      "claimedDone": "已加入 {{added}} 个词，{{duplicated}} 个已在库",
+      "word": "单词",
+      "band": "频段",
+      "back": "返回词库",
+      "empty": "这次布置没有词。"
     }
   }
 }
