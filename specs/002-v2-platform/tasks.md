@@ -23,7 +23,7 @@
 | T204 | **跨模块越界检查**：模块的迁移文件只写自己拥有的表（§3.3 清单）；业务模块不得直接查别人的表；**端口签名只收发 `record`，出现 `@Entity` 即失败**（为拆服务留路，§3.5）；跨模块外键只允许 plan §3.5 清单内那 13 条 | T203、T010 | 故意在 `grading` 迁移里写 `paper_` 表时检查失败；把 `GradingOutcome` 的参数从 `record` 换成 `@Entity` 时检查失败 |
 | T205 | **端口定义**（宪法第十四条 + plan §3.2）：`PaperCatalog`（paper 暴露，只读快照）、`SittingLedger`（sitting 暴露，只读作答）、`GradingOutcome`（grading 暴露）、`NotificationPort`，以及阅卷改工作项状态用的 `GradingWorkQueue`（sitting 暴露）；**端口只收发 `record`，命令类方法必须幂等** | T210、T018 | 端口签名里没有 `@Entity`；阅卷模块代码里不出现 `submissions` 的 Repository；把 `GradingOutcome` 入参换成 `@Entity` 时 T204 失败 |
 | T008 | `web/` 前端工程：Vite + React + TS + i18next 骨架 | T001 | `npm run build` 通过 |
-| T009 | **`Clock` bean**：全项目统一注入 `java.time.Clock`，禁止直接 `now()` | T003 | 可用 `Clock.fixed(...)` 把系统时间钉在任意时刻（宽限期/峰谷/清扫都要用它） |
+| T009 | **`Clock` bean**：全项目统一注入 `java.time.Clock`，禁止直接 `now()` | T003 | 可用 `Clock.fixed(...)` 把系统时间钉在任意时刻（宽限期/清扫/到期派发都要用它） |
 
 ## 阶段 1 — 数据库与迁移
 
@@ -125,7 +125,7 @@
 | T090 | 领取：条件 UPDATE（`pending` → `running`），多 worker 安全；**`gradeSubmission(submissionId)` 与调用来源解耦** | T018 | 并发抢同一行只有一个成功；批改逻辑里不出现"下一个待处理是谁"的查询（便于将来换 MQ） |
 | T091 | 僵尸清扫：启动清扫 + 每 2 分钟定时清扫（阈值 5 分钟） | T090,T009 | 用固定时钟模拟崩溃后任务被重新领取；不重复批在跑的项 |
 | T092 | 到期派发：`@Scheduled` + **数据库条件更新**（`WHERE grading_dispatched_at IS NULL`）幂等；不引入 ShedLock | T091,T009 | 两次并发派发只产生一个 `grading_run`；到点判定用固定时钟 |
-| T093 | 峰谷调度（`peak_aware`）：高峰推迟到空闲起点；**手动派发不受限**；时区 `Asia/Shanghai` | T092,T009 | 用固定时钟测 8:59/9:00/11:59/12:00/13:59/14:00/17:59/18:00 与周末；关闭开关后立即派发 |
+| ~~T093~~ | **作废（决策 014，2026-10-24 撤除峰谷）**：原「峰谷调度（`peak_aware`）：高峰推迟到空闲起点」已删除，到期即派 | T092,T009 | 已由 `autoDispatchIgnoresTimeOfDay` 覆盖：工作日 09:00 / 14:00 也立即派发 |
 | T094 | 进度查询接口 `GET /api/offerings/{id}/progress`（单条聚合 SQL） | T091 | 多实例返回一致；响应 ≤ 200 ms |
 
 ## 阶段 9 — 复核与审计
@@ -529,7 +529,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | :--- | :--- | :--- | :--- |
 | T380 | **全局 provider 列表 + 当前模型**：V039 `ai_providers` 与 `ai_settings.active_provider_id`；`AiProviderService` 增删改查、`POST /models`、`POST /test`、`PUT /api/ai-models/current`；第一个 provider 自动设为当前；空 Key 可用；JDK 客户端空 Key 不发 `Authorization`，Spring AI 用 `local-no-key` 占位；`/setup` 不再强制 Key | — | `AiSetupTest` 覆盖管理员建 provider、教师选当前模型、学生 403；`DeepSeekLlmClientTest`/`SpringAiLlmClientTest`/`AiGradingConfigTest` 全绿 |
 | T381 | **教师级批改偏好**：V037 `teacher_grading_preferences`；`TeacherGradingPreference`/Repository/Service/Endpoint；`GET/PUT /api/profile/grading-preferences`（仅 TEACHER）；默认 02:30 Asia/Shanghai、`catch_up=true`；校验模式/时刻/IANA 时区 | T380 | 端点读写往返；学生 403；非法时刻/时区 400；没有行时返回默认 |
-| T382 | **调度器与按教师派发**：`TeacherGradingScheduler` 每分钟扫描；`dispatchAssignmentsForTeacher`（固定时间，不看 due）与 `dispatchAssignmentsDueForTeacher`（due+grace，不看峰谷）；`last_fixed_run_at` 同日短路；考试仍由 `GradingDispatchJob` 处理；删除全局 `AssignmentGradingJob` 与 `assignment-cron/zone/catch-up` | T381 | `NightlyAssignmentGradingTest` 覆盖固定时间不看 due、同日不重复、due-date 高峰派发、考试不在作业调度、重交队列只留最新 |
+| T382 | **调度器与按教师派发**：`TeacherGradingScheduler` 每分钟扫描；`dispatchAssignmentsForTeacher`（固定时间，不看 due）与 `dispatchAssignmentsDueForTeacher`（due+grace）；`last_fixed_run_at` 同日短路；考试仍由 `GradingDispatchJob` 处理；删除全局 `AssignmentGradingJob` 与 `assignment-cron/zone/catch-up` | T381 | `NightlyAssignmentGradingTest` 覆盖固定时间不看 due、同日不重复、due-date 到期即派、考试不在作业调度、重交队列只留最新 |
 | T383 | **前端 `/profile` 角色分栏 + 教师模型下拉**：学生只看到账号/语言/主题；教师只看到全局模型下拉、当前模型、保存与批改时机（模式、时刻、时区、补跑）；教师页不再出现 provider ID/地址/Key/拉模型；`Shell` 无模型提示改「设置 AI 模型」 | T380,T381 | `tsc --noEmit` 0；`pnpm build` 0；`check-i18n` 中英对齐；`check-ui` 无新增；QA 教师页只渲染下拉 |
 | T384 | **管理员页改成 provider 列表**：`AdminAiPage` 展示已配置 provider、当前标记、设为当前、编辑/删除；表单含 Provider ID/显示名/Base URL/协议（仅 OpenAI）/Key/获取可用模型/保存；`SetupPage` 不强制 Key；文案更新 | T380 | `AiSetupTest` 通过；QA 管理员页显示 provider 列表、表单字段齐全、第一个 provider 自动成为当前 |
 | T385 | **回归与收尾**：`make test`、`check-deps`/`check-boundaries`/`check-i18n`/`check-ui`；spec/plan/tasks/PROGRESS 计数；QA 浏览器验收 `scripts/verify/ai-model-settings.mjs` | T382,T383,T384 | 全绿；计数吻合；浏览器 12/12 PASS，报告写清哪些是接口/界面/端到端验证 |
@@ -555,7 +555,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 - 多租户、LMS 对接、第三方分析服务
 - Elasticsearch（只留 `LogSink` 接口）
 - Server-Sent Events / WebSocket（进度用轮询）
-- 中国法定节假日日历（峰谷调度只按周一至周五时段判断）
+- ~~中国法定节假日日历（峰谷调度只按周一至周五时段判断）~~ 作废：决策 014 已撤除峰谷调度
 
 ---
 
@@ -744,3 +744,4 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | 2026-10-23 | T383 `/profile` 角色分栏 + 教师模型下拉 | 完成 | 学生只看到账号/语言/主题；教师只看到全局模型下拉、当前模型、保存与批改时机（模式/时刻/时区/补跑），不再出现 provider ID/地址/Key/拉模型；`tsc --noEmit` 0、`pnpm build` 0、`pnpm test` 28/28、`check-i18n` 1296 键、`check-ui` 无新增；QA 5174 `scripts/verify/ai-model-settings.mjs` **12/12 PASS**，截图 `docs/reports/t386-ai-model-settings/` |
 | 2026-10-23 | T384 管理员页改成 provider 列表 | 完成 | `AdminAiPage` 展示已配置 provider、当前标记、设为当前、编辑/删除；表单含 Provider ID/显示名/Base URL/协议（仅 OpenAI）/Key/获取模型/保存；`SetupPage` 不强制 Key；`tsc`/`build` 通过；QA 管理员页 12/12 检查通过 |
 | 2026-10-23 | T385 回归与收尾 | 完成（含浏览器验收） | `./mvnw test` 281/0/0/0；`check-deps`/`check-boundaries`（27 表）/`check-i18n`（1296 键）/`check-ui` 通过；前端 `tsc`/`build`/28 测试；四份文档计数与重复编号检查（仅剩已知 AC-27/28、T341 存量）；QA 5174 `scripts/verify/ai-model-settings.mjs` **12/12 PASS**（管理员 provider 列表、表单字段、教师只选模型、学生看不到），截图 `docs/reports/t386-ai-model-settings/`。**未验证**：真实本地模型调用 |
+| 2026-10-24 | 决策 014 撤除峰谷调度 | 完成 | 删除 `GradingPeakHours`、`GradingDispatchPolicy`、`autoDispatch()` 高峰前置判断与 `grading.peak-aware`；考试自动派发改为到点即派，迟到补派发不再被高峰跳过。验证：`GradingDispatchTest` 8/8（含 `autoDispatchIgnoresTimeOfDay`）、`NightlyAssignmentGradingTest` 1/1、`FlowIntegrationTest` 3/3；全仓无 `peak` 代码/配置引用 |

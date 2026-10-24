@@ -752,8 +752,8 @@ AI 不可用、失败或老师想直接判分时，流程不被阻塞。
 - [ ] AC-45.5 **教师级批改时机**：作业的 AI 批改按教师个人偏好执行，作用域是该教师的所有作业；
       模式为 `FIXED_TIME`（默认 02:30 Asia/Shanghai）或 `DUE_DATE`。固定时间可改时刻与时区，
       按教师本地日期每天最多派发一次；`catch_up` 控制错过后是否在启动时补跑。
-      `DUE_DATE` 模式过了 `due_at + grace_hours` 后由 60 秒扫描派发，**不再等待峰谷时段**；
-      峰谷限制只保留给考试（DeepSeek 成本策略），不写死在所有 provider 上。
+      `DUE_DATE` 模式过了 `due_at + grace_hours` 后由 60 秒扫描派发，不退避任何时段；
+      峰谷调度已于 2026-10-24 整体撤除（D-32），考试同样到期即派。
 - [ ] AC-45.6 **隔离与幂等**：一位教师的批改时机不影响另一位教师；同一教师同一本地日期重复扫描
       不重复建 run；考试仍按 `due+grace` 由考试扫描派发，不经过教师偏好。
 - [ ] AC-45.7 **入口可达**：从侧栏「资料」或顶栏资料入口进入 `/profile`；教师在同一页看到
@@ -833,7 +833,7 @@ AI 不可用、失败或老师想直接判分时，流程不被阻塞。
 | FR-087 | 全局 AI provider：管理员维护 Provider ID、显示名、Base URL、OpenAI 兼容协议、可空 Key、`/v1/models` 模型发现与手填；`ai_settings.active_provider_id` 指当前模型（D-30） | US-45 |
 | FR-088 | 角色化资料页：学生只看到账号与偏好；教师只做全局模型下拉选择；管理员在 `/admin/ai` 配 provider；学生接口 403（D-30） | US-45 |
 | FR-089 | 教师级作业批改时机：固定时间（默认 02:30 Asia/Shanghai，可改时刻/时区/补跑）或截止时间；考试不受影响（D-30） | US-45 |
-| FR-090 | due-date 模式按 due+grace 由 60 秒扫描派发，不等待峰谷；峰谷只保留给考试（D-30） | US-45 |
+| FR-090 | due-date 模式按 due+grace 由 60 秒扫描派发，不退避任何时段；考试同样到期即派（D-32） | US-45 |
 ## 5. 非功能需求
 
 | 类别 | 要求 |
@@ -962,7 +962,8 @@ AI 不可用、失败或老师想直接判分时，流程不被阻塞。
 | D-28 | 没有 rubric 的作文怎么判（2026-10-22 用户拍板） | **两块就够：内容 80% + 基础语法与拼写 20%**。题项级/试卷级 rubric 都为空时，按配置 `teachloop.grading.essay-default-rubric.content-percent`（默认 80）合成两项 rubric 并按本题满分拆成 X% / (100−X)%；题目全文进 prompt。比例只留一个旋钮（内容百分比，语法取其余），非法值启动失败；老师写了 rubric 时永远优先 |
 | D-29 | 试卷级 rubric 还要不要（2026-10-23 用户拍板） | **不要了，拿掉**：向导第 4 步不再提供试卷级 rubric 编辑器；考试判分只认题项级 rubric，没有就按 D-28 的默认比例合成（题目全文交给 AI）。`papers.rubric_markdown` 列、`PUT /api/papers/{id}/rubric`、`PaperDetail.rubricMarkdown` 保留兼容但考试不再读取（旧的 `offerings.rubric_markdown` 也忽略）；独立作业仍用布置自带 rubric |
 
-| D-30 | AI 配置与批改时机（2026-10-23 用户拍板，同日按 mock 修订） | **v1 全站一个模型**：管理员在 `/admin/ai` 维护 `ai_providers` 列表（Provider ID、显示名、Base URL、OpenAI 兼容协议、可空 Key、模型发现）；`ai_settings.active_provider_id` 指当前模型；教师在 `/profile` 只从下拉里切换，**切换对全站生效**；v2 才考虑按考试/作业覆盖。学生只看到账号/语言/主题。**批改时机只属于教师个人**：固定时间默认 02:30 Asia/Shanghai、可改时刻/时区/补跑，或切到 due-date；due-date 过了 `due_at + grace_hours` 由 60 秒扫描派发，**不看峰谷**（峰谷只保留给考试/DeepSeek 成本策略）。考试仍按 due+grace 由考试扫描派发 |
+| D-30 | AI 配置与批改时机（2026-10-23 用户拍板，同日按 mock 修订） | **v1 全站一个模型**：管理员在 `/admin/ai` 维护 `ai_providers` 列表（Provider ID、显示名、Base URL、OpenAI 兼容协议、可空 Key、模型发现）；`ai_settings.active_provider_id` 指当前模型；教师在 `/profile` 只从下拉里切换，**切换对全站生效**；v2 才考虑按考试/作业覆盖。学生只看到账号/语言/主题。**批改时机只属于教师个人**：固定时间默认 02:30 Asia/Shanghai、可改时刻/时区/补跑，或切到 due-date；due-date 过了 `due_at + grace_hours` 由 60 秒扫描派发，不看任何时段（峰谷调度已于 2026-10-24 整体撤除，见 D-32）。考试仍按 due+grace 由考试扫描派发 |
+| D-32 | 峰谷调度还要不要（2026-10-24 用户拍板） | **整体撤除**：峰谷是 DeepSeek 一家的分时计价，决策 010 之后 provider 可换，写进调度器不成立；避开高峰是管理员的成本判断，不该由代码替人决定。考试自动派发改为 `due + grace` 到点即派，迟到补派发也不再被高峰跳过；作业仍走教师级批改时机。删 `GradingPeakHours` / `GradingDispatchPolicy` / `grading.peak-aware`。见决策 014 |
 
 ## 10. 规格自检（写代码前核对）
 

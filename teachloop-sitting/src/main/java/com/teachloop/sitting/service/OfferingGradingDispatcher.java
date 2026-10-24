@@ -31,7 +31,7 @@ import org.springframework.transaction.annotation.Transactional;
  * <p>顺序是「先条件更新 → 再建 run → 再入队」，三个动作在同一个事务里：条件更新没有成功就
  * 什么都不做；中途失败整体回滚，不会留下「已标记派发但没有 run / 没有队列」的半成品。
  *
- * <p>自动派发只在空闲时段执行（{@link GradingDispatchPolicy}），手动派发任何时刻都能执行。
+ * <p>自动派发到点即派，不看一天中的时段（决策 014 已删除峰谷调度）；手动派发同样任何时刻都能执行。
  * 派发只负责把 QUEUED 变成 PENDING；真正的批改仍由 worker 领取 PENDING 完成。
  */
 @Service
@@ -42,17 +42,15 @@ public class OfferingGradingDispatcher {
     private final OfferingRepository offerings;
     private final SubmissionRepository submissions;
     private final Ports.GradingDispatch gradingDispatch;
-    private final GradingDispatchPolicy policy;
     private final AuditPort audit;
     private final Clock clock;
 
     public OfferingGradingDispatcher(OfferingRepository offerings, SubmissionRepository submissions,
-                                     Ports.GradingDispatch gradingDispatch, GradingDispatchPolicy policy,
+                                     Ports.GradingDispatch gradingDispatch,
                                      AuditPort audit, Clock clock) {
         this.offerings = offerings;
         this.submissions = submissions;
         this.gradingDispatch = gradingDispatch;
-        this.policy = policy;
         this.audit = audit;
         this.clock = clock;
     }
@@ -72,15 +70,14 @@ public class OfferingGradingDispatcher {
     /**
      * 自动派发（T092）：扫描到期的 PUBLISHED 场次，逐场走条件更新。
      *
-     * @return 本次真正完成首次派发的场次数；高峰时段返回 0（等下一次扫描）
+     * <p>不再按峰谷时段推迟：那个规则是 DeepSeek 一家的分时计价，接别的 provider 就不成立，
+     * 也不该由代码替管理员决定（决策 014）。
+     *
+     * @return 本次真正完成首次派发的场次数
      */
     @Transactional
     public int autoDispatch() {
         Instant now = Instant.now(clock);
-        if (!policy.mayDispatchNow(now)) {
-            log.debug("峰谷调度：{} 处于高峰，自动派发推迟到 {}", now, policy.nextDispatchableAt(now));
-            return 0;
-        }
         List<UUID> due = offerings.findDueForGrading(now);
         int dispatched = 0;
         for (UUID offeringId : due) {
@@ -97,7 +94,7 @@ public class OfferingGradingDispatcher {
     }
 
     /**
-     * 决策 010：某位教师的固定时间批量派发。不看 due、不看峰谷；调用方负责判断“今天是否该跑”。
+     * 决策 010：某位教师的固定时间批量派发。不看 due、不看一天中的时段；调用方负责判断“今天是否该跑”。
      *
      * <p>与自动派发共用同一套幂等：首次派发走条件更新建 run，已派发过的只把新到的 QUEUED
      * 补进同一个 run。只处理该教师名下的作业，不跨教师。
@@ -123,7 +120,7 @@ public class OfferingGradingDispatcher {
 
     /**
      * 决策 010：某位教师的 due-date 模式派发。过了 {@code due_at + grace_hours} 就派，
-     * **不经过峰谷限制**——峰谷是 DeepSeek 的成本策略，不能写死在所有 provider 上。
+     * 不受时段限制（峰谷调度已删除，见决策 014）。
      *
      * @return 本次真正完成首次派发的场次数
      */
@@ -136,13 +133,13 @@ public class OfferingGradingDispatcher {
                 dispatched++;
             }
         }
-        // 已派发场次的迟到提交继续进同一个 run；不受峰谷限制。
+        // 已派发场次的迟到提交继续进同一个 run。
         submissions.enqueueQueuedOfDispatchedByTeacher(teacherId);
         return dispatched;
     }
 
     /**
-     * 手动派发（AC-9.3 / US-20「立即派发」）：不受峰谷限制、不受截止时间限制。
+     * 手动派发（AC-9.3 / US-20「立即派发」）：不受截止时间限制。
      *
      * <p>重复调用是幂等的：已派发的场次返回同一条 run，只把新产生的 QUEUED 提交补进队列。
      */

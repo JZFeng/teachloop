@@ -23,8 +23,7 @@ import org.springframework.stereotype.Component;
  * <ul>
  *   <li>{@link TriggerMode#FIXED_TIME}：到达教师设置的本地时刻后派发该教师所有排队中的作业；
  *       同一本地日期最多跑一次（{@code last_fixed_run_at}）。</li>
- *   <li>{@link TriggerMode#DUE_DATE}：过了 {@code due_at + grace_hours} 就派发，**不看峰谷**；
- *       峰谷限制是 DeepSeek 的成本策略，不能写死在所有 provider 上。</li>
+ *   <li>{@link TriggerMode#DUE_DATE}：过了 {@code due_at + grace_hours} 就派发，不受时段限制。</li>
  * </ul>
  *
  * <p>考试不经过这里：考试仍由 {@link GradingDispatchJob} 按 due+grace 派发。

@@ -43,7 +43,7 @@ public interface OfferingRepository extends JpaRepository<Offering, UUID> {
 
     /**
      * 决策 010：due-date 模式下的作业到期扫描。与考试查询同一条 due+grace 条件，
-     * 但限定作业与教师；不再经过峰谷限制。
+     * 但限定作业与教师。
      */
     @Query(value = "select o.id from offerings o "
             + "where o.status = 'PUBLISHED' and o.kind = 'ASSIGNMENT' "

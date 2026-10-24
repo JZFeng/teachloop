@@ -6,8 +6,6 @@ import com.teachloop.grading.service.GradingWorker;
 import com.teachloop.identity.domain.User;
 import com.teachloop.identity.domain.UserRepository;
 import com.teachloop.identity.domain.UserRole;
-import com.teachloop.sitting.service.GradingDispatchPolicy;
-import com.teachloop.sitting.service.GradingPeakHours;
 import com.teachloop.sitting.domain.OfferingRepository;
 import com.teachloop.sitting.domain.SubmissionRepository;
 import com.teachloop.sitting.service.GradingStaleSweeper;
@@ -22,7 +20,6 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
 import java.util.HashMap;
@@ -55,11 +52,11 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
- * T091–T094 验收：到期派发（含 due+grace 边界）、峰谷调度、关闭开关、并发只产生一条 run、
+ * T091–T094 验收：到期派发（含 due+grace 边界）、到点即派不看时段（决策 014）、并发只产生一条 run、
  * 僵尸清扫、以及 progress 聚合数字。
  *
- * <p>固定可推进时钟：BASE = 2026-11-02T00:00:00Z = 北京时间周一 08:00（空闲时段），
- * 这样 +1h 正好是高峰起点 09:00、+4h 正好是 12:00 空闲起点。
+ * <p>固定可推进时钟：BASE = 2026-11-02T00:00:00Z = 北京时间周一 08:00，
+ * 这样 +1h 正好对齐 09:00、+4h 对齐 12:00，便于断言工作日时刻的行为。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @Testcontainers
@@ -67,7 +64,6 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class GradingDispatchTest {
 
     private static final Instant BASE = Instant.parse("2026-11-02T00:00:00Z");
-    private static final ZoneId SHANGHAI = ZoneId.of("Asia/Shanghai");
     private static final MutableClock CLOCK = new MutableClock(BASE);
 
     @Container
@@ -143,40 +139,6 @@ class GradingDispatchTest {
         student = login("student@teachloop.local");
     }
 
-    // ================= T093：纯函数（8 个时刻 + 周末） =================
-
-    @Test
-    @DisplayName("T093：09:00/12:00/14:00/18:00 是区间边界；周末零延迟；关闭开关后立即派发")
-    void peakHoursBoundaries() {
-        GradingPeakHours hours = new GradingPeakHours();
-
-        assertThat(hours.isDispatchableNow(beijing(2, 8, 59))).as("8:59 空闲").isTrue();
-        assertThat(hours.isDispatchableNow(beijing(2, 9, 0))).as("9:00 高峰").isFalse();
-        assertThat(hours.nextDispatchableAt(beijing(2, 9, 0))).isEqualTo(beijing(2, 12, 0));
-        assertThat(hours.isDispatchableNow(beijing(2, 11, 59))).as("11:59 高峰").isFalse();
-        assertThat(hours.nextDispatchableAt(beijing(2, 11, 59))).isEqualTo(beijing(2, 12, 0));
-        assertThat(hours.isDispatchableNow(beijing(2, 12, 0))).as("12:00 空闲").isTrue();
-        assertThat(hours.isDispatchableNow(beijing(2, 13, 59))).as("13:59 空闲").isTrue();
-        assertThat(hours.isDispatchableNow(beijing(2, 14, 0))).as("14:00 高峰").isFalse();
-        assertThat(hours.nextDispatchableAt(beijing(2, 14, 0))).isEqualTo(beijing(2, 18, 0));
-        assertThat(hours.isDispatchableNow(beijing(2, 17, 59))).as("17:59 高峰").isFalse();
-        assertThat(hours.nextDispatchableAt(beijing(2, 17, 59))).isEqualTo(beijing(2, 18, 0));
-        assertThat(hours.isDispatchableNow(beijing(2, 18, 0))).as("18:00 空闲").isTrue();
-
-        // 周末全天零延迟（2026-11-07 周六 / 11-08 周日）
-        assertThat(hours.isDispatchableNow(beijing(7, 10, 0))).as("周六").isTrue();
-        assertThat(hours.isDispatchableNow(beijing(8, 15, 0))).as("周日").isTrue();
-
-        // 关闭开关：高峰也立即派发
-        GradingDispatchPolicy on = new GradingDispatchPolicy(true);
-        GradingDispatchPolicy off = new GradingDispatchPolicy(false);
-        Instant peak = beijing(2, 9, 0);
-        assertThat(on.mayDispatchNow(peak)).isFalse();
-        assertThat(on.nextDispatchableAt(peak)).isEqualTo(beijing(2, 12, 0));
-        assertThat(off.mayDispatchNow(peak)).isTrue();
-        assertThat(off.nextDispatchableAt(peak)).isEqualTo(peak);
-    }
-
     // ================= T092：due + grace 边界与队列状态流转 =================
 
     @Test
@@ -185,7 +147,7 @@ class GradingDispatchTest {
         String classId = createClass("高一（1）班");
         String invite = classInvite(classId);
         join(student, invite);
-        // due = 09:00 北京（BASE+1h），grace 3h → 派发点 12:00 北京（BASE+4h，空闲时段）
+        // due = 09:00 北京（BASE+1h），grace 3h → 派发点 12:00 北京（BASE+4h）
         String offeringId = createExamOffering(classId,
                 BASE.plus(Duration.ofHours(1)).toString(), 3);
         String submissionId = submitAs(student, offeringId).get("submissionId").toString();
@@ -417,61 +379,35 @@ class GradingDispatchTest {
         assertThat(((Number) afterFailed.get("running")).longValue()).isZero();
     }
 
-    // ================= T093：自动派发推迟、手动派发不受限 =================
+    // ================= 决策 014：到点即派，不看一天中的时段 =================
 
     @Test
-    @DisplayName("T093：高峰时段自动派发推迟到空闲起点；手动派发随时可执行")
-    void peakDefersAutomaticButNotManualDispatch() throws Exception {
+    @DisplayName("决策 014：到期自动派发不再等空闲时段——工作日 09:00 / 14:00 都立即派发")
+    void autoDispatchIgnoresTimeOfDay() throws Exception {
         String classId = createClass("高一（5）班");
         String invite = classInvite(classId);
         join(student, invite);
 
-        // 场次 A：due 08:00 + grace 1h = 09:00（高峰）→ 自动推迟，手动立即派发
-        String manual = createOffering(classId, BASE.toString(), 1);
+        // 场次 A：due 08:00 + grace 1h = 09:00 北京（旧规则里的高峰起点）→ 现在立即派发
+        String morning = createExamOffering(classId, BASE.toString(), 1);
         CLOCK.set(BASE.plus(Duration.ofHours(1)));
-        assertThat(dispatcher.autoDispatch()).isZero();
-        assertThat(gradingDispatchedAt(manual)).isNull();
-        OfferingGradingDispatcher.DispatchResult manualResult =
-                dispatcher.dispatchNow(UUID.fromString(manual), null);
-        assertThat(manualResult.firstDispatch()).isTrue();
-        assertThat(gradingDispatchedAt(manual)).isNotNull();
+        assertThat(dispatcher.autoDispatch()).as("09:00 也立即派发").isEqualTo(1);
+        assertThat(gradingDispatchedAt(morning)).isEqualTo(BASE.plus(Duration.ofHours(1)));
 
-        // 场次 B：due 08:00 + grace 3h = 11:00（仍高峰）→ 12:00 空闲起点才自动派发
-        String deferred = createExamOffering(classId, BASE.toString(), 3);
-        assertThat(dispatcher.autoDispatch()).as("09:00 高峰").isZero();
-        assertThat(gradingDispatchedAt(deferred)).isNull();
-        assertThat(dispatcher.autoDispatch()).as("11:00 仍高峰").isZero();
-        assertThat(gradingDispatchedAt(deferred)).isNull();
+        // 场次 B：due 13:00 + grace 1h = 14:00 北京（旧规则的另一个高峰起点）→ 同样立即派发
+        String afternoon = createExamOffering(classId, BASE.plus(Duration.ofHours(5)).toString(), 1);
+        CLOCK.set(BASE.plus(Duration.ofHours(6)));
+        assertThat(dispatcher.autoDispatch()).as("14:00 也立即派发").isEqualTo(1);
+        assertThat(gradingDispatchedAt(afternoon)).isEqualTo(BASE.plus(Duration.ofHours(6)));
 
-        CLOCK.set(BASE.plus(Duration.ofHours(4))); // 12:00 空闲
-        assertThat(dispatcher.autoDispatch()).isEqualTo(1);
-        assertThat(gradingDispatchedAt(deferred)).isEqualTo(BASE.plus(Duration.ofHours(4)));
-    }
-
-    @Test
-    @DisplayName("T093：关闭 peak-aware 后，高峰时段的自动派发也立即执行")
-    void peakAwareOffDispatchesImmediately() throws Exception {
-        String classId = createClass("高一（6）班");
-        String invite = classInvite(classId);
-        join(student, invite);
-        // due 08:00 + grace 1h = 09:00（高峰时段）
-        String offeringId = createExamOffering(classId, BASE.toString(), 1);
-        CLOCK.set(BASE.plus(Duration.ofHours(1)));
-
-        // 用 peak-aware=false 的策略直接构造一个 dispatcher：自动派发不再等待空闲时段
-        OfferingGradingDispatcher noPeak = new OfferingGradingDispatcher(offeringRepository,
-                submissionRepository, gradingDispatchPort, new GradingDispatchPolicy(false), auditPort, CLOCK);
-        Integer dispatched = transactionTemplate.execute(status -> noPeak.autoDispatch());
-
-        assertThat(dispatched).isEqualTo(1);
-        assertThat(gradingDispatchedAt(offeringId)).isEqualTo(BASE.plus(Duration.ofHours(1)));
+        // 手动派发随时可用，且对已派发场次仍是幂等的
+        OfferingGradingDispatcher.DispatchResult manual =
+                dispatcher.dispatchNow(UUID.fromString(morning), null);
+        assertThat(manual.firstDispatch()).isFalse();
+        assertThat(runCount(morning)).isEqualTo(1);
     }
 
     // ================= fixtures / helpers =================
-
-    private Instant beijing(int dayOfMonth, int hour, int minute) {
-        return LocalDateTime.of(2026, 11, dayOfMonth, hour, minute).atZone(SHANGHAI).toInstant();
-    }
 
     private String createClass(String name) throws Exception {
         return post("/api/classes", Map.of("name", name), "id");
@@ -492,7 +428,7 @@ class GradingDispatchTest {
     }
 
     /**
-     * 考试场次（决策 003 之后到期派发与峰谷调度只服务 EXAM）：
+     * 考试场次（决策 003 之后到期派发只服务 EXAM）：
      * 建一份只有 1 道作文题的试卷并发布，再按 paperId 布置。
      */
     private String createExamOffering(String classId, String dueAt, int graceHours) throws Exception {

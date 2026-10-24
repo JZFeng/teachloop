@@ -307,7 +307,7 @@ public class OfferingEndpoint {
 
     /**
      * 手动派发（AC-9.3 / US-20「立即派发」）：教师/管理员可用，学生 403。
-     * 与自动派发共用条件更新互斥，但不看峰谷时段。
+     * 与自动派发共用条件更新互斥，任何时刻都能执行。
      */
     @PostMapping("/{id}/grading/dispatch")
     public SittingDtos.GradingDispatchView dispatchGrading(@PathVariable UUID id,

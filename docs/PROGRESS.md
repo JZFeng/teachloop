@@ -18,12 +18,18 @@
   OpenAI 兼容协议、可空 Key、`/v1/models` 模型发现），第一个 provider 自动成为当前模型；
   教师在 `/profile` 只从一个下拉里选当前模型，**切换对全站生效**；学生只看到账号/语言/主题。
   作业批改改为教师级偏好：默认固定时间 02:30 Asia/Shanghai（可改时刻/时区/补跑），可切 due-date；
-  due-date 过 `due+grace` 后 60 秒扫描派发，**不看峰谷**（峰谷只保留给考试）。
+  due-date 过 `due+grace` 后 60 秒扫描派发，不看任何时段。
   验证：`./mvnw test` 281/0/0/0；`AiSetupTest` 覆盖管理员建 provider、教师切全局模型、学生 403；
   前端 `tsc`/`build`/28 测试；`check-deps`/`check-boundaries`（27 表）/`check-i18n`（1296 键）/
   `check-ui` 全过；QA 5174 浏览器 `scripts/verify/ai-model-settings.mjs` **12/12 PASS**，
   截图 `docs/reports/t386-ai-model-settings/`。**未验证**：真实本地模型（Ollama/LM Studio）端到端判分
   （provider 表单与全局切换已验证，实际模型调用未起服务）。
+
+- 已改口径：**决策 014 撤除峰谷调度**（2026-10-24）。峰谷是 DeepSeek 一家的分时计价，provider 可换后不成立；
+  避开高峰是管理员的成本判断，不该由代码替人决定。删除 `GradingPeakHours` / `GradingDispatchPolicy` /
+  `autoDispatch()` 高峰前置判断 / `grading.peak-aware`，考试到期即派、迟到补派发不再被高峰跳过。
+  验证：`GradingDispatchTest` 8/8（含 `autoDispatchIgnoresTimeOfDay`）、`NightlyAssignmentGradingTest` 1/1、
+  `FlowIntegrationTest` 3/3。
 
 - 已改口径：**T371 首页/班级上色，报表改靛蓝**（2026-10-23，**推翻 T358 的「中性导航」结论**）。
   用户先说首页、班级「太素」，选定海军蓝 + 淡紫；随后说报表的玫红在暗色下像出错，从七种候选里选了靛蓝。
