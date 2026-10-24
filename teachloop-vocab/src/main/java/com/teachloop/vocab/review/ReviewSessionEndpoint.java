@@ -171,6 +171,24 @@ public class ReviewSessionEndpoint {
         return new AdvanceResult(cursor, session.total(), cursor >= ids.size());
     }
 
+    /** 「继续复习剩余词」：用同一份范围快照再开一个会话，从上次 cursor 继续。 */
+    @PostMapping("/{id}/continue")
+    public SessionView continueSession(@PathVariable UUID id,
+                                       @RequestAttribute("currentUser") CurrentUser me) {
+        SessionRow session = requireSession(id, me.id());
+        List<UUID> ids = wordIds(session.scopeJson());
+        UUID newId = UUID.randomUUID();
+        Instant now = clock.instant();
+        jdbc.update("""
+                insert into vocab_review_sessions
+                    (id, user_id, scope, total, cursor, known_count, paused_count, status,
+                     started_at, updated_at)
+                values (?, ?, cast(? as jsonb), ?, ?, 0, 0, 'ACTIVE', ?, ?)
+                """, newId, me.id(), session.scopeJson(), session.total(), session.cursor(),
+                Timestamp.from(now), Timestamp.from(now));
+        return new SessionView(newId, session.total(), session.cursor(), session.cursor(), null);
+    }
+
     @PostMapping("/{id}/end")
     public Summary end(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
         SessionRow session = requireSession(id, me.id());

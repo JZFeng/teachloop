@@ -1486,7 +1486,8 @@
       "contentFailed": "内容生成失败",
       "retry": "重试",
       "retryDone": "已重新入队，稍后自动刷新",
-      "batchRetry": "批量重试"
+      "batchRetry": "批量重试",
+      "reviewThese": "复习这些词（{{count}}）"
     },
     "review": {
       "title": "今日复习",
@@ -1543,6 +1544,24 @@
       "feedbackSubmit": "提交",
       "feedbackThanks": "已收到反馈，谢谢",
       "noContent": "内容生成中，稍后自动刷新"
+    },
+    "freeReview": {
+      "title": "自由复习",
+      "lastSeen": "上次看到第 {{cursor}} / {{total}}",
+      "empty": "这组词里没有可复习的词。",
+      "end": "结束复习",
+      "endTitle": "结束这次复习？",
+      "endBody": "未看的词保持原状态不变；已评分的按规则推进。",
+      "pause": "暂停复习",
+      "keys": "空格翻面 · 1 不认识 · 2 认识 · S 暂停这个词",
+      "summaryTitle": "复习小结",
+      "summarySeen": "本次看了 {{count}} 个",
+      "summaryKnown": "认识 {{count}}",
+      "summaryUnknown": "不认识 {{count}}",
+      "summaryPaused": "暂停 {{count}}",
+      "backToLibrary": "返回词库",
+      "continue": "继续复习剩余词",
+      "backToToday": "去看今日复习"
     }
   }
 }

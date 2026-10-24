@@ -107,3 +107,5 @@
   .review-stage { flex-direction: column; align-items: stretch; }
   .review-next { margin-top: 0; align-self: flex-end; }
 }
+
+.free-review-summary { padding: 20px; }

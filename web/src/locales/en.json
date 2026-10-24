@@ -1486,7 +1486,8 @@
       "contentFailed": "Generation failed",
       "retry": "Retry",
       "retryDone": "Queued again; this list refreshes automatically",
-      "batchRetry": "Retry selected"
+      "batchRetry": "Retry selected",
+      "reviewThese": "Review these ({{count}})"
     },
     "review": {
       "title": "Today's review",
@@ -1543,6 +1544,24 @@
       "feedbackSubmit": "Submit",
       "feedbackThanks": "Thanks, your feedback was recorded",
       "noContent": "Content is being generated; this page refreshes shortly"
+    },
+    "freeReview": {
+      "title": "Free review",
+      "lastSeen": "Last seen at {{cursor}} / {{total}}",
+      "empty": "No reviewable words in this range.",
+      "end": "End review",
+      "endTitle": "End this review?",
+      "endBody": "Unseen words keep their state; rated words advance as usual.",
+      "pause": "Pause this word",
+      "keys": "Space flips · 1 don't know · 2 known · S pause this word",
+      "summaryTitle": "Review summary",
+      "summarySeen": "Seen {{count}}",
+      "summaryKnown": "Known {{count}}",
+      "summaryUnknown": "Unknown {{count}}",
+      "summaryPaused": "Paused {{count}}",
+      "backToLibrary": "Back to library",
+      "continue": "Continue remaining",
+      "backToToday": "Go to today's review"
     }
   }
 }

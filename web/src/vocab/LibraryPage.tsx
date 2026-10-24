@@ -109,6 +109,7 @@ export default function VocabLibraryPage() {
   const [filterOpen, setFilterOpen] = useState(false)
   const [columnsOpen, setColumnsOpen] = useState(false)
   const [prefs, setPrefs] = useState<Prefs>({ order: DEFAULT_ORDER, hidden: [] })
+  const [reviewableCount, setReviewableCount] = useState(0)
   const [draft, setDraft] = useState({
     states: [] as string[], sources: [] as string[], tag: '', favorite: false, paused: false, due: false,
   })
@@ -165,6 +166,28 @@ export default function VocabLibraryPage() {
       .catch(() => { if (alive) setSources([]) })
     return () => { alive = false }
   }, [])
+
+  const reviewableQuery = useMemo(() => {
+    const query = new URLSearchParams()
+    if (q) query.set('q', q)
+    states.forEach((state) => query.append('state', state))
+    sourceFilters.forEach((source) => query.append('source', source))
+    if (favorite) query.set('favorite', 'true')
+    if (dueFilter) query.set('due', 'true')
+    if (tagFilter) query.set('tag', tagFilter)
+    query.set('paused', 'false')
+    query.set('size', '20')
+    query.set('page', '1')
+    return query.toString()
+  }, [q, states.join(','), sourceFilters.join(','), favorite, dueFilter, tagFilter])
+
+  useEffect(() => {
+    let alive = true
+    api.get<WordPage>(`/api/vocab/words?${reviewableQuery}`)
+      .then((value) => { if (alive) setReviewableCount(value.total) })
+      .catch(() => { if (alive) setReviewableCount(0) })
+    return () => { alive = false }
+  }, [reviewableQuery, reloadKey])
 
   useEffect(() => {
     let alive = true
@@ -261,6 +284,24 @@ export default function VocabLibraryPage() {
     await api.post(`/api/vocab/words/${word.id}/resume`)
     toast.success(t('vocab.library.resumedToast', { word: word.form }))
     refresh()
+  }
+
+  const startFreeReview = async () => {
+    const ids: string[] = []
+    let pageNumber = 1
+    while (ids.length < Math.min(reviewableCount, 1000)) {
+      const value = await api.get<WordPage>(`/api/vocab/words?${reviewableQuery}&size=100&page=${pageNumber}`)
+      value.items.forEach((item) => ids.push(item.id))
+      if (value.items.length === 0 || ids.length >= value.total) break
+      pageNumber++
+    }
+    if (ids.length === 0) {
+      toast.info(t('vocab.freeReview.empty'))
+      return
+    }
+    const session = await api.post<{ id: string }>('/api/vocab/review-sessions',
+      { wordIds: ids.slice(0, 1000), fromStart: false })
+    navigate(`/vocab/review/session/${session.id}`)
   }
 
   const retryContent = async (ids: string[]) => {
@@ -444,6 +485,9 @@ export default function VocabLibraryPage() {
         </Button>
         <Button onClick={() => setColumnsOpen(true)}>{t('vocab.library.columns')}</Button>
         <Button onClick={clearFilters}>{t('vocab.library.clear')}</Button>
+        <Button variant="primary" disabled={reviewableCount === 0} onClick={() => void startFreeReview()}>
+          {t('vocab.library.reviewThese', { count: reviewableCount })}
+        </Button>
       </div>
 
       {selected.size > 0 && (
