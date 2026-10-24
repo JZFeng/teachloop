@@ -13,6 +13,7 @@ import VocabLibraryPage from './vocab/LibraryPage'
 import VocabReviewPage from './vocab/ReviewPage'
 import VocabSetsPage from './vocab/SetsPage'
 import VocabAssignPage from './vocab/AssignPage'
+import VocabWordDetailPage from './vocab/WordDetailPage'
 import LoginPage from './app/LoginPage'
 import NotificationsPage from './app/NotificationsPage'
 import ProfilePage from './app/ProfilePage'
@@ -102,6 +103,7 @@ export default function App() {
               <Route path="vocab/review" element={<VocabReviewPage />} />
               <Route path="vocab/sets" element={<VocabSetsPage />} />
               <Route path="vocab/assign" element={<VocabAssignPage />} />
+              <Route path="vocab/words/by-form/:form" element={<VocabWordDetailPage />} />
             </>
           )}
           <Route path="papers" element={<PapersPage />} />

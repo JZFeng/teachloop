@@ -53,3 +53,17 @@
 .vocab-col-row .grow { flex: 1; }
 .vocab-filter-group { margin-bottom: 12px; }
 .vocab-filter-group .row { flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+
+.vocab-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 12px;
+}
+.vocab-detail-grid .card h3 { margin-top: 0; }
+.vocab-sense {
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}

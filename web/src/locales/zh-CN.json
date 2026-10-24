@@ -1494,6 +1494,36 @@
     "assign": {
       "title": "发词",
       "empty": "还没有可发给班级的词集。"
+    },
+    "detail": {
+      "phonetic": "音标",
+      "phoneticUk": "英",
+      "phoneticUs": "美",
+      "senses": "释义",
+      "examples": "例句",
+      "analysis": "构词分析",
+      "family": "词族（word family）",
+      "familyBand": "BNC 第 {{band}} 千词族",
+      "familySupplement": "补充词表",
+      "familyFrequency": "族频次 {{freq}}",
+      "familyMissing": "词族待补全（本地词表未命中）",
+      "meta": "来源与状态",
+      "nextReview": "下次复习",
+      "notInLibraryHint": "这个词还不在你的词库。加入后今天就能复习。",
+      "notFound": "没有找到这个词。",
+      "addToLibrary": "＋ 加入词库",
+      "addedToast": "已加入词库：{{word}}",
+      "alreadyToast": "已在词库，没有重复新建",
+      "pausedToast": "已暂停 {{word}}",
+      "resumedToast": "已恢复 {{word}}（回到新词）",
+      "resumeTitle": "恢复复习？",
+      "resumeBody": "{{word}} 会回到新词、今天可复习；历史复习记录保留。",
+      "feedback": "反馈",
+      "feedbackTitle": "反馈这个词",
+      "feedbackPlaceholder": "哪里不对？例如释义、例句或音标。",
+      "feedbackSubmit": "提交",
+      "feedbackThanks": "已收到反馈，谢谢",
+      "noContent": "内容生成中，稍后自动刷新"
     }
   }
 }

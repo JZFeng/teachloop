@@ -209,6 +209,54 @@ public class VocabWordRepository {
                 userId, language);
     }
 
+    public record WordDetailRow(UUID id, String form, String language, String contentJson,
+                                String contentStatus, boolean favorite, String tagsJson,
+                                boolean paused, String state, Instant dueAt, java.math.BigDecimal intervalDays,
+                                java.math.BigDecimal ease) {
+    }
+
+    public Optional<WordDetailRow> detail(UUID userId, String language, String normalizedForm) {
+        List<WordDetailRow> rows = jdbc.query("""
+                select w.id, w.form, w.language, cast(w.content as text), w.content_status,
+                       w.favorite, cast(w.tags as text), w.removed, p.state, p.due_at,
+                       p.interval_days, p.ease
+                  from vocab_words w
+                  left join vocab_progress p on p.word_id = w.id
+                 where w.user_id = ? and w.language = ? and w.normalized_form = ? and w.deleted = false
+                """, (rs, rowNumber) -> new WordDetailRow(
+                rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
+                rs.getString(5), rs.getBoolean(6), rs.getString(7), rs.getBoolean(8),
+                rs.getString(9), rs.getTimestamp(10) == null ? null : rs.getTimestamp(10).toInstant(),
+                rs.getBigDecimal(11), rs.getBigDecimal(12)),
+                userId, language, normalizedForm);
+        return rows.stream().findFirst();
+    }
+
+    public List<SourceOption> sourcesOf(UUID wordId) {
+        return jdbc.query("""
+                select kind, batch_id, assignment_id, label, 1
+                  from vocab_word_sources where word_id = ? order by id
+                """, (rs, rowNumber) -> new SourceOption(
+                rs.getString(1), rs.getObject(2, UUID.class), rs.getObject(3, UUID.class),
+                rs.getString(4), 1L), wordId);
+    }
+
+    public boolean belongsTo(UUID userId, UUID wordId) {
+        Integer count = jdbc.queryForObject(
+                "select count(*) from vocab_words where id = ? and user_id = ? and deleted = false",
+                Integer.class, wordId, userId);
+        return count != null && count > 0;
+    }
+
+    public long addFeedback(UUID userId, UUID wordId, String payloadJson) {
+        Long id = jdbc.queryForObject("""
+                insert into vocab_feedback (user_id, word_id, payload, status, created_at)
+                values (?, ?, cast(? as jsonb), 'OPEN', ?)
+                returning id
+                """, Long.class, userId, wordId, payloadJson, Timestamp.from(clock.instant()));
+        return id == null ? 0 : id;
+    }
+
     /** 追加来源；同一批次内重复调用由唯一键兜底（on conflict do nothing）。 */
     public void addImportSource(UUID wordId, UUID batchId, String label) {
         jdbc.update("""

@@ -1494,6 +1494,36 @@
     "assign": {
       "title": "Send words",
       "empty": "No word sets available to send yet."
+    },
+    "detail": {
+      "phonetic": "Phonetic",
+      "phoneticUk": "UK",
+      "phoneticUs": "US",
+      "senses": "Senses",
+      "examples": "Examples",
+      "analysis": "Word formation",
+      "family": "Word family",
+      "familyBand": "BNC band {{band}}",
+      "familySupplement": "Supplementary list",
+      "familyFrequency": "Family frequency {{freq}}",
+      "familyMissing": "Word family pending (not in local list)",
+      "meta": "Source and state",
+      "nextReview": "Next review",
+      "notInLibraryHint": "This word is not in your library yet. Add it and it is due today.",
+      "notFound": "Word not found.",
+      "addToLibrary": "+ Add to library",
+      "addedToast": "Added {{word}} to your library",
+      "alreadyToast": "Already in your library; nothing duplicated",
+      "pausedToast": "Paused {{word}}",
+      "resumedToast": "Resumed {{word}} (back to new)",
+      "resumeTitle": "Resume review?",
+      "resumeBody": "{{word}} goes back to new and is due today. Review logs are kept.",
+      "feedback": "Feedback",
+      "feedbackTitle": "Feedback on this word",
+      "feedbackPlaceholder": "What is wrong? For example the meaning, an example or the phonetic.",
+      "feedbackSubmit": "Submit",
+      "feedbackThanks": "Thanks, your feedback was recorded",
+      "noContent": "Content is being generated; this page refreshes shortly"
     }
   }
 }
