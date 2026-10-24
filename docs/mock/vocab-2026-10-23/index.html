@@ -362,7 +362,8 @@ const S = {
   // 第二轮反馈新增
   card:null,            // 统计卡过滤：due | new | grad | null
   sel:[],               // 勾选的词
-  known:[],             // 已「移出复习」的词
+  known:[],             // 已「暂停复习」的词
+  deleted:[],           // 已从词库软删除的词（学生看不见）
   sort:'next',          // 默认按下次复习升序
   sortDir:1,
   cols:['def','src','st','next'],   // 除「单词」外的列，顺序即显示顺序
@@ -497,7 +498,7 @@ function screenLibrary(){
   if (S.ds!=='data') return BANNER + stateBlock(S.ds);
 
   const known = w => S.known.includes(w) || w.st==='grad';
-  let rows = WORDS.filter(w=>{
+  let rows = WORDS.filter(w=>!S.deleted.includes(w.w)).filter(w=>{
     if (S.q && !(w.w.includes(S.q.toLowerCase()) || w.def.includes(S.q))) return false;
     if (S.popFilters.src.length && !S.popFilters.src.some(k =>
           (k==='class' && w.src.startsWith('班级')) ||
@@ -507,7 +508,8 @@ function screenLibrary(){
     if (S.card==='due' && w.st!=='due') return false;
     if (S.card==='new' && w.st!=='new') return false;
     if (S.card==='grad' && !known(w) && w.st!=='grad') return false;
-    if (S.popFilters.status!=='all' && w.st!==S.popFilters.status) return false;
+    if (S.popFilters.status==='fav') { if (!S.fav.includes(w.w)) return false; }
+    else if (S.popFilters.status!=='all' && w.st!==S.popFilters.status) return false;
     return true;
   });
   rows = rows.slice().sort((a,b)=>{
@@ -521,7 +523,7 @@ function screenLibrary(){
   const COL = { def:'释义', src:'来源', st:'状态', next:'下次复习' };
   const genChip = w => w.gen==='pending' ? '<span class="chip due">内容生成中</span>'
     : w.gen==='failed' ? '<span class="chip" style="background:var(--red-weak);color:var(--red);border-color:transparent">生成失败 · 重试</span>' : '';
-  const stChip = w => known(w) ? '<span class="chip">已移出</span>'
+  const stChip = w => known(w) ? '<span class="chip">已暂停</span>'
     : w.st==='due' ? '<span class="chip due">今天到期</span>'
     : w.st==='new' ? '<span class="chip assess">新词</span>'
     : w.st==='learn' ? '<span class="chip">学习中</span>'
@@ -534,7 +536,7 @@ function screenLibrary(){
       ['1,284','总词数','',null],
       ['46','今天到期','var(--amber)','due'],
       ['12','新词（上限 20）','','new'],
-      ['203','已移出','var(--green)','grad']
+      ['203','已暂停','var(--green)','grad']
     ].map(([k,l,c,f])=>`<div class="card stat ${f?'clickable':''} ${S.card===f?'on':''}"
       ${f?`onclick="S.card=S.card==='${f}'?null:'${f}';render()"`:''}>
       <div class="k mono" style="${c?`color:${c}`:''}">${k}</div><div class="l">${l}${f?' · 点击过滤':''}</div></div>`).join('')}
@@ -564,7 +566,8 @@ function screenLibrary(){
 
   ${S.sel.length?`<div class="batchbar">
     <b>已选 ${S.sel.length} 个</b>
-    <button class="btn sm primary" onclick="bulkKnown()">批量移出复习</button>
+    <button class="btn sm primary" onclick="bulkKnown()">批量暂停</button>
+    <button class="btn sm" style="color:var(--red)" onclick="bulkDelete()">批量删除</button>
     <button class="btn sm" onclick="S.sel=[];render()">取消选择</button>
     <span class="sm muted">批量操作会先二次确认，提示将影响 N 个词</span>
   </div>`:''}
@@ -578,7 +581,7 @@ function screenLibrary(){
         ${S.cols.filter(c=>c==='src').map(()=>`<th style="width:150px">来源</th>`).join('')}
         ${S.cols.filter(c=>c==='st').map(()=>`<th class="sortable" style="width:110px" onclick="setSort('st')">状态 ${arrow('st')}</th>`).join('')}
         ${S.cols.filter(c=>c==='next').map(()=>`<th class="sortable" style="width:120px" onclick="setSort('next')">下次复习 ${arrow('next')}</th>`).join('')}
-        <th style="width:104px">操作</th>
+        <th style="width:132px">操作</th>
       </tr></thead>
       <tbody>
         ${rows.map(w=>`<tr>
@@ -590,7 +593,10 @@ function screenLibrary(){
           ${S.cols.filter(c=>c==='src').map(()=>`<td><span class="chip ${w.srcType}">${w.src}</span></td>`).join('')}
           ${S.cols.filter(c=>c==='st').map(()=>`<td>${genChip(w)}${stChip(w)}</td>`).join('')}
           ${S.cols.filter(c=>c==='next').map(()=>`<td class="mono sm muted">${known(w)?'—':w.due}</td>`).join('')}
-          <td>${known(w)?`<button class="btn sm" onclick="unmarkKnown('${w.w}')">重新加入</button>`:`<button class="btn sm" onclick="markKnown('${w.w}');toast('已移出复习；可在词库筛「已移出」找回')">移出复习</button>`}</td>
+          <td class="row" style="gap:4px;white-space:nowrap">
+            ${known(w)?`<button class="btn sm" onclick="unmarkKnown('${w.w}')">恢复</button>`:`<button class="btn sm" onclick="markKnown('${w.w}');toast('已暂停复习；可随时恢复')">暂停</button>`}
+            <button class="btn ghost sm" style="color:var(--red)" onclick="softDelete('${w.w}')">删除</button>
+          </td>
         </tr>`).join('')}
         ${rows.length===0?`<tr><td colspan="7"><div class="state" style="padding:28px"><h3>没有匹配的词</h3><p>清掉筛选或换个关键词试试。</p><button class="btn" onclick="S.card=null;S.q='';S.popFilters={src:[],deck:'all',status:'all',lang:'en'};render()">清空筛选</button></div></td></tr>`:''}
       </tbody>
@@ -630,7 +636,7 @@ function filterModal(){
         </div>
         <div class="field"><label>学习状态</label>
           <div class="class-pick">
-            ${[['all','全部'],['new','新词'],['due','今天到期'],['learn','学习中'],['grad','已掌握']].map(([v,l])=>
+            ${[['all','全部'],['new','新词'],['due','今天到期'],['learn','学习中'],['grad','已掌握'],['fav','已收藏']].map(([v,l])=>
               `<button class="class-chip ${F.status===v?'on':''}" onclick="S.popFilters.status='${v}';render()">${l}</button>`).join('')}
           </div></div>
         <div class="field"><label>学习语言</label>
@@ -650,7 +656,9 @@ function toggleSrc(v){ const a=S.popFilters.src; S.popFilters.src = a.includes(v
 function filterCount(){ let n=0; if(S.popFilters.src.length) n++; if(S.popFilters.deck!=='all') n++; if(S.popFilters.status!=='all') n++; if(S.popFilters.lang!=='en') n++; if(S.card) n++; return n; }
 function toggleSel(w){ S.sel = S.sel.includes(w)?S.sel.filter(x=>x!==w):[...S.sel,w]; render(); }
 function toggleAll(on){ S.sel = on?'':[]; if(on){} render(); }
-function bulkKnown(){ S.known=[...new Set([...S.known,...S.sel])]; toast(`已将 ${S.sel.length} 个词移出复习`); S.sel=[]; render(); }
+function softDelete(w){ S.deleted=[...new Set([...S.deleted,w])]; S.sel=S.sel.filter(x=>x!==w); toast('已从词库删除（软删除，历史记录保留）'); render(); }
+function bulkDelete(){ S.deleted=[...new Set([...S.deleted,...S.sel])]; toast(`已删除 ${S.sel.length} 个词`); S.sel=[]; render(); }
+function bulkKnown(){ S.known=[...new Set([...S.known,...S.sel])]; toast(`已暂停 ${S.sel.length} 个词`); S.sel=[]; render(); }
 function setSort(k){ if(S.sort===k) S.sortDir=-S.sortDir; else {S.sort=k;S.sortDir=1;} render(); }
 function moveCol(i,d){ const j=i+d; if(j<0||j>=S.cols.length) return; const a=S.cols.slice(); [a[i],a[j]]=[a[j],a[i]]; S.cols=a; render(); }
 function startFree(n){ S.free=true; S.freeTotal=n; S.freeIdx=0; S.freeKnown=0; S.freeRated={again:0,hard:0,good:0,easy:0}; S.flipped=false; S.screen='review'; render(); }
@@ -682,8 +690,7 @@ function screenDetail(){
           <div class="row">
             ${isNewWord?`<button class="btn primary" onclick="addFromDetail()">＋ 加入词库</button>`:`
               <button class="fav ${isFav?'on':''}" onclick="toggleFav('${w.w}')">${isFav?'★ 已收藏':'☆ 收藏'}</button>
-              <button class="btn" title="回到新词，历史日志保留" onclick="resetWord('${w.w}')">重新加入生词本</button>
-              <button class="btn" onclick="S.known.includes('${w.w}')?unmarkKnown('${w.w}'):markKnown('${w.w}')">${S.known.includes('${w.w}')?'取消移出':'移出复习'}</button>`}
+              <button class="btn" onclick="S.known.includes('${w.w}')?unmarkKnown('${w.w}'):markKnown('${w.w}')">${S.known.includes('${w.w}')?'恢复复习':'暂停复习'}</button>`}
           </div>
         </div>
       </div>
@@ -746,7 +753,7 @@ function screenDetail(){
         ${isNewWord ? `<div class="between"><span>状态</span><span class="muted">未加入词库</span></div>
         <div class="between"><span>下次复习</span><span class="mono">—</span></div>
         <div class="sm muted-2" style="margin-top:8px">加入后进入「新词」队列，今天就能复习。</div>` : `
-        <div class="between"><span>状态</span><span>${S.known.includes(w.w)?'已移出复习':'复习中'}</span></div>
+        <div class="between"><span>状态</span><span>${S.known.includes(w.w)?'已暂停':'复习中'}</span></div>
         <div class="between"><span>下次复习</span><span class="mono">${S.known.includes(w.w)?'—':w.due}</span></div>
         <div class="between"><span>易度</span><span class="mono">2.50</span></div>
         <div class="between"><span>间隔</span><span class="mono">12 天</span></div>`}
