@@ -275,12 +275,36 @@
 /* ============================================================
    数据：全部为示例数据（页头已标注）。真实实现来自 vocab 接口。
    ============================================================ */
+const SAMPLE_PASTE = `1 一行，逗号隔开
+apple, brave, clever, dream, eager, fresh, giant, happy, ideal, jolly
+
+2 一行，空格隔开
+apple brave clever dream eager fresh giant happy ideal jolly
+
+3 10行
+apple
+brave
+clever
+dream
+eager
+fresh
+giant
+happy
+ideal
+jolly
+
+4 四行，3，3，3，1，逗号隔开
+apple, brave, clever
+dream, eager, fresh
+giant, happy, ideal,
+jolly`;
+
 const WORDS = [
   { w:'abandon', ph:'/əˈbændən/', def:'v. 放弃；抛弃', src:'班级 · Unit 5', srcType:'practice',
     st:'due', due:'3 天后', ex:['He abandoned the plan without a word.','abandon oneself to despair'], an:'a-（to）+ bandon（控制）→ 交出控制权 → 放弃', note:'' },
-  { w:'abolish', ph:'/əˈbɒlɪʃ/', def:'v. 废除（法律、制度）', src:'班级 · Unit 5', srcType:'practice',
+  { w:'abolish', gen:'failed', ph:'/əˈbɒlɪʃ/', def:'v. 废除（法律、制度）', src:'班级 · Unit 5', srcType:'practice',
     st:'due', due:'今天', ex:['The law was abolished in 1998.'], an:'ab-（离开）+ olere（生长）→ 使之不再生长', note:'常接 slavery / law / tax' },
-  { w:'absence', ph:'/ˈæbsəns/', def:'n. 缺席；缺乏', src:'班级 · Unit 5', srcType:'practice',
+  { w:'absence', gen:'pending', ph:'/ˈæbsəns/', def:'n. 缺席；缺乏', src:'班级 · Unit 5', srcType:'practice',
     st:'new', due:'今天', ex:['Her absence went unnoticed.'], an:'ab-（离开）+ esse（存在）→ 不在场', note:'' },
   { w:'abstract', ph:'/ˈæbstrækt/', def:'adj. 抽象的 n. 摘要', src:'导入 · 高考3500', srcType:'create',
     st:'learn', due:'10 分钟后', ex:['Beauty is an abstract concept.'], an:'abs-（离开）+ tract（拉）→ 从具体中抽离', note:'反义 concrete' },
@@ -326,6 +350,7 @@ const S = {
   popFilters:{src:'all', status:'all', lang:'en'},
   free:false, freeTotal:0, freeIdx:0, freeKnown:0, freeRated:{again:0,hard:0,good:0,easy:0},
   detail:null, fav:['abandon','accumulate'], paused:[],
+  addTab:'paste', setTab:'words', paste: SAMPLE_PASTE, parseDone:false,
 };
 
 const ICONS = {
@@ -348,6 +373,7 @@ const NAV = {
     { id:'classes', label:'班级', icon:'classes', disabled:true },
     { id:'library', label:'我的词库', icon:'library', screen:'library' },
     { id:'review', label:'今日复习', icon:'review', screen:'review' },
+    { id:'add', label:'加词 / 导入', icon:'upload', screen:'add' },
   ],
   teacher: [
     { id:'home', label:'首页', icon:'home', disabled:true },
@@ -361,6 +387,7 @@ const TITLES = {
   review:['今日复习','单词 · 学生'],
   detail:['单词详情','单词 · 学生'],
   summary:['复习小结','单词 · 学生'],
+  add:['加词与导入','单词 · 学生'],
   wordset:['词集','单词 · 教师'],
   assign:['发词给班级','单词 · 教师'],
 };
@@ -532,6 +559,8 @@ function screenLibrary(){
   });
   const allSel = rows.length>0 && rows.every(w=>S.sel.includes(w.w));
   const COL = { def:'释义', src:'来源', st:'状态', next:'下次复习' };
+  const genChip = w => w.gen==='pending' ? '<span class="chip due">内容生成中</span>'
+    : w.gen==='failed' ? '<span class="chip" style="background:var(--red-weak);color:var(--red);border-color:transparent">生成失败 · 重试</span>' : '';
   const stChip = w => known(w) ? '<span class="chip">已移出</span>'
     : w.st==='due' ? '<span class="chip due">今天到期</span>'
     : w.st==='new' ? '<span class="chip assess">新词</span>'
@@ -601,7 +630,7 @@ function screenLibrary(){
           </td>
           ${S.cols.filter(c=>c==='def').map(()=>`<td onclick="openDetail('${w.w}')" style="cursor:pointer">${w.def}${w.note?`<div class="sm muted-2">笔记：${w.note}</div>`:''}</td>`).join('')}
           ${S.cols.filter(c=>c==='src').map(()=>`<td><span class="chip ${w.srcType}">${w.src}</span></td>`).join('')}
-          ${S.cols.filter(c=>c==='st').map(()=>`<td>${stChip(w)}</td>`).join('')}
+          ${S.cols.filter(c=>c==='st').map(()=>`<td>${genChip(w)}${stChip(w)}</td>`).join('')}
           ${S.cols.filter(c=>c==='next').map(()=>`<td class="mono sm muted">${known(w)?'—':w.due}</td>`).join('')}
           <td>${known(w)?`<button class="btn sm" onclick="unmarkKnown('${w.w}')">重新加入</button>`:`<button class="btn sm" onclick="markKnown('${w.w}');toast('已移出复习；可在词库筛「已移出」找回')">移出复习</button>`}</td>
         </tr>`).join('')}
@@ -828,6 +857,92 @@ function rate(k){
 }
 
 /* ---------------- 屏 3：教师 · 词集 ---------------- */
+
+function screenAdd(){
+  const tabs = `
+    <div class="seg" style="margin-bottom:14px">
+      <button class="${S.addTab==='paste'?'on':''}" onclick="S.addTab='paste';S.parseDone=false;render()">粘贴文本</button>
+      <button class="${S.addTab==='file'?'on':''}" onclick="S.addTab='file';render()">上传文件</button>
+    </div>`;
+
+  if (S.addTab==='file') {
+    return `<div class="card card-pad" style="max-width:820px">
+      ${tabs}
+      <div class="preview-mini" style="text-align:center;padding:44px 20px;border-style:dashed">
+        <div style="font-size:16px;font-weight:600;margin-bottom:4px">把文件拖到这里，或点击选择</div>
+        <div class="sm muted">支持 CSV / MD / TXT（XLSX 可选） · 单文件 ≤ 20MB · 最多 10,000 行</div>
+        <button class="btn primary" style="margin-top:12px">选择文件</button>
+      </div>
+      <div style="margin-top:16px">
+        <div class="sm muted" style="margin-bottom:6px">文件格式要求</div>
+        <table>
+          <thead><tr><th style="width:120px">格式</th><th>怎么解析</th></tr></thead>
+          <tbody>
+            <tr><td><span class="chip create">CSV</span></td><td>按表头映射；没有表头时整行都是词</td></tr>
+            <tr><td><span class="chip insights">MD</span></td><td>标题与引用跳过；表格按单元格；列表标记去掉；代码块内按词行</td></tr>
+            <tr><td><span class="chip assess">TXT</span></td><td>逗号 / 空格 / 换行切分；含中文的说明行跳过并报告</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="foot-note">跳过的行不会被静默丢弃：预览里会给出「行号 + 原文 + 原因」。</div>
+    </div>`;
+  }
+
+  const skipped = [
+    [1, '1 一行，逗号隔开'], [4, '2 一行，空格隔开'], [7, '3 10行'], [19, '4 四行，3，3，3，1，逗号隔开']
+  ];
+  return `<div class="two-col" style="grid-template-columns:minmax(0,1fr) 360px">
+    <div class="card card-pad">
+      ${tabs}
+      <div class="field">
+        <label>把词粘进来（四种写法都行，混着写也行）</label>
+        <textarea class="input" rows="12" style="font-family:ui-monospace,Menlo,monospace;font-size:13px"
+          oninput="S.paste=this.value;S.parseDone=false">${S.paste}</textarea>
+      </div>
+      <div class="row" style="margin-top:10px;justify-content:space-between">
+        <span class="sm muted">逗号 / 空格 / 换行都会切开；短语请用引号，如 "take off"</span>
+        <div class="row">
+          <button class="btn" onclick="S.parseDone=true;render()">解析预览</button>
+          <button class="btn primary" onclick="S.parseDone=true;render();toast('已加入词库：10 个新词开始生成内容，30 条重复已跳过')" ${S.parseDone?'':'disabled'}>提交</button>
+        </div>
+      </div>
+
+      ${S.parseDone?`
+      <div class="card-pad" style="margin-top:14px;border:1px solid var(--line);border-radius:8px">
+        <div class="between" style="margin-bottom:8px">
+          <b>预览</b><span class="sm muted">40 条 → 唯一 10 · 重复 30 · 跳过 4 行</span>
+        </div>
+        <div class="wf" style="margin-bottom:12px">
+          ${['apple','brave','clever','dream','eager','fresh','giant','happy','ideal','jolly']
+            .map(w=>`<span class="wfc"><b>${w}</b></span>`).join('')}
+        </div>
+        <div class="sm muted" style="margin-bottom:4px">跳过的行（不会入库）</div>
+        <table>
+          <thead><tr><th style="width:70px">行号</th><th>原文</th><th style="width:150px">原因</th></tr></thead>
+          <tbody>${skipped.map(([n,s])=>`<tr><td class="mono">L${n}</td><td>${s}</td><td class="sm muted">说明文字（含中文）</td></tr>`).join('')}</tbody>
+        </table>
+        <div class="sm muted" style="margin-top:10px">提交后：立即入库并进入调度；释义/例句/构词由后台异步生成，重复词不会重新生成。</div>
+      </div>`:''}
+    </div>
+
+    <aside>
+      <div class="card card-pad" style="margin-bottom:12px">
+        <div class="sm muted" style="margin-bottom:6px">四种写法都支持</div>
+        <div class="sm muted-2">
+          ① 一行逗号分隔<br>
+          ② 一行空格分隔<br>
+          ③ 每行一个词<br>
+          ④ 多行逗号（行尾多一个逗号也行）
+        </div>
+      </div>
+      <div class="card card-pad">
+        <div class="sm muted" style="margin-bottom:6px">入库之后</div>
+        <div class="sm muted-2">词立刻出现在词库并进入今天的队列；内容状态显示「生成中」，好了自动变成释义与例句；失败可重试。</div>
+      </div>
+    </aside>
+  </div>`;
+}
+
 function screenWordset(){
   if (S.ds!=='data') return stateBlock(S.ds);
   const set = SETS.find(s=>s.id===S.setSel) || SETS[0];
@@ -848,6 +963,10 @@ function screenWordset(){
 
     <div class="card">
       <div class="card-pad" style="border-bottom:1px solid var(--line-2)">
+        <div class="seg" style="margin-bottom:10px">
+          <button class="${S.setTab==='words'?'on':''}" onclick="S.setTab='words';render()">词条</button>
+          <button class="${S.setTab==='history'?'on':''}" onclick="S.setTab='history';render()">发词记录</button>
+        </div>
         <div class="between">
           <div>
             <div style="font-size:16px;font-weight:600">${set.name}</div>
@@ -860,7 +979,16 @@ function screenWordset(){
           </div>
         </div>
       </div>
-      ${words.map((w,i)=>`<div class="wrow">
+      ${S.setTab==='history'?`
+        ${[
+          ['高二(3)班','今天 09:12','3 天后截止','28 词'],
+          ['高二(5)班','10-21 14:30','已过期','32 词'],
+        ].map(([cls,when,due,n])=>`<div class="wrow">
+          <div style="flex:1"><div style="font-weight:500">${cls}</div><div class="sm muted">${when} · ${n} · ${due}</div></div>
+          <button class="btn ghost sm" onclick="toast('已复制布置链接')">复制链接</button>
+        </div>`).join('')}
+        <div class="card-pad sm muted">发出去的是快照：之后改词集不影响这些布置。</div>
+      `:words.map((w,i)=>`<div class="wrow">
         <span class="handle">${i+1}</span>
         <div style="flex:1;min-width:0">
           <div style="font-weight:500">${w.w} <span class="ph">${w.ph}</span></div>
@@ -870,10 +998,11 @@ function screenWordset(){
         <button class="btn ghost sm" title="上移">↑</button>
         <button class="btn ghost sm" title="移出词集">移除</button>
       </div>`).join('')}
+      ${S.setTab==='words'?`
       <div class="between card-pad" style="border-top:1px solid var(--line-2)">
         <span class="sm muted">前 8 条（共 ${set.n}）· 顺序就是学生首次预习的顺序</span>
         <button class="btn sm">查看全部</button>
-      </div>
+      </div>`:''}
     </div>
   </div>
   <div class="foot-note">词集是内容资产：改词集不会影响已经发出去的布置（发送时做了快照）。</div>`;
@@ -948,7 +1077,7 @@ function doAssign(){ S.assigned=true; render(); toast('已发送给 '+S.picked.l
 function render(){
   renderNav();
   const main = document.getElementById('main');
-  main.innerHTML = ({library:screenLibrary, review:screenReview, detail:screenDetail, summary:screenSummary,
+  main.innerHTML = ({library:screenLibrary, review:screenReview, detail:screenDetail, summary:screenSummary, add:screenAdd,
                      wordset:screenWordset, assign:screenAssign})[S.screen]();
 }
 let toastTimer;
@@ -977,13 +1106,15 @@ document.addEventListener('keydown', e=>{
 (function initFromHash(){
   const raw = location.hash.replace('#',''); if(!raw) return;
   const [scr, qs] = raw.split('?');
-  if (['library','review','detail','summary','wordset','assign'].includes(scr)) {
+  if (['library','review','detail','summary','add','wordset','assign'].includes(scr)) {
     S.screen = scr;
-    S.role = ['review','library','detail','summary'].includes(scr) ? 'student' : 'teacher';
+    S.role = ['review','library','detail','summary','add'].includes(scr) ? 'student' : 'teacher';
   }
   if (scr==='review' && /free=1/.test(qs||'')) { S.free=true; S.freeTotal=46; S.freeIdx=12; S.freeKnown=4; }
   if (scr==='detail') S.detail = 'abandon';
   if (/modal=1/.test(qs||'')) S.modal = true;
+  if (/preview=1/.test(qs||'')) S.parseDone = true;
+  if (/tab=history/.test(qs||'')) S.setTab = 'history';
   const m = /ds=(\w+)/.exec(qs||''); if (m) S.ds = m[1];
   if (/flip=1/.test(qs||'')) S.flipped = true;
   const t = /theme=(\w+)/.exec(qs||''); if (t) { S.theme = t[1]; document.documentElement.dataset.theme = t[1]; }

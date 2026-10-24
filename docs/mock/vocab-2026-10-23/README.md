@@ -1,9 +1,20 @@
-# 背单词原型 · 2026-10-23（第二版）
+# 背单词原型 · 2026-10-23（第三版）
 
-对应规格：`specs/004-vocab/spec.md`（US-46–61）
+对应规格：`specs/004-vocab/spec.md`（US-46–61）、计划 `specs/004-vocab/plan.md`
 单文件、无依赖、无构建：**双击 `index.html` 就能点**。
 
-## 这版新增了什么（第二轮反馈）
+
+## 第三版新增（对齐 spec §14–15 与 plan）
+
+| 内容 | 落点 |
+| :--- | :--- |
+| 加词与导入是同一个动作 | 新屏「加词 / 导入」：粘贴文本（四种写法混排）与上传文件两个 tab |
+| `.md` 导入语法 | 预览里显示「40 条 → 唯一 10 · 重复 30 · 跳过 4 行」，并把跳过的行连行号、原文、原因列出来 |
+| 异步生成内容 | 词库状态列出现「内容生成中」「生成失败 · 重试」；提交后提示「立即入库并进入调度」 |
+| 教师发词记录 | 词集页第二个 tab「发词记录」：班级、时间、截止状态、复制链接 |
+| 词族本地优先 | 详情页标注「BNC 词频」，最多 8 个、按频次降序 |
+
+## 第二轮（上一版）新增了什么
 
 | 反馈 | 原型里的落点 |
 | :--- | :--- |
@@ -39,9 +50,16 @@
 | `#detail` | 单词详情 |
 | `#review` / `#review?flip=1` | 今日复习（正面 / 翻面） |
 | `#review?free=1` | 自由复习 |
+| `#add` / `#add?preview=1` | 加词与导入（空 / 已解析预览） |
+| `#wordset?tab=history` | 教师发词记录 |
 | `#summary` | 复习小结 |
 | `#review?theme=dark&flip=1` | 暗色 |
 | `#wordset` / `#assign` | 教师词集 / 发词 |
+
+## 追踪的规格条目（spec §14–15）
+
+- 词表：`docs/research/2026-10-23-vocab-wordlists-feasibility.md`
+- 导入语法：spec §15；样例夹具 `specs/004-vocab/fixtures/import/sample-4-formats.md`
 
 ## 仍需讨论（§13）
 
@@ -53,7 +71,7 @@
 
 `library.png`、`library-empty.png`、`library-error.png`、`library-filter.png`、
 `review.png`、`review-flipped.png`、`review-free.png`、`review-empty.png`、`review-dark.png`、
-`detail.png`、`summary.png`、`wordset.png`、`assign.png`
+`detail.png`、`summary.png`、`wordset.png`、`wordset-history.png`、`assign.png`、`add.png`、`add-preview.png`
 
 重新生成（示例）：
 
