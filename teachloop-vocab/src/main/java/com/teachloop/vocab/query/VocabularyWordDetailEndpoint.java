@@ -91,8 +91,13 @@ public class VocabularyWordDetailEndpoint {
                         row.state(), row.dueAt(), row.intervalDays(), row.ease(),
                         ContentView.resolve(contentStore, row.contentId(), row.language(), row.form()),
                         sources(me.id(), row.id()), family))
-                .orElseGet(() -> new DetailView(false, null, WordNormalizer.display(form), lang,
-                        null, false, false, List.of(), null, null, null, null, null, List.of(), family));
+                .orElseGet(() -> {
+                    // 不在库的词也能查：全局内容命中（包/delta）就展示，只是不进复习队列
+                    var content = ContentView.resolve(contentStore, null, lang, normalized);
+                    return new DetailView(false, null, WordNormalizer.display(form), lang,
+                            content != null ? "READY" : null, false, false, List.of(),
+                            null, null, null, null, content, List.of(), family);
+                });
     }
 
     @PostMapping("/words")

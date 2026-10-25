@@ -216,6 +216,19 @@ export function VocabReviewCard({
 
         {flipped && (
           <div className="review-back">
+            {content?.coreSemantics && (
+              <div className="core-semantics">
+                {content.coreSemantics.core && (
+                  <p className="core-semantics-core">{content.coreSemantics.core}</p>
+                )}
+                {content.coreSemantics.notThis && (
+                  <p className="core-semantics-not muted">{content.coreSemantics.notThis}</p>
+                )}
+                {content.coreSemantics.mentalImage && (
+                  <p className="core-semantics-image">{content.coreSemantics.mentalImage}</p>
+                )}
+              </div>
+            )}
             {(content?.senses?.length ?? 0) === 0
               && (content?.examples?.length ?? 0) === 0
               && !content?.analysis
