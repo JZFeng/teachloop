@@ -152,6 +152,11 @@ def derived_forms(word: str) -> set[str]:
         forms.add(w + suffix)
     if w.endswith("e"):
         forms.update({w + "d", w + "s", w[:-1] + "ing"})
+    if w.endswith("f") and len(w) > 1:
+        forms.add(w[:-1] + "ves")
+        forms.add(w + "s")
+    if w.endswith("fe") and len(w) > 2:
+        forms.add(w[:-2] + "ves")
     if w.endswith("y") and len(w) > 2:
         forms.update({w[:-1] + "ies", w[:-1] + "ied", w[:-1] + "ier", w[:-1] + "iest"})
     if len(w) > 2 and w[-1] not in "aeiou" and w[-2] in "aeiou":
@@ -199,39 +204,42 @@ def validate(obj: dict, word: str, language: str, example_count: int,
             problems.append(f"meanings.{lang} empty")
 
     examples = obj.get("examples")
-    if not isinstance(examples, list) or not (1 <= len(examples) <= example_count):
+    if not isinstance(examples, list) or not examples:
         problems.append(f"examples count must be 1..{example_count}")
     else:
-        popularity = []
-        sentences = []
-        for index, example in enumerate(examples):
-            text = str(example.get("text", ""))
-            if not text.strip():
-                problems.append(f"examples[{index}].text empty")
-            elif not looks_like_word(text, word, forms) and not looks_like_word(
+        # 模型偶尔塞一条不含目标词的例句（leaf → "leaves turn red"、yard → "backyard" 这类边界），
+        # 丢掉这一条比整词重试划算；保留下来的句子重新编号 popularity = 1..N
+        kept: list[dict] = []
+        seen_sentences: set[str] = set()
+        for example in examples:
+            if not isinstance(example, dict):
+                continue
+            text = str(example.get("text", "")).strip()
+            if not text or text.lower() in seen_sentences:
+                continue
+            if not looks_like_word(text, word, forms) and not looks_like_word(
                     str(example.get("usagePattern", "")), word, forms):
-                # 不规则屈折（leave → left）词表里没有；usagePattern 以词头开头，可作为旁证
-                problems.append(f"examples[{index}].text missing word")
-            if not str(example.get("partOfSpeech", "")).strip():
-                problems.append(f"examples[{index}].partOfSpeech empty")
-            if not str(example.get("usagePattern", "")).strip():
-                problems.append(f"examples[{index}].usagePattern empty")
-            if text.strip().lower() in sentences:
-                problems.append(f"examples[{index}].text duplicated")
-            sentences.append(text.strip().lower())
-            translations = example.get("translations") or {}
-            for lang in LANGUAGES:
-                if lang == language:
-                    continue
-                if not str(translations.get(lang, "")).strip():
-                    problems.append(f"examples[{index}].translations.{lang} empty")
-            value = example.get("popularity")
-            if not isinstance(value, int):
-                problems.append(f"examples[{index}].popularity is not integer")
-            else:
-                popularity.append(value)
-        if sorted(popularity) != list(range(1, len(examples) + 1)):
-            problems.append("popularity must be unique 1..N")
+                continue
+            seen_sentences.add(text.lower())
+            kept.append(example)
+        kept = kept[:example_count]
+        if not kept:
+            problems.append("examples: no sentence contains the target word")
+        else:
+            for order, example in enumerate(kept, start=1):
+                example["popularity"] = order
+            obj["examples"] = kept
+            for index, example in enumerate(kept):
+                if not str(example.get("partOfSpeech", "")).strip():
+                    problems.append(f"examples[{index}].partOfSpeech empty")
+                if not str(example.get("usagePattern", "")).strip():
+                    problems.append(f"examples[{index}].usagePattern empty")
+                translations = example.get("translations") or {}
+                for lang in LANGUAGES:
+                    if lang == language:
+                        continue
+                    if not str(translations.get(lang, "")).strip():
+                        problems.append(f"examples[{index}].translations.{lang} empty")
 
     formation = obj.get("wordFormation")
     if formation is not None:
