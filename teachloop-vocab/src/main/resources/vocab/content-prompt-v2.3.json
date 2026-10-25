@@ -1,0 +1,55 @@
+{
+  "promptVersion": "vocab-content-v2.3",
+  "languages": [
+    "zh",
+    "en"
+  ],
+  "examples": {
+    "maxPerWord": 6,
+    "minPerWord": 1
+  },
+  "system": "You write vocabulary learning content as strict JSON.\nReturn ONLY one JSON object. No markdown, no comments, no extra keys.\n\nSchema:\n{\n  \"schemaVersion\": 2,\n  \"word\": string,\n  \"language\": string,\n  \"basicInfo\": {\n    \"pronunciation\": {\"uk\": string, \"us\": string},\n    \"partOfSpeech\": [string],\n    \"image\": null\n  },\n  \"meanings\": {\"zh\": string, \"en\": string},\n  \"examples\": [\n    {\n      \"text\": string,\n      \"translations\": {\"zh\": string},\n      \"partOfSpeech\": string,\n      \"usagePattern\": string,\n      \"popularity\": integer\n    }\n  ],\n  \"wordFormation\": {\n    \"analysis\": string,\n    \"parts\": [{\"text\": string, \"type\": string, \"meaning\": string}],\n    \"confidence\": \"high\"\n  },\n  \"memoryAids\": {\n    \"synonyms\": [{\"word\": string, \"partOfSpeech\": string}],\n    \"antonyms\": [{\"word\": string, \"partOfSpeech\": string}],\n    \"mnemonic\": string,\n    \"supplement\": string\n  },\n  \"wordFamily\": {\n    \"items\": [{\"word\": string, \"partOfSpeech\": [string], \"meanings\": {\"zh\": string, \"en\": string}}]\n  }\n}\n\nRules:\n1. examples: 1 to 6 entries. Give 6 when the word naturally supports it; 1 to 3 is acceptable for function words, rare words or concrete nouns with few collocations. Never pad with unnatural sentences. Each sentence must be natural, idiomatic and short, the kind a native speaker actually says, and must contain the word or a standard inflection. Cover every major part of speech at least once when you give more than one example. usagePattern is the real phrase the sentence uses, starting with the word or its article: \"struggle to do something\", \"the apple of one's eye\". usagePattern may repeat when the word has few patterns, but the sentences must be distinct. popularity is a unique integer starting at 1, ordered by part-of-speech frequency and usage commonness, common verb patterns first, noun uses after.\n2. translations: only the explanation languages that differ from the target language (for an English word: zh only, never en). The target-language sentence is already in text.\n3. meanings: concise learner-facing definitions in Simplified Chinese (zh) and English (en), covering the main senses and their order.\n4. wordFormation: real morphology only (root, prefix, suffix, derivation, origin). Use \"parts\" only when you are sure of the segmentation; set confidence high/medium/low. Omit the whole wordFormation object when you are not confident; never invent etymology.\n5. synonyms and antonyms: only real words with the same part of speech as the target; arrays may be empty; never invent.\n6. wordFamily: at most 6 real derived forms or inflections, no duplicates and no invented compounds, each with part of speech and meanings in zh and en.\n7. pronunciation: IPA in slashes (UK and US).\n",
+  "request": {
+    "temperature": 0.2,
+    "temperatureRetry": 0.1,
+    "maxTokens": 6000,
+    "maxTokensLocal": 4000,
+    "responseFormat": {
+      "type": "json_object"
+    },
+    "timeoutSeconds": 20,
+    "userAgent": "teachloop-vocab-content/1.0",
+    "thinking": {
+      "type": "disabled"
+    },
+    "sessionHeader": "x-opencode-session"
+  },
+  "providers": {
+    "opencode": {
+      "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+      "model": "deepseek-v4.1-flash",
+      "sessionHeader": "x-opencode-session",
+      "reasoningOff": {
+        "thinking": {
+          "type": "disabled"
+        }
+      }
+    },
+    "local": {
+      "baseUrl": "http://192.168.68.101:8080/v1",
+      "model": "qwen3.8-flash-next-iq2_xs",
+      "reasoningOff": {
+        "chat_template_kwargs": {
+          "enable_thinking": false
+        }
+      }
+    }
+  },
+  "notes": [
+    "Java 运行时（AiVocabularyContentGenerator）与 Python 批量工具读同一份文件，prompt 与请求参数不允许各自维护。",
+    "User-Agent 不能留库默认值：Python urllib 默认的 Python-urllib/x.y 会被 Cloudflare 拦成 403 error 1010；显式写产品 UA 即可（Java-http-client/.. 也能过）。",
+    "thinking 必须显式关闭：默认会先吐 9k-24k reasoning tokens，把 max_tokens 吃光导致正文截断。",
+    "x-opencode-session 是网关路由头（缺了 400 MissingSessionID），不是对话上下文，每次请求随机 UUID 即可。",
+    "promptVersion 升版必须同时改文件名与本字段，旧内容与旧包不参与新版本命中。"
+  ]
+}

@@ -12,6 +12,10 @@
 
 ## 1. 调用参数
 
+> **权威文件**：`teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json`
+> （system prompt + 全部请求参数）。Java 运行时与 `scripts/vocab` 都读这一份，
+> 本文下面的内容是便于阅读的副本——两边不一致时以 JSON 为准，改 prompt 只改 JSON。
+
 ### 1.1 本地 LLM（单槽，串行）
 
 ```json
@@ -61,6 +65,8 @@ User-Agent: python-requests/2.31
 - `memoryAids` 只留同反义词、口诀、易混点。
 
 ## 3. System prompt
+
+下面是便于阅读的副本；权威内容在 `teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json` 的 `system` 字段。
 
 ```text
 You write vocabulary learning content as strict JSON.

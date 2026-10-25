@@ -62,6 +62,7 @@
 | T437 | **卡片再放大 + 头部左右分栏 + 暂停改图标（2026-10-24 用户反馈，参照扇贝）**：卡片宽度 55% → 78%（右侧留宽版「下一个」）、min-height 480 / padding 36×40；卡片头部改为左右分栏——单词与英美音标左对齐，收藏 + 删除（自由复习为暂停）图标右对齐；「暂停复习」从卡片下方移到收藏旁，做成暂停/恢复开关（`PauseCircleOutlined` ⇄ `PlayCircleOutlined`，非红色，`S` 等价；原地切换不推进游标，恢复保留进度）；「下一个」168×58、18px、垂直居中；明细页同步 | T436 | 卡片明显变大；头部左文右图标；自由复习暂停是图标；下一个加大；`pnpm typecheck`/build、web 52/52、check-ui 绿 |
 
 | T438 | **发音语速/结尾 + 查词页动作（2026-10-24 用户反馈）**：单词语速默认 1.0 → **0.9**（rate 进缓存键，Piper 用 `--length_scale=1/rate`，浏览器回落 rate 0.9 + 保留 utterance 引用避免结尾被截）；查词页「＋加入词库」从页头文字按钮改成卡片头部 `＋` 图标（与收藏/暂停同套）；「返回」从卡片下方挪到原「下一个」的位置（168×58、中性描边 + `←`） | T437 | 侧车 rate 0.5 → `--length_scale 2.000`（fake piper 实测）；浏览器回落捕获到 `rate=0.9`；查词页在库/不在库两态图标与返回位置正确 |
+| T439 | **运行时 AI 生成对齐 v2.3 契约（AC-60.12）**：`AiVocabularyContentGenerator` 改为读 `vocab/content-prompt-v2.3.json`（system prompt + 请求参数：thinking disabled、max_tokens 6000、temperature 0.2/重试 0.1、response_format、显式 UA、`x-opencode-session` 随机、超时 20s）；响应按 v2 结构校验（schemaVersion/zh+en/例句 1–6/popularity 1..N/含词/句子不重复），并把 `finish_reason=length`、顶满预算、`reasoning_tokens>200`、空正文判为失败；失败重试一次后抛 `ContentGenerationException` → 任务 FAILED；成功后走 delta 写回 + 内存索引回填。Python 批量工具与 Java 共用同一契约文件，`--prompt-file` 可覆盖 | T432, T430 | AC-60.12；Java 与 Python 读同一 `promptVersion` 与参数；截断样本不落库（单测覆盖 finish_reason=length / reasoning tokens / 空正文）；真实调用 OpenCode Go 单词 p50 ≤7s |
 | ID | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
 | T406 | **词集后端**：CRUD、批量启用/停用/删除、词条顺序、移除只移出词集 | T387 | 停用后不能发词；删除不影响已发布置；移除不动词条 |
@@ -104,7 +105,7 @@
 | US-57 发音 | 57.1–57.7 | T410, T411, T427 |
 | US-58 语言 | 58.1–58.4 | T387, T389 |
 | US-59 表格 | 59.1–59.11 | T396, T397, T398, T436 |
-| US-60 详情 | 60.1–60.11 | T388, T399, T432, T433, T434, T436 |
+| US-60 详情 | 60.1–60.12 | T388, T399, T432, T433, T434, T436, T439 |
 | US-61 自由复习 | 61.1–61.6 | T404, T426, T436 |
 
 ## 执行顺序建议

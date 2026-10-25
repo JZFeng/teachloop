@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""校验批量生成产物（一次性工具）：结构、覆盖、异常字符、分布。
+"""校验批量生成产物：结构、覆盖、异常字符、分布（复用 generate_content.validate）。
 
 用法：
   python3 scripts/vocab/check_content.py \

@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""批量生成 v2.3 词内容（一次性工具，不属于业务代码）。
+"""批量生成 v2.3 词内容（长期维护的 utility；运行时生成在 Java 侧，见 T439）。
 
-配合 docs/prompts/vocab-content-v2.md：逐词生成 word_detail_page v2 JSON，写 JSONL（一行一条词），
-可断点续跑、可并发、自带结构校验与失败记录。
+prompt 与请求参数来自共享契约 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json
+（Java 运行时读同一份），逐词生成 word_detail_page v2 JSON 写 JSONL，可断点续跑、可并发、带结构校验。
 
 「踩过的坑」都固化成了脚本里的控制，不是文档建议：
 
@@ -45,10 +45,10 @@ from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
 PROMPT_VERSION = "vocab-content-v2.3"
-LANGUAGES = ("zh", "en")
-
-OPENCODE_BASE_URL = "https://opencode.ai/inference/go/openai/v1"
-DEFAULT_USER_AGENT = "python-requests/2.31"
+# prompt 与请求参数只有一份：Java 运行时（AiVocabularyContentGenerator）读同一个资源文件，
+# 批量工具也从这里读，避免两边各维护一份 prompt 慢慢漂移。
+CONTRACT_DEFAULT = (Path(__file__).resolve().parents[2]
+                    / "teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json")
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
 # 超过这个 reasoning token 数，说明 thinking 没关掉（正文预算会被吃掉）
 MAX_REASONING_TOKENS = 200
@@ -178,54 +178,34 @@ IRREGULAR_ADJECTIVES: dict[str, list[str]] = {
 SUFFIXES = ("", "s", "es", "ed", "d", "ing", "ly", "er", "est", "n", "en",
             "ies", "ied", "ier", "iest", "ings", "ers")
 
-SYSTEM = """You write vocabulary learning content as strict JSON.
-Return ONLY one JSON object. No markdown, no comments, no extra keys.
+# --------------------------------------------------------------------------- #
+# 共享契约（prompt + 请求参数）
+# --------------------------------------------------------------------------- #
 
-Schema:
-{
-  "schemaVersion": 2,
-  "word": string,
-  "language": string,
-  "basicInfo": {
-    "pronunciation": {"uk": string, "us": string},
-    "partOfSpeech": [string],
-    "image": null
-  },
-  "meanings": {"zh": string, "en": string},
-  "examples": [
-    {
-      "text": string,
-      "translations": {"zh": string},
-      "partOfSpeech": string,
-      "usagePattern": string,
-      "popularity": integer
-    }
-  ],
-  "wordFormation": {
-    "analysis": string,
-    "parts": [{"text": string, "type": string, "meaning": string}],
-    "confidence": "high"
-  },
-  "memoryAids": {
-    "synonyms": [{"word": string, "partOfSpeech": string}],
-    "antonyms": [{"word": string, "partOfSpeech": string}],
-    "mnemonic": string,
-    "supplement": string
-  },
-  "wordFamily": {
-    "items": [{"word": string, "partOfSpeech": [string], "meanings": {"zh": string, "en": string}}]
-  }
-}
+CONTRACT: dict = {}
+SYSTEM: str = ""
+LANGUAGES: tuple[str, ...] = ()
+REQUEST: dict = {}
+DEFAULT_USER_AGENT: str = ""
+OPENCODE_BASE_URL: str = ""
 
-Rules:
-1. examples: 1 to 6 entries. Give 6 when the word naturally supports it; 1 to 3 is acceptable for function words, rare words or concrete nouns with few collocations. Never pad with unnatural sentences. Each sentence must be natural, idiomatic and short, the kind a native speaker actually says, and must contain the word or a standard inflection. Cover every major part of speech at least once when you give more than one example. usagePattern is the real phrase the sentence uses, starting with the word or its article: "struggle to do something", "the apple of one's eye". usagePattern may repeat when the word has few patterns, but the sentences must be distinct. popularity is a unique integer starting at 1, ordered by part-of-speech frequency and usage commonness, common verb patterns first, noun uses after.
-2. translations: only the explanation languages that differ from the target language (for an English word: zh only, never en). The target-language sentence is already in text.
-3. meanings: concise learner-facing definitions in Simplified Chinese (zh) and English (en), covering the main senses and their order.
-4. wordFormation: real morphology only (root, prefix, suffix, derivation, origin). Use "parts" only when you are sure of the segmentation; set confidence high/medium/low. Omit the whole wordFormation object when you are not confident; never invent etymology.
-5. synonyms and antonyms: only real words with the same part of speech as the target; arrays may be empty; never invent.
-6. wordFamily: at most 6 real derived forms or inflections, no duplicates and no invented compounds, each with part of speech and meanings in zh and en.
-7. pronunciation: IPA in slashes (UK and US).
-"""
+
+def apply_contract(path: Path) -> None:
+    """加载 Java/Python 共用的 prompt 契约；版本不一致直接拒绝启动。"""
+    global CONTRACT, SYSTEM, LANGUAGES, REQUEST, DEFAULT_USER_AGENT, OPENCODE_BASE_URL
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    version = str(data.get("promptVersion", ""))
+    if version != PROMPT_VERSION:
+        raise SystemExit(f"prompt 契约版本不一致：{path} 是 {version}，脚本是 {PROMPT_VERSION}")
+    CONTRACT = data
+    SYSTEM = data["system"]
+    LANGUAGES = tuple(data["languages"])
+    REQUEST = data["request"]
+    DEFAULT_USER_AGENT = REQUEST.get("userAgent") or "teachloop-vocab-content/1.0"
+    OPENCODE_BASE_URL = data["providers"]["opencode"]["baseUrl"]
+
+
+apply_contract(Path(os.environ.get("VOCAB_PROMPT_FILE", CONTRACT_DEFAULT)))
 
 
 # --------------------------------------------------------------------------- #
@@ -249,18 +229,15 @@ def request_payload(provider: str, word: str, language: str, model: str,
     payload = {
         "model": model,
         "temperature": temperature,
-        "response_format": {"type": "json_object"},
+        "response_format": REQUEST.get("responseFormat", {"type": "json_object"}),
         "max_tokens": max_tokens,
         "messages": [
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": user_prompt(word, language, example_count)},
         ],
     }
-    if provider == "local":
-        payload["chat_template_kwargs"] = {"enable_thinking": False}
-    else:
-        # 关掉 thinking：默认会先吐 9k–24k reasoning tokens，把 max_tokens 吃光导致正文截断
-        payload["thinking"] = {"type": "disabled"}
+    # 关思考：默认会先吐 9k–24k reasoning tokens，把 max_tokens 吃光导致正文截断
+    payload.update(CONTRACT["providers"][provider]["reasoningOff"])
     return payload
 
 
@@ -273,7 +250,7 @@ def call_model(url: str, key: str, payload: dict, timeout: int, provider: str) -
     }
     if provider == "opencode":
         # 网关要求该头；只是路由，不是对话上下文，每个请求随机即可
-        headers["x-opencode-session"] = str(uuid.uuid4())
+        headers[REQUEST.get("sessionHeader", "x-opencode-session")] = str(uuid.uuid4())
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
@@ -670,9 +647,12 @@ def main() -> int:
     parser.add_argument("--provider", choices=("local", "opencode"), default="local")
     parser.add_argument("--base-url", default=None)
     parser.add_argument("--model", default=None)
-    parser.add_argument("--example-count", type=int, default=6)
-    parser.add_argument("--max-tokens", type=int, default=4000)
-    parser.add_argument("--timeout", type=int, default=150)
+    parser.add_argument("--example-count", type=int, default=None,
+                        help="每词例句上限（默认取契约 examples.maxPerWord）")
+    parser.add_argument("--max-tokens", type=int, default=None,
+                        help="输出 token 预算（默认取契约 request.maxTokens）")
+    parser.add_argument("--timeout", type=int, default=None,
+                        help="单请求超时秒数（默认取契约 request.timeoutSeconds）")
     parser.add_argument("--workers", type=int, default=1, help="parallel requests (opencode: 4-6)")
     parser.add_argument("--limit", type=int, default=0, help="only run the first N pending words (0 = all)")
     parser.add_argument("--forms-map", default=None,
@@ -686,20 +666,33 @@ def main() -> int:
     parser.add_argument("--skip-preflight", action="store_true", help="跳过 1 次探测请求")
     parser.add_argument("--preflight-only", action="store_true", help="只跑 preflight")
     parser.add_argument("--check-words", action="store_true", help="只打印词表体检结果，不请求模型")
+    parser.add_argument("--prompt-file", default=None,
+                        help="覆盖共享契约路径（默认 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json）")
     args = parser.parse_args()
+
+    if args.prompt_file:
+        apply_contract(Path(args.prompt_file))
+    args.example_count = args.example_count or int(CONTRACT["examples"]["maxPerWord"])
+    args.timeout = args.timeout or int(REQUEST.get("timeoutSeconds", 150))
 
     if not 1 <= args.example_count <= 6:
         print("--example-count 必须在 1..6", file=sys.stderr)
         return 2
 
-    if args.provider == "opencode":
-        base_url = args.base_url or OPENCODE_BASE_URL
-        model = args.model or "deepseek-v4.1-flash"
-        max_tokens = max(args.max_tokens, 6000)
-    else:
-        base_url = args.base_url or os.environ.get("LLM_BASE_URL", "http://192.168.68.101:8080/v1")
-        model = args.model or os.environ.get("LLM_MODEL", "qwen3.8-flash-next-iq2_xs")
+    # 优先级：命令行 > 环境变量 > 共享契约
+    provider_defaults = CONTRACT["providers"][args.provider]
+    base_url = (args.base_url
+                or os.environ.get("LLM_BASE_URL")
+                or provider_defaults["baseUrl"])
+    model = (args.model
+             or os.environ.get("LLM_MODEL")
+             or provider_defaults["model"])
+    if args.max_tokens is not None:
         max_tokens = args.max_tokens
+    elif args.provider == "opencode":
+        max_tokens = max(int(REQUEST.get("maxTokens", 4000)), 6000)
+    else:
+        max_tokens = int(REQUEST.get("maxTokensLocal", REQUEST.get("maxTokens", 4000)))
 
     forms_map: dict[str, list[str]] = {}
     if args.forms_map:
