@@ -42,6 +42,7 @@ export function VocabReviewCard({
   onDelete,
   onRate,
   ratingDisabled = false,
+  emptyHint,
 }: {
   word: ReviewCardWord
   flipped: boolean
@@ -50,6 +51,8 @@ export function VocabReviewCard({
   onDelete?: () => void
   onRate?: (rating: 'KNOWN' | 'DONT_KNOW') => void
   ratingDisabled?: boolean
+  /** 明细为空时显示的一行提示（查词/未入库/生成中） */
+  emptyHint?: string
 }) {
   const { t } = useTranslation()
   const content = word.content
@@ -112,6 +115,10 @@ export function VocabReviewCard({
 
         {flipped && (
           <div className="review-back">
+            {(content?.senses?.length ?? 0) === 0
+              && (content?.examples?.length ?? 0) === 0
+              && !content?.analysis
+              && emptyHint && <p className="muted">{emptyHint}</p>}
             {(content?.senses?.length ?? 0) > 0 && (
               <ul className="vocab-sense">
                 {content!.senses!.map((sense, senseIndex) => (

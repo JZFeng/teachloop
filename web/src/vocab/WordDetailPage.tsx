@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import {
@@ -10,10 +10,9 @@ import {
   Modal,
   PageHeader,
   TextArea,
-  useConfirm,
   useToast,
 } from '../ui'
-import { SpeakerButton } from './SpeakerButton'
+import { VocabReviewCard } from './VocabReviewCard'
 import { prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
@@ -71,10 +70,16 @@ interface Detail {
   family: Family | null
 }
 
+/**
+ * 查词页（US-60 / T436）：和复习卡**同一张卡**，只是不带词表相关的东西——
+ * 没有评分、没有「下一个」、没有「暂停复习」/快捷键行；底部只留「返回」。
+ *
+ * <p>在库的词可收藏；不在库的词给「＋ 加入词库」，加入后内容才异步生成。
+ */
 export default function VocabWordDetailPage() {
   const { form = '' } = useParams()
   const { t } = useTranslation()
-  const confirm = useConfirm()
+  const navigate = useNavigate()
   const toast = useToast()
   const [detail, setDetail] = useState<Detail | null>(null)
   const [loading, setLoading] = useState(true)
@@ -84,6 +89,7 @@ export default function VocabWordDetailPage() {
   const [feedbackNote, setFeedbackNote] = useState('')
   const [prep, setPrep] = useState<PrepareResult | null>(null)
   const [retrying, setRetrying] = useState(false)
+  const [flipped, setFlipped] = useState(true)
 
   const refresh = useCallback(() => setReloadKey((value) => value + 1), [])
 
@@ -102,6 +108,19 @@ export default function VocabWordDetailPage() {
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [form, reloadKey])
+
+  // 空格翻面，与复习卡一致
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== ' ') return
+      const target = event.target as HTMLElement | null
+      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
+      event.preventDefault()
+      setFlipped((value) => !value)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
 
   const wordId = detail?.id ?? null
   const preparing = !!detail?.inLibrary && detail?.contentStatus === 'PENDING'
@@ -151,27 +170,6 @@ export default function VocabWordDetailPage() {
     refresh()
   }
 
-  const pause = async () => {
-    if (!detail?.id) return
-    await api.post(`/api/vocab/words/${detail.id}/pause`)
-    toast.success(t('vocab.detail.pausedToast', { word: detail.form }))
-    refresh()
-  }
-
-  const resume = async () => {
-    if (!detail?.id) return
-    const ok = await confirm({
-      title: t('vocab.detail.resumeTitle'),
-      content: t('vocab.detail.resumeBody', { word: detail.form }),
-      okText: t('common.confirm'),
-      cancelText: t('common.cancel'),
-    })
-    if (!ok) return
-    await api.post(`/api/vocab/words/${detail.id}/resume`)
-    toast.success(t('vocab.detail.resumedToast', { word: detail.form }))
-    refresh()
-  }
-
   const addToLibrary = async () => {
     const result = await api.post<{ created: number; duplicated: number }>('/api/vocab/words',
       { form: detail?.form ?? form, language: detail?.language ?? 'en' })
@@ -193,144 +191,59 @@ export default function VocabWordDetailPage() {
   if (error) return <ErrorState error={error} onRetry={refresh} />
   if (!detail) return <Empty>{t('vocab.detail.notFound')}</Empty>
 
-  const content = detail.content
-  const actions = (
-    <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-      {detail.inLibrary ? (
-        <>
-          <Button size="small" variant={detail.favorite ? 'primary' : 'default'} onClick={() => void toggleFavorite()}>
-            {detail.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
-          </Button>
-          {detail.paused
-            ? <Button size="small" onClick={() => void resume()}>{t('vocab.library.resume')}</Button>
-            : <Button size="small" onClick={() => void pause()}>{t('vocab.library.pause')}</Button>}
-          <Button size="small" onClick={() => setFeedbackOpen(true)}>{t('vocab.detail.feedback')}</Button>
-        </>
-      ) : (
-        <Button size="small" variant="primary" onClick={() => void addToLibrary()}>
-          {t('vocab.detail.addToLibrary')}
-        </Button>
-      )}
-    </div>
-  )
-
-  const emptyText = preparing
-    ? t('vocab.review.preparing')
+  const emptyHint = preparing
+    ? `${t('vocab.review.preparing')}${prep ? `（${t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}）` : ''}`
     : contentFailed
       ? t('vocab.review.contentFailed')
-      : t('vocab.detail.noContent')
+      : !detail.inLibrary
+        ? t('vocab.detail.notInLibraryHint')
+        : t('vocab.detail.noContent')
 
   return (
     <>
-      <PageHeader title={detail.form} sub={detail.inLibrary ? undefined : t('vocab.detail.notInLibraryHint')} actions={(
-        <div className="row" style={{ gap: 8 }}><SpeakerButton form={detail.form} />{actions}</div>
-      )} />
-      {detail.inLibrary && (preparing || contentFailed) && (
-        <div className="card" style={{ marginBottom: 12 }}>
-          <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-            {preparing ? (
-              <>
-                <span>{t('vocab.review.preparing')}</span>
-                {prep && (
-                  <span className="muted">
-                    {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
-                  </span>
-                )}
-              </>
-            ) : (
-              <>
-                <span>{t('vocab.review.contentFailed')}</span>
-                <Button size="small" variant="primary" loading={retrying} onClick={() => void retryContent()}>
-                  {t('vocab.review.retryContent')}
+      <PageHeader
+        title={detail.form}
+        hideTitle
+        actions={(
+          <div className="row" style={{ gap: 8 }}>
+            {detail.inLibrary
+              ? (
+                <Button size="small" onClick={() => setFeedbackOpen(true)}>
+                  {t('vocab.detail.feedback')}
                 </Button>
-              </>
+              )
+              : (
+                <Button size="small" variant="primary" onClick={() => void addToLibrary()}>
+                  {t('vocab.detail.addToLibrary')}
+                </Button>
+              )}
+          </div>
+        )}
+      />
+
+      <div className="review-stage review-stage--today">
+        <div className="review-card-column">
+          <VocabReviewCard
+            word={{
+              id: detail.id ?? detail.form,
+              form: detail.form,
+              favorite: detail.favorite,
+              content: detail.content,
+            }}
+            flipped={flipped}
+            onFlip={() => setFlipped((value) => !value)}
+            onToggleFavorite={detail.inLibrary ? () => void toggleFavorite() : undefined}
+            emptyHint={emptyHint}
+          />
+          <div className="review-session-foot">
+            <Button size="small" onClick={() => navigate(-1)}>{t('common.back')}</Button>
+            {contentFailed && (
+              <Button size="small" loading={retrying} onClick={() => void retryContent()}>
+                {t('vocab.review.retryContent')}
+              </Button>
             )}
           </div>
         </div>
-      )}
-      <div className="vocab-detail-grid">
-        <section className="card">
-          <h3>{t('vocab.detail.phonetic')}</h3>
-          <div className="row" style={{ gap: 16 }}>
-            <span>{t('vocab.detail.phoneticUk')} {content?.phonetic?.uk ?? '—'}</span>
-            <span>{t('vocab.detail.phoneticUs')} {content?.phonetic?.us ?? '—'}</span>
-          </div>
-        </section>
-
-        <section className="card">
-          <h3>{t('vocab.detail.senses')}</h3>
-          {(content?.senses?.length ?? 0) === 0
-            ? <p className="muted">{emptyText}</p>
-            : (
-              <ul className="vocab-sense">
-                {content!.senses!.map((sense, index) => (
-                  <li key={index}>
-                    {sense.pos && <span className="chip">{sense.pos}</span>} {sense.zh ?? sense.en ?? ''}
-                    {sense.en && sense.zh && <div className="muted">{sense.en}</div>}
-                  </li>
-                ))}
-              </ul>
-            )}
-        </section>
-
-        <section className="card">
-          <h3>{t('vocab.detail.examples')}</h3>
-          {(content?.examples?.length ?? 0) === 0
-            ? <p className="muted">{emptyText}</p>
-            : (
-              <ul className="vocab-sense">
-                {content!.examples!.map((example, index) => (
-                  <li key={index}>
-                    {example.en}
-                    {example.zh && <div className="muted">{example.zh}</div>}
-                  </li>
-                ))}
-              </ul>
-            )}
-        </section>
-
-        <section className="card">
-          <h3>{t('vocab.detail.analysis')}</h3>
-          <p>{content?.analysis || emptyText}</p>
-        </section>
-
-        <section className="card">
-          <h3>{t('vocab.detail.family')}</h3>
-          {detail.family ? (
-            <>
-              <p className="muted">
-                {detail.family.band >= 1 && detail.family.band <= 30
-                  ? t('vocab.detail.familyBand', { count: detail.family.band * 1000 })
-                  : t('vocab.detail.familySupplement')}
-                {' · '}
-                {t('vocab.detail.familyFrequency', { freq: detail.family.familyFreq })}
-              </p>
-              <div className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-                {detail.family.members.map((member) => (
-                  <span key={member.form} className="chip">{member.form} · {member.freq}</span>
-                ))}
-              </div>
-            </>
-          ) : <p className="muted">{t('vocab.detail.familyMissing')}</p>}
-        </section>
-
-        <section className="card">
-          <h3>{t('vocab.detail.meta')}</h3>
-          <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-            {detail.inLibrary && <span className="chip">{t(`vocab.library.state.${detail.paused ? 'PAUSED' : (detail.state ?? 'NEW')}`)}</span>}
-            {detail.inLibrary && detail.dueAt && (
-              <span className="chip">{t('vocab.detail.nextReview')} {new Date(detail.dueAt).toLocaleDateString()}</span>
-            )}
-            {detail.tags.map((tag) => <span key={tag} className="chip">{tag}</span>)}
-            {detail.inLibrary && (detail.sources.length === 0
-              ? <span className="chip">{t('vocab.library.sourceKind.SELF')}</span>
-              : detail.sources.map((source, index) => (
-                <span key={index} className="chip">
-                  {source.label ?? t(`vocab.library.sourceKind.${source.kind}`)}
-                </span>
-              )))}
-          </div>
-        </section>
       </div>
 
       <Modal open={feedbackOpen} title={t('vocab.detail.feedbackTitle')}
