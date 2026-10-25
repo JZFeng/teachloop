@@ -1492,6 +1492,7 @@
       "preparing": "数据准备中…",
       "preparingHint": "正在准备这批单词的内容，准备好会自动开始。",
       "preparingCount": "已准备 {{ready}}/{{total}}",
+      "startAnyway": "先开始（不等剩余词）",
       "contentFailed": "内容生成失败",
       "retryContent": "重试",
       "front": "正面",

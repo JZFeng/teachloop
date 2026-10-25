@@ -73,6 +73,9 @@ export default function VocabReviewPage() {
   const [windowSize, setWindowSize] = useState(PREPARE_STEPS[0])
   const [prep, setPrep] = useState<PrepareResult | null>(null)
   const [retrying, setRetrying] = useState(false)
+  const [gatePrep, setGatePrep] = useState<PrepareResult | null>(null)
+  const [gateOpen, setGateOpen] = useState(false)
+  const [gateSlow, setGateSlow] = useState(false)
 
   const refresh = useCallback(() => setReloadKey((value) => value + 1), [])
 
@@ -82,6 +85,8 @@ export default function VocabReviewPage() {
     setError(null)
     setWindowSize(PREPARE_STEPS[0])
     setPrep(null)
+    setGatePrep(null)
+    setGateOpen(false)
     api.get<QueueView>('/api/vocab/review/queue')
       .then(async (value) => {
         if (!alive) return
@@ -93,7 +98,12 @@ export default function VocabReviewPage() {
         // T426：进入复习就只为前 N 个词准备内容，不再等全量生成
         if (value.items.length > 0) {
           const result = await prepareWords('TODAY', PREPARE_STEPS[0]).catch(() => null)
-          if (alive && result) setPrep(result)
+          if (alive && result) {
+            setPrep(result)
+            setGatePrep(result)
+            // 用户 2026-10-24：等满首批 N 个词再出卡（常见词通常已提前生成，现场请求很少）
+            if (result.pending === 0) setGateOpen(true)
+          }
         }
       })
       .catch((loadError) => { if (alive) setError(loadError as Error) })
@@ -116,10 +126,41 @@ export default function VocabReviewPage() {
   const currentReady = current?.contentStatus === 'READY'
   const currentFailed = current?.contentStatus === 'FAILED'
   const preparing = !!current && !currentReady && !currentFailed
+  const gateWaiting = items.length > 0 && !gateOpen
 
-  // 数据准备中：每 2 秒问一次准备进度并刷新当前卡的 content，就绪后自动开始
+  // 兜底：等待超过 60 秒（例如 AI 未配置/生成服务不工作）时允许手动开始，避免整页卡死
   useEffect(() => {
-    if (!preparing) return
+    if (!gateWaiting) { setGateSlow(false); return }
+    const timer = setTimeout(() => setGateSlow(true), 60000)
+    return () => clearTimeout(timer)
+  }, [gateWaiting])
+
+  // 等满首批 N 个词：每 2 秒问一次准备进度并刷新队列，pending 归零才放行
+  useEffect(() => {
+    if (!gateWaiting) return
+    let alive = true
+    const tick = async () => {
+      try {
+        const [nextPrep, nextQueue] = await Promise.all([
+          prepareWords('TODAY', PREPARE_STEPS[0]),
+          api.get<QueueView>('/api/vocab/review/queue'),
+        ])
+        if (!alive) return
+        setGatePrep(nextPrep)
+        setPrep(nextPrep)
+        setQueue((previous) => (previous ? { ...previous, items: nextQueue.items } : nextQueue))
+        if (nextPrep.pending === 0) setGateOpen(true)
+      } catch {
+        // 单次轮询失败不打断等待，下一次再试
+      }
+    }
+    const timer = setInterval(() => void tick(), 2000)
+    return () => { alive = false; clearInterval(timer) }
+  }, [gateWaiting])
+
+  // 后续窗口（100/200/400…）：只等当前卡，不整页阻塞
+  useEffect(() => {
+    if (gateWaiting || !preparing) return
     let alive = true
     const tick = async () => {
       try {
@@ -131,12 +172,12 @@ export default function VocabReviewPage() {
         setPrep(nextPrep)
         setQueue((previous) => (previous ? { ...previous, items: nextQueue.items } : nextQueue))
       } catch {
-        // 单次轮询失败不打断等待，下一次再试
+        // 单次轮询失败不打断等待
       }
     }
     const timer = setInterval(() => void tick(), 2000)
     return () => { alive = false; clearInterval(timer) }
-  }, [preparing, windowSize])
+  }, [gateWaiting, preparing, windowSize])
 
   // 懒加载窗口：背到窗口末尾前 5 张时把下一段（100/200/400…）提前排上
   useEffect(() => {
@@ -238,7 +279,7 @@ export default function VocabReviewPage() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (preparing) return
+      if (preparing || gateWaiting) return
       if (event.metaKey || event.ctrlKey || event.altKey) return
       const target = event.target as HTMLElement | null
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
@@ -315,6 +356,35 @@ export default function VocabReviewPage() {
 
   if (loading) return <Loading label={t('common.loading')} />
   if (error) return <ErrorState error={error} onRetry={refresh} />
+
+  if (gateWaiting) {
+    return (
+      <>
+        {header}
+        <div className="review-stage review-stage--today">
+          <div className="review-card-column">
+            <div className="review-card">
+              <div className="review-card-body">
+                <div className="review-word">{items[0]?.form}</div>
+                <div className="muted">{t('vocab.review.preparing')}</div>
+                {gatePrep && (
+                  <div className="muted">
+                    {t('vocab.review.preparingCount', { ready: gatePrep.ready, total: gatePrep.requested })}
+                  </div>
+                )}
+                <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
+                {gateSlow && (
+                  <div className="review-actions">
+                    <Button onClick={() => setGateOpen(true)}>{t('vocab.review.startAnyway')}</Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   if (current && (preparing || currentFailed)) {
     return (

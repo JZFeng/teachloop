@@ -49,6 +49,9 @@ export default function VocabFreeReviewPage() {
   const [windowSize, setWindowSize] = useState(PREPARE_STEPS[0])
   const [prep, setPrep] = useState<PrepareResult | null>(null)
   const [retrying, setRetrying] = useState(false)
+  const [gatePrep, setGatePrep] = useState<PrepareResult | null>(null)
+  const [gateOpen, setGateOpen] = useState(false)
+  const [gateSlow, setGateSlow] = useState(false)
 
   const load = useCallback(async () => {
     setError(null)
@@ -69,22 +72,61 @@ export default function VocabFreeReviewPage() {
 
   useEffect(() => { void load() }, [load])
 
-  // T426：进入「复习这些词」就只为当前窗口的词准备内容
+  // T426/T428：进入「复习这些词」先准备首批 N 个词，等满再出卡
   useEffect(() => {
     setWindowSize(PREPARE_STEPS[0])
     setPrep(null)
+    setGatePrep(null)
+    setGateOpen(false)
     if (!sessionId) return
+    let alive = true
     void prepareWords('SESSION', PREPARE_STEPS[0], { sessionId })
-      .then(setPrep)
+      .then((result) => {
+        if (!alive) return
+        setPrep(result)
+        setGatePrep(result)
+        if (result.pending === 0) setGateOpen(true)
+      })
       .catch(() => { /* 准备失败不阻塞，轮询会再试 */ })
+    return () => { alive = false }
   }, [sessionId])
 
   const preparing = !!word && word.contentStatus !== 'READY' && word.contentStatus !== 'FAILED'
   const contentFailed = word?.contentStatus === 'FAILED'
+  const gateWaiting = !!word && !gateOpen
 
-  // 数据准备中：每 2 秒刷新准备进度与当前卡，就绪后自动开始
+  // 兜底：等待超过 60 秒时允许手动开始，避免整页卡死
   useEffect(() => {
-    if (!preparing) return
+    if (!gateWaiting) { setGateSlow(false); return }
+    const timer = setTimeout(() => setGateSlow(true), 60000)
+    return () => clearTimeout(timer)
+  }, [gateWaiting])
+
+  // 等满首批 N 个词：每 2 秒刷新进度，pending 归零再放行
+  useEffect(() => {
+    if (!gateWaiting) return
+    let alive = true
+    const tick = async () => {
+      try {
+        const result = await prepareWords('SESSION', PREPARE_STEPS[0], { sessionId })
+        if (!alive) return
+        setGatePrep(result)
+        setPrep(result)
+        if (result.pending === 0) {
+          setGateOpen(true)
+          await load()
+        }
+      } catch {
+        // 单次失败不打断等待
+      }
+    }
+    const timer = setInterval(() => void tick(), 2000)
+    return () => { alive = false; clearInterval(timer) }
+  }, [gateWaiting, sessionId, load])
+
+  // 后续窗口（100/200/400…）：只等当前卡，不整页阻塞
+  useEffect(() => {
+    if (gateWaiting || !preparing) return
     let alive = true
     const tick = async () => {
       try {
@@ -98,7 +140,7 @@ export default function VocabFreeReviewPage() {
     }
     const timer = setInterval(() => void tick(), 2000)
     return () => { alive = false; clearInterval(timer) }
-  }, [preparing, windowSize, sessionId, load])
+  }, [gateWaiting, preparing, windowSize, sessionId, load])
 
   // 懒加载窗口：快到窗口末尾时提前准备下一段（100/200/400…）
   useEffect(() => {
@@ -160,7 +202,7 @@ export default function VocabFreeReviewPage() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (preparing) return
+      if (preparing || gateWaiting) return
       const target = event.target as HTMLElement | null
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
       if (event.key === ' ') {
@@ -207,6 +249,35 @@ export default function VocabFreeReviewPage() {
 
   if (word === undefined) return <Loading label={t('common.loading')} />
   if (word === null) return <Empty>{t('vocab.freeReview.empty')}</Empty>
+
+  if (gateWaiting) {
+    return (
+      <>
+        <PageHeader title={t('vocab.freeReview.title')}
+          sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
+          actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
+        <div className="review-stage">
+          <div className="review-card-column">
+            <div className="review-card">
+              <div className="review-word">{word.form}</div>
+              <div className="muted">{t('vocab.review.preparing')}</div>
+              {gatePrep && (
+                <div className="muted">
+                  {t('vocab.review.preparingCount', { ready: gatePrep.ready, total: gatePrep.requested })}
+                </div>
+              )}
+              <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
+              {gateSlow && (
+                <div className="review-actions">
+                  <Button onClick={() => setGateOpen(true)}>{t('vocab.review.startAnyway')}</Button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   if (preparing || contentFailed) {
     return (

@@ -1492,6 +1492,7 @@
       "preparing": "Preparing…",
       "preparingHint": "Preparing content for this batch; it starts automatically when ready.",
       "preparingCount": "{{ready}}/{{total}} ready",
+      "startAnyway": "Start now without waiting",
       "contentFailed": "Content generation failed",
       "retryContent": "Retry",
       "front": "Front",
