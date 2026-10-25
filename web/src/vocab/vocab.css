@@ -125,21 +125,22 @@
   margin-left: auto;
 }
 .review-back { margin-top: 12px; }
-/* T440：复习页（今日复习 / 自由复习）居中版式——单词单独一行居中、英美音标另起一行居中，
-   收藏/删除（暂停）浮在头部右上角；查词明细页不挂 is-centered，保持 T437 左对齐版式 */
-.review-card.is-centered .review-card-head {
+/* T440：卡片正面（review-front）居中版式——单词单独一行居中、英美音标另起一行居中，
+   收藏/删除（暂停）浮在头部右上角。**只在未翻面时生效**：翻面后的卡片反面（review-back）
+   与查词页（word-details）都保持 T437 的左对齐一行版式，一行不动 */
+.review-card.is-centered:not(.is-flipped) .review-card-head {
   position: relative;
   display: block;
 }
-.review-card.is-centered .review-card-head-main {
+.review-card.is-centered:not(.is-flipped) .review-card-head-main {
   flex-direction: column;
   align-items: center;
   gap: 8px;
   padding-inline: 56px;
 }
-.review-card.is-centered .review-word { text-align: center; }
-.review-card.is-centered .review-phonetic-row { justify-content: center; }
-.review-card.is-centered .review-card-head-actions {
+.review-card.is-centered:not(.is-flipped) .review-word { text-align: center; }
+.review-card.is-centered:not(.is-flipped) .review-phonetic-row { justify-content: center; }
+.review-card.is-centered:not(.is-flipped) .review-card-head-actions {
   position: absolute;
   top: 0;
   right: 0;
