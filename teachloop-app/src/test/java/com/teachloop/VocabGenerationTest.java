@@ -3,6 +3,7 @@ package com.teachloop;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teachloop.vocab.content.ContentStore;
+import com.teachloop.vocab.content.ContentView;
 import com.teachloop.vocab.generation.VocabularyGenerationWorker;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -22,6 +23,7 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
 /**
@@ -89,9 +91,23 @@ class VocabGenerationTest {
         assertThat(wordStatus(wordId)).isEqualTo("READY");
         Long contentId = contentId(wordId);
         assertThat(contentId).as("T429：AI 成功内容写入全局 delta，用户行只存引用").isNotNull();
-        assertThat(contentStore.getById(contentId)).get()
-                .extracting(com.teachloop.vocab.content.StoredContent::json)
-                .asString().contains("senses");
+        String stored = contentStore.getById(contentId).orElseThrow().json();
+
+        // (a) 落库形状是 v2（T429 起的约定）：schemaVersion=2 + meanings，
+        //     不再是 v1 的 senses；断言落库就别再找 v1 字段。
+        JsonNode storedJson = MAPPER.readTree(stored);
+        assertThat(storedJson.path("schemaVersion").asInt()).isEqualTo(2);
+        assertThat(storedJson.path("word").asString()).isEqualTo("apple");
+        assertThat(storedJson.path("meanings").path("zh").asString()).isNotBlank();
+        assertThat(stored).doesNotContain("\"senses\"");
+
+        // (b) 读路径要能把 v2 投影成前端仍在用的 v1 形状：senses / examples[{en,zh}] 必须出现。
+        JsonNode view = ContentView.toView(storedJson);
+        assertThat(view.path("senses").size()).isGreaterThan(0);
+        assertThat(view.path("senses").get(0).path("zh").asString()).isNotBlank();
+        assertThat(view.path("examples").size()).isGreaterThan(0);
+        assertThat(view.path("examples").get(0).path("en").asString()).isNotBlank();
+        assertThat(view.path("examples").get(0).path("zh").asString()).isNotBlank();
     }
 
     @Test
