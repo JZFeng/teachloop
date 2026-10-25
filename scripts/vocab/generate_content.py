@@ -208,7 +208,9 @@ def validate(obj: dict, word: str, language: str, example_count: int,
             text = str(example.get("text", ""))
             if not text.strip():
                 problems.append(f"examples[{index}].text empty")
-            elif not looks_like_word(text, word, forms):
+            elif not looks_like_word(text, word, forms) and not looks_like_word(
+                    str(example.get("usagePattern", "")), word, forms):
+                # 不规则屈折（leave → left）词表里没有；usagePattern 以词头开头，可作为旁证
                 problems.append(f"examples[{index}].text missing word")
             if not str(example.get("partOfSpeech", "")).strip():
                 problems.append(f"examples[{index}].partOfSpeech empty")
@@ -244,10 +246,11 @@ def validate(obj: dict, word: str, language: str, example_count: int,
             if not isinstance(parts, list):
                 problems.append("wordFormation.parts must be a list")
             else:
-                for index, part in enumerate(parts):
-                    if not isinstance(part, dict) or not all(
-                            str(part.get(key, "")).strip() for key in ("text", "type", "meaning")):
-                        problems.append(f"wordFormation.parts[{index}] incomplete")
+                # 字段不全的切分项直接丢掉（保留 analysis 整体描述），不因此整条重试
+                kept = [part for part in parts
+                        if isinstance(part, dict)
+                        and all(str(part.get(key, "")).strip() for key in ("text", "type", "meaning"))]
+                formation["parts"] = kept
 
     family = (obj.get("wordFamily") or {}).get("items")
     if not isinstance(family, list):
