@@ -65,6 +65,8 @@ TABLE_OWNER: dict[str, str] = {
     "vocab_user_prefs": "vocab",
     # T405：评分幂等键（V048）
     "vocab_review_requests": "vocab",
+    # T431：V063 把存量 content 暂存到这里，启动回填成功后自动 drop（过渡表）
+    "vocab_words_content_legacy": "vocab",
     "vocab_words": "vocab",
     "vocab_word_sources": "vocab",
     "vocab_progress": "vocab",

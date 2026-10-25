@@ -40,3 +40,17 @@
 - 包损坏（复制不完整）会让大量词 miss：启动校验 sha256 与条数，失败拒绝启动或降级 AI。
 - delta 是单实例本地文件；多实例部署时需共享存储（或改回集中存储），v1 单机不涉及。
 - 性能指标待用户后续确认（本决策只定结构，不定数字）。
+
+## 实现注记（2026-10-25，T429/T430/T431）
+
+- **idx 实际布局**：在 `hash64(8) + offset(8) + length(4)` 之后追加 `contentId(8)`，每条 28 字节，
+  仍按 unsigned hash64 升序、同 hash 按 contentId 升序。原因：P3 读路径要按 `vocab_words.content_id`
+  取内容，`getById` 需要 O(1) 的 id→offset；内存每条 40B，实测 10 万词索引 3.9MB（目标 ≤8MB）。
+- **导入器**：`scripts/vocab/build_content_pack.py`（JSONL → pack/idx/manifest，原子写、可复现 sha256）；
+  读取器启动校验 manifest + sha256 + count + idx 有序，`pack-required=true` 时缺失/损坏拒绝启动。
+- **P3 迁移**：V063 先把存量 `vocab_words.content` 复制到 `vocab_words_content_legacy`，再删列；
+  启动时 `ContentBackfillRunner` 逐行写 delta、回填 `content_id`，全部成功才 drop legacy 表，
+  失败则启动失败并保留表重试。
+- **已知取舍**：内容移出 PG 后，词库「按释义搜索」无法在 SQL 里做，T431 起降级为只按正面词形搜索；
+  如需恢复，应另立「搜索索引」任务，而不是把内容副本放回 `vocab_words`。
+- **内容结构**：包内记录是 v2.3 JSON；前端当前按 v1 渲染，读路径经 `ContentView` 适配（T432 切 v2 后可删）。

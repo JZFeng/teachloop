@@ -161,7 +161,7 @@ lookup(form):
 | 产物 | 形态 | 键/索引 | 归属 |
 | :--- | :--- | :--- | :--- |
 | `content-<lang>-<version>.pack` | JSON 记录顺序拼接（记录 = `{id, form, senses, examples, analysis, phonetic}`），可 64KB 块压缩 | 由 idx 指向 offset/length | vocab（只读文件） |
-| `content-<lang>-<version>.idx` | 每条 `hash64(32B 截断 sha256/xxh3) + offset(8B) + length(4B)`，按 hash 排序 | hash → 记录 | vocab（只读文件） |
+| `content-<lang>-<version>.idx` | 每条 `hash64(8B) + offset(8B) + length(4B) + contentId(8B)`（28B），按 hash 排序 | hash → 记录 / id → offset | vocab（只读文件） |
 | `manifest.json` | `language / version / promptVersion / count / packSha256 / idxSha256 / createdAt` | 启动校验 | vocab |
 | `content-delta.db` | SQLite（WAL），表 `word_content_delta(content_id INTEGER PRIMARY KEY, language, normalized_form, content TEXT, prompt_version, created_at)`，唯一 `(language, normalized_form, prompt_version)` | 主键 / 唯一键 | vocab（本地可变文件） |
 | `vocab_words.content_id` | `bigint null`，引用包内 id 或 delta 的 `content_id` | 仅引用，无跨源外键 | vocab（业务表） |
@@ -203,7 +203,7 @@ P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` �
 | :--- | :--- | :--- |
 | V062 | `alter table vocab_words add column content_id bigint`（nullable，无外键） | drop column |
 | 回填（一次性命令） | 现有 `READY` 词按 `(language, normalized_form)` 写入 delta，拿回 content_id 回填；幂等，可重跑 | 不涉及 |
-| V063（P3） | `alter table vocab_words drop column content` | 需从 ContentStore 重建，故 P3 只在 P2 稳定后执行 |
+| V063（P3） | 先把存量 content 复制到 `vocab_words_content_legacy`，再 `alter table vocab_words drop column content`；启动回填成功后 drop legacy 表 | 需从 ContentStore 重建；回填失败启动失败并保留 legacy 表重试 |
 
 ### 4.1.5 失败与降级
 
