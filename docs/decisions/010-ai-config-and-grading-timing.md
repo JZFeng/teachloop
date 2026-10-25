@@ -29,7 +29,7 @@
 | 谁能选 | 教师与管理员：`GET /api/ai-models` 返回下拉选项，`PUT /api/ai-models/current` 切换当前 provider；**教师切换后全站生效** |
 | Key | 可空；本地 provider 不需要 Key；只存密文、接口只回掩码；留空表示不修改已保存的 Key |
 | 协议 | v1 只实现 OpenAI 兼容（DeepSeek / Ollama / LM Studio / vLLM）；`anthropic` 字段保留但界面置灰、后端拒绝 |
-| 模型 | 一个 provider 可以保存多个模型；「获取可用模型」后以勾选列表展示，可勾多个/手填；失败时仍可手填 |
+| 模型 | 一个 provider 可以保存多个模型；「获取可用模型」后以勾选列表展示，只允许从发现结果里勾选；手填模型 ID 的输入与「添加」按钮已于 2026-10-24 撤除，发现失败即无法保存 |
 | 旧数据 | `user_ai_settings` 保留但不再读取；旧 `ai_settings` 四字段保留为没有 active provider 时的兼容回退 |
 
 ### B. 角色化资料页

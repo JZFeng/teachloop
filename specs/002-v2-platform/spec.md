@@ -740,7 +740,8 @@ AI 不可用、失败或老师想直接判分时，流程不被阻塞。
       `/api/admin/ai-providers`；新增/编辑的字段为 Provider ID、显示名称、API 地址、API 协议、
       API Key、模型目录。Provider ID 小写字母开头且唯一；v1 只接受 OpenAI 兼容协议，
       `anthropic` 返回 400。Key 可空、只存密文、只回掩码；「获取可用模型」调用
-      `GET {baseUrl}/models` 后以可勾选列表展示，支持勾选多个/手填，失败时仍可手填。
+      `GET {baseUrl}/models` 后以可勾选列表展示，只允许从发现结果里勾选（提供手填入口的版本已撤除，
+      2026-10-24 用户拍板）；发现失败即无法保存，需先修正地址或 Key。
 - [ ] AC-45.2 **当前全局模型**：`ai_settings.active_provider_id` + `active_model` 指向当前
       provider 与模型；新增 provider 时若没有当前模型则自动设为第一个模型。管理员可在每个
       模型行「设为当前」。
@@ -864,7 +865,7 @@ AI 不可用、失败或老师想直接判分时，流程不被阻塞。
 | FR-084 | 分值语法统一：题项/小节/写作任务/rubric 评分项都接受 `(5 points)`、`（5 points）`、`（5分）`、`N pts`（D-27） | US-4 |
 | FR-085 | 作文默认判分：无 rubric 时按「内容 X% + 语法与拼写 (100−X)%」合成两项并拆分满分，比例可配置（D-28） | US-27 |
 | FR-086 | 试卷级 rubric 退役：界面移除、考试不再读取（旧 offering 行也忽略），列与接口保留兼容；独立作业仍用布置自带 rubric（D-29） | US-27 |
-| FR-087 | 全局 AI provider：管理员维护 Provider ID、显示名、Base URL、OpenAI 兼容协议、可空 Key、`/v1/models` 模型发现与手填；`ai_settings.active_provider_id` 指当前模型（D-30） | US-45 |
+| FR-087 | 全局 AI provider：管理员维护 Provider ID、显示名、Base URL、OpenAI 兼容协议、可空 Key、`/v1/models` 模型发现（只允许从发现结果勾选，不手填）；`ai_settings.active_provider_id` 指当前模型（D-30） | US-45 |
 | FR-088 | 角色化资料页：学生只看到账号与偏好；教师只做全局模型下拉选择；管理员在 `/admin/ai` 配 provider；学生接口 403（D-30） | US-45 |
 | FR-089 | 教师级作业批改时机：固定时间（默认 02:30 Asia/Shanghai，可改时刻/时区/补跑）或截止时间；考试不受影响（D-30） | US-45 |
 | FR-090 | due-date 模式按 due+grace 由 60 秒扫描派发，不退避任何时段；考试同样到期即派（D-32） | US-45 |

@@ -30,7 +30,6 @@ export default function AdminAiPage() {
   const [form, setForm] = useState<FormState>(EMPTY)
   const [availableModels, setAvailableModels] = useState<string[]>([])
   const [selectedModels, setSelectedModels] = useState<string[]>([])
-  const [manualModel, setManualModel] = useState('')
   const [currentModel, setCurrentModel] = useState<string | null>(null)
   const [modelsMessage, setModelsMessage] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -60,7 +59,6 @@ export default function AdminAiPage() {
     setForm(EMPTY)
     setAvailableModels([])
     setSelectedModels([])
-    setManualModel('')
     setModelsMessage(null)
     setTest(null)
     setFormOpen(true)
@@ -74,7 +72,6 @@ export default function AdminAiPage() {
     })
     setAvailableModels([])
     setSelectedModels(p.models?.length ? p.models : [p.model])
-    setManualModel('')
     setModelsMessage(null)
     setTest(null)
     setFormOpen(true)
@@ -152,14 +149,6 @@ export default function AdminAiPage() {
     setSelectedModels((prev) => prev.includes(model)
       ? prev.filter((m) => m !== model)
       : [...prev, model])
-  }
-
-  const addManualModel = () => {
-    const model = manualModel.trim()
-    if (!model) return
-    setSelectedModels((prev) => prev.includes(model) ? prev : [...prev, model])
-    setAvailableModels((prev) => prev.includes(model) ? prev : [...prev, model])
-    setManualModel('')
   }
 
   const remove = async (p: AiProviderView) => {
@@ -257,7 +246,7 @@ export default function AdminAiPage() {
               placeholder={t('app.ai.keyOptionalPlaceholder')} autoComplete="off"
               onChange={(e) => change({ apiKey: e.target.value })} />
           </Field>
-          <Field label={t('app.ai.models')} hint={t('app.ai.modelsHint')} htmlFor="provider-model"
+          <Field label={t('app.ai.models')} hint={t('app.ai.modelsHint')}
             extra={<Button size="small" onClick={() => void loadModels()} busy={busy}>{t('app.ai.loadModels')}</Button>}>
             {availableModels.length > 0 && (
               <div className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6, marginBottom: 8 }}>
@@ -270,11 +259,6 @@ export default function AdminAiPage() {
                 ))}
               </div>
             )}
-            <div className="row" style={{ gap: 8 }}>
-              <Input id="provider-model" value={manualModel} placeholder={t('app.ai.manualModelPlaceholder')}
-                onChange={(e) => setManualModel(e.target.value)} />
-              <Button size="small" onClick={addManualModel}>{t('app.ai.addModel')}</Button>
-            </div>
             {selectedModels.length > 0 && (
               <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
                 {selectedModels.map((model) => (
