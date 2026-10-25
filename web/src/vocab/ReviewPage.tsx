@@ -297,18 +297,20 @@ export default function VocabReviewPage() {
       } else if (event.key === '2') {
         void submit('KNOWN')
       } else if (event.key === 'n' || event.key === 'N' || event.key === 'ArrowRight') {
-        if (rated) next()
+        // T435：明细（翻面）只读，未评分也能直接下一个（AC-53.7 可跳过）
+        next()
       } else if (event.key === 'f' || event.key === 'F') {
         event.preventDefault()
         void toggleFavorite()
-      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+      } else if ((event.key === 'Delete' || event.key === 'Backspace') && !flipped) {
+        // 明细视图不提供删除，快捷键同样只在正面生效
         event.preventDefault()
         void removeCurrent()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [submit, next, rated, preparing, toggleFavorite, removeCurrent])
+  }, [submit, next, rated, flipped, preparing, toggleFavorite, removeCurrent])
 
   // T427：三个数与「评分会改变什么」仍收在 ⓘ 里（AC-52.2），并新增快捷键表
   const info = useMemo(() => (
@@ -463,39 +465,48 @@ export default function VocabReviewPage() {
               if (event.key === 'Enter') setFlipped((value) => !value)
             }}
           >
-            <div className="review-card-tools">
-              <button
-                type="button"
-                className={`review-icon-action${current.favorite ? ' is-on' : ''}`}
-                aria-label={current.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
-                aria-pressed={current.favorite}
-                title={`${current.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')} · F`}
-                onClick={(event) => { event.stopPropagation(); void toggleFavorite() }}
-              >
-                {current.favorite ? <StarFilled /> : <StarOutlined />}
-              </button>
-              <button
-                type="button"
-                className="review-icon-action is-danger"
-                aria-label={t('vocab.library.delete')}
-                title={`${t('vocab.library.delete')} · Delete`}
-                onClick={(event) => { event.stopPropagation(); void removeCurrent() }}
-              >
-                <DeleteOutlined />
-              </button>
-            </div>
+            {/* T435：翻面后的「单词明细」是只读视图——删除只留在正面（AC-59.11） */}
+            {!flipped && (
+              <div className="review-card-tools">
+                <button
+                  type="button"
+                  className="review-icon-action is-danger"
+                  aria-label={t('vocab.library.delete')}
+                  title={`${t('vocab.library.delete')} · Delete`}
+                  onClick={(event) => { event.stopPropagation(); void removeCurrent() }}
+                >
+                  <DeleteOutlined />
+                </button>
+              </div>
+            )}
 
             <div className="review-card-body">
-              <div className="review-word">{current.form}</div>
-              <div className="review-phonetic-row muted">
-                <span className="review-phonetic">
-                  {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
-                  <SpeakerButton form={current.form} accent="uk" shortcut="u" compact variant="text" />
-                </span>
-                <span className="review-phonetic">
-                  {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
-                  <SpeakerButton form={current.form} accent="us" shortcut="a" compact variant="text" />
-                </span>
+              {/* T435：音标 + 两个喇叭 + 收藏挪到单词同一行 */}
+              <div className="review-card-head">
+                <div className="review-word">{current.form}</div>
+                <div
+                  className="review-phonetic-row muted"
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <span className="review-phonetic">
+                    {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
+                    <SpeakerButton form={current.form} accent="uk" shortcut="u" compact variant="text" />
+                  </span>
+                  <span className="review-phonetic">
+                    {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
+                    <SpeakerButton form={current.form} accent="us" shortcut="a" compact variant="text" />
+                  </span>
+                  <button
+                    type="button"
+                    className={`review-icon-action${current.favorite ? ' is-on' : ''}`}
+                    aria-label={current.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
+                    aria-pressed={current.favorite}
+                    title={`${current.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')} · F`}
+                    onClick={(event) => { event.stopPropagation(); void toggleFavorite() }}
+                  >
+                    {current.favorite ? <StarFilled /> : <StarOutlined />}
+                  </button>
+                </div>
               </div>
               {flipped && (
                 <div className="review-back">
@@ -524,31 +535,34 @@ export default function VocabReviewPage() {
               {!flipped && <div className="review-hint muted">{t('vocab.review.showAnswer')}</div>}
             </div>
 
-            <div className="review-card-actions" onClick={(event) => event.stopPropagation()}>
-              <Button
-                size="large"
-                className="review-unknown"
-                disabled={disabled}
-                onClick={() => void submit('DONT_KNOW')}
-              >
-                {t('vocab.review.unknown')}
-              </Button>
-              <Button
-                size="large"
-                variant="primary"
-                disabled={disabled}
-                onClick={() => void submit('KNOWN')}
-              >
-                {t('vocab.review.known')}
-              </Button>
-            </div>
+            {/* T435：明细（翻面）只用来查看，评分按钮只留在单词卡正面 */}
+            {!flipped && (
+              <div className="review-card-actions" onClick={(event) => event.stopPropagation()}>
+                <Button
+                  size="large"
+                  className="review-unknown"
+                  disabled={disabled}
+                  onClick={() => void submit('DONT_KNOW')}
+                >
+                  {t('vocab.review.unknown')}
+                </Button>
+                <Button
+                  size="large"
+                  variant="primary"
+                  disabled={disabled}
+                  onClick={() => void submit('KNOWN')}
+                >
+                  {t('vocab.review.known')}
+                </Button>
+              </div>
+            )}
           </div>
         </div>
 
         <Button
-          className={`review-next${rated ? ' is-highlighted' : ''}`}
-          variant={rated ? 'primary' : 'default'}
-          disabled={!rated}
+          size="large"
+          className={`review-next${rated || flipped ? ' is-highlighted' : ''}`}
+          variant={rated || flipped ? 'primary' : 'default'}
           onClick={next}
         >
           {t('vocab.review.next')}

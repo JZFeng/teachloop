@@ -76,8 +76,8 @@
   gap: 18px;
 }
 .review-card-column { flex: 1; max-width: 720px; }
-/* T427：今日复习卡固定为内容区的 5/16；窄屏放回整列，避免卡片被压扁 */
-.review-stage--today .review-card-column { flex: 0 0 31.25%; max-width: 31.25%; min-width: 0; }
+/* T427：今日复习卡固定为内容区的 5/16；T435：用户要求至少占右侧区域一半（留出「下一个」按钮后仍超过一半） */
+.review-stage--today .review-card-column { flex: 0 0 55%; max-width: 55%; min-width: 0; }
 .review-card {
   position: relative;
   display: flex;
@@ -101,6 +101,14 @@
   gap: 10px;
 }
 .review-word { font-size: 34px; font-weight: 750; }
+/* T435：单词、英美音标（各带喇叭）与收藏星标收在同一行 */
+.review-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 18px;
+}
 .review-back { margin-top: 12px; }
 .review-examples { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
 .review-actions {
@@ -111,8 +119,23 @@
 }
 .review-actions .ant-btn { min-width: 120px; }
 .review-keys { text-align: center; margin-top: 6px; }
-.review-next { margin-top: 150px; opacity: 0.55; }
-.review-next.is-highlighted { opacity: 1; }
+/* T435：下一个按钮之前几乎看不见（0.55 透明度 + 默认尺寸），加大加显眼 */
+.review-next.ant-btn {
+  margin-top: 150px;
+  min-width: 128px;
+  height: 46px;
+  padding: 0 26px;
+  font-size: 16px;
+  font-weight: 650;
+  opacity: 0.92;
+  border-color: var(--accent);
+  color: var(--accent-text);
+  box-shadow: 0 1px 2px var(--line-2);
+  transition: opacity 0.12s, box-shadow 0.12s, border-color 0.12s;
+}
+.review-next.ant-btn:hover { opacity: 1; box-shadow: 0 2px 8px var(--line); }
+.review-next.is-highlighted { opacity: 1; color: var(--on-accent); }
+.review-next.is-highlighted:hover { color: var(--on-accent); }
 
 /* T427：卡片右上角收藏/删除、音标旁喇叭、卡片底部两档评分 */
 .review-card-tools {
@@ -206,7 +229,7 @@
 }
 @media (max-width: 760px) {
   .review-stage { flex-direction: column; align-items: stretch; }
-  .review-next { margin-top: 0; align-self: flex-end; }
+  .review-next.ant-btn { margin-top: 0; align-self: flex-end; }
   .review-card { min-height: 360px; padding: 24px 20px; }
 }
 
