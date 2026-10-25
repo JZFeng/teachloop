@@ -35,5 +35,27 @@ B 只修「写的时候猜对语言」：切语言后旧通知不变，改文案
 
 - 历史行（本文档之前写入的 714 条）保留原文，不会变语言——这是有意的回退，不是遗漏。
 - 模板里的分数取发布那一刻的 `objectiveTotal + subjectiveTotal`，之后改分不会回头改通知，符合「通知是事件快照」。
-- `ai_circuit_*` 通知目前仍由 `GradingWorker` 按 `Locale.SIMPLIFIED_CHINESE` 拼好再传（`notification.aiCircuit.*` 模板被它直接调用），没有走读取时渲染；要统一时按同样方式迁到 payload。
+- `ai_circuit_*` 通知原来仍由 `GradingWorker` 按 `Locale.SIMPLIFIED_CHINESE` 拼好再传（`notification.aiCircuit.*` 模板被它直接调用），没有走读取时渲染；2026-10-25 已按同样方式迁到 payload（见下）。
 - 新行为需要重启后端才生效；前端改动经 Vite HMR 即时生效。
+
+## 2026-10-25 修订：其余通知补上「谁、对什么、什么时候」
+
+用户给出范例句式（发词通知）并要求「全局扫描 notification msg，酌情添加详细信息」：
+
+> 新的词集 / 2026/10/25 12:36 / 演示班的JZ老师发来一组生词「不规则动词」，请在2026/10/27 03:36之前完成预习。
+
+扫描结果：5 类通知仍只有「老师已布置…请按时完成」这类泛化文案，`ai_circuit_*` 还在写入时拼死中文。按 A1 的既有做法补齐：
+
+| kind | 新增 payload 事实 | 变体与回退 |
+| --- | --- | --- |
+| `offering_published` | `teacher`、`className`（学生所在的第一个参与班）、`dueAt`（按班覆盖优先） | `exam_detail` / `assignment_detail`；缺任一字段回退原 `exam` / `assignment` |
+| `scores_published` | `score`、`total`（只取已判完的 active 份）、`teacher`、`className` | `detail`（有班级与老师）/ `scored`（只有分）；都没有回退原泛化文案 |
+| `ai_not_ready` | `dueAt`（最早截止）、`waiting`（批次内 PENDING/RUNNING/QUEUED 份数） | `due`；缺字段回退原文案 |
+| `ai_circuit_open` | `provider`、`failures`（连续失败份数）、`errorKind`、`nextProbeAt` | 模板键 `notification.ai_circuit_open.*`；旧 `notification.aiCircuit.*` 与写入时拼接一起删除 |
+| `ai_circuit_close` | `provider`、`requeued` | 模板键 `notification.ai_circuit_close.*` |
+| `feedback_published` | 不改 | 已有作业名 + 得分/满分；grading 只有 ledger、没有班级/目录端口，加「哪个班」要新开端口，暂不做 |
+
+- 模板参数**追加**到 {8}–{13}：`provider`、`failures`、`requeued`、`nextProbeAt`、`errorKind`、`waiting`；前面的 {0}–{7} 序号不动。
+- 缺参数的键传空串而不是 `null`：`MessageFormat` 会把 `null` 渲染成字面量「null」，「预计 null 自动试探」比少一句细节更糟。
+- `ai_not_ready` 的统计失败不阻断通知：`waiting`/`dueAt` 在 try/catch 里取，取不到就发原有事实。
+- 成绩只在提交已判完（`grading_state = DONE`）时写分数：没判完显示 0 分会误导学生。

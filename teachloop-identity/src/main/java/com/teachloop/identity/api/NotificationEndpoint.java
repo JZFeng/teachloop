@@ -45,12 +45,14 @@ public class NotificationEndpoint {
 
     /**
      * 模板参数按这个顺序传给 MessageFormat：{0}=作业名，{1}=得分，{2}=满分，{3}=场次数，
-     * {4}=老师名，{5}=班级名，{6}=词集名，{7}=截止时间。
+     * {4}=老师名，{5}=班级名，{6}=词集名，{7}=截止时间，{8}=provider，{9}=连续失败份数，
+     * {10}=自动重派份数，{11}=预计探测时间，{12}=最后错误类别，{13}=待批改份数。
      *
      * <p>新增参数只能追加，不能插到前面：模板里用的是序号，老模板改序号会串位。
      */
     private static final List<String> ARG_KEYS = List.of("title", "score", "total", "count",
-            "teacher", "className", "setName", "dueAt");
+            "teacher", "className", "setName", "dueAt", "provider", "failures", "requeued",
+            "nextProbeAt", "errorKind", "waiting");
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -141,17 +143,23 @@ public class NotificationEndpoint {
         }
     }
 
-    /** 按 ARG_KEYS 顺序取参数；截止时间要换成「瞬间 → 部署时区的可读时间」。 */
+    /**
+     * 按 ARG_KEYS 顺序取参数；时间类要换成「瞬间 → 部署时区的可读时间」。
+     *
+     * <p>缺的键传空串而不是 {@code null}：MessageFormat 会把 null 渲染成字面量「null」，
+     * 一条「预计 null 自动试探」的通知比少一句细节更糟。
+     */
     private Object[] args(Map<String, String> payload, Locale locale) {
         Object[] args = new Object[ARG_KEYS.size()];
         for (int i = 0; i < ARG_KEYS.size(); i++) {
             String key = ARG_KEYS.get(i);
             String raw = payload.get(key);
-            args[i] = switch (key) {
-                case "dueAt" -> dueText(raw, locale);
+            Object value = switch (key) {
+                case "dueAt", "nextProbeAt" -> dueText(raw, locale);
                 case "teacher" -> teacherName(raw, locale);
                 default -> raw;
             };
+            args[i] = value == null ? "" : value;
         }
         return args;
     }
@@ -199,26 +207,49 @@ public class NotificationEndpoint {
         return variant == null ? base + "." + field : base + "." + variant + "." + field;
     }
 
-    /** 同一 kind 需要不同措辞时的细分：考试/作业、是否带分数、发词通知是否有截止时间。 */
+    /**
+     * 同一 kind 需要不同措辞时的细分：考试/作业、是否带分数、发词通知是否有截止时间。
+     *
+     * <p>2026-10-25：能拿到「班级 / 老师 / 截止时间 / 本人得分」时用带细节的变体，
+     * 拿不到（历史行、目录查不到人）就回退到泛化文案——详情是可加的，不能因缺一个字段发不出去。
+     */
     private static String variant(String kind, Map<String, String> payload) {
         if ("offering_published".equalsIgnoreCase(kind)) {
             String offeringKind = payload.get("offeringKind");
-            return offeringKind == null || offeringKind.isBlank()
-                    ? null : offeringKind.toLowerCase(Locale.ROOT);
+            if (offeringKind == null || offeringKind.isBlank()) {
+                return null;
+            }
+            String base = offeringKind.toLowerCase(Locale.ROOT);
+            boolean detailed = has(payload, "teacher") && has(payload, "className") && has(payload, "dueAt");
+            return detailed ? base + "_detail" : base;
+        }
+        if ("scores_published".equalsIgnoreCase(kind)) {
+            if (!has(payload, "score") || !has(payload, "total")) {
+                return null;
+            }
+            return has(payload, "teacher") && has(payload, "className") ? "detail" : "scored";
+        }
+        if ("ai_not_ready".equalsIgnoreCase(kind)) {
+            return has(payload, "dueAt") && has(payload, "waiting") ? "due" : null;
         }
         if ("feedback_published".equalsIgnoreCase(kind)) {
             return payload.get("score") == null ? null : "scored";
         }
         if ("vocab_assignment".equalsIgnoreCase(kind)) {
             // 老行/老调用只有空 payload：走泛化文案，避免拼出「的null老师」。
-            boolean detailed = payload.get("teacher") != null && payload.get("className") != null
-                    && payload.get("setName") != null;
+            boolean detailed = has(payload, "teacher") && has(payload, "className")
+                    && has(payload, "setName");
             if (!detailed) {
                 return null;
             }
             return payload.get("dueAt") == null ? "detail_nodue" : "detail";
         }
         return null;
+    }
+
+    private static boolean has(Map<String, String> payload, String key) {
+        String value = payload.get(key);
+        return value != null && !value.isBlank();
     }
 
     private static Map<String, String> payload(String json) {

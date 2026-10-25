@@ -263,8 +263,8 @@ public class OfferingEndpoint {
         requireVisible(o, me);
         o.setPublishScores(true);
         notifications.notifyScoresPublished(o.getId());
-        notifyStudents(o, "scores_published",
-                Map.of("title", codec.read(o.getPaperSnapshot()).title()));
+        // 2026-10-25：成绩通知除作业名外，再带这个学生自己的得分与班级/老师；没有可用的份就回退泛化文案。
+        notifyStudents(o, "scores_published");
         audit.record(AuditEvent.of(me.id(), "offering:scores_publish", "offering", id.toString()));
         return view(o);
     }
@@ -524,30 +524,96 @@ public class OfferingEndpoint {
         o.setStatus(OfferingStatus.PUBLISHED);
         offerings.save(o);
         notifications.notifyOfferingPublished(o.getId());
-        String paperTitle = codec.read(o.getPaperSnapshot()).title();
-        // A1：只传事实（作业名 + 考试/作业），文案由 identity 在读取时按学生界面语言渲染。
-        notifyStudents(o, "offering_published", Map.of(
-                "title", paperTitle,
-                "offeringKind", o.getKind() == OfferingKind.EXAM ? "exam" : "assignment"));
+        // A1：只传事实（作业名 + 考试/作业 + 班级/老师/截止），文案由 identity 在读取时按学生界面语言渲染。
+        notifyStudents(o, "offering_published");
         audit.record(AuditEvent.of(me.id(), "offering:publish", "offering", o.getId().toString()));
     }
 
-    /** 发布类动作给参与班的学生生成站内通知（T114）；接收者由 sitting 解析，不泄漏给其他模块。 */
-    private void notifyStudents(Offering o, String kind, Map<String, String> payload) {
-        Set<UUID> recipients = new java.util.LinkedHashSet<>();
+    /**
+     * 发布类动作给参与班的学生生成站内通知（T114）；接收者由 sitting 解析，不泄漏给其他模块。
+     *
+     * <p>2026-10-25：payload 不再只有作业名——把「哪个班的哪位老师、什么时候截止」也带上，
+     * 成绩发布再带这个学生自己的得分。这样学生不用点进去就知道是哪一场、谁布置的、还剩多久。
+     * 班级/老师/截止查不到时对应键不写，identity 回退到泛化文案。
+     */
+    private void notifyStudents(Offering o, String kind) {
+        // 一个学生可能同时在多个参与班里：文案只写他所在的第一个班，避免拼一长串班名。
+        Map<UUID, OfferingClass> classOfStudent = new LinkedHashMap<>();
         for (OfferingClass oc : offeringClasses.findByOfferingId(o.getId())) {
-            recipients.addAll(membership.membersOf(oc.getClassId()));
+            for (UUID studentId : membership.membersOf(oc.getClassId())) {
+                classOfStudent.putIfAbsent(studentId, oc);
+            }
         }
-        if (recipients.isEmpty()) {
+        if (classOfStudent.isEmpty()) {
             return;
         }
+        Map<UUID, String> classNames = membership.classNames(new LinkedHashSet<>(
+                classOfStudent.values().stream().map(OfferingClass::getClassId).toList()));
+        Ports.PaperSnapshot snapshot = codec.read(o.getPaperSnapshot());
+        String teacher = teacherName(o.getCreatedBy());
+        boolean scores = "scores_published".equals(kind);
+        Map<UUID, BigDecimal> scoreByStudent = scores ? currentScores(o) : Map.of();
+        boolean hasTotal = scores && snapshot.totalPoints() > 0;
         // target_type 要能让前端直接跳页：考试去 /exams/{id}，作业去 /assignments/{id}。
         String targetType = o.getKind() == OfferingKind.EXAM ? "exam" : "assignment";
-        List<Ports.NotificationMessage> messages = recipients.stream()
-                .map(id -> new Ports.NotificationMessage(id, kind, targetType, o.getId().toString(),
-                        null, null, payload))
-                .toList();
+        String offeringKind = o.getKind() == OfferingKind.EXAM ? "exam" : "assignment";
+        List<Ports.NotificationMessage> messages = new ArrayList<>(classOfStudent.size());
+        for (Map.Entry<UUID, OfferingClass> entry : classOfStudent.entrySet()) {
+            OfferingClass oc = entry.getValue();
+            Map<String, String> payload = new LinkedHashMap<>();
+            payload.put("title", snapshot.title());
+            payload.put("offeringKind", offeringKind);
+            if (teacher != null) {
+                payload.put("teacher", teacher);
+            }
+            String className = classNames.get(oc.getClassId());
+            if (className != null && !className.isBlank()) {
+                payload.put("className", className);
+            }
+            Instant due = oc.getDueAtOverride() == null ? o.getDueAt() : oc.getDueAtOverride();
+            if (due != null) {
+                payload.put("dueAt", due.toString());
+            }
+            if (hasTotal) {
+                BigDecimal score = scoreByStudent.get(entry.getKey());
+                if (score != null) {
+                    payload.put("score", plain(score));
+                    payload.put("total", String.valueOf(snapshot.totalPoints()));
+                }
+            }
+            messages.add(new Ports.NotificationMessage(entry.getKey(), kind, targetType,
+                    o.getId().toString(), null, null, payload));
+        }
         notifications.notify(messages);
+    }
+
+    /** 老师显示名；没有创建者或 identity 查不到时返回 null，通知回退泛化文案。 */
+    private String teacherName(UUID teacherId) {
+        if (teacherId == null) {
+            return null;
+        }
+        String name = directory.displayNames(List.of(teacherId)).get(teacherId);
+        return name == null || name.isBlank() ? null : name;
+    }
+
+    /**
+     * 成绩发布这一刻每个学生「当前那份提交」的得分。
+     *
+     * <p>只取已判完（DONE）的 active 份：没判完的显示 0 分会误导学生，这类学生回退泛化文案。
+     */
+    private Map<UUID, BigDecimal> currentScores(Offering o) {
+        Map<UUID, BigDecimal> scores = new LinkedHashMap<>();
+        for (Submission s : submissions.findByOfferingIdOrderByCreatedAtDesc(o.getId())) {
+            if (s.isActive() && s.getSubmittedAt() != null && s.getGradingState() == GradingState.DONE) {
+                scores.put(s.getStudentId(), s.finalTotal());
+            }
+        }
+        return scores;
+    }
+
+    /** 通知模板里显示分数用：去掉多余的小数零（14.00 → 14）。 */
+    private static String plain(BigDecimal value) {
+        return value == null ? null : value.stripTrailingZeros().toPlainString();
     }
 
     private SittingDtos.OfferingView view(Offering o) {

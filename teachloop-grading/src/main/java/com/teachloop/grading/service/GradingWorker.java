@@ -13,9 +13,9 @@ import com.teachloop.shared.audit.AuditPort;
 import com.teachloop.shared.port.Ports;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
@@ -23,7 +23,6 @@ import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.MessageSource;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -61,14 +60,13 @@ public class GradingWorker {
     /** D-31：熔断打开/恢复通知。 */
     private final Ports.NotificationPort notifications;
     private final AuditPort audit;
-    private final MessageSource messages;
     private final ObjectProvider<Ports.AiSettingsLookup> settings;
     private final Clock clock;
 
     public GradingWorker(Ports.SittingLedger ledger, Ports.GradingWorkQueue queue, GradingEngine engine,
                          ReviewRepository reviews, GradingRunLifecycle runLifecycle,
                          Ports.AiCircuit circuit, Ports.NotificationPort notifications,
-                         AuditPort audit, MessageSource messages,
+                         AuditPort audit,
                          ObjectProvider<Ports.AiSettingsLookup> settings, Clock clock) {
         this.ledger = ledger;
         this.queue = queue;
@@ -78,7 +76,6 @@ public class GradingWorker {
         this.circuit = circuit;
         this.notifications = notifications;
         this.audit = audit;
-        this.messages = messages;
         this.settings = settings;
         this.clock = clock;
     }
@@ -240,7 +237,7 @@ public class GradingWorker {
             } else {
                 Ports.CircuitOpenEvent event = circuit.reportFailure(providerKey, errorKind, now);
                 if (event.opened()) {
-                    onCircuitOpened(providerKey, event);
+                    onCircuitOpened(providerKey, errorKind, event);
                 }
             }
         } catch (RuntimeException ex) {
@@ -248,22 +245,45 @@ public class GradingWorker {
         }
     }
 
-    /** 熔断打开：给这一串失败涉及的教师与全部管理员各发一条通知，只发一次。 */
-    private void onCircuitOpened(String providerKey, Ports.CircuitOpenEvent event) {
-        String title = messages.getMessage("notification.aiCircuit.openTitle", null, Locale.SIMPLIFIED_CHINESE);
-        String body = messages.getMessage("notification.aiCircuit.openBody",
-                new Object[]{providerKey}, Locale.SIMPLIFIED_CHINESE);
+    /**
+     * 熔断打开：给这一串失败涉及的教师与全部管理员各发一条通知，只发一次。
+     *
+     * <p>A1（2026-10-25）：文案不再在这里按 {@link java.util.Locale#SIMPLIFIED_CHINESE} 拼死，
+     * 只传事实（provider、连续失败份数、最后错误类别、预计探测时间），读取时按界面语言渲染。
+     * 这样英文界面不会再收到一条中文熔断通知，也满足 AC-62.5 要求的四项信息。
+     */
+    private void onCircuitOpened(String providerKey, String errorKind, Ports.CircuitOpenEvent event) {
+        Map<String, String> payload = new LinkedHashMap<>();
+        payload.put("provider", providerKey);
+        String lastErrorKind = errorKind;
+        try {
+            Ports.CircuitSnapshot snapshot = circuit.snapshot(providerKey);
+            if (snapshot != null) {
+                payload.put("failures", String.valueOf(snapshot.consecutiveFailures()));
+                if (snapshot.nextProbeAt() != null) {
+                    payload.put("nextProbeAt", snapshot.nextProbeAt().toString());
+                }
+                if (lastErrorKind == null) {
+                    lastErrorKind = snapshot.lastErrorKind();
+                }
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Cannot read AI circuit snapshot for the open notification: {}", ex.getMessage());
+        }
+        if (lastErrorKind != null) {
+            payload.put("errorKind", lastErrorKind);
+        }
         try {
             List<UUID> teachers = ledger.teacherIdsWithFailedGradingSince(event.streakStartedAt());
             List<Ports.NotificationMessage> messages = teachers.stream()
                     .filter(Objects::nonNull)
                     .distinct()
                     .map(teacherId -> new Ports.NotificationMessage(teacherId, "ai_circuit_open",
-                            "provider", providerKey, title, body))
+                            "provider", providerKey, null, null, payload))
                     .toList();
             notifications.notify(messages);
             notifications.notifyAdmins(new Ports.NotificationMessage(null, "ai_circuit_open",
-                    "provider", providerKey, title, body));
+                    "provider", providerKey, null, null, payload));
         } catch (RuntimeException ex) {
             log.warn("AI circuit open notification failed: {}", ex.getMessage());
         }
@@ -293,11 +313,11 @@ public class GradingWorker {
             log.warn("AI circuit close audit failed: {}", ex.getMessage());
         }
         try {
+            Map<String, String> payload = new LinkedHashMap<>();
+            payload.put("provider", providerKey);
+            payload.put("requeued", String.valueOf(requeued));
             notifications.notifyAdmins(new Ports.NotificationMessage(null, "ai_circuit_close",
-                    "provider", providerKey,
-                    messages.getMessage("notification.aiCircuit.closeTitle", null, Locale.SIMPLIFIED_CHINESE),
-                    messages.getMessage("notification.aiCircuit.closeBody",
-                            new Object[]{providerKey, requeued}, Locale.SIMPLIFIED_CHINESE)));
+                    "provider", providerKey, null, null, payload));
         } catch (RuntimeException ex) {
             log.warn("AI circuit close notification failed: {}", ex.getMessage());
         }

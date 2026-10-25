@@ -289,6 +289,25 @@ public class OfferingGradingDispatcher {
         Map<String, String> payload = new LinkedHashMap<>();
         payload.put("title", titleOf(first));
         payload.put("count", String.valueOf(offeringIds.size()));
+        // 2026-10-25：老师要知道「还有多少份在等、最早一场什么时候到期」，
+        // 所以补 dueAt 与 waiting；取不到就只发原有事实，不能因为统计失败发不出通知。
+        try {
+            Instant earliestDue = null;
+            for (UUID offeringId : offeringIds) {
+                Offering offering = offerings.findById(offeringId).orElse(null);
+                Instant due = offering == null ? null : offering.getDueAt();
+                if (due != null && (earliestDue == null || due.isBefore(earliestDue))) {
+                    earliestDue = due;
+                }
+            }
+            if (earliestDue != null) {
+                payload.put("dueAt", earliestDue.toString());
+            }
+            payload.put("waiting", String.valueOf(submissions.countOpenWorkOf(offeringIds)));
+        } catch (RuntimeException ex) {
+            log.warn("AI not ready notification detail unavailable (offerings={}): {}",
+                    offeringIds.size(), ex.getMessage());
+        }
 
         Set<UUID> teachers = new LinkedHashSet<>();
         if (teacherId != null) {

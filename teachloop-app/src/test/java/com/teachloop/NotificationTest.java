@@ -211,6 +211,23 @@ class NotificationTest {
                 "select target_type from notifications where recipient_id = ? and kind = 'offering_published'"
                         + " and target_id = ?", String.class, studentAId, offeringId);
         assertThat(targetType).as("作业通知要能跳到作业页").isEqualTo("assignment");
+
+        // 2026-10-25：通知正文要能说清「哪个班、哪位老师、什么时候截止」，payload 必须先带上这些事实。
+        Map<?, ?> published = getListLang(studentA, "/api/notifications", "zh-CN").stream()
+                .map(row -> (Map<?, ?>) row)
+                .filter(row -> "offering_published".equals(row.get("kind")))
+                .findFirst().orElseThrow();
+        assertThat(String.valueOf(published.get("body")))
+                .as("正文写明班级、老师与截止时间")
+                .contains("通知作业").contains("通知作业班").contains("示例老师").contains("之前完成");
+        assertThat(jdbc.queryForObject(
+                "select payload->>'className' from notifications where recipient_id = ?"
+                        + " and kind = 'offering_published' and target_id = ?",
+                String.class, studentAId, offeringId)).contains("通知作业班");
+        assertThat(jdbc.queryForObject(
+                "select payload->>'dueAt' from notifications where recipient_id = ?"
+                        + " and kind = 'offering_published' and target_id = ?",
+                String.class, studentAId, offeringId)).isNotBlank();
     }
 
     @Test
@@ -299,6 +316,78 @@ class NotificationTest {
         assertThat(bodyOf(enVocab, "不规则动词预习"))
                 .contains("周杰伦老师").contains("三年二班").contains("不规则动词预习")
                 .contains("11/30/26").contains("3:00");
+    }
+
+    @Test
+    @DisplayName("2026-10-25：作业/考试通知写明班级、老师与截止时间；缺字段时回退泛化文案")
+    void rendersOfferingDetailNotification() throws Exception {
+        String targetId = UUID.randomUUID().toString();
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "offering_published",
+                "exam", targetId, null, null,
+                Map.of("title", "第一次月考", "offeringKind", "exam", "teacher", "周杰伦老师",
+                        "className", "三年二班", "dueAt", "2026-11-30T07:00:00Z"))));
+
+        Map<?, ?> zh = byKind(getListLang(studentA, "/api/notifications", "zh-CN"), "offering_published");
+        assertThat(zh.get("title")).isEqualTo("新考试：第一次月考");
+        assertThat(zh.get("body"))
+                .isEqualTo("三年二班的周杰伦老师布置了考试「第一次月考」，请在2026/11/30 15:00之前完成。");
+
+        // 英文界面用英文模板，但班级/老师是数据本身（这里就是中文名），不该丢
+        Map<?, ?> en = byKind(getListLang(studentA, "/api/notifications", "en"), "offering_published");
+        assertThat(String.valueOf(en.get("body")))
+                .contains("published the exam").contains("周杰伦老师").contains("三年二班");
+    }
+
+    @Test
+    @DisplayName("2026-10-25：成绩通知写明班级、老师与本人得分")
+    void rendersScoresDetailNotification() throws Exception {
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "scores_published",
+                "offering", UUID.randomUUID().toString(), null, null,
+                Map.of("title", "第一次月考", "score", "8", "total", "10",
+                        "teacher", "周杰伦老师", "className", "三年二班"))));
+
+        Map<?, ?> zh = byKind(getListLang(studentA, "/api/notifications", "zh-CN"), "scores_published");
+        assertThat(zh.get("title")).isEqualTo("成绩已发布：第一次月考");
+        assertThat(zh.get("body"))
+                .isEqualTo("三年二班的周杰伦老师发布了「第一次月考」的成绩，你的得分是 8/10，可查看得分与反馈。");
+    }
+
+    @Test
+    @DisplayName("2026-10-25：AI 未就绪通知写清待批改份数与最早截止时间")
+    void rendersAiNotReadyDueNotification() throws Exception {
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "ai_not_ready",
+                "offering", UUID.randomUUID().toString(), null, null,
+                Map.of("title", "演示作业", "count", "3", "waiting", "12",
+                        "dueAt", "2026-11-30T07:00:00Z"))));
+
+        Map<?, ?> zh = byKind(getListLang(studentA, "/api/notifications", "zh-CN"), "ai_not_ready");
+        assertThat(String.valueOf(zh.get("body")))
+                .contains("演示作业").contains("3 场").contains("12 份").contains("2026/11/30 15:00");
+    }
+
+    @Test
+    @DisplayName("2026-10-25：熔断通知只传事实，中英文界面各自渲染（含连续失败份数与预计探测时间）")
+    void rendersCircuitNotificationsInBothLanguages() throws Exception {
+        String targetId = UUID.randomUUID().toString();
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "ai_circuit_open",
+                "provider", "deepseek", null, null,
+                Map.of("provider", "deepseek", "failures", "5", "errorKind", "SERVER",
+                        "nextProbeAt", "2026-11-30T07:00:00Z"))));
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "ai_circuit_close",
+                "provider", "deepseek", null, null,
+                Map.of("provider", "deepseek", "requeued", "3"))));
+
+        Map<?, ?> openZh = byKind(getListLang(studentA, "/api/notifications", "zh-CN"), "ai_circuit_open");
+        assertThat(openZh.get("title")).isEqualTo("AI 批改已暂停（熔断）");
+        assertThat(String.valueOf(openZh.get("body")))
+                .contains("deepseek").contains("5 份").contains("SERVER").contains("2026/11/30 15:00");
+
+        Map<?, ?> closeZh = byKind(getListLang(studentA, "/api/notifications", "zh-CN"), "ai_circuit_close");
+        assertThat(closeZh.get("body")).isEqualTo("模型 deepseek 已恢复，自动重派 3 份失败项。");
+
+        Map<?, ?> openEn = byKind(getListLang(studentA, "/api/notifications", "en"), "ai_circuit_open");
+        assertThat(openEn.get("title")).isEqualTo("AI grading paused (circuit open)");
+        assertThat(String.valueOf(openEn.get("body"))).contains("deepseek").contains("SERVER");
     }
 
     private static String bodyOf(List<?> rows, String marker) {

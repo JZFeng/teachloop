@@ -63,6 +63,16 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
     int deactivateActive(UUID offeringId, UUID studentId);
 
     /**
+     * T447：这批布置里还没跑完的提交数；AI 未就绪通知写「共 N 份在等」用。
+     *
+     * <p>与 {@link #countOpenWork(UUID)} 同一口径（PENDING / RUNNING / QUEUED），只差批量。
+     */
+    @Query(value = "select count(*) from submissions where offering_id in :offeringIds "
+            + "and rejected_at is null and grading_state in ('PENDING', 'RUNNING', 'QUEUED')",
+            nativeQuery = true)
+    int countOpenWorkOf(java.util.Collection<UUID> offeringIds);
+
+    /**
      * T335：这场布置里还没跑完的提交数（PENDING / RUNNING，以及等派发的 QUEUED）。
      * 已交卷的 DONE / FAILED / SKIPPED 与已拒收都算跑完。
      */

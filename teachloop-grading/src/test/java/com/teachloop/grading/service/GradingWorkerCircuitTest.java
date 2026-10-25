@@ -29,7 +29,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.context.MessageSource;
 
 /** D-31：worker 侧的熔断闸门、上报与恢复重派。 */
 class GradingWorkerCircuitTest {
@@ -45,7 +44,6 @@ class GradingWorkerCircuitTest {
     private final Ports.AiCircuit circuit = mock(Ports.AiCircuit.class);
     private final Ports.NotificationPort notifications = mock(Ports.NotificationPort.class);
     private final AuditPort audit = mock(AuditPort.class);
-    private final MessageSource messages = mock(MessageSource.class);
     @SuppressWarnings("unchecked")
     private final ObjectProvider<Ports.AiSettingsLookup> settings = mock(ObjectProvider.class);
     private final Ports.AiSettingsLookup lookup = mock(Ports.AiSettingsLookup.class);
@@ -64,10 +62,9 @@ class GradingWorkerCircuitTest {
                 PROVIDER, "https://api.deepseek.com", "deepseek-flash", "key",
                 new BigDecimal("0.2"), true, "global")));
         when(reviews.save(any(Review.class))).thenAnswer(invocation -> invocation.getArgument(0));
-        when(messages.getMessage(any(), any(), any())).thenReturn("message");
         when(queue.pendingIds(anyInt())).thenReturn(List.of());
         worker = new GradingWorker(ledger, queue, engine, reviews, lifecycle,
-                circuit, notifications, audit, messages, settings, clock);
+                circuit, notifications, audit, settings, clock);
     }
 
     @Test
@@ -112,8 +109,11 @@ class GradingWorkerCircuitTest {
         ArgumentCaptor<Ports.NotificationMessage> adminMessage =
                 ArgumentCaptor.forClass(Ports.NotificationMessage.class);
         verify(notifications).notifyAdmins(adminMessage.capture());
-        assertThat(adminMessage.getValue().body()).isEqualTo("message");
-        verify(messages).getMessage(eq("notification.aiCircuit.closeBody"), any(), any());
+        assertThat(adminMessage.getValue().kind()).as("恢复通知走读取侧模板").isEqualTo("ai_circuit_close");
+        assertThat(adminMessage.getValue().title()).as("不再写死中文标题").isNull();
+        assertThat(adminMessage.getValue().payload())
+                .containsEntry("provider", PROVIDER)
+                .containsEntry("requeued", "3");
         ArgumentCaptor<AuditEvent> auditEvent = ArgumentCaptor.forClass(AuditEvent.class);
         verify(audit).record(auditEvent.capture());
         assertThat(auditEvent.getValue().action()).isEqualTo("ai:circuit_close");
@@ -128,6 +128,8 @@ class GradingWorkerCircuitTest {
         when(circuit.reportFailure(eq(PROVIDER), eq("SERVER"), any())).thenReturn(
                 new Ports.CircuitOpenEvent(true, NOW, NOW.minusSeconds(60)));
         when(ledger.teacherIdsWithFailedGradingSince(any())).thenReturn(List.of(teacherId));
+        when(circuit.snapshot(PROVIDER)).thenReturn(new Ports.CircuitSnapshot(
+                PROVIDER, "OPEN", 5, NOW, NOW.plusSeconds(300), "SERVER", NOW.minusSeconds(60)));
 
         int done = worker.processBatch(1);
 
@@ -139,7 +141,16 @@ class GradingWorkerCircuitTest {
         ArgumentCaptor<List<Ports.NotificationMessage>> teachers = ArgumentCaptor.forClass(List.class);
         verify(notifications).notify(teachers.capture());
         assertThat(teachers.getValue()).singleElement()
-                .satisfies(message -> assertThat(message.recipientId()).isEqualTo(teacherId));
+                .satisfies(message -> {
+                    assertThat(message.recipientId()).isEqualTo(teacherId);
+                    assertThat(message.kind()).isEqualTo("ai_circuit_open");
+                    assertThat(message.title()).as("不再写死中文标题").isNull();
+                    assertThat(message.payload())
+                            .containsEntry("provider", PROVIDER)
+                            .containsEntry("failures", "5")
+                            .containsEntry("errorKind", "SERVER")
+                            .containsEntry("nextProbeAt", NOW.plusSeconds(300).toString());
+                });
         verify(notifications).notifyAdmins(any());
 
         ArgumentCaptor<AuditEvent> auditEvent = ArgumentCaptor.forClass(AuditEvent.class);
