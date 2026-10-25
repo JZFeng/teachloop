@@ -245,6 +245,54 @@ P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` �
 2. 性能指标数字（用户说待讨论）；
 3. delta 在多实例部署时的共享方式（v1 单实例不阻塞）。
 
+## 4.2 词详情内容 v2、语言档案与可配置页面模板（US-60 / decisions/018）
+
+### 4.2.1 内容结构
+
+- 每条内容 = 一个词，`schemaVersion: 2`；字段见 decisions/018：`basicInfo` / `meanings{zh,en,es}` /
+  `examples[{text, translations, partOfSpeech, usagePattern, popularity}]` / `memoryAids` / `wordFamily`。
+- 内容包（P2）的每条记录就是这份 JSON；delta 行同样存 v2。`schemaVersion` 与配置不一致时按 miss 处理（重新生成）。
+- 词库/复习卡只取 `meanings` + 前 1–2 条例句；详情页按模板渲染。
+
+### 4.2.2 语言档案
+
+- 表 `vocab_language_profile(user_id uuid pk, main_language, target_language, display_order jsonb, updated_at)`，
+  默认 `zh` / `en` / `["zh","en"]`；个人资料页提供设置入口（调 vocab 的
+  `GET/PUT /api/vocab/language-profile`）。
+- 内容生成覆盖 `meanings`/`translations` 的 zh/en/es 三种语言；缓存键仍是 `(target 语言, 词形)`，与主语言无关。
+
+### 4.2.3 页面模板与例句参数
+
+- 表 `vocab_ui_config(key varchar pk, value jsonb, updated_at)`；seed 两行：
+  `word_detail_template`（sections 顺序/显隐/每节 options）与 `word_examples_config`
+  （aiRequestCount=6 / defaultVisibleCount=3 / moreVisibleCount=3 / sortRule）。
+- 管理员接口 `PUT /api/admin/vocab/ui-config`（ADMIN），前端 `GET /api/vocab/ui-config/word-detail` 取合并后的配置；
+  配置非法时回退代码内默认模板并记 warn。
+- 前端 `WordDetailPage` 按 sections 渲染，「More」展开剩余例句；例句文本高亮目标词（大小写/屈折容错）。
+
+### 4.2.4 生成 prompt 与校验
+
+- 系统提示与用户提示按 decisions/018 §7；prompt 版本进 `prompt_version`（包、delta、配置一致才命中）。
+- 写库前校验：JSON 结构、例句数量（6）、`popularity` 唯一、`text` 含目标词、`translations` 覆盖 zh/en/es；
+  不合格重试一次，再失败 → job FAILED，不写半成品。
+
+### 4.2.5 任务
+
+| 任务 | 内容 | 验收 |
+| :--- | :--- | :--- |
+| T432 | 内容结构 v2 + prompt v2 + 输出校验（替换 v1 生成器输出） | 生成 6 条例句、三种语言、排序字段齐全；非法输出不落库；单测/集成绿 |
+| T433 | `vocab_language_profile` + 接口 + 个人资料页设置 | 三种画像（zh/en、en/zh、zh/es）显示顺序正确；默认 zh/en |
+| T434 | `vocab_ui_config` + 管理员接口 + 详情页模板渲染 + More | 改配置即可把例句置顶、改显示条数，无需发版 |
+
+### 4.2.6 失败与兼容
+
+| 场景 | 行为 |
+| :--- | :--- |
+| AI 输出缺语言/条数不对 | 重试一次；仍失败 job FAILED，页面显示失败与重试 |
+| 模板配置非法（未知 section） | 回退默认模板，忽略未知 key，记 warn |
+| 存量 v1 内容 | 过渡期 UI 兼容渲染；下次 prepare 需要时按 v2 重生成（`schemaVersion` 区分） |
+| 语言档案未设置 | 使用默认 zh/en，不报错 |
+
 ## 5. TTS 缓存
 
 - 键：`sha256(normalized_form + "|" + provider + "|" + voice + "|" + rate)`；值：音频字节 + contentType。
