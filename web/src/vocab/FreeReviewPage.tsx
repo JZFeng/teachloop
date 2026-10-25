@@ -142,17 +142,21 @@ export default function VocabFreeReviewPage() {
     return () => { alive = false; clearInterval(timer) }
   }, [gateWaiting, preparing, windowSize, sessionId, load])
 
-  // 懒加载窗口：快到窗口末尾时提前准备下一段（100/200/400…）
+  // 窗口推进：快到末尾时只把窗口放大，不阻塞页面
   useEffect(() => {
-    if (!word || !sessionId) return
+    if (!word) return
     if (word.cursor < windowSize - 5) return
     const next = nextPrepareWindow(windowSize)
+    if (next !== windowSize) setWindowSize(next)
+  }, [word, windowSize])
+
+  // 异步预取：当前窗口一打开就把下一段排上，别让学生走到边界再等
+  useEffect(() => {
+    if (!gateOpen || !sessionId) return
+    const next = nextPrepareWindow(windowSize)
     if (next === windowSize) return
-    setWindowSize(next)
-    void prepareWords('SESSION', next, { sessionId })
-      .then(setPrep)
-      .catch(() => { /* 下一轮轮询再试 */ })
-  }, [word, windowSize, sessionId])
+    void prepareWords('SESSION', next, { sessionId }).catch(() => { /* 下一轮轮询再试 */ })
+  }, [gateOpen, windowSize, sessionId])
 
   const retryContent = useCallback(async () => {
     if (!word) return

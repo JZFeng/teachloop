@@ -179,15 +179,21 @@ export default function VocabReviewPage() {
     return () => { alive = false; clearInterval(timer) }
   }, [gateWaiting, preparing, windowSize])
 
-  // 懒加载窗口：背到窗口末尾前 5 张时把下一段（100/200/400…）提前排上
+  // 窗口推进：快到末尾时只把窗口放大，不阻塞页面
   useEffect(() => {
     if (items.length === 0) return
     if (index < windowSize - 5) return
     const next = nextPrepareWindow(windowSize)
-    if (next === windowSize) return
-    setWindowSize(next)
-    void prepareWords('TODAY', next).then(setPrep).catch(() => { /* 下一轮轮询再试 */ })
+    if (next !== windowSize) setWindowSize(next)
   }, [index, windowSize, items.length])
+
+  // 异步预取：当前窗口一打开就把下一段（100/200/400…）排上，学生走到边界时内容已就绪
+  useEffect(() => {
+    if (!gateOpen) return
+    const next = nextPrepareWindow(windowSize)
+    if (next === windowSize) return
+    void prepareWords('TODAY', next).catch(() => { /* 下一轮轮询再试 */ })
+  }, [gateOpen, windowSize])
 
   const retryContent = useCallback(async () => {
     if (!current) return
