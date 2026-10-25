@@ -193,13 +193,13 @@ public class ReviewPreparationEndpoint {
         return contentStore.get(row.language(), row.normalizedForm());
     }
 
-    /** P1/P2：写 content_id 的同时保留用户行内容副本；P3（V063）后只写引用。 */
+    /** T431：命中全局内容后只写引用 + 状态；用户行不再保存内容副本（V063 已删列）。 */
     private void markReady(WordStatus row, StoredContent content) {
         jdbc.update("""
                 update vocab_words
-                   set content = cast(? as jsonb), content_id = ?, content_status = 'READY', updated_at = ?
+                   set content_id = ?, content_status = 'READY', updated_at = ?
                  where id = ?
-                """, content.json(), content.id(), Timestamp.from(Instant.now(clock)), row.id());
+                """, content.id(), Timestamp.from(Instant.now(clock)), row.id());
     }
 
     private List<UUID> wordIdsOf(String scopeJson) {

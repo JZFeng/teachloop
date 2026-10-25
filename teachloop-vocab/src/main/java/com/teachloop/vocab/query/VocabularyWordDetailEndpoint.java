@@ -1,6 +1,8 @@
 package com.teachloop.vocab.query;
 
 import com.teachloop.shared.security.CurrentUser;
+import com.teachloop.vocab.content.ContentStore;
+import com.teachloop.vocab.content.ContentView;
 import com.teachloop.vocab.importer.WordImportService;
 import com.teachloop.vocab.lexicon.WordFamily;
 import com.teachloop.vocab.lexicon.WordFamilyIndex;
@@ -37,13 +39,15 @@ public class VocabularyWordDetailEndpoint {
     private final VocabWordRepository words;
     private final WordFamilyIndex lexicon;
     private final WordImportService imports;
+    private final ContentStore contentStore;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public VocabularyWordDetailEndpoint(VocabWordRepository words, WordFamilyIndex lexicon,
-                                        WordImportService imports) {
+                                        WordImportService imports, ContentStore contentStore) {
         this.words = words;
         this.lexicon = lexicon;
         this.imports = imports;
+        this.contentStore = contentStore;
     }
 
     public record MemberView(String form, long freq, boolean head) {
@@ -85,7 +89,8 @@ public class VocabularyWordDetailEndpoint {
                 .map(row -> new DetailView(true, row.id(), row.form(), row.language(),
                         row.contentStatus(), row.favorite(), row.paused(), parseTags(row.tagsJson()),
                         row.state(), row.dueAt(), row.intervalDays(), row.ease(),
-                        parseJson(row.contentJson()), sources(me.id(), row.id()), family))
+                        ContentView.resolve(contentStore, row.contentId()),
+                        sources(me.id(), row.id()), family))
                 .orElseGet(() -> new DetailView(false, null, WordNormalizer.display(form), lang,
                         null, false, false, List.of(), null, null, null, null, null, List.of(), family));
     }
@@ -133,10 +138,6 @@ public class VocabularyWordDetailEndpoint {
                 hit.matchedFolded(), hit.members().stream()
                 .map(member -> new MemberView(member.form(), member.freq(), member.head()))
                 .toList());
-    }
-
-    private JsonNode parseJson(String json) {
-        return json == null || json.isBlank() ? null : mapper.readTree(json);
     }
 
     private List<String> parseTags(String json) {

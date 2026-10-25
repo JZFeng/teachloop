@@ -34,9 +34,12 @@ public class ReviewSessionRepository {
                              int knownCount, int pausedCount, String status) {
     }
 
-    /** 当前卡片的原始行；`content` 以 JSON 文本返回，解析留给端点。 */
-    public record CurrentWordRow(UUID id, String form, String contentJson, String contentStatus,
-                                 boolean favorite, boolean paused) {
+    /**
+     * 当前卡片的原始行（T431）：内容只给全局 {@code content_id}，由端点经 ContentStore 解析；
+     * {@code language} 供前端按词条语言选例句音色。
+     */
+    public record CurrentWordRow(UUID id, String form, String language, Long contentId,
+                                 String contentStatus, boolean favorite, boolean paused) {
     }
 
     /** 新建会话：cursor 从 0 或上次的值起（继续复习）。 */
@@ -69,12 +72,13 @@ public class ReviewSessionRepository {
 
     public Optional<CurrentWordRow> currentWord(UUID wordId, UUID userId) {
         return jdbc.query("""
-                select id, form, cast(content as text), content_status, favorite, removed
+                select id, form, language, content_id, content_status, favorite, removed
                   from vocab_words
                  where id = ? and user_id = ? and deleted = false
                 """, (rs, rowNumber) -> new CurrentWordRow(
                         rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
-                        rs.getString(4), rs.getBoolean(5), rs.getBoolean(6)),
+                        rs.getObject(4, Long.class), rs.getString(5), rs.getBoolean(6),
+                        rs.getBoolean(7)),
                 wordId, userId).stream().findFirst();
     }
 

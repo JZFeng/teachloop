@@ -2,6 +2,7 @@ package com.teachloop;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.teachloop.vocab.content.ContentStore;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -57,7 +58,16 @@ class VocabReviewQueueTest {
     @Autowired
     JdbcTemplate jdbc;
 
+    @Autowired
+    ContentStore contentStore;
+
     private final HttpClient client = HttpClient.newHttpClient();
+
+    /** T431：v1 形状的全局内容（前端当前直接渲染这个形状）。 */
+    private static final String CONTENT_V1 = """
+            {"senses":[{"pos":"n.","zh":"队列释义","en":"queue sense"}],
+             "examples":[{"en":"A queue sentence.","zh":"一条队列例句。"}]}
+            """;
 
     @Test
     @DisplayName("新卡上限 2；暂停/软删不进队列；到期卡在前；计数与去重正确；单次上限生效")
@@ -81,6 +91,27 @@ class VocabReviewQueueTest {
         List<String> forms = new ArrayList<>();
         queue.get("items").forEach(item -> forms.add(item.get("form").asString()));
         assertThat(forms).doesNotContain("beta", "gamma");
+
+        // T431：还没内容时为 null（页面显示「未准备」），不抛；language 供前端选例句音色
+        JsonNode unprepared = queue.get("items").get(0);
+        assertThat(unprepared.get("language").asString()).isEqualTo("en");
+        assertThat(unprepared.get("content").isNull()).isTrue();
+
+        // T431：内容只存全局 ContentStore，队列按 content_id 解析后原样返回
+        UUID seededId = UUID.fromString(unprepared.get("id").asString());
+        long contentId = contentStore.put("en", unprepared.get("form").asString(), CONTENT_V1, "TEST");
+        jdbc.update("update vocab_words set content_id = ?, content_status = 'READY' where id = ?",
+                contentId, seededId);
+        JsonNode withContent = get(base, cookie, "/api/vocab/review/queue");
+        JsonNode seeded = null;
+        for (JsonNode item : withContent.get("items")) {
+            if (seededId.toString().equals(item.get("id").asString())) {
+                seeded = item;
+            }
+        }
+        assertThat(seeded).as("补齐内容后同一张卡仍在队列里").isNotNull();
+        assertThat(seeded.get("content").path("senses").get(0).path("zh").asString())
+                .isEqualTo("队列释义");
 
         // 一张到期卡（非 NEW）应排在 NEW 之前
         UUID delta = wordId(userId, "delta");

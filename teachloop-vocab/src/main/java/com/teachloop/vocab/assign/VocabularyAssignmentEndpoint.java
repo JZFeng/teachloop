@@ -204,10 +204,12 @@ public class VocabularyAssignmentEndpoint {
                         contentId = contentStore.put(source.language(), normalized,
                                 word.contentJson(), "ASSIGNMENT");
                     } catch (RuntimeException ex) {
-                        log.warn("发词快照写入全局 delta 失败 word={}（副本仍保留在用户行）：{}",
+                        // T431：用户行不再存内容副本；delta 写失败时词条没有 content_id，
+                        // 页面显示「未准备」，下次 prepare 会按词形重新查全局内容。
+                        log.warn("发词快照写入全局 delta 失败 word={}（词条无 content_id，显示未准备）：{}",
                                 form, ex.getMessage());
                     }
-                    words.setContent(wordId, word.contentJson(), "READY", contentId);
+                    words.setContent(wordId, contentId, "READY");
                 } else {
                     createdIds.add(wordId);
                 }

@@ -217,7 +217,7 @@ public class VocabWordRepository {
                 userId, language);
     }
 
-    public record WordDetailRow(UUID id, String form, String language, String contentJson,
+    public record WordDetailRow(UUID id, String form, String language, Long contentId,
                                 String contentStatus, boolean favorite, String tagsJson,
                                 boolean paused, String state, Instant dueAt, java.math.BigDecimal intervalDays,
                                 java.math.BigDecimal ease) {
@@ -225,14 +225,15 @@ public class VocabWordRepository {
 
     public Optional<WordDetailRow> detail(UUID userId, String language, String normalizedForm) {
         List<WordDetailRow> rows = jdbc.query("""
-                select w.id, w.form, w.language, cast(w.content as text), w.content_status,
+                select w.id, w.form, w.language, w.content_id, w.content_status,
                        w.favorite, cast(w.tags as text), w.removed, p.state, p.due_at,
                        p.interval_days, p.ease
                   from vocab_words w
                   left join vocab_progress p on p.word_id = w.id
                  where w.user_id = ? and w.language = ? and w.normalized_form = ? and w.deleted = false
                 """, (rs, rowNumber) -> new WordDetailRow(
-                rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getString(4),
+                rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                rs.getObject(4, Long.class),
                 rs.getString(5), rs.getBoolean(6), rs.getString(7), rs.getBoolean(8),
                 rs.getString(9), rs.getTimestamp(10) == null ? null : rs.getTimestamp(10).toInstant(),
                 rs.getBigDecimal(11), rs.getBigDecimal(12)),
@@ -265,15 +266,16 @@ public class VocabWordRepository {
         return id == null ? 0 : id;
     }
 
-    public void setContent(UUID wordId, String contentJson, String status) {
-        setContent(wordId, contentJson, status, null);
-    }
-
-    /** T429：写内容副本的同时记录全局内容引用；contentId 可能为 null（delta 写失败时降级）。 */
-    public void setContent(UUID wordId, String contentJson, String status, Long contentId) {
-        jdbc.update("update vocab_words set content = cast(? as jsonb), content_id = ?,"
-                        + " content_status = ?, updated_at = ? where id = ?",
-                contentJson, contentId, status, Timestamp.from(clock.instant()), wordId);
+    /**
+     * 记录词内容（T429/P3 T431）：内容只存全局 ContentStore，用户行只写引用 + 状态。
+     *
+     * <p>{@code contentId} 可能为 null（delta 写失败时降级）——此时状态仍按传入值写，
+     * 页面按「未准备」显示，不阻塞复习。
+     */
+    public void setContent(UUID wordId, Long contentId, String status) {
+        jdbc.update("update vocab_words set content_id = ?, content_status = ?, updated_at = ?"
+                        + " where id = ?",
+                contentId, status, Timestamp.from(clock.instant()), wordId);
     }
 
     /** 领取班级布置时追加来源（同一布置对同一个词只记一次）。 */
