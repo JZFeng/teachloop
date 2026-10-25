@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """批量生成 v2.3 词内容（长期维护的 utility；运行时生成在 Java 侧，见 T439）。
 
-prompt 与请求参数来自共享契约 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json
+prompt 与请求参数来自共享契约 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.4.json
 （Java 运行时读同一份），逐词生成 word_detail_page v2 JSON 写 JSONL，可断点续跑、可并发、带结构校验。
 
 「踩过的坑」都固化成了脚本里的控制，不是文档建议：
@@ -44,11 +44,11 @@ import uuid
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
-PROMPT_VERSION = "vocab-content-v2.3"
+PROMPT_VERSION = "vocab-content-v2.4"
 # prompt 与请求参数只有一份：Java 运行时（AiVocabularyContentGenerator）读同一个资源文件，
 # 批量工具也从这里读，避免两边各维护一份 prompt 慢慢漂移。
 CONTRACT_DEFAULT = (Path(__file__).resolve().parents[2]
-                    / "teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json")
+                    / "teachloop-vocab/src/main/resources/vocab/content-prompt-v2.4.json")
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
 # 超过这个 reasoning token 数，说明 thinking 没关掉（正文预算会被吃掉）
 MAX_REASONING_TOKENS = 200
@@ -212,15 +212,17 @@ apply_contract(Path(os.environ.get("VOCAB_PROMPT_FILE", CONTRACT_DEFAULT)))
 # 请求
 # --------------------------------------------------------------------------- #
 
-def user_prompt(word: str, language: str, example_count: int) -> str:
+def user_prompt(word: str, language: str, example_count: int, extra: str = "") -> str:
     """用户提示词模板来自契约，Java 运行时用同一份，保证批量与实时措辞一致。"""
     others = ", ".join(lang for lang in LANGUAGES if lang != language)
-    return CONTRACT["userPrompt"].format(
+    prompt = CONTRACT["userPrompt"].format(
         word=word, language=language, otherLanguages=others, exampleCount=example_count)
+    return prompt + ("\n" + extra if extra else "")
 
 
 def request_payload(provider: str, word: str, language: str, model: str,
-                    example_count: int, max_tokens: int, temperature: float) -> dict:
+                    example_count: int, max_tokens: int, temperature: float,
+                    extra: str = "") -> dict:
     payload = {
         "model": model,
         "temperature": temperature,
@@ -228,7 +230,7 @@ def request_payload(provider: str, word: str, language: str, model: str,
         "max_tokens": max_tokens,
         "messages": [
             {"role": "system", "content": SYSTEM},
-            {"role": "user", "content": user_prompt(word, language, example_count)},
+            {"role": "user", "content": user_prompt(word, language, example_count, extra)},
         ],
     }
     # 关思考：默认会先吐 9k–24k reasoning tokens，把 max_tokens 吃光导致正文截断
@@ -327,6 +329,26 @@ def looks_like_word(text: str, word: str, forms: list[str] | None = None) -> boo
 # 结构校验（含清洗）
 # --------------------------------------------------------------------------- #
 
+
+INFLECTION_SUFFIXES = ("s", "es", "ed", "d", "ing", "ies", "ied", "'s")
+
+
+def is_inflection_of(base: str, form: str) -> bool:
+    """屈折变化（复数/过去式/分词）不要求在 chain 里出现。"""
+    b, w = base.lower(), form.lower()
+    if w == b:
+        return True
+    if w in {b + suffix for suffix in INFLECTION_SUFFIXES}:
+        return True
+    return len(b) >= 3 and w.startswith(b[:-1]) and w.endswith(("s", "ed", "ing"))
+
+
+def derivational_family(obj: dict, word: str) -> list[str]:
+    items = (obj.get("wordFamily") or {}).get("items") or []
+    return [str(item.get("word", "")).strip() for item in items
+            if isinstance(item, dict) and str(item.get("word", "")).strip()
+            and not is_inflection_of(word, str(item.get("word", "")).strip())]
+
 def validate(obj: dict, word: str, language: str, example_count: int,
              forms: list[str] | None = None) -> list[str]:
     problems: list[str] = []
@@ -388,24 +410,56 @@ def validate(obj: dict, word: str, language: str, example_count: int,
                         problems.append(f"examples[{index}].translations.{lang} empty")
 
     formation = obj.get("wordFormation")
-    if formation is not None:
-        if not isinstance(formation, dict):
-            problems.append("wordFormation must be an object")
+    if formation is not None and not isinstance(formation, dict):
+        problems.append("wordFormation must be an object")
+    elif isinstance(formation, dict):
+        if not str(formation.get("analysis", "")).strip():
+            problems.append("wordFormation.analysis empty")
+        if formation.get("confidence") not in ("high", "medium", "low"):
+            problems.append("wordFormation.confidence invalid")
+        parts = formation.get("parts", [])
+        if not isinstance(parts, list):
+            problems.append("wordFormation.parts must be a list")
         else:
-            if not str(formation.get("analysis", "")).strip():
-                problems.append("wordFormation.analysis empty")
-            if formation.get("confidence") not in ("high", "medium", "low"):
-                problems.append("wordFormation.confidence invalid")
-            parts = formation.get("parts", [])
-            if not isinstance(parts, list):
-                problems.append("wordFormation.parts must be a list")
-            else:
-                # 字段不全的切分项直接丢掉（保留 analysis 整体描述），不因此整条重试
-                formation["parts"] = [
-                    part for part in parts
+            kept = [part for part in parts
                     if isinstance(part, dict)
-                    and all(str(part.get(key, "")).strip() for key in ("text", "type", "meaning"))
-                ]
+                    and all(str(part.get(key, "")).strip() for key in ("text", "type", "meaning"))]
+            formation["parts"] = kept
+            if not kept:
+                problems.append("wordFormation.parts empty（只有真正的单根词允许单条 root）")
+            elif len(kept) == 1 and str(kept[0].get("text", "")).strip().lower() != word.lower():
+                problems.append("wordFormation.parts 只有一条且不是该词本身")
+        # chain：丢空步，要求能够解释派生词
+        chain = formation.get("chain")
+        if chain is None:
+            chain = []
+        if not isinstance(chain, list):
+            problems.append("wordFormation.chain must be a list")
+            chain = []
+        cleaned_chain = []
+        for step in chain:
+            if not isinstance(step, dict):
+                continue
+            sources = [str(x).strip() for x in (step.get("from") or []) if str(x).strip()]
+            target = str(step.get("to", "")).strip()
+            if not sources or not target:
+                continue
+            if len(sources) == 1 and sources[0].lower() == target.lower():
+                continue  # 空步（struggle → struggle）
+            if not str(step.get("partOfSpeech", "")).strip() or not str(step.get("meaning", "")).strip():
+                continue
+            cleaned_chain.append({"from": sources, "to": target,
+                                  "partOfSpeech": str(step["partOfSpeech"]).strip(),
+                                  "meaning": str(step["meaning"]).strip()})
+        formation["chain"] = cleaned_chain
+        monomorphemic = (len(formation.get("parts") or []) == 1
+                         and str(formation["parts"][0].get("text", "")).strip().lower() == word.lower())
+        if not cleaned_chain and not monomorphemic:
+            problems.append("wordFormation.chain empty（词缀词必须给出派生阶梯）")
+        reached = {step["to"].lower() for step in cleaned_chain}
+        missing = [item for item in derivational_family(obj, word) if item.lower() not in reached]
+        if missing:
+            problems.append("chain missing derived forms: " + ", ".join(missing))
 
     family = (obj.get("wordFamily") or {}).get("items")
     if not isinstance(family, list):
@@ -666,7 +720,7 @@ def main() -> int:
     parser.add_argument("--preflight-only", action="store_true", help="只跑 preflight")
     parser.add_argument("--check-words", action="store_true", help="只打印词表体检结果，不请求模型")
     parser.add_argument("--prompt-file", default=None,
-                        help="覆盖共享契约路径（默认 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json）")
+                        help="覆盖共享契约路径（默认 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.4.json）")
     args = parser.parse_args()
 
     if args.prompt_file:
@@ -756,14 +810,14 @@ def main() -> int:
     abort = threading.Event()
 
     def work(word: str) -> bool:
-        attempts = [(max_tokens, 0.2), (max(max_tokens, 6000), 0.1)]
+        attempts = [(max_tokens, 0.2, ""), (max(max_tokens, 6000), 0.1, "")]
         record = None
         reasons: list[str] = []
-        for max_tokens_try, temperature in attempts:
+        for max_tokens_try, temperature, extra in attempts:
             if abort.is_set():
                 return False
             payload = request_payload(args.provider, word, args.language, model,
-                                      args.example_count, max_tokens_try, temperature)
+                                      args.example_count, max_tokens_try, temperature, extra)
             response = None
             call_started = time.time()
             for backoff in range(4):
@@ -808,6 +862,12 @@ def main() -> int:
             after = len(obj.get("examples") or [])
             if problems:
                 reasons.append("; ".join(problems))
+                missing = [p.split("chain missing derived forms: ", 1)[1]
+                           for p in problems if p.startswith("chain missing derived forms: ")]
+                if missing and not extra:
+                    attempts[-1] = (max(max_tokens_try, 6000), 0.1,
+                                    "Previous attempt missed these derivational wordFamily items in wordFormation.chain: "
+                                    + missing[0] + ". Regenerate so each one is the \"to\" of a chain step.")
                 continue
             stats.record_success(time.time() - call_started, after, max(before - after, 0))
             record = obj

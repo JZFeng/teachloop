@@ -116,11 +116,50 @@ class ContentSchemaV2Test {
             ((ObjectNode) items.get(i)).putObject("meanings").put("zh", "释义").put("en", "meaning");
         }
 
-        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", LANGS, 1, 6)).isEmpty();
+        List<String> problems = ContentSchemaV2.validateAndClean(content, "apple", "en", LANGS, 1, 6);
         ArrayNode cleaned = (ArrayNode) content.path("wordFamily").path("items");
         assertThat(cleaned).hasSize(2);
         assertThat(cleaned.get(0).path("word").asString()).isEqualTo("apples");
         assertThat(cleaned.get(1).path("word").asString()).isEqualTo("applesauce");
+        // apples 是屈折、applesauce 是派生：派生词必须出现在 chain 的 to
+        assertThat(ContentSchemaV2.join(problems)).contains("chain missing derived forms: applesauce");
+    }
+
+    @Test
+    void noOpChainStepIsDroppedAndMonomorphemicWordNeedsNoChain() {
+        ObjectNode content = sample("apple", 1);
+        ObjectNode formation = (ObjectNode) content.path("wordFormation");
+        ArrayNode chain = formation.putArray("chain");
+        chain.addObject().putArray("from").add("apple");
+        ((ObjectNode) chain.get(0)).put("to", "apple").put("partOfSpeech", "noun").put("meaning", "苹果");
+
+        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", LANGS, 1, 6)).isEmpty();
+        assertThat(content.path("wordFormation").path("chain")).isEmpty();
+    }
+
+    @Test
+    void derivationChainMustCoverDerivedFamilyMembers() {
+        ObjectNode content = sample("induce", 1);
+        ObjectNode formation = (ObjectNode) content.path("wordFormation");
+        ArrayNode parts = formation.putArray("parts");
+        parts.addObject().put("text", "in-").put("type", "prefix").put("meaning", "向内");
+        parts.addObject().put("text", "duc").put("type", "root").put("meaning", "引导");
+
+        ObjectNode family = content.putObject("wordFamily");
+        ObjectNode noun = family.putArray("items").addObject();
+        noun.put("word", "induction").putArray("partOfSpeech").add("noun");
+        noun.putObject("meanings").put("zh", "归纳").put("en", "induction");
+
+        List<String> problems = ContentSchemaV2.validateAndClean(content, "induce", "en", LANGS, 1, 6);
+        assertThat(ContentSchemaV2.join(problems)).contains("chain missing derived forms: induction");
+
+        // 补上 chain 之后应当通过
+        ArrayNode chain = ((ObjectNode) content.path("wordFormation")).putArray("chain");
+        ObjectNode step = chain.addObject();
+        step.putArray("from").add("induce").add("-tion");
+        step.put("to", "induction").put("partOfSpeech", "noun").put("meaning", "归纳");
+
+        assertThat(ContentSchemaV2.validateAndClean(content, "induce", "en", LANGS, 1, 6)).isEmpty();
     }
 
     @Test

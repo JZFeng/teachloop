@@ -130,8 +130,10 @@ class ValidateSanitizeTest(unittest.TestCase):
             {"word": "apples", "partOfSpeech": ["noun"], "meanings": {"zh": "重复", "en": "dup"}},
             {"word": "applesauce", "partOfSpeech": ["noun"], "meanings": {"zh": "苹果酱", "en": "sauce"}},
         ]
-        self.assertEqual(g.validate(record, "apple", "en", 6), [])
+        problems = g.validate(record, "apple", "en", 6)
         self.assertEqual([i["word"] for i in record["wordFamily"]["items"]], ["apples", "applesauce"])
+        # apples 是屈折、applesauce 是派生：派生词必须出现在 chain 的 to
+        self.assertIn("chain missing derived forms: applesauce", "; ".join(problems))
 
     def test_incomplete_formation_part_is_dropped(self):
         record = make_record()
@@ -141,6 +143,33 @@ class ValidateSanitizeTest(unittest.TestCase):
         ]
         self.assertEqual(g.validate(record, "apple", "en", 6), [])
         self.assertEqual(len(record["wordFormation"]["parts"]), 1)
+
+    def test_noop_chain_step_is_dropped_and_monomorphemic_needs_no_chain(self):
+        record = make_record()
+        record["wordFormation"]["chain"] = [
+            {"from": ["apple"], "to": "apple", "partOfSpeech": "noun", "meaning": "苹果"},
+        ]
+        self.assertEqual(g.validate(record, "apple", "en", 6), [])
+        self.assertEqual(record["wordFormation"]["chain"], [])
+
+    def test_derivation_chain_must_cover_derived_family_members(self):
+        record = make_record("induce")
+        record["examples"] = [make_example("This drug can induce sleep.")]
+        record["wordFormation"]["parts"] = [
+            {"text": "in-", "type": "prefix", "meaning": "向内"},
+            {"text": "duc", "type": "root", "meaning": "引导"},
+        ]
+        record["wordFamily"]["items"] = [
+            {"word": "induction", "partOfSpeech": ["noun"],
+             "meanings": {"zh": "归纳", "en": "induction"}},
+        ]
+        problems = g.validate(record, "induce", "en", 6)
+        self.assertIn("chain missing derived forms: induction", "; ".join(problems))
+
+        record["wordFormation"]["chain"] = [
+            {"from": ["induce", "-tion"], "to": "induction", "partOfSpeech": "noun", "meaning": "归纳"},
+        ]
+        self.assertEqual(g.validate(record, "induce", "en", 6), [])
 
     def test_hard_errors_still_fail(self):
         record = make_record()

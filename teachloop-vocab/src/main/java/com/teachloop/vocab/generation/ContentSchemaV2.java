@@ -103,8 +103,8 @@ public final class ContentSchemaV2 {
         }
 
         problems.addAll(cleanExamples(content, form, language, languages, minExamples, maxExamples));
-        problems.addAll(cleanFormation(content));
         problems.addAll(cleanFamily(content, form, languages));
+        problems.addAll(cleanFormation(content, form, derivationalFamily(content, form)));
         return problems;
     }
 
@@ -171,7 +171,8 @@ public final class ContentSchemaV2 {
         return problems;
     }
 
-    private static List<String> cleanFormation(ObjectNode content) {
+    private static List<String> cleanFormation(ObjectNode content, String form,
+                                               List<String> derivational) {
         List<String> problems = new ArrayList<>();
         JsonNode formation = content.get("wordFormation");
         if (formation == null || formation.isNull()) {
@@ -189,9 +190,10 @@ public final class ContentSchemaV2 {
         if (!confidence.isBlank() && !CONFIDENCE.contains(confidence)) {
             problems.add("wordFormation.confidence invalid");
         }
+
         JsonNode parts = node.path("parts");
+        List<ObjectNode> keptParts = new ArrayList<>();
         if (parts.isArray()) {
-            ArrayNode cleaned = node.putArray("parts");
             for (JsonNode part : parts) {
                 if (!part.isObject()) {
                     continue;
@@ -200,10 +202,98 @@ public final class ContentSchemaV2 {
                         || text(part, "meaning").isBlank()) {
                     continue;
                 }
-                cleaned.add(part);
+                keptParts.add((ObjectNode) part);
             }
         }
+        ArrayNode cleanedParts = node.putArray("parts");
+        keptParts.forEach(cleanedParts::add);
+
+        JsonNode chain = node.path("chain");
+        List<ObjectNode> keptSteps = new ArrayList<>();
+        if (chain.isArray()) {
+            for (JsonNode step : chain) {
+                if (!step.isObject()) {
+                    continue;
+                }
+                ObjectNode nodeStep = (ObjectNode) step;
+                List<String> sources = new ArrayList<>();
+                if (step.path("from").isArray()) {
+                    step.path("from").forEach(item -> {
+                        if (item.isString() && !item.asString().isBlank()) {
+                            sources.add(item.asString().strip());
+                        }
+                    });
+                }
+                String target = text(nodeStep, "to").strip();
+                if (sources.isEmpty() || target.isEmpty()) {
+                    continue;
+                }
+                // 空步：struggle → struggle
+                if (sources.size() == 1 && sources.get(0).equalsIgnoreCase(target)) {
+                    continue;
+                }
+                if (text(nodeStep, "partOfSpeech").isBlank() || text(nodeStep, "meaning").isBlank()) {
+                    continue;
+                }
+                ArrayNode fromArray = nodeStep.putArray("from");
+                sources.forEach(fromArray::add);
+                keptSteps.add(nodeStep);
+            }
+        }
+        ArrayNode cleanedChain = node.putArray("chain");
+        keptSteps.forEach(cleanedChain::add);
+
+        if (keptParts.isEmpty()) {
+            problems.add("wordFormation.parts empty（只有真正的单根词允许单条 root）");
+        }
+        boolean monomorphemic = keptParts.size() == 1
+                && text(keptParts.get(0), "text").strip().equalsIgnoreCase(form.strip());
+        if (keptSteps.isEmpty() && !monomorphemic) {
+            problems.add("wordFormation.chain empty（词缀词必须给出派生阶梯）");
+        }
+        List<String> reached = new ArrayList<>();
+        keptSteps.forEach(step -> reached.add(text(step, "to").toLowerCase(Locale.ROOT)));
+        List<String> missing = new ArrayList<>();
+        for (String item : derivational) {
+            if (!reached.contains(item.toLowerCase(Locale.ROOT))) {
+                missing.add(item);
+            }
+        }
+        if (!missing.isEmpty()) {
+            problems.add("chain missing derived forms: " + String.join(", ", missing));
+        }
         return problems;
+    }
+
+    /** 屈折变化（复数/过去式/分词）不要求在 chain 出现。 */
+    private static List<String> derivationalFamily(ObjectNode content, String form) {
+        JsonNode items = content.path("wordFamily").path("items");
+        List<String> out = new ArrayList<>();
+        if (!items.isArray()) {
+            return out;
+        }
+        for (JsonNode item : items) {
+            String word = text(item, "word").strip();
+            if (!word.isEmpty() && !isInflectionOf(form, word)) {
+                out.add(word);
+            }
+        }
+        return out;
+    }
+
+    static boolean isInflectionOf(String base, String candidate) {
+        String b = base.strip().toLowerCase(Locale.ROOT);
+        String w = candidate.strip().toLowerCase(Locale.ROOT);
+        if (w.equals(b)) {
+            return true;
+        }
+        for (String suffix : List.of("s", "es", "ed", "d", "ing", "ies", "ied", "'s")) {
+            if (w.equals(b + suffix)) {
+                return true;
+            }
+        }
+        return b.length() >= 3 && w.startsWith(b.substring(0, b.length() - 1))
+                && (w.endsWith("s") || w.endsWith("ed") || w.endsWith("ing"));
     }
 
     private static List<String> cleanFamily(ObjectNode content, String form, List<String> languages) {

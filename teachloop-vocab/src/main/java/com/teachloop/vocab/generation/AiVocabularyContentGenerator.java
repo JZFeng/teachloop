@@ -85,10 +85,11 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
 
         long startedAt = System.nanoTime();
         List<String> problems = new ArrayList<>();
+        String extraHint = "";
         for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
             double temperature = attempt == 0 ? defaults.temperature() : defaults.temperatureRetry();
             String body = buildBody(ai.model(), form, language, temperature, maxTokens,
-                    profile.orElse(null), defaults);
+                    profile.orElse(null), defaults, extraHint);
             String envelope = post(endpoint, ai.apiKey(), body, defaults, profile.orElse(null), timeout);
             Envelope parsed = parseEnvelope(envelope, maxTokens);
             if (!parsed.problems().isEmpty()) {
@@ -124,6 +125,16 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
                 return mapper.writeValueAsString(content);
             }
             log.debug("内容不合格 word={} attempt={}：{}", form, attempt + 1, problems);
+            // 派生词覆盖不全：把缺失词写进下一次的 user prompt，比单纯降温度有效
+            for (String problem : problems) {
+                if (problem.startsWith("chain missing derived forms: ")) {
+                    extraHint = "Previous attempt missed these derivational wordFamily items in "
+                            + "wordFormation.chain: "
+                            + problem.substring("chain missing derived forms: ".length())
+                            + ". Regenerate so each one is the \"to\" of a chain step.";
+                    break;
+                }
+            }
         }
         throw new ContentGenerationException(
                 "AI content rejected after " + ATTEMPTS + " attempts: " + String.join("; ", problems));
@@ -131,7 +142,7 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
 
     private String buildBody(String model, String form, String language, double temperature,
                              int maxTokens, ContentPromptContract.ProviderProfile profile,
-                             ContentPromptContract.RequestDefaults defaults) {
+                             ContentPromptContract.RequestDefaults defaults, String extraHint) {
         ObjectNode body = mapper.createObjectNode();
         body.put("model", model);
         body.put("temperature", temperature);
@@ -150,8 +161,11 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
         }
         ArrayNode messages = body.putArray("messages");
         messages.addObject().put("role", "system").put("content", contract.systemPrompt());
-        messages.addObject().put("role", "user").put("content",
-                contract.userPrompt(form, language, contract.exampleMax()));
+        String userPrompt = contract.userPrompt(form, language, contract.exampleMax());
+        if (!extraHint.isBlank()) {
+            userPrompt = userPrompt + "\n" + extraHint;
+        }
+        messages.addObject().put("role", "user").put("content", userPrompt);
         return mapper.writeValueAsString(body);
     }
 

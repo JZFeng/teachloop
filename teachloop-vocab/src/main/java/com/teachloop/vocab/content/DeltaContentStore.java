@@ -58,7 +58,7 @@ public class DeltaContentStore implements ContentReader {
     @Autowired
     public DeltaContentStore(
             @Value("${teachloop.vocab.content.store-path:./data/vocab-content-delta.db}") String storePath,
-            @Value("${teachloop.vocab.content.prompt-version:vocab-content-v2.3}") String promptVersion) {
+            @Value("${teachloop.vocab.content.prompt-version:vocab-content-v2.4}") String promptVersion) {
         this.promptVersion = promptVersion;
         open(Path.of(storePath));
     }
