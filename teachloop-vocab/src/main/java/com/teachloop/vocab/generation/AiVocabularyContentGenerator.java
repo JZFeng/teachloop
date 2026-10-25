@@ -234,8 +234,13 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
         return value != null && value.isNumber() ? value.asInt() : 0;
     }
 
+    /** 只做规范化，绝不回落到某个写死的厂商地址：baseUrl 一律来自系统设置里的 AI provider。 */
     private static String stripTrailingSlash(String value) {
-        String base = value == null || value.isBlank() ? "https://api.deepseek.com" : value.strip();
+        if (value == null || value.isBlank()) {
+            throw new ContentGenerationException(
+                    "AI provider 的 baseUrl 未配置（系统设置 → AI 模型）；不在代码里回落到任何厂商默认地址");
+        }
+        String base = value.strip();
         return base.endsWith("/") ? base.substring(0, base.length() - 1) : base;
     }
 

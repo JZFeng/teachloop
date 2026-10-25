@@ -176,6 +176,52 @@ class AiVocabularyContentGeneratorTest {
     }
 
     @Test
+    void missingSettingsNeverFallsBackToHardcodedProvider() {
+        com.teachloop.shared.port.Ports.AiSettingsLookup empty =
+                new com.teachloop.shared.port.Ports.AiSettingsLookup() {
+                    @Override
+                    public Optional<com.teachloop.shared.port.Ports.AiSettings> current() {
+                        return Optional.empty();
+                    }
+
+                    @Override
+                    public Optional<com.teachloop.shared.port.Ports.AiSettings> resolve(UUID teacherId) {
+                        return Optional.empty();
+                    }
+                };
+
+        assertThatThrownBy(() -> new AiVocabularyContentGenerator(empty, contract, 0)
+                .generate("apple", "en"))
+                .isInstanceOf(ContentGenerationException.class)
+                .hasMessageContaining("AI settings are not configured");
+        assertThat(recorded).isEmpty();
+    }
+
+    @Test
+    void blankBaseUrlIsRejectedInsteadOfDefaultingToAVendor() {
+        com.teachloop.shared.port.Ports.AiSettingsLookup blank =
+                new com.teachloop.shared.port.Ports.AiSettingsLookup() {
+                    @Override
+                    public Optional<com.teachloop.shared.port.Ports.AiSettings> current() {
+                        return Optional.of(new com.teachloop.shared.port.Ports.AiSettings(
+                                "opencode", "   ", "deepseek-v4.1-flash", "test-key",
+                                new BigDecimal("0.2"), true));
+                    }
+
+                    @Override
+                    public Optional<com.teachloop.shared.port.Ports.AiSettings> resolve(UUID teacherId) {
+                        return current();
+                    }
+                };
+
+        assertThatThrownBy(() -> new AiVocabularyContentGenerator(blank, contract, 0)
+                .generate("apple", "en"))
+                .isInstanceOf(ContentGenerationException.class)
+                .hasMessageContaining("baseUrl");
+        assertThat(recorded).isEmpty();
+    }
+
+    @Test
     void unknownProviderSendsNoVendorSpecificFields() {
         generator("http://127.0.0.1:" + server.getAddress().getPort() + "/v1").generate("apple", "en");
 

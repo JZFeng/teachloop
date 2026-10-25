@@ -71,7 +71,7 @@
   "mainLanguage": "zh",
   "targetLanguage": "en",
   "displayOrder": ["zh", "en"],
-  "languageLabels": { "zh": "Chinese", "en": "English", "es": "Spanish" }
+  "languageLabels": { "zh": "Chinese", "en": "English" }
 }
 ```
 
@@ -165,7 +165,7 @@
 用户 2026-10-25 决定：**只要英语 + 中文，不要西班牙语**。落地内容：
 
 - `meanings` 只有 `zh`/`en`；英语词的例句 `translations` 只给 `zh`（`text` 本身就是英文，不重复翻译）；
-- schema 的 `es` 键保留为扩展位，不生成、不校验；语言档案默认 `zh` + `en`；
+- schema 里**不出现 `es` 键**（不生成、不校验、不做扩展位；2026-10-25 再确认「不上 es」）；语言档案默认 `zh` + `en`；
 - 生成脚本与 prompt 升到 v2.3：`scripts/vocab/generate_content.py`、`docs/prompts/vocab-content-v2.md`；
 - 2026-10-24 用 v2.2 生成的 46 条三语言记录**作废**，按 v2.3 重新生成；
 - 同步：AC-60.9/AC-60.10、`plan.md` §4.2.2/§4.2.4、T432。

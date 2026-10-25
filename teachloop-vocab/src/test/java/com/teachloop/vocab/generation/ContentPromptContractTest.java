@@ -2,6 +2,9 @@ package com.teachloop.vocab.generation;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -70,6 +73,18 @@ class ContentPromptContractTest {
     @Test
     void everyProviderHasBaseUrlAndModelDocumented() {
         assertThat(contract.providerNames()).contains("opencode", "local");
+    }
+
+    @Test
+    void contractCarriesNoSecrets() throws IOException {
+        try (InputStream in = getClass().getResourceAsStream("/vocab/content-prompt-v2.3.json")) {
+            assertThat(in).isNotNull();
+            String text = new String(in.readAllBytes(), StandardCharsets.UTF_8);
+            // 只放 prompt 与参数；Key 一律在系统设置（ai_providers，加密存储）
+            assertThat(text).doesNotContain("apiKey");
+            assertThat(text).doesNotContain("sk-");
+            assertThat(text).doesNotContain("Bearer");
+        }
     }
 
     @Test
