@@ -54,3 +54,16 @@
 - **已知取舍**：内容移出 PG 后，词库「按释义搜索」无法在 SQL 里做，T431 起降级为只按正面词形搜索；
   如需恢复，应另立「搜索索引」任务，而不是把内容副本放回 `vocab_words`。
 - **内容结构**：包内记录是 v2.3 JSON；前端当前按 v1 渲染，读路径经 `ContentView` 适配（T432 切 v2 后可删）。
+
+## 修订（2026-10-25）：老词回填暂不切包
+
+QA 实测（`d3ccac3` / `e79081e`）：包内词由包供给（`struggle` → `content_id=2587`、`prepare` 7.6ms、0 个生成任务），
+包外词走 AI 现场生成（`serendipity`、`quixotic` → 9s 端到端、`content_id=1_000_000_020/21`）。
+存量 20 条 `BACKFILL` 行仍让老演示词读旧内容。
+
+用户 2026-10-25 决定：**先不动，等 10K 一起切**。切换时按顺序做：
+① 重新生成并打包 `content-en-v2.3`（count=10,000，sha256 变化）；
+② 清空 `word_content_delta` 的 `BACKFILL` 行（保留 `AI` 行）；
+③ `vocab_words.content_id` 置空；
+④ 重启以装载新包；
+⑤ 抽查 `prepare` 命中（`ready=1 / pending=0`、`content_id` 落在包区间）。
