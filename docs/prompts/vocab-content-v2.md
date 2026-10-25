@@ -148,7 +148,55 @@ Sort rule: order examples by part-of-speech frequency and usage commonness; the 
 OpenCode Go（deepseek-v4.1-flash，thinking 关闭，4 并发）：约 1.9 秒/词（含并发摊薄），
 `finish_reason=stop`，输出 1,000–1,300 tokens。
 
-## 7. 版本
+## 7. 无人值守跑批（3,000 → 10,000）
+
+脚本已把「踩过的坑」变成默认行为，跑 10K 不需要人盯。关键开关：
+
+| 开关 | 作用 |
+| :--- | :--- |
+| preflight（默认开） | 开跑前花 1 次请求验证：HTTP 200 / `finish_reason=stop` / thinking 已关 / JSON 合法 / zh+en 都在。401/403/400/429 直接给结论，不用跑到一半才发现 key 或 UA 不对 |
+| `--max-cost-usd 8` | 估算成本到上限就停止提交新词（在途请求仍会完成，最多超出 `workers×2` 个词），退出码 3 |
+| `--retry-failures` | 把 `.failures.jsonl` 里的词排到最前面重试 |
+| `--check-words` | 只打印词表体检（去重数、短词、非字母噪声），不请求模型 |
+| `.status.json` | 心跳：完成/失败/速率/ETA/tokens/成本/finish_reason 分布，每 10 个词刷新 |
+| `.runs.jsonl` | 每轮追加一行 manifest，多次续跑的成本与耗时不会互相覆盖 |
+
+`finish_reason=length`、`completion_tokens` 顶到 `max_tokens`、`reasoning_tokens > 200`、空正文，
+一律判为失败并进入重试，**不会被当成成功写进 JSONL**——这是「截断混进内容包」的唯一防线。
+
+10K 标准跑法：
+
+```bash
+export LLM_API_KEY="$(cat /tmp/oc_key.txt)"
+
+# 1) 先体检（不发请求）
+python3 scripts/vocab/generate_content.py \
+  --words fixtures-local/vocab-content/words-top10k.txt \
+  --output fixtures-local/vocab-content/vocab-content-en-v2.3.jsonl \
+  --check-words
+
+# 2) 正式跑：preflight 自动执行，成本上限 $8，6 并发
+python3 scripts/vocab/generate_content.py \
+  --words fixtures-local/vocab-content/words-top10k.txt \
+  --output fixtures-local/vocab-content/vocab-content-en-v2.3.jsonl \
+  --provider opencode --model deepseek-v4.1-flash \
+  --workers 6 --max-cost-usd 8 \
+  --forms-map fixtures-local/vocab-content/forms-top10k.json
+
+# 3) 收尾：补失败词 + 全量校验
+python3 scripts/vocab/generate_content.py ... --retry-failures
+python3 scripts/vocab/check_content.py \
+  --input fixtures-local/vocab-content/vocab-content-en-v2.3.jsonl \
+  --words fixtures-local/vocab-content/words-top10k.txt
+```
+
+脚本自测（纯离线，22 条，覆盖词形匹配/清洗/截断识别/半行修复）：
+
+```bash
+python3 scripts/vocab/test_generate_content.py -v
+```
+
+## 8. 版本
 
 `prompt_version = vocab-content-v2.3`。写进内容包 manifest 与 delta 的 `prompt_version`；
 以后改 prompt 必须升版本，旧内容不参与新版本命中。
