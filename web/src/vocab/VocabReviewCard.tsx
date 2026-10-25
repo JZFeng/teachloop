@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { Button, DeleteOutlined, StarFilled, StarOutlined } from '../ui'
+import { Button, DeleteOutlined, PauseCircleOutlined, StarFilled, StarOutlined } from '../ui'
 import { SpeakerButton } from './SpeakerButton'
 
 export interface ReviewCardSense {
@@ -116,12 +116,12 @@ export function VocabReviewCard({
               {!flipped && onPause && (
                 <button
                   type="button"
-                  className="review-icon-action is-danger"
+                  className="review-icon-action"
                   aria-label={t('vocab.freeReview.pause')}
                   title={`${t('vocab.freeReview.pause')} · S`}
                   onClick={onPause}
                 >
-                  <DeleteOutlined />
+                  <PauseCircleOutlined />
                 </button>
               )}
             </div>

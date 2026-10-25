@@ -28,6 +28,7 @@ export {
   InfoCircleOutlined,
   LogoutOutlined,
   MoonOutlined,
+  PauseCircleOutlined,
   PlusOutlined,
   RobotOutlined,
   SendOutlined,
