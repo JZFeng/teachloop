@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 2,
+  "word": "struggle",
+  "language": "en",
+  "basicInfo": {
+    "pronunciation": {
+      "uk": "/ˈstrʌɡ.əl/",
+      "us": "/ˈstrʌɡ.əl/"
+    },
+    "partOfSpeech": [
+      "verb",
+      "noun"
+    ],
+    "image": null
+  },
+  "meanings": {
+    "zh": "v. 奋斗；努力；挣扎；艰难地行进；争夺；n. 奋斗；努力；挣扎；难事",
+    "en": "v. to try hard; to move with difficulty; to fight; n. a hard effort; a fight; something difficult"
+  },
+  "examples": [
+    {
+      "text": "She struggled to open the jar.",
+      "translations": {
+        "zh": "她费力地打开罐子。"
+      },
+      "partOfSpeech": "verb",
+      "usagePattern": "struggle to do something",
+      "popularity": 1
+    },
+    {
+      "text": "He struggled with the heavy box.",
+      "translations": {
+        "zh": "他费力地搬着那个重箱子。"
+      },
+      "partOfSpeech": "verb",
+      "usagePattern": "struggle with something",
+      "popularity": 2
+    },
+    {
+      "text": "The fish struggled in the net.",
+      "translations": {
+        "zh": "鱼在网里挣扎。"
+      },
+      "partOfSpeech": "verb",
+      "usagePattern": "struggle in something",
+      "popularity": 3
+    },
+    {
+      "text": "They struggled against the wind.",
+      "translations": {
+        "zh": "他们与风搏斗。"
+      },
+      "partOfSpeech": "verb",
+      "usagePattern": "struggle against something",
+      "popularity": 4
+    },
+    {
+      "text": "The struggle for freedom continues.",
+      "translations": {
+        "zh": "争取自由的斗争仍在继续。"
+      },
+      "partOfSpeech": "noun",
+      "usagePattern": "the struggle for something",
+      "popularity": 5
+    },
+    {
+      "text": "It was a struggle to finish on time.",
+      "translations": {
+        "zh": "按时完成是件难事。"
+      },
+      "partOfSpeech": "noun",
+      "usagePattern": "a struggle to do something",
+      "popularity": 6
+    }
+  ],
+  "wordFormation": {
+    "analysis": "From Middle English struglen, probably of Germanic origin; related to Dutch struikelen (to stumble).",
+    "parts": [],
+    "confidence": "medium"
+  },
+  "memoryAids": {
+    "synonyms": [
+      {
+        "word": "strive",
+        "partOfSpeech": "verb"
+      },
+      {
+        "word": "fight",
+        "partOfSpeech": "verb"
+      },
+      {
+        "word": "effort",
+        "partOfSpeech": "noun"
+      }
+    ],
+    "antonyms": [
+      {
+        "word": "succeed",
+        "partOfSpeech": "verb"
+      },
+      {
+        "word": "ease",
+        "partOfSpeech": "noun"
+      }
+    ],
+    "mnemonic": "Think of 'struggle' as 'stretch + tug' — you stretch and tug hard to achieve something.",
+    "supplement": "Common patterns: struggle to do, struggle with, struggle against, struggle for."
+  },
+  "wordFamily": {
+    "items": [
+      {
+        "word": "struggled",
+        "partOfSpeech": [
+          "verb"
+        ],
+        "meanings": {
+          "zh": "奋斗了；挣扎了",
+          "en": "past tense and past participle of struggle"
+        }
+      },
+      {
+        "word": "struggling",
+        "partOfSpeech": [
+          "verb",
+          "adjective"
+        ],
+        "meanings": {
+          "zh": "奋斗着；挣扎的；艰难的",
+          "en": "present participle of struggle; having difficulty"
+        }
+      },
+      {
+        "word": "struggler",
+        "partOfSpeech": [
+          "noun"
+        ],
+        "meanings": {
+          "zh": "奋斗者；挣扎者",
+          "en": "a person who struggles"
+        }
+      }
+    ]
+  }
+}
