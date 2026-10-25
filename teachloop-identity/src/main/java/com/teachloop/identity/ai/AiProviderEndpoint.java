@@ -38,6 +38,14 @@ public class AiProviderEndpoint {
         return service.update(me.id(), id, body);
     }
 
+    /** 把某个 provider 设为默认（active_provider）；只切 provider，不要求再选模型。 */
+    @PutMapping("/{id}/default")
+    public List<AiProviderService.View> setDefault(@RequestAttribute("currentUser") CurrentUser me,
+                                                   @PathVariable UUID id) {
+        requireAdmin(me);
+        return service.setDefault(me.id(), id);
+    }
+
     @DeleteMapping("/{id}")
     public void delete(@RequestAttribute("currentUser") CurrentUser me, @PathVariable UUID id) {
         requireAdmin(me);

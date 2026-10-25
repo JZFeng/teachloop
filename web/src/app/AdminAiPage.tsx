@@ -19,8 +19,9 @@ const EMPTY: FormState = {
 }
 
 /**
- * 管理员 AI 设置（决策 010 修订）：维护 provider 列表与当前全站模型。
- * 教师不在这里配置；教师在 /profile 只从列表里选一个。
+ * 管理员 AI 设置（决策 010，2026-10-24 修订）：维护 provider 列表、默认 provider 与当前全站模型。
+ * 教师页不再有 AI 入口；全站模型只在这里切换（每个模型行的「设为当前」）。
+ * 多个 provider 时用「设为默认」切默认 provider；只有一个 provider 时它天然就是默认。
  */
 export default function AdminAiPage() {
   const { t } = useTranslation('translation')
@@ -134,6 +135,18 @@ export default function AdminAiPage() {
     } finally { setBusy(false) }
   }
 
+  /** 只切默认 provider，不要求再挑模型：后端保留该 provider 已选的模型，否则用它的默认模型。 */
+  const setDefault = async (p: AiProviderView) => {
+    setBusy(true); setError(null); setMessage(null)
+    try {
+      setProviders(await api.put<AiProviderView[]>(`/api/admin/ai-providers/${p.id}/default`, {}))
+      await load()
+      setMessage(t('app.ai.defaultSet', { name: p.displayName }))
+    } catch (e) {
+      setError((e as Error).message)
+    } finally { setBusy(false) }
+  }
+
   const activate = async (p: AiProviderView, model: string) => {
     setBusy(true); setError(null); setMessage(null)
     try {
@@ -185,13 +198,13 @@ export default function AdminAiPage() {
 
       <div className="card" style={{ maxWidth: 900, marginTop: 16 }}>
         <h2>{t('app.ai.providers')}</h2>
-        <p className="small muted">{t('app.ai.providersHint')}</p>
         {providers.length === 0 && <div className="inline-note">{t('app.ai.noProvider')}</div>}
         {providers.map((p) => (
           <div key={p.id} className="card" style={{ marginTop: 10 }}>
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div className="grow">
                 <b>{p.displayName}</b>
+                {p.active && <span className="badge" style={{ marginLeft: 8 }}>{t('app.ai.defaultBadge')}</span>}
                 <div className="small muted mono">{p.providerId} · {p.baseUrl}</div>
                 <div className="small muted">
                   {p.protocol === 'openai' ? t('app.ai.protocolOpenai') : p.protocol}
@@ -209,6 +222,11 @@ export default function AdminAiPage() {
                 </div>
               </div>
               <div className="row" style={{ gap: 6 }}>
+                {providers.length > 1 && !p.active && (
+                  <Button size="small" variant="primary" busy={busy} onClick={() => void setDefault(p)}>
+                    {t('app.ai.setDefault')}
+                  </Button>
+                )}
                 <Button size="small" onClick={() => openEdit(p)}>{t('app.ai.edit')}</Button>
                 <Button size="small" variant="danger" onClick={() => void remove(p)}>{t('app.ai.delete')}</Button>
               </div>

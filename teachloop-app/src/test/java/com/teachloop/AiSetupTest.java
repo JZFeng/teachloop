@@ -116,8 +116,51 @@ class AiSetupTest {
                 Map.of("providerId", "local", "model", "qwen3.8-instruct")).body());
         assertThat(switched.get("currentModel")).isEqualTo("qwen3.8-instruct");
 
+        // 多个 provider 时管理员可以只切「默认 provider」，不必再挑模型；
+        // 一个 provider 时它天然就是默认（第一个 provider 自动 active，见上面断言）。
+        Map<String, Object> second = Json.parse(request(base, admin, "POST", "/api/admin/ai-providers",
+                Map.of("providerId", "second", "displayName", "Second Local",
+                        "baseUrl", "http://127.0.0.1:8081/v1", "protocol", "openai",
+                        "apiKey", "sk-second-0000", "model", "m2",
+                        "models", java.util.List.of("m2"))).body());
+        assertThat(second.get("active")).as("后加的 provider 不抢默认").isEqualTo(false);
+        String secondId = second.get("id").toString();
+
+        HttpResponse<String> setDefault = request(base, admin, "PUT",
+                "/api/admin/ai-providers/" + secondId + "/default", Map.of());
+        assertThat(setDefault.statusCode()).withFailMessage(setDefault.body()).isEqualTo(200);
+        assertThat(Json.parseList(setDefault.body())).as("返回刷新后的 provider 列表").hasSize(2);
+        Map<String, Object> afterDefault = Json.parse(
+                request(base, teacher, "GET", "/api/ai-models", null).body());
+        assertThat(afterDefault.get("currentProviderId")).isEqualTo("second");
+        assertThat(afterDefault.get("currentModel")).as("用该 provider 自己的默认模型").isEqualTo("m2");
+
+        // 切回 local：全局只有一个「当前模型」槽位，切默认时用该 provider 自己的默认模型
+        // （model 列 = 模型列表第一个），不会沿用它在别的 provider 上选过的模型。
+        assertThat(request(base, admin, "PUT",
+                "/api/admin/ai-providers/" + provider.get("id") + "/default", Map.of()).statusCode())
+                .isEqualTo(200);
+        Map<String, Object> back = Json.parse(request(base, teacher, "GET", "/api/ai-models", null).body());
+        assertThat(back.get("currentProviderId")).isEqualTo("local");
+        assertThat(back.get("currentModel")).isEqualTo("qwen3.8");
+
+        // 已经属于默认 provider 的当前模型，再点一次「设为默认」不会被重置。
+        assertThat(request(base, admin, "PUT", "/api/ai-models/current",
+                Map.of("providerId", "local", "model", "qwen3.8-instruct")).statusCode()).isEqualTo(200);
+        assertThat(request(base, admin, "PUT",
+                "/api/admin/ai-providers/" + provider.get("id") + "/default", Map.of()).statusCode())
+                .isEqualTo(200);
+        Map<String, Object> kept = Json.parse(request(base, teacher, "GET", "/api/ai-models", null).body());
+        assertThat(kept.get("currentModel")).as("同一 provider 已选的模型保留").isEqualTo("qwen3.8-instruct");
+
+        // 切默认属于管理员操作：教师与学生都 403。
+        assertThat(request(base, teacher, "PUT",
+                "/api/admin/ai-providers/" + secondId + "/default", Map.of()).statusCode()).isEqualTo(403);
+
         String student = login(base, "student@teachloop.local");
         assertThat(request(base, student, "GET", "/api/ai-models", null).statusCode()).isEqualTo(403);
+        assertThat(request(base, student, "PUT",
+                "/api/admin/ai-providers/" + secondId + "/default", Map.of()).statusCode()).isEqualTo(403);
     }
 
     private String login(String base, String email) throws Exception {
@@ -148,5 +191,9 @@ class AiSetupTest {
 
         @SuppressWarnings("unchecked")
         static Map<String, Object> parse(String s) { return MAPPER.readValue(s, Map.class); }
+
+        static java.util.List<Object> parseList(String s) {
+            return MAPPER.readValue(s, new tools.jackson.core.type.TypeReference<java.util.List<Object>>() { });
+        }
     }
 }

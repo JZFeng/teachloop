@@ -130,6 +130,23 @@ public class AiProviderService {
         return view(p, p.getId().equals(aiSettings.activeProviderId()));
     }
 
+    /**
+     * 把某个 provider 设为默认（{@code ai_settings.active_provider_id}）。
+     *
+     * <p>只切 provider，不要求管理员再挑模型：当前模型属于这个 provider 就保留，
+     * 否则用它自己的默认模型（{@code model} 列 / 模型列表第一个）。
+     */
+    @Transactional
+    public List<View> setDefault(UUID actorId, UUID id) {
+        AiProviderEntity p = repo.findById(id)
+                .orElseThrow(() -> ApiException.notFound("error.ai.providerNotFound"));
+        List<String> models = modelsOf(p);
+        String current = aiSettings.activeModel();
+        String model = current != null && models.contains(current) ? current : models.get(0);
+        aiSettings.setActiveProvider(p.getId(), model, actorId);
+        return list();
+    }
+
     @Transactional
     public void delete(UUID actorId, UUID id) {
         if (!repo.existsById(id)) {
