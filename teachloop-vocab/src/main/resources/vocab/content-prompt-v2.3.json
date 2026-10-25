@@ -25,13 +25,15 @@
       "baseUrl": "https://opencode.ai/inference/go/openai/v1",
       "model": "deepseek-v4.1-flash",
       "sessionHeader": "x-opencode-session",
-      "disableThinking": "thinking"
+      "disableThinking": "thinking",
+      "timeoutSeconds": 20
     },
     "local": {
       "baseUrl": "http://192.168.68.101:8080/v1",
       "model": "qwen3.8-flash-next-iq2_xs",
       "sessionHeader": null,
-      "disableThinking": "chat_template_kwargs"
+      "disableThinking": "chat_template_kwargs",
+      "timeoutSeconds": 90
     }
   },
   "notes": [

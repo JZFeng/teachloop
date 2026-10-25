@@ -37,6 +37,7 @@ class ContentPromptContractTest {
         assertThat(profile.disableThinking()).isEqualTo("thinking");
         assertThat(profile.sendsSessionHeader()).isTrue();
         assertThat(profile.sessionHeader()).isEqualTo("x-opencode-session");
+        assertThat(profile.timeoutSeconds()).isEqualTo(20);
     }
 
     @Test
@@ -53,6 +54,17 @@ class ContentPromptContractTest {
         assertThat(prompt).contains("translations exclude en; use zh");
         assertThat(prompt).contains("Example count: up to 6");
         assertThat(prompt).doesNotContain("{word}", "{language}", "{otherLanguages}", "{exampleCount}");
+    }
+
+    @Test
+    void localProviderGetsLongerTimeoutBecauseItHasOneSlot() {
+        ContentPromptContract.ProviderProfile local = contract
+                .providerFor("http://192.168.68.101:8080/v1")
+                .orElseThrow();
+        assertThat(local.name()).isEqualTo("local");
+        assertThat(local.disableThinking()).isEqualTo("chat_template_kwargs");
+        assertThat(local.timeoutSeconds()).isEqualTo(90);
+        assertThat(local.sendsSessionHeader()).isFalse();
     }
 
     @Test

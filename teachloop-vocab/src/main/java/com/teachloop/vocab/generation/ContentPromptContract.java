@@ -140,7 +140,8 @@ public class ContentPromptContract {
             String prefix = text(provider, "baseUrl");
             if (!prefix.isBlank() && target.startsWith(prefix)) {
                 return Optional.of(new ProviderProfile(
-                        name, prefix, text(provider, "sessionHeader"), text(provider, "disableThinking")));
+                        name, prefix, text(provider, "sessionHeader"), text(provider, "disableThinking"),
+                        provider.path("timeoutSeconds").asInt(0)));
             }
         }
         return Optional.empty();
@@ -155,7 +156,13 @@ public class ContentPromptContract {
      * @param sessionHeader   需要时每请求带随机 UUID 的头名（OpenCode Go 必需），没有则为空
      * @param disableThinking {@code thinking} / {@code chat_template_kwargs} / 空（不动）
      */
-    public record ProviderProfile(String name, String baseUrl, String sessionHeader, String disableThinking) {
+    public record ProviderProfile(String name, String baseUrl, String sessionHeader, String disableThinking,
+                                  int timeoutSeconds) {
+
+        /** 0 = 用 {@link RequestDefaults#timeout()}；本地单槽模型要单独放宽。 */
+        public boolean hasOwnTimeout() {
+            return timeoutSeconds > 0;
+        }
 
         public boolean sendsSessionHeader() {
             return sessionHeader != null && !sessionHeader.isBlank();

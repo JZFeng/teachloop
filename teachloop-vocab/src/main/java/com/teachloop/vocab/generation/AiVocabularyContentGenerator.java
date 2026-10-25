@@ -74,7 +74,11 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
                 .filter("local"::equals)
                 .map(name -> defaults.maxTokensLocal())
                 .orElse(defaults.maxTokens());
-        Duration timeout = timeoutOverride != null ? timeoutOverride : defaults.timeout();
+        Duration timeout = timeoutOverride != null
+                ? timeoutOverride
+                : profile.filter(ContentPromptContract.ProviderProfile::hasOwnTimeout)
+                        .map(provider -> Duration.ofSeconds(provider.timeoutSeconds()))
+                        .orElse(defaults.timeout());
         String endpoint = stripTrailingSlash(ai.baseUrl()) + "/chat/completions";
 
         List<String> problems = new ArrayList<>();
