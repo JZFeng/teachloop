@@ -77,7 +77,7 @@
 - [ ] AC-27.3 未迁移的 13 屏在暗色下不掉色：`--bg/--panel/--text/--line` 在 `:root[data-theme='dark']` 里都有非空值（脚本断言）
 - [ ] AC-27.4 主按钮为**实色**：`styles/mockup.css` 中 `linear-gradient` 在按钮规则里出现 0 次（grep 断言）
 - [ ] AC-27.5 表头不使用 `text-transform:uppercase`（grep 断言 0 次）
-- [ ] AC-27.6 侧栏每个入口都有图标（教师 7、学生 3、管理员额外 AI 设置）；组件标准不占导航入口，收在资料页「偏好设置 → 界面标准」；全仓只有 `web/src/ui/icons.tsx` 直接 `import '@ant-design/icons'`；亮/暗下未选中图标对侧栏背景 ≥3:1，暗色当前项文字 ≥4.5:1
+- [ ] AC-27.6 侧栏每个入口都有图标（教师 7、学生 3、管理员额外 AI 设置；**2026-10-24 修订：管理员改为独立 2 项「班级 + AI 设置」，菜单矩阵以 `specs/007-role-nav/spec.md` §2 为准，本条只保留图标与对比度要求**）；组件标准不占导航入口，收在资料页「偏好设置 → 界面标准」；全仓只有 `web/src/ui/icons.tsx` 直接 `import '@ant-design/icons'`；亮/暗下未选中图标对侧栏背景 ≥3:1，暗色当前项文字 ≥4.5:1
 
 #### US-28 组件层可用
 
