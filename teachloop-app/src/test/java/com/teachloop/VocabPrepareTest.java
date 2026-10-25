@@ -2,6 +2,10 @@ package com.teachloop;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.teachloop.identity.domain.User;
+import com.teachloop.identity.domain.UserRepository;
+import com.teachloop.identity.domain.UserRole;
+import com.teachloop.vocab.content.ContentStore;
 import com.teachloop.vocab.generation.GenerationJobStore;
 import com.teachloop.vocab.generation.VocabularyGenerationWorker;
 import java.net.URI;
@@ -18,6 +22,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -68,6 +73,15 @@ class VocabPrepareTest {
     @Autowired
     GenerationJobStore jobs;
 
+    @Autowired
+    ContentStore contentStore;
+
+    @Autowired
+    UserRepository users;
+
+    @Autowired
+    PasswordEncoder encoder;
+
     private final HttpClient client = HttpClient.newHttpClient();
 
     @org.junit.jupiter.api.BeforeEach
@@ -83,7 +97,7 @@ class VocabPrepareTest {
     @DisplayName("默认惰性：导入不入队；prepare TODAY 才建高优先级任务，生成后转 READY")
     void prepareOnDemand() throws Exception {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
-        String cookie = login(base);
+        String cookie = login(base, "student@teachloop.local");
         UUID wordId = importWord(base, cookie, "kettle");
 
         assertThat(jobCount(wordId)).as("导入默认不再全量生成").isZero();
@@ -109,10 +123,40 @@ class VocabPrepareTest {
     }
 
     @Test
+    @DisplayName("T429：两个学生先后遇到同一个词，第二个 prepare 直接命中 delta、0 个新 job")
+    void secondStudentHitsGlobalContent() throws Exception {
+        String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
+        String first = login(base, "student@teachloop.local");
+        UUID firstWord = importWord(base, first, "harmonica");
+
+        Map<?, ?> prepared = prepare(base, first, Map.of(
+                "scope", "TODAY", "language", "en", "upTo", 20));
+        assertThat(prepared.get("pending")).isEqualTo(1);
+        worker.poll();
+        assertThat(wordStatus(firstWord)).isEqualTo("READY");
+        Long firstContentId = contentId(firstWord);
+        assertThat(firstContentId).as("AI 生成后用户行写入全局 content_id").isNotNull();
+        assertThat(contentStore.getById(firstContentId)).isPresent();
+
+        String second = createStudent(base, "student2@teachloop.local", "示例学生二");
+        UUID secondWord = importWord(base, second, "harmonica");
+        assertThat(contentId(secondWord)).isNull();
+        assertThat(jobCount(secondWord)).isZero();
+
+        Map<?, ?> secondPrepared = prepare(base, second, Map.of(
+                "scope", "TODAY", "language", "en", "upTo", 20));
+        assertThat(secondPrepared.get("ready")).as("学生 B 命中全局内容，不再等 AI").isEqualTo(1);
+        assertThat(secondPrepared.get("pending")).isEqualTo(0);
+        assertThat(jobCount(secondWord)).as("命中 delta 后不入队").isZero();
+        assertThat(contentId(secondWord)).isEqualTo(firstContentId);
+        assertThat(wordStatus(secondWord)).isEqualTo("READY");
+    }
+
+    @Test
     @DisplayName("详情页按词准备：prepare WORD 为单个词入队")
     void prepareSingleWord() throws Exception {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
-        String cookie = login(base);
+        String cookie = login(base, "student@teachloop.local");
         UUID wordId = importWord(base, cookie, "lantern");
         assertThat(jobCount(wordId)).isZero();
 
@@ -125,7 +169,7 @@ class VocabPrepareTest {
     @DisplayName("排队顺序：按需准备（priority 100）先于后台任务（priority 0）被领取")
     void onDemandJobsClaimFirst() throws Exception {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
-        String cookie = login(base);
+        String cookie = login(base, "student@teachloop.local");
         UUID backgroundWord = importWord(base, cookie, "meadow");
         UUID urgentWord = importWord(base, cookie, "pencil");
 
@@ -169,8 +213,11 @@ class VocabPrepareTest {
                         .build(),
                 HttpResponse.BodyHandlers.ofString());
         assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
-        return jdbc.queryForObject("select id from vocab_words where normalized_form = ?",
-                UUID.class, word.toLowerCase());
+        List<UUID> ids = jdbc.query(
+                "select id from vocab_words where normalized_form = ? order by created_at desc limit 1",
+                (rs, rowNumber) -> rs.getObject(1, UUID.class), word.toLowerCase());
+        assertThat(ids).isNotEmpty();
+        return ids.get(0);
     }
 
     private long jobCount(UUID wordId) {
@@ -180,21 +227,34 @@ class VocabPrepareTest {
         return count == null ? 0 : count;
     }
 
+    private Long contentId(UUID wordId) {
+        return jdbc.queryForObject("select content_id from vocab_words where id = ?",
+                Long.class, wordId);
+    }
+
     private String wordStatus(UUID wordId) {
         return jdbc.queryForObject("select content_status from vocab_words where id = ?",
                 String.class, wordId);
     }
 
-    private String login(String base) throws Exception {
+    private String createStudent(String base, String email, String displayName) throws Exception {
+        if (users.findByEmail(email).isEmpty()) {
+            users.save(new User(UUID.randomUUID(), UserRole.STUDENT, email,
+                    encoder.encode("teachloop123"), displayName, Instant.now()));
+        }
+        return login(base, email);
+    }
+
+    private String login(String base, String email) throws Exception {
         String body = MAPPER.writeValueAsString(Map.of(
-                "email", "student@teachloop.local", "password", "teachloop123"));
+                "email", email, "password", "teachloop123"));
         HttpResponse<String> response = client.send(HttpRequest.newBuilder(
                                 URI.create(base + "/api/auth/login"))
                         .header("Content-Type", "application/json")
                         .POST(HttpRequest.BodyPublishers.ofString(body))
                         .build(),
                 HttpResponse.BodyHandlers.ofString());
-        assertThat(response.statusCode()).isEqualTo(200);
+        assertThat(response.statusCode()).as(response.body()).isEqualTo(200);
         return response.headers().firstValue("Set-Cookie").orElseThrow().split(";", 2)[0];
     }
 }

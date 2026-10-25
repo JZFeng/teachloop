@@ -266,8 +266,14 @@ public class VocabWordRepository {
     }
 
     public void setContent(UUID wordId, String contentJson, String status) {
-        jdbc.update("update vocab_words set content = cast(? as jsonb), content_status = ?, updated_at = ?"
-                        + " where id = ?", contentJson, status, Timestamp.from(clock.instant()), wordId);
+        setContent(wordId, contentJson, status, null);
+    }
+
+    /** T429：写内容副本的同时记录全局内容引用；contentId 可能为 null（delta 写失败时降级）。 */
+    public void setContent(UUID wordId, String contentJson, String status, Long contentId) {
+        jdbc.update("update vocab_words set content = cast(? as jsonb), content_id = ?,"
+                        + " content_status = ?, updated_at = ? where id = ?",
+                contentJson, contentId, status, Timestamp.from(clock.instant()), wordId);
     }
 
     /** 领取班级布置时追加来源（同一布置对同一个词只记一次）。 */

@@ -1,5 +1,7 @@
 package com.teachloop.vocab.generation;
 
+import com.teachloop.vocab.content.ContentStore;
+import com.teachloop.vocab.word.WordNormalizer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -27,6 +29,7 @@ public class VocabularyGenerationWorker {
 
     private final GenerationJobStore store;
     private final VocabularyContentGenerator generator;
+    private final ContentStore contentStore;
     private final boolean enabled;
     private final int batchSize;
     private final int maxAttempts;
@@ -36,12 +39,14 @@ public class VocabularyGenerationWorker {
     public VocabularyGenerationWorker(
             GenerationJobStore store,
             VocabularyContentGenerator generator,
+            ContentStore contentStore,
             @Value("${teachloop.vocab.generation.enabled:true}") boolean enabled,
             @Value("${teachloop.vocab.generation.batch-size:5}") int batchSize,
             @Value("${teachloop.vocab.generation.max-attempts:3}") int maxAttempts,
             Clock clock) {
         this.store = store;
         this.generator = generator;
+        this.contentStore = contentStore;
         this.enabled = enabled;
         this.batchSize = Math.max(1, batchSize);
         this.maxAttempts = Math.max(1, maxAttempts);
@@ -78,7 +83,17 @@ public class VocabularyGenerationWorker {
         }
         try {
             String content = generator.generate(word.get().form(), word.get().language());
-            store.succeed(job.id(), word.get().id(), content, clock.instant());
+            // T429 / decisions/017：AI 成功的内容先写全局 delta，学生行只引用 content_id。
+            // delta 写失败不阻塞复习：用户行仍 READY，读路径按词形再查一次；记 warn 即可。
+            Long contentId = null;
+            try {
+                contentId = contentStore.put(word.get().language(),
+                        WordNormalizer.normalized(word.get().form()), content, "AI");
+            } catch (RuntimeException ex) {
+                log.warn("内容写入全局 delta 失败 word={}（用户行仍 READY）：{}",
+                        word.get().form(), ex.getMessage());
+            }
+            store.succeed(job.id(), word.get().id(), content, contentId, clock.instant());
         } catch (RuntimeException ex) {
             int attempts = job.attempts() + 1;
             boolean finalFailure = attempts >= maxAttempts;

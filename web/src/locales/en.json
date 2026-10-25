@@ -1654,7 +1654,8 @@
       "play": "Play",
       "playUk": "Play UK pronunciation",
       "playUs": "Play US pronunciation",
-      "stop": "Stop"
+      "stop": "Stop",
+      "playExample": "Play example sentence"
     },
     "add": {
       "title": "Add words / Import",

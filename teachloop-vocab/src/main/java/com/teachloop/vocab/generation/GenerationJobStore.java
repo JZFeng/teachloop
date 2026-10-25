@@ -103,7 +103,7 @@ public class GenerationJobStore {
     }
 
     @Transactional
-    public void succeed(long jobId, UUID wordId, String contentJson, Instant now) {
+    public void succeed(long jobId, UUID wordId, String contentJson, Long contentId, Instant now) {
         Timestamp timestamp = Timestamp.from(now);
         jdbc.update("""
                 update vocab_generation_jobs
@@ -113,9 +113,10 @@ public class GenerationJobStore {
                 """, timestamp, jobId);
         jdbc.update("""
                 update vocab_words
-                   set content = cast(? as jsonb), content_status = 'READY', updated_at = ?
+                   set content = cast(? as jsonb), content_id = ?, content_status = 'READY',
+                       updated_at = ?
                  where id = ?
-                """, contentJson, timestamp, wordId);
+                """, contentJson, contentId, timestamp, wordId);
     }
 
     /** 记录一次失败：未到上限回 QUEUED 并退避；到上限标 FAILED 且词条标「生成失败」。 */
