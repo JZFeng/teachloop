@@ -219,13 +219,27 @@ export default function VocabFreeReviewPage() {
     setRetrying(true)
     try {
       await api.post('/api/vocab/words/retry', { ids: [word.id] })
-      setPrep(await prepareWords('SESSION', windowSize, { sessionId }))
+      // 重试只是入队：这里要盯着当前卡，直到它变 READY 才把「内容生成失败」换掉，
+      // 否则用户点完重试仍然停在同一屏（T453 联调实测：job 已 SUCCEEDED，页面不会自己刷新）。
+      for (let attempt = 0; attempt < 15; attempt += 1) {
+        const result = await prepareWords('SESSION', windowSize, { sessionId }).catch(() => null)
+        if (result) setPrep(result)
+        const current = await api.get<SessionWord | null>(
+          `/api/vocab/review-sessions/${sessionId}/current`)
+        if (current && current.contentStatus === 'READY') {
+          setWord(current)
+          setFlipped(false)
+          return
+        }
+        await new Promise((resolve) => { setTimeout(resolve, 2000) })
+      }
+      toast.info(t('vocab.review.retryStillPreparing'))
     } catch (retryError) {
       toast.error((retryError as Error).message)
     } finally {
       setRetrying(false)
     }
-  }, [word, windowSize, sessionId, toast])
+  }, [word, windowSize, sessionId, toast, t])
 
   const toggleFavorite = useCallback(async () => {
     if (!word) return

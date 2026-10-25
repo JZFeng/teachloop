@@ -1524,7 +1524,8 @@
       "keySpace": "Space",
       "statsLine": "Reviewed today {{reviewed}} · Remaining {{remaining}} · New cards {{newCards}}",
       "favoriteAdded": "Added to favorites",
-      "favoriteRemoved": "Removed from favorites"
+      "favoriteRemoved": "Removed from favorites",
+      "retryStillPreparing": "Retry submitted; the content is still being prepared and this card will appear when it is ready."
     },
     "sets": {
       "title": "Word sets",

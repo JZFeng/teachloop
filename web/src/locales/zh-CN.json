@@ -1524,7 +1524,8 @@
       "keySpace": "空格",
       "statsLine": "今日已复习 {{reviewed}} · 剩余 {{remaining}} · 新卡 {{newCards}}",
       "favoriteAdded": "已收藏",
-      "favoriteRemoved": "已取消收藏"
+      "favoriteRemoved": "已取消收藏",
+      "retryStillPreparing": "重试已提交，内容还在准备中；就绪后这张卡会自动出现。"
     },
     "sets": {
       "title": "词集",

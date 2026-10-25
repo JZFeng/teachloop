@@ -3,7 +3,7 @@
 # 用法：
 #   ./scripts/dev.sh                 # 默认真实 AI 引擎，不 seed（Key 在 /profile 或 /admin/ai 配）
 #   ./scripts/dev.sh --seed          # 额外造演示数据（1 班 + 30 学生 + 1 试卷）
-#   ./scripts/dev.sh --stub          # 用开发替身引擎（只用于无 Key 的 UI 演示）
+#   ./scripts/dev.sh --stub          # 批改与词汇内容生成都用替身引擎（无 Key 也能演示复习卡内容）
 #   ./scripts/dev.sh --no-build --no-open --keep-db
 set -u
 
@@ -147,6 +147,7 @@ AI_ENV="stub"
 DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" DB_USER=teachloop DB_PASSWORD=teachloop \
   STORAGE_LOCAL_DIR="$STORAGE_LOCAL_DIR" \
   PORT="$BACKEND_PORT" TEACHLOOP_GRADING_ENGINE="$AI_ENV" \
+  VOCAB_GENERATION_ENGINE="$AI_ENV" \
   "$JAVA_HOME/bin/java" -jar "$JAR" > "$LOG_DIR/dev-backend.log" 2>&1 &
 BACK_PID=$!
 
