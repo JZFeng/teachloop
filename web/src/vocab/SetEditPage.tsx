@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import { Button, Empty, ErrorState, Input, Loading, PageHeader, TextArea, useToast } from '../ui'
+import { Alert, Button, Empty, ErrorState, Input, Loading, PageHeader, TextArea } from '../ui'
 import { SpeakerButton } from './SpeakerButton'
 import './vocab.css'
 
@@ -28,12 +28,15 @@ interface Preview {
   cleanups: Array<{ line: number; rule: string }>
 }
 
+interface Notice {
+  type: 'success' | 'error'
+  message: string
+}
+
 export default function VocabSetEditPage() {
   const { id } = useParams()
-  const isNew = !id
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const toast = useToast()
 
   const [setId, setSetId] = useState<string | undefined>(id)
   const [name, setName] = useState('')
@@ -41,20 +44,24 @@ export default function VocabSetEditPage() {
   const [description, setDescription] = useState('')
   const [active, setActive] = useState(true)
   const [words, setWords] = useState<SetWord[]>([])
-  const [loading, setLoading] = useState(!isNew)
-  const [error, setError] = useState<Error | null>(null)
   const [text, setText] = useState('')
-  const [preview, setPreview] = useState<Preview | null>(null)
+  const [loading, setLoading] = useState(Boolean(id))
+  const [error, setError] = useState<Error | null>(null)
   const [busy, setBusy] = useState(false)
+  const [notice, setNotice] = useState<Notice | null>(null)
 
-  const load = useCallback(async () => {
-    if (!setId) return
+  const load = useCallback(async (targetId?: string) => {
+    const lookupId = targetId ?? setId
+    if (!lookupId) {
+      setLoading(false)
+      return
+    }
     setLoading(true)
     setError(null)
     try {
-      const detail = await api.get<{ set: SetView; words: SetWord[] }>(`/api/vocab/sets/${setId}`)
+      const detail = await api.get<{ set: SetView; words: SetWord[] }>(`/api/vocab/sets/${lookupId}`)
       setName(detail.set.name)
-      setLanguage(detail.set.language)
+      setLanguage(detail.set.language || 'en')
       setDescription(detail.set.description ?? '')
       setActive(detail.set.active)
       setWords(detail.words)
@@ -65,52 +72,49 @@ export default function VocabSetEditPage() {
     }
   }, [setId])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void load(id) }, [id, load])
 
   const save = async () => {
+    setNotice(null)
     if (!name.trim()) {
-      toast.error(t('vocab.sets.nameRequired'))
+      setNotice({ type: 'error', message: t('vocab.sets.nameRequired') })
       return
     }
     setBusy(true)
     try {
+      // 学习语言不再让老师选（2026-10-24 用户决定）：V1 固定 en，由老师按词判断。
       const body = { name: name.trim(), language, description, active }
       const saved = setId
         ? await api.put<SetView>(`/api/vocab/sets/${setId}`, body)
         : await api.post<SetView>('/api/vocab/sets', body)
       setSetId(saved.id)
       setName(saved.name)
-      toast.success(t('vocab.sets.savedToast'))
-      if (isNew) navigate(`/vocab/sets/${saved.id}`, { replace: true })
-      else await load()
+      if (!id) {
+        window.history.replaceState(null, '', `/vocab/sets/${saved.id}`)
+      }
+
+      // 「保存」同时完成解析与入库（2026-10-24 用户决定：不再有预览/加入按钮）
+      if (text.trim()) {
+        const preview = await api.post<Preview>('/api/vocab/import/preview',
+          { text, language: 'en' })
+        const total = preview.distinctWords.length
+        if (total === 0) {
+          setNotice({ type: 'error', message: t('vocab.sets.noWordsParsed') })
+        } else {
+          const result = await api.post<{ added: number; skipped: number }>(
+            `/api/vocab/sets/${saved.id}/words`, { words: preview.distinctWords })
+          setNotice({
+            type: result.added === total ? 'success' : 'error',
+            message: t('vocab.sets.addResult', { added: result.added, total }),
+          })
+          setText('')
+        }
+      } else {
+        setNotice({ type: 'success', message: t('vocab.sets.savedNotice') })
+      }
+      await load(saved.id)
     } catch (saveError) {
-      toast.error((saveError as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  const runPreview = async () => {
-    if (!text.trim()) return
-    try {
-      setPreview(await api.post<Preview>('/api/vocab/import/preview', { text, language }))
-    } catch (previewError) {
-      toast.error((previewError as Error).message)
-    }
-  }
-
-  const addWords = async () => {
-    if (!setId || !preview) return
-    setBusy(true)
-    try {
-      const result = await api.post<{ added: number; skipped: number }>(
-        `/api/vocab/sets/${setId}/words`, { words: preview.distinctWords })
-      toast.success(t('vocab.sets.addDone', { added: result.added, skipped: result.skipped }))
-      setText('')
-      setPreview(null)
-      await load()
-    } catch (addError) {
-      toast.error((addError as Error).message)
+      setNotice({ type: 'error', message: (saveError as Error).message })
     } finally {
       setBusy(false)
     }
@@ -138,89 +142,78 @@ export default function VocabSetEditPage() {
 
   return (
     <>
-      <PageHeader title={isNew ? t('vocab.sets.newSet') : t('vocab.sets.editTitle')} />
+      <PageHeader
+        title={setId ? t('vocab.sets.editTitle') : t('vocab.sets.newSet')}
+        actions={(
+          <Button size="small" onClick={() => navigate('/vocab/sets')}>
+            {t('vocab.sets.backToList')}
+          </Button>
+        )}
+      />
 
-      <div className="card" style={{ maxWidth: 820 }}>
+      <div className="card" style={{ maxWidth: 860 }}>
         <label className="row" style={{ gap: 8, marginBottom: 10 }}>
-          <span style={{ width: 80 }}>{t('vocab.sets.name')}</span>
+          <span style={{ width: 60 }}>{t('vocab.sets.name')}</span>
           <Input value={name} onChange={(event) => setName(event.target.value)} maxLength={100} />
-        </label>
-        <label className="row" style={{ gap: 8, marginBottom: 10 }}>
-          <span style={{ width: 80 }}>{t('vocab.sets.language')}</span>
-          <Input value={language} onChange={(event) => setLanguage(event.target.value)} style={{ width: 100 }} />
           <label className="row" style={{ gap: 4 }}>
             <input type="checkbox" checked={active} onChange={() => setActive((value) => !value)} />
             {t('vocab.sets.active')}
           </label>
         </label>
+
         <label className="row" style={{ gap: 8, marginBottom: 14, alignItems: 'flex-start' }}>
-          <span style={{ width: 80 }}>{t('vocab.sets.description')}</span>
-          <TextArea rows={3} value={description} onChange={(event) => setDescription(event.target.value)} />
+          <span style={{ width: 60 }}>{t('vocab.sets.description')}</span>
+          <TextArea rows={2} value={description} onChange={(event) => setDescription(event.target.value)} />
         </label>
 
-        <div className="row" style={{ justifyContent: 'flex-end', gap: 8 }}>
+        {notice && (
+          <Alert type={notice.type} showIcon message={notice.message} style={{ marginBottom: 12 }} />
+        )}
+
+        <h3>{t('vocab.sets.words')}</h3>
+        <TextArea rows={5} value={text} placeholder={t('vocab.sets.bulkPlaceholder')}
+          onChange={(event) => setText(event.target.value)} />
+
+        {words.length === 0 ? <Empty>{t('vocab.sets.wordsEmpty')}</Empty> : (
+          <table className="vocab-table" style={{ marginTop: 12 }}>
+            <thead>
+              <tr>
+                <th>{t('vocab.sets.word')}</th>
+                <th>{t('vocab.sets.band')}</th>
+                <th>{t('vocab.sets.actions')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {words.map((word, index) => (
+                <tr key={word.id}>
+                  <td>
+                    <span className="row" style={{ gap: 6 }}>
+                      {word.form}
+                      <SpeakerButton form={word.form} compact />
+                    </span>
+                  </td>
+                  <td>{word.band ? t('vocab.detail.familyBand', { band: word.band }) : '—'}</td>
+                  <td>
+                    <span className="row" style={{ gap: 6 }}>
+                      <Button size="small" disabled={index === 0}
+                        onClick={() => void moveWord(index, -1)}>{t('vocab.library.moveUp')}</Button>
+                      <Button size="small" disabled={index === words.length - 1}
+                        onClick={() => void moveWord(index, 1)}>{t('vocab.library.moveDown')}</Button>
+                      <Button size="small" variant="danger"
+                        onClick={() => void removeWord(word.id)}>{t('vocab.sets.remove')}</Button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        <p className="muted sm">{t('vocab.sets.removeHint')}</p>
+
+        <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 16 }}>
           <Button onClick={() => navigate('/vocab/sets')}>{t('vocab.sets.cancel')}</Button>
           <Button variant="primary" busy={busy} onClick={() => void save()}>{t('vocab.sets.save')}</Button>
         </div>
-      </div>
-
-      <div className="card" style={{ maxWidth: 820, marginTop: 12 }}>
-        <h3 style={{ marginTop: 0 }}>{t('vocab.sets.words')}</h3>
-        {!setId ? (
-          <p className="muted">{t('vocab.sets.saveFirst')}</p>
-        ) : (
-          <>
-            <div className="row" style={{ gap: 8, alignItems: 'flex-start' }}>
-              <TextArea rows={5} value={text} placeholder={t('vocab.sets.pastePlaceholder')}
-                onChange={(event) => setText(event.target.value)} />
-              <div className="row" style={{ gap: 8, flexDirection: 'column' }}>
-                <Button size="small" onClick={() => void runPreview()}>{t('vocab.sets.preview')}</Button>
-                <Button size="small" variant="primary" disabled={!preview || preview.distinctWords.length === 0}
-                  busy={busy} onClick={() => void addWords()}>{t('vocab.sets.addToSet')}</Button>
-              </div>
-            </div>
-            {preview && (
-              <div className="sm muted" style={{ marginTop: 8 }}>
-                {t('vocab.sets.previewSummary', {
-                  words: preview.distinctWords.length,
-                  skipped: preview.skipped.length,
-                  cleanups: preview.cleanups.length,
-                })}
-              </div>
-            )}
-
-            {words.length === 0 ? <Empty>{t('vocab.sets.wordsEmpty')}</Empty> : (
-              <table className="vocab-table" style={{ marginTop: 12 }}>
-                <thead>
-                  <tr>
-                    <th>{t('vocab.sets.word')}</th>
-                    <th>{t('vocab.sets.band')}</th>
-                    <th>{t('vocab.sets.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {words.map((word, index) => (
-                    <tr key={word.id}>
-                      <td><span className="row" style={{ gap: 6 }}>{word.form}<SpeakerButton form={word.form} compact /></span></td>
-                      <td>{word.band ? t('vocab.detail.familyBand', { band: word.band }) : '—'}</td>
-                      <td>
-                        <span className="row" style={{ gap: 6 }}>
-                          <Button size="small" disabled={index === 0}
-                            onClick={() => void moveWord(index, -1)}>{t('vocab.library.moveUp')}</Button>
-                          <Button size="small" disabled={index === words.length - 1}
-                            onClick={() => void moveWord(index, 1)}>{t('vocab.library.moveDown')}</Button>
-                          <Button size="small" variant="danger"
-                            onClick={() => void removeWord(word.id)}>{t('vocab.sets.remove')}</Button>
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-            <p className="muted sm">{t('vocab.sets.removeHint')}</p>
-          </>
-        )}
       </div>
     </>
   )

@@ -20,9 +20,12 @@ interface EyebrowRule {
 
 const EYEBROW_RULES: EyebrowRule[] = [
   { test: /^\/vocab\/library$/, key: 'vocabLibrary', tone: 'practice' },
-  { test: /^\/vocab\/review$/, key: 'vocabReview', tone: 'practice' },
-  { test: /^\/vocab\/sets$/, key: 'vocabSets', tone: 'practice' },
+  { test: /^\/vocab\/words(\/|$)/, key: 'vocabLibrary', tone: 'practice' },
+  { test: /^\/vocab\/review(\/|$)/, key: 'vocabReview', tone: 'practice' },
+  { test: /^\/vocab\/sets(\/|$)/, key: 'vocabSets', tone: 'practice' },
   { test: /^\/vocab\/assign$/, key: 'vocabAssign', tone: 'practice' },
+  { test: /^\/vocab\/assignments(\/|$)/, key: 'vocabAssignment', tone: 'practice' },
+  { test: /^\/vocab\/add$/, key: 'vocabAdd', tone: 'practice' },
   { test: /^\/assignments\/new$/, key: 'assignmentCreate', tone: 'create' },
   { test: /^\/assignments$/, key: 'assignments', tone: 'create' },
   { test: /^\/papers(\/|$)/, key: 'papers', tone: 'create' },

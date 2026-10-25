@@ -1381,7 +1381,9 @@
     "vocabLibrary": "PRACTICE · 词库",
     "vocabReview": "PRACTICE · 复习",
     "vocabSets": "PRACTICE · 词集",
-    "vocabAssign": "PRACTICE · 发词"
+    "vocabAssign": "PRACTICE · 发词",
+    "vocabAssignment": "PRACTICE · 预习",
+    "vocabAdd": "PRACTICE · 加词"
   },
   "vocab": {
     "nav": {
@@ -1501,7 +1503,7 @@
       "editTitle": "编辑词集",
       "name": "名称",
       "language": "学习语言",
-      "description": "说明",
+      "description": "备注",
       "status": "状态",
       "active": "启用",
       "inactive": "停用",
@@ -1546,7 +1548,12 @@
       "noDue": "无截止",
       "copyLink": "复制链接",
       "copyDone": "已复制布置链接",
-      "copyFailed": "复制失败，请手动复制地址栏链接"
+      "copyFailed": "复制失败，请手动复制地址栏链接",
+      "bulkPlaceholder": "粘贴或输入单词（每行一个，支持逗号/空格分隔；点“保存”时自动解析并加入）",
+      "noWordsParsed": "没有解析出单词，请检查内容",
+      "addResult": "添加完成（{{added}}/{{total}}）",
+      "savedNotice": "已保存",
+      "backToList": "返回词集"
     },
     "assign": {
       "title": "发词",

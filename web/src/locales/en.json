@@ -1381,7 +1381,9 @@
     "vocabLibrary": "PRACTICE · Library",
     "vocabReview": "PRACTICE · Review",
     "vocabSets": "PRACTICE · Word sets",
-    "vocabAssign": "PRACTICE · Send words"
+    "vocabAssign": "PRACTICE · Send words",
+    "vocabAssignment": "PRACTICE · Preview",
+    "vocabAdd": "PRACTICE · Add words"
   },
   "vocab": {
     "nav": {
@@ -1501,7 +1503,7 @@
       "editTitle": "Edit word set",
       "name": "Name",
       "language": "Language",
-      "description": "Description",
+      "description": "Note",
       "status": "Status",
       "active": "Active",
       "inactive": "Inactive",
@@ -1546,7 +1548,12 @@
       "noDue": "No due date",
       "copyLink": "Copy link",
       "copyDone": "Assignment link copied",
-      "copyFailed": "Copy failed; copy the address bar manually"
+      "copyFailed": "Copy failed; copy the address bar manually",
+      "bulkPlaceholder": "Paste or type words (one per line or comma/space separated; parsed and added when you press Save)",
+      "noWordsParsed": "No words parsed; check the content",
+      "addResult": "Added ({{added}}/{{total}})",
+      "savedNotice": "Saved",
+      "backToList": "Back to word sets"
     },
     "assign": {
       "title": "Send words",
