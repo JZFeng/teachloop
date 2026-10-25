@@ -223,6 +223,24 @@ def _strip_generics(type_name: str) -> list[str]:
     return re.findall(r"[A-Za-z_][A-Za-z0-9_]*", simplified)
 
 
+def _strip_method_bodies(text: str) -> str:
+    """去掉接口里 default / static 方法的实现体，只留声明。
+
+    端口规则的约束是**签名**只收发 record；方法体里出现的局部变量、`return`、`new`
+    不是签名的一部分。不先剥掉实现体，按 `;` 劈开接口体就会把语句当成签名误报。
+    """
+    out: list[str] = []
+    depth = 0
+    for ch in text:
+        if ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth = max(0, depth - 1)
+        elif depth == 0:
+            out.append(ch)
+    return "".join(out)
+
+
 def _split_top_level(params: str) -> list[str]:
     parts, depth, current = [], 0, ""
     for ch in params:
@@ -280,7 +298,7 @@ def check_port_signatures(root: Path, problems: list[str]) -> None:
                 depth -= 1
             pos += 1
         body = text[match.end(): pos - 1]
-        for chunk in body.split(";"):
+        for chunk in _strip_method_bodies(body).split(";"):
             signature = chunk.strip()
             if "(" not in signature or ")" not in signature:
                 continue

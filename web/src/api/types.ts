@@ -565,3 +565,17 @@ export interface AiCircuitView {
   nextProbeAt: string | null
   lastErrorKind: string | null
 }
+
+/**
+ * GET /api/ai-readiness 的返回。
+ * `engine === 'stub'` 是仅 QA/测试环境存在的开发替身：不需要 Key 也能出分，
+ * 所以「能不能出分」看 `ready`（configured || stub），不是 configuration 本身。
+ */
+export interface AiReadinessView {
+  configured: boolean
+  engine: 'ai' | 'stub'
+  ready: boolean
+  source: 'provider' | 'env' | 'stub' | null
+  provider: string | null
+  model: string | null
+}

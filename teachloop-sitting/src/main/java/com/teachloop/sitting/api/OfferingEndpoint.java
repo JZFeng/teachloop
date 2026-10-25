@@ -17,6 +17,8 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.format.DateTimeParseException;
 import java.util.*;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.MessageSource;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -70,6 +72,8 @@ public class OfferingEndpoint {
     private final OfferingGradingDispatcher dispatcher;
     private final AuditPort audit;
     private final Clock clock;
+    /** AI 未就绪时「重试失败项」必须拦在改状态之前；无 identity 装配（单元测试）时放行。 */
+    private final ObjectProvider<Ports.AiSettingsLookup> aiSettings;
     /** T234：手动「重试失败/卡住项」判定 RUNNING 卡住多久算超时（比定时清扫的 5 分钟短）。 */
     private final long manualStaleMinutes;
 
@@ -80,8 +84,8 @@ public class OfferingEndpoint {
                             Ports.StudentDirectory directory,
                             SnapshotCodec codec, MessageSource messages, OfferingWindows windows,
                             OfferingGradingDispatcher dispatcher, AuditPort audit, Clock clock,
-                            @org.springframework.beans.factory.annotation.Value(
-                                    "${teachloop.grading.manual-stale-minutes:1}") long manualStaleMinutes) {
+                            ObjectProvider<Ports.AiSettingsLookup> aiSettings,
+                            @Value("${teachloop.grading.manual-stale-minutes:1}") long manualStaleMinutes) {
         this.offerings = offerings;
         this.offeringClasses = offeringClasses;
         this.submissions = submissions;
@@ -96,6 +100,7 @@ public class OfferingEndpoint {
         this.dispatcher = dispatcher;
         this.audit = audit;
         this.clock = clock;
+        this.aiSettings = aiSettings;
         this.manualStaleMinutes = manualStaleMinutes;
     }
 
@@ -349,6 +354,7 @@ public class OfferingEndpoint {
         }
         Offering o = offerings.findById(id).orElseThrow(() -> ApiException.notFound("布置不存在"));
         requireVisible(o, me);
+        requireAiReady();
         int retried = submissions.retryFailed(o.getId());
         // T234：卡在 RUNNING 的项同样要能手动救回来（定时清扫要等 5 分钟，教师不该干等）
         int reclaimed = submissions.reclaimStaleRunning(o.getId(),
@@ -358,6 +364,17 @@ public class OfferingEndpoint {
                     Map.of("count", retried, "reclaimed", reclaimed)));
         }
         return Map.of("offeringId", id.toString(), "retried", retried, "reclaimed", reclaimed);
+    }
+
+    /** AI 未就绪时重试只会再失败一次；拦在改状态之前，让界面能提示「请管理员设置 AI」。 */
+    private void requireAiReady() {
+        Ports.AiSettingsLookup lookup = aiSettings.getIfAvailable();
+        if (lookup == null) {
+            return;
+        }
+        if (!lookup.readiness().ready()) {
+            throw ApiException.conflict("error.ai.notConfigured");
+        }
     }
 
     /** 按班统计（T202 / T191 的最小可用面）：按时提交率与迟交份数分开。 */

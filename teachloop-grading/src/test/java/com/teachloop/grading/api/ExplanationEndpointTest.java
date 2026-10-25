@@ -183,10 +183,56 @@ class ExplanationEndpointTest {
         verify(queue, times(1)).wrongItemsOf(OFFERING_ID, 1);
     }
 
-    private ExplanationEndpoint endpoint(FakeLlmClient llm) {
-        ExplanationEngine engine = new ExplanationEngine(llm, aiCalls, clock);
-        return new ExplanationEndpoint(queue, repo, engine, clock);
+    @Test
+    @DisplayName("AI 未配置：直接 409，不选题、不调模型，界面才能提示联系管理员")
+    void notConfiguredFailsFast() {
+        ExplanationEndpoint endpoint = endpoint(FakeLlmClient.responding(), NOT_CONFIGURED_AI);
+
+        assertThatThrownBy(() -> endpoint.generate(OFFERING_ID, 50, TEACHER))
+                .isInstanceOfSatisfying(ApiException.class,
+                        ex -> assertThat(ex.code().name()).isEqualTo("CONFLICT"));
+        verify(queue, never()).wrongItemsOf(any(), anyInt());
     }
+
+    private ExplanationEndpoint endpoint(FakeLlmClient llm) {
+        return endpoint(llm, CONFIGURED_AI);
+    }
+
+    @SuppressWarnings("unchecked")
+    private ExplanationEndpoint endpoint(FakeLlmClient llm, Ports.AiSettingsLookup lookup) {
+        ExplanationEngine engine = new ExplanationEngine(llm, aiCalls, clock);
+        org.springframework.beans.factory.ObjectProvider<Ports.AiSettingsLookup> settings =
+                mock(org.springframework.beans.factory.ObjectProvider.class);
+        when(settings.getIfAvailable()).thenReturn(lookup);
+        return new ExplanationEndpoint(queue, repo, engine, clock, settings);
+    }
+
+    /** 有可用模型（configured=true）。 */
+    private static final Ports.AiSettingsLookup CONFIGURED_AI = new Ports.AiSettingsLookup() {
+        @Override
+        public java.util.Optional<Ports.AiSettings> current() {
+            return java.util.Optional.of(new Ports.AiSettings("deepseek", "https://api.deepseek.com",
+                    "deepseek-flash", "sk-test-only", java.math.BigDecimal.valueOf(0.2), true));
+        }
+
+        @Override
+        public java.util.Optional<Ports.AiSettings> resolve(UUID teacherId) {
+            return current();
+        }
+    };
+
+    /** 没有任何可用模型。 */
+    private static final Ports.AiSettingsLookup NOT_CONFIGURED_AI = new Ports.AiSettingsLookup() {
+        @Override
+        public java.util.Optional<Ports.AiSettings> current() {
+            return java.util.Optional.empty();
+        }
+
+        @Override
+        public java.util.Optional<Ports.AiSettings> resolve(UUID teacherId) {
+            return java.util.Optional.empty();
+        }
+    };
 
     private static Ports.ExplanationItem item(String stem) {
         return new Ports.ExplanationItem(UUID.randomUUID(), 1, "SINGLE_CHOICE", stem,

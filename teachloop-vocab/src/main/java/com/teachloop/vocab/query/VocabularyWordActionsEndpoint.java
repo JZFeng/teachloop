@@ -1,11 +1,14 @@
 package com.teachloop.vocab.query;
 
 import com.teachloop.shared.error.ApiException;
+import com.teachloop.shared.port.Ports;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.vocab.generation.GenerationJobStore;
 import com.teachloop.vocab.word.VocabWordRepository;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -36,10 +39,21 @@ public class VocabularyWordActionsEndpoint {
     private final VocabWordRepository words;
     private final GenerationJobStore jobs;
     private final ObjectMapper mapper = new ObjectMapper();
+    /** 内容生成要真模型；无 identity 装配时放行。 */
+    private final ObjectProvider<Ports.AiSettingsLookup> aiSettings;
+    /**
+     * 内容生成自己的引擎开关：stub 是确定性替身（{@code StubVocabularyContentGenerator}），
+     * 不需要 Key 也能生成，重试不应被拦；只有 engine=ai 才要求 configured。
+     */
+    private final String generationEngine;
 
-    public VocabularyWordActionsEndpoint(VocabWordRepository words, GenerationJobStore jobs) {
+    public VocabularyWordActionsEndpoint(VocabWordRepository words, GenerationJobStore jobs,
+                                         ObjectProvider<Ports.AiSettingsLookup> aiSettings,
+                                         @Value("${teachloop.vocab.generation.engine:ai}") String generationEngine) {
         this.words = words;
         this.jobs = jobs;
+        this.aiSettings = aiSettings;
+        this.generationEngine = generationEngine;
     }
 
     public record BatchRequest(List<UUID> ids, String action) {
@@ -102,6 +116,7 @@ public class VocabularyWordActionsEndpoint {
                 throw ApiException.notFound("word not found");
             }
         }
+        requireAiConfigured();
         for (UUID id : request.ids()) {
             jobs.retryWord(id, java.time.Instant.now());
         }
@@ -150,6 +165,23 @@ public class VocabularyWordActionsEndpoint {
                 ? mapper.createObjectNode() : request.tableColumns();
         words.savePrefs(me.id(), mapper.writeValueAsString(tableColumns));
         return new PrefsView(tableColumns);
+    }
+
+    /**
+     * 内容生成失败时重试只会再失败一次；拦在把词条改回 PENDING 之前，让界面提示联系管理员。
+     * stub 生成器能在没有 Key 时出内容，所以只看引擎：ai 才要求 configured。
+     */
+    private void requireAiConfigured() {
+        if ("stub".equalsIgnoreCase(generationEngine == null ? "" : generationEngine.strip())) {
+            return;
+        }
+        Ports.AiSettingsLookup lookup = aiSettings.getIfAvailable();
+        if (lookup == null) {
+            return;
+        }
+        if (!lookup.readiness().configured()) {
+            throw ApiException.conflict("error.ai.notConfigured");
+        }
     }
 
     private static int notFound() {

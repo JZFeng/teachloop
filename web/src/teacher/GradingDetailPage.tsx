@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { isAIReady } from '../api/ai'
+import { useAuth } from '../api/auth'
 import { api, fmtDateTime } from '../api/client'
 import type {
   ClassView,
@@ -13,6 +15,7 @@ import type {
 import { AuditDrawer } from '../components/AuditDrawer'
 import { AiCircuitBanner } from '../components/AiCircuitBanner'
 import { useListState } from '../components/useListState'
+import { useAiReadiness } from '../components/useAiReadiness'
 import { Alert, Button, DataTable, Empty, ErrorState, Field, Input, Loading, PageHeader, StatCard, Segmented } from '../ui'
 import type { Column } from '../ui'
 import {
@@ -53,6 +56,10 @@ export default function GradingDetailPage() {
     { key: 'submittedAt', dir: 'desc' },
     20,
   )
+  const aiReadiness = useAiReadiness()
+  const { me } = useAuth()
+  // 模型只在 /admin/ai 配（2026-10-24 决策）：管理员给一个跳转，教师只看到「请联系管理员」。
+  const aiSetupTarget = me?.role === 'ADMIN' ? '/admin/ai' : null
 
   const { data, loading, error, reload } = useApiData<DetailData>(async () => {
     const [offering, progress, submissions, classes] = await Promise.all([
@@ -72,6 +79,8 @@ export default function GradingDetailPage() {
   const [aiDispatchingId, setAiDispatchingId] = useState<string | null>(null)
   const [aiDispatchNote, setAiDispatchNote] = useState<string | null>(null)
   const [aiDispatchError, setAiDispatchError] = useState<string | null>(null)
+  // AI 没配好时点了任何一个 AI 动作：不发请求，只把这条提示亮出来。
+  const [aiBlocked, setAiBlocked] = useState(false)
   const [explaining, setExplaining] = useState(false)
   const [explainResult, setExplainResult] = useState<ExplanationGenerateResult | null>(null)
   const [explainError, setExplainError] = useState<string | null>(null)
@@ -107,7 +116,23 @@ export default function GradingDetailPage() {
 
   const filtered = submissions.filter((row) => matchesFilter(row, filter))
 
+  /**
+   * 四个 AI 动作（全部派发 / 单份派发 / 重试失败 / 生成解析）共用的前置判断：
+   * 先问一次 AI 就绪状态，没就绪就一个请求都不发，只把「请联系管理员设置 AI」的提示亮出来。
+   * 返回 true 表示已拦截。探测本身失败时 isAIReady() 放行（见 api/ai.ts 的失败放行注释），
+   * 真正「没配置不许批」仍由后端 409 守卫兜底。
+   */
+  const blockIfAiNotReady = async (): Promise<boolean> => {
+    if (await isAIReady()) {
+      setAiBlocked(false)
+      return false
+    }
+    setAiBlocked(true)
+    return true
+  }
+
   const dispatch = async () => {
+    if (await blockIfAiNotReady()) return
     setDispatching(true)
     setDispatchError(null)
     setDispatchReceipt(null)
@@ -126,6 +151,7 @@ export default function GradingDetailPage() {
 
   /** T252：单份「让 AI 先批」——只把这一份推进 AI 队列，不动同一场的其他提交。 */
   const dispatchOneSubmission = async (row: OfferingSubmissionView) => {
+    if (await blockIfAiNotReady()) return
     setAiDispatchingId(row.submissionId)
     setAiDispatchError(null)
     setAiDispatchNote(null)
@@ -141,6 +167,8 @@ export default function GradingDetailPage() {
   }
 
   const retryFailed = async () => {
+    // 按钮只按「有没有失败/卡住」禁用；AI 配置判断必须放在 onClick 的第一行。
+    if (await blockIfAiNotReady()) return
     setRetrying(true)
     setDispatchError(null)
     try {
@@ -157,6 +185,7 @@ export default function GradingDetailPage() {
   }
 
   const generateExplanations = async () => {
+    if (await blockIfAiNotReady()) return
     setExplaining(true)
     setExplainError(null)
     setExplainResult(null)
@@ -420,6 +449,18 @@ export default function GradingDetailPage() {
 
           <AiCircuitBanner />
 
+          {aiReadiness.view && !aiReadiness.view.ready && (
+            <Alert
+              type="warning"
+              showIcon
+              style={{ marginBottom: 16 }}
+              message={t('teacher.detail.aiNotConfiguredHint')}
+              action={aiSetupTarget
+                ? <Button size="small" onClick={() => navigate(aiSetupTarget)}>{t('teacher.detail.goSetAi')}</Button>
+                : undefined}
+            />
+          )}
+
           {offering.status === 'DRAFT' && <Alert type="warning" showIcon message={t('teacher.detail.draftNote')} />}
           {offering.kind === 'ASSIGNMENT' && (
             <div className="inline-note">{t('teacher.detail.nightlyGrading')}</div>
@@ -503,6 +544,17 @@ export default function GradingDetailPage() {
             )}
             {aiDispatchNote && <Alert type="success" showIcon style={{ marginTop: 10 }} message={aiDispatchNote} />}
             {aiDispatchError && <Alert type="error" showIcon style={{ marginTop: 10 }} message={aiDispatchError} />}
+            {aiBlocked && (
+              <Alert
+                type="error"
+                showIcon
+                style={{ marginTop: 10 }}
+                message={t('teacher.detail.aiNotConfiguredBlocked')}
+                action={aiSetupTarget
+                  ? <Button size="small" onClick={() => navigate(aiSetupTarget)}>{t('teacher.detail.goSetAi')}</Button>
+                  : undefined}
+              />
+            )}
             {dispatchError && (
               <Alert
                 type="error"

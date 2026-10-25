@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { isAIConfigured } from '../api/ai'
 import { api } from '../api/client'
 import {
   Button,
@@ -337,6 +338,12 @@ export default function VocabLibraryPage() {
 
   const retryContent = async (ids: string[]) => {
     if (ids.length === 0) return
+    // 背单词内容生成永远要真模型（stub 替身不产出内容），所以这里判 configured 而不是 ready。
+    // 探测失败放行（见 api/ai.ts），最终由后端 409 守卫兜底。
+    if (!(await isAIConfigured())) {
+      toast.error(t('vocab.library.aiNotConfigured'))
+      return
+    }
     await api.post('/api/vocab/words/retry', { ids })
     toast.success(t('vocab.library.retryDone'))
     refresh()

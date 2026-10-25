@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.web.bind.annotation.*;
 
 /**
@@ -36,14 +37,18 @@ public class ExplanationEndpoint {
     private final ItemExplanationRepository explanations;
     private final ExplanationEngine engine;
     private final Clock clock;
+    /** 错题解析永远要真模型（stub 不覆盖），所以看 configured；无 identity 装配时放行。 */
+    private final ObjectProvider<Ports.AiSettingsLookup> aiSettings;
 
     public ExplanationEndpoint(Ports.ExplanationWorkQueue workQueue,
                                ItemExplanationRepository explanations,
-                               ExplanationEngine engine, Clock clock) {
+                               ExplanationEngine engine, Clock clock,
+                               ObjectProvider<Ports.AiSettingsLookup> aiSettings) {
         this.workQueue = workQueue;
         this.explanations = explanations;
         this.engine = engine;
         this.clock = clock;
+        this.aiSettings = aiSettings;
     }
 
     public record GenerateResult(int generated, int skippedExisting, int skippedNoStem,
@@ -55,6 +60,7 @@ public class ExplanationEndpoint {
                                    @RequestParam(name = "limit", required = false) Integer limit,
                                    @RequestAttribute("currentUser") CurrentUser me) {
         requireTeacherOrAdmin(me);
+        requireAiConfigured();
         int effectiveLimit = clamp(limit);
         List<Ports.ExplanationItem> items = workQueue.wrongItemsOf(offeringId, effectiveLimit);
 
@@ -106,6 +112,17 @@ public class ExplanationEndpoint {
         }
         if (!me.is("TEACHER") && !me.is("ADMIN")) {
             throw ApiException.forbidden("只有教师或管理员可以生成错题解析");
+        }
+    }
+
+    /** 错题解析不走 stub 替身：没有可用模型就直接 409，不要逐题失败后才让老师猜原因。 */
+    private void requireAiConfigured() {
+        Ports.AiSettingsLookup lookup = aiSettings.getIfAvailable();
+        if (lookup == null) {
+            return;
+        }
+        if (!lookup.readiness().configured()) {
+            throw ApiException.conflict("error.ai.notConfigured");
         }
     }
 }

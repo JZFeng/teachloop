@@ -17,6 +17,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,15 +45,19 @@ public class OfferingGradingDispatcher {
     private final Ports.GradingDispatch gradingDispatch;
     private final AuditPort audit;
     private final Clock clock;
+    /** AI 未就绪时手动派发必须拦在改状态/入队之前；无 identity 装配（单元测试）时放行。 */
+    private final ObjectProvider<Ports.AiSettingsLookup> aiSettings;
 
     public OfferingGradingDispatcher(OfferingRepository offerings, SubmissionRepository submissions,
                                      Ports.GradingDispatch gradingDispatch,
-                                     AuditPort audit, Clock clock) {
+                                     AuditPort audit, Clock clock,
+                                     ObjectProvider<Ports.AiSettingsLookup> aiSettings) {
         this.offerings = offerings;
         this.submissions = submissions;
         this.gradingDispatch = gradingDispatch;
         this.audit = audit;
         this.clock = clock;
+        this.aiSettings = aiSettings;
     }
 
     /** 一次派发的结果：run 是幂等键，所以重复派发返回同一个 id。 */
@@ -150,6 +155,7 @@ public class OfferingGradingDispatcher {
         if (offering.getStatus() != OfferingStatus.PUBLISHED) {
             throw ApiException.conflict("只有已发布的布置才能派发批改");
         }
+        requireAiReady();
         Instant now = Instant.now(clock);
         FirstDispatch first = dispatchFirstTime(offeringId, now, actorId, "manual");
         if (first != null) {
@@ -177,6 +183,7 @@ public class OfferingGradingDispatcher {
         if (!submission.getOfferingId().equals(offeringId)) {
             throw ApiException.notFound("error.submission.notFound");
         }
+        requireAiReady();
         UUID runId = gradingDispatch.dispatch(offeringId);
         if (submissions.enqueueOne(submissionId) == 0) {
             throw ApiException.conflict("error.grading.dispatchState");
@@ -186,6 +193,21 @@ public class OfferingGradingDispatcher {
         audit.record(new AuditEvent(actorId, "submission:ai_dispatch", "submission",
                 submissionId.toString(), detail));
         return new SubmissionDispatch(offeringId, submissionId, runId);
+    }
+
+    /**
+     * 手动「让 AI 批」的前置闸门：没有可用模型（且引擎不是 stub 替身）时直接 409，
+     * 不支持先入队再让 worker 失败——那时界面只剩「失败」，看不出要联系管理员设置 AI。
+     * 自动派发与定时作业不走这里（它们的失败由 worker / 熔断处理）。
+     */
+    private void requireAiReady() {
+        Ports.AiSettingsLookup lookup = aiSettings.getIfAvailable();
+        if (lookup == null) {
+            return;
+        }
+        if (!lookup.readiness().ready()) {
+            throw ApiException.conflict("error.ai.notConfigured");
+        }
     }
 
     /**

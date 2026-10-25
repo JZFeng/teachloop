@@ -240,11 +240,39 @@ public final class Ports {
         }
     }
 
+    /**
+     * AI 就绪状态（AI 未配置时手动派发必须拦在入队之前）。
+     *
+     * @param configured 有可用模型：当前已选 provider，或部署级 DEEPSEEK_API_KEY 非空
+     * @param engine     批改引擎：ai / stub（stub 是开发替身，不需要 Key 也能出分）
+     * @param ready      现在点「让 AI 批」能不能出分：configured || engine == stub
+     * @param source     模型来源：provider / env / stub / null（都没有）
+     * @param provider   providerKey，只做展示；绝不带 Key
+     * @param model      当前模型名，只做展示
+     */
+    public record AiReadiness(boolean configured, String engine, boolean ready, String source,
+                              String provider, String model) {
+    }
+
     public interface AiSettingsLookup {
         java.util.Optional<AiSettings> current();
 
         /** D-16：本人 Key 优先，缺失回退全局；返回的 source 是 user / global。 */
         java.util.Optional<AiSettings> resolve(UUID teacherId);
+
+        /**
+         * AI 就绪状态。默认实现只看全局配置，不看环境变量与引擎开关：
+         * 没有 identity 装配（单元测试、其它实现）时行为保持不变，调用方据此放行。
+         * identity 的 {@code AiSettingsLookupImpl} 会覆写为完整的部署级判断。
+         */
+        default AiReadiness readiness() {
+            java.util.Optional<AiSettings> settings = current().filter(AiSettings::configured);
+            if (settings.isEmpty()) {
+                return new AiReadiness(false, "ai", false, null, null, null);
+            }
+            AiSettings s = settings.get();
+            return new AiReadiness(true, "ai", true, s.source(), s.provider(), s.model());
+        }
     }
 
     /** T102：改标准答案后重算客观分。 */
