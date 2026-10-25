@@ -1,11 +1,12 @@
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../api/auth'
 import { ApiError, api } from '../api/client'
 import type { PaperDetail, PaperImportResult, PaperView } from '../api/types'
-import { Button, CheckOutlined, ErrorState, Loading, PageHeader, Tag, useConfirm, useToast } from '../ui'
+import { CheckOutlined, ErrorState, Loading, PageHeader, Tag, useConfirm, useToast } from '../ui'
 import { RubricPreview } from '../components/RubricPreview'
+import { summarizeRubric } from '../components/rubric'
 import { errorMessage, fmtNum, TeacherPage } from './common'
 import { readMarkdownFile } from './markdownImport'
 import {
@@ -16,6 +17,7 @@ import {
   compareTarget,
   deleteSummary,
   draftFromDetail,
+  essayRubricCheck,
   essayTabs,
   findMetaProblem,
   metaPayload,
@@ -25,6 +27,7 @@ import {
   previewSummary,
   publishCheck,
   rubricBlocks,
+  rubricGate,
   stageIndex,
   toNumberOrNull,
   type DraftV2,
@@ -34,6 +37,14 @@ import {
 
 /** 进度条最短展示时间：解析通常几百毫秒，太短会一闪而过，看不见「在读 / 在切题号」。 */
 const MIN_PROGRESS_MS = 700
+
+/**
+ * 评分项自动保存的防抖窗口（2026-10-25 用户改主意：去掉「保存本题评分标准」按钮）。
+ *
+ * 为什么是 800ms 而不是每次按键都发：Vditor 的 input 回调按字触发，逐字 PUT 会把后端打成鼓点，
+ * 而老师停下来想一想通常远长于 800ms。离开这一步（下一步 / 上一步 / 换 tab / 卸载）都会立刻冲刷。
+ */
+const RUBRIC_AUTOSAVE_MS = 800
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
@@ -71,13 +82,18 @@ export default function PaperWizardPage() {
   const [detail, setDetail] = useState<PaperDetail | null>(null)
   const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
-  const [busy, setBusy] = useState<'meta' | 'generate' | 'rubric' | 'sync' | 'publish' | null>(null)
+  const [busy, setBusy] = useState<'meta' | 'generate' | 'sync' | 'publish' | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
   const [note, setNote] = useState<{ tone: 'ok' | 'err' | 'info'; text: string } | null>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [tab, setTab] = useState(0)
   const [rubricEdits, setRubricEdits] = useState<Record<number, string>>({})
+  /** 自动保存的状态机：idle（还没改）/ saving（等防抖或请求中）/ saved / error。 */
+  const [rubricSave, setRubricSave] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [rubricSavedAt, setRubricSavedAt] = useState('')
+  /** 自动保存失败的具体原因（不塞 formError：那条红字属于「这一步过不去」，自动保存失败会自己重试）。 */
+  const [rubricError, setRubricError] = useState<string | null>(null)
 
   const storageKey = 'teachloop.paperDraft.v2'
   const step = draft?.step ?? 1
@@ -106,6 +122,87 @@ export default function PaperWizardPage() {
       }
     })
   }, [])
+
+  /**
+   * 评分项自动保存（2026-10-25 用户改主意：删掉「保存本题评分标准」按钮）。
+   *
+   * 三条硬要求：
+   * 1) 只发这一道题的 `rubricMarkdown`（AC-4.28② 的接口不变）；
+   * 2) 连续输入只保留最后一次（防抖 `RUBRIC_AUTOSAVE_MS`），离开这一步立刻冲刷；
+   * 3) 失败不静默丢字：失败的条目放回 pending，下次输入或「下一步」重试，错误当场显示。
+   */
+  const paperIdRef = useRef<string | null>(null)
+  const rubricPending = useRef<Record<number, string>>({})
+  const rubricTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    paperIdRef.current = draft?.paperId ?? null
+  }, [draft?.paperId])
+
+  const flushRubric = useCallback(async (): Promise<boolean> => {
+    if (rubricTimer.current !== null) {
+      clearTimeout(rubricTimer.current)
+      rubricTimer.current = null
+    }
+    const paperId = paperIdRef.current
+    const entries = Object.entries(rubricPending.current)
+    if (paperId === null || entries.length === 0) return true
+    rubricPending.current = {}
+    setRubricSave('saving')
+    try {
+      for (const [number, text] of entries) {
+        const saved = text.trim()
+        await api.put(`/api/papers/${paperId}/items/${number}`, { rubricMarkdown: saved })
+        // 就地更新详情，不整页刷新：第 2 步「替换重建」要数的已填 rubric、
+        // 第 4 步的评分项预览都读 detail，刷新会把老师正在看的 tab 冲回去。
+        setDetail((current) =>
+          current === null
+            ? current
+            : {
+                ...current,
+                sections: current.sections.map((section) => ({
+                  ...section,
+                  items: section.items.map((item) =>
+                    item.number === Number(number) ? { ...item, rubricMarkdown: saved } : item,
+                  ),
+                })),
+              },
+        )
+      }
+      setRubricSave('saved')
+      setRubricSavedAt(new Date().toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }))
+      setRubricError(null)
+      return true
+    } catch (err) {
+      // 放回去：不能让一次断网 / 404 把老师刚写的内容吞掉。
+      rubricPending.current = { ...Object.fromEntries(entries), ...rubricPending.current }
+      setRubricSave('error')
+      setRubricError(describeError(err))
+      return false
+    }
+  }, [])
+
+  const queueRubricSave = useCallback(
+    (number: number, text: string) => {
+      rubricPending.current = { ...rubricPending.current, [number]: text }
+      setRubricSave('saving')
+      if (rubricTimer.current !== null) clearTimeout(rubricTimer.current)
+      rubricTimer.current = setTimeout(() => {
+        rubricTimer.current = null
+        void flushRubric()
+      }, RUBRIC_AUTOSAVE_MS)
+    },
+    [flushRubric],
+  )
+
+  // 离开页面（切路由、关标签）也把最后一段输入发出去；卸载后 setState 是空操作，不会报错。
+  useEffect(
+    () => () => {
+      if (rubricTimer.current !== null) clearTimeout(rubricTimer.current)
+      void flushRubric()
+    },
+    [flushRubric],
+  )
 
   // 载入：有 paperId 就先取详情；新建模式优先恢复本地草稿（v2）。
   useEffect(() => {
@@ -181,6 +278,21 @@ export default function PaperWizardPage() {
   const rows = useMemo(() => previewRows(detail), [detail])
   const tabs = useMemo(() => essayTabs(detail), [detail])
   const activeTab: EssayTab | null = tabs[tab] ?? tabs[0] ?? null
+  /** 界面上正在显示的这道题的文字（本地编辑优先，其次服务端值）。 */
+  const activeRubric = activeTab === null ? '' : (rubricEdits[activeTab.number] ?? activeTab.rubricMarkdown)
+  /**
+   * 第 3 步每道写作题的分值体检（2026-10-25 用户拍板）：
+   * 完全没填 → 拦住下一步；合计 ≠ 本题满分 → 只提醒；没写任何分值 → 只提醒（后端按均分判）。
+   * 用「界面里正在编辑的文本」而不是服务端值：老师刚敲完就点下一步，检查的必须是他看到的字。
+   */
+  const rubricChecks = useMemo(
+    () =>
+      tabs.map((entry) => {
+        const text = rubricEdits[entry.number] ?? entry.rubricMarkdown
+        return essayRubricCheck(entry, text, summarizeRubric(text))
+      }),
+    [tabs, rubricEdits],
+  )
   const target = draft ? toNumberOrNull(draft.targetTotalPoints) : null
   const actual = detail ? Number(detail.paper.totalPoints) : 0
   const legacyCriteria = detail
@@ -260,13 +372,59 @@ export default function PaperWizardPage() {
       return
     }
     if (draft.step === 3) {
+      // 已发布卷在本步只读：改不了评分项，也就不拦（否则老师被锁死在只读页里）。
+      if (!locked) {
+        // 先冲刷待保存的输入：下面这道闸门看的必须是已落库的内容，不能拿「还在防抖里」的字放行。
+        const saved = await flushRubric()
+        if (!saved) {
+          toast.error(t('teacher.wizard.rubricAutosaveError'))
+          return
+        }
+        const gate = rubricGate(rubricChecks)
+        if (gate.blocked) {
+          const firstEmpty = tabs.findIndex((entry) => gate.empty.includes(entry.number))
+          if (firstEmpty >= 0) setTab(firstEmpty)
+          const text = t('teacher.wizard.errors.rubricRequired', { list: gate.empty.join('、') })
+          setFormError(text)
+          setNote(null)
+          toast.error(text)
+          return
+        }
+        const parts: string[] = []
+        if (gate.mismatch.length > 0) {
+          const items = gate.mismatch
+            .map((entry) =>
+              t('teacher.wizard.rubricMismatchItem', {
+                number: entry.number,
+                total: fmtNum(entry.total),
+                points: fmtNum(entry.points),
+              }),
+            )
+            .join('；')
+          parts.push(t('teacher.wizard.rubricMismatch', { items }))
+        }
+        if (gate.noPoints.length > 0) {
+          parts.push(t('teacher.wizard.rubricNoPoints', { list: gate.noPoints.join('、') }))
+        }
+        if (parts.length > 0) {
+          // 只提醒，不拦：老师可能先写提纲、分值后补，拦下来反而逼他编数字。
+          const text = parts.join(' ')
+          setFormError(null)
+          setNote({ tone: 'info', text })
+          toast.info(text)
+        } else {
+          setNote(null)
+        }
+      }
       setStep(4)
     }
   }
 
-  const goPrev = () => {
+  const goPrev = async () => {
     if (!draft || draft.step <= 1) return
     setFormError(null)
+    // 回上一步也把最后一段输入发出去：第 2 步的「替换重建」确认框要数已填的 rubric。
+    await flushRubric()
     setStep((draft.step - 1) as WizardStep)
   }
 
@@ -362,25 +520,6 @@ export default function PaperWizardPage() {
       // 不确定进度至少露一下脸：否则「生成考题」看起来像没反应。
       const spent = Date.now() - startedAt
       if (spent < MIN_PROGRESS_MS) await sleep(MIN_PROGRESS_MS - spent)
-      setBusy(null)
-    }
-  }
-
-  const saveRubric = async () => {
-    if (!draft?.paperId || !activeTab || locked) return
-    const text = rubricEdits[activeTab.number] ?? activeTab.rubricMarkdown
-    setBusy('rubric')
-    setFormError(null)
-    try {
-      await api.put(`/api/papers/${draft.paperId}/items/${activeTab.number}`, {
-        rubricMarkdown: text.trim(),
-      })
-      await loadDetail(draft.paperId, (draft.step ?? 3) as WizardStep)
-      setNote({ tone: 'ok', text: t('teacher.wizard.rubricSaved') })
-      toast.success(t('teacher.wizard.rubricSaved'))
-    } catch (err) {
-      setFormError(describeError(err))
-    } finally {
       setBusy(null)
     }
   }
@@ -733,7 +872,11 @@ export default function PaperWizardPage() {
                     key={entry.number}
                     type="button"
                     className={index === tab ? 'on' : ''}
-                    onClick={() => setTab(index)}
+                    onClick={() => {
+                      // 换 tab 前先冲刷：状态行要如实反映「这一题存住了没有」。
+                      void flushRubric()
+                      setTab(index)
+                    }}
                   >
                     {t('teacher.wizard.rubricTab', { number: entry.number, points: fmtNum(entry.points) })}
                   </button>
@@ -750,34 +893,50 @@ export default function PaperWizardPage() {
                       key={activeTab.number}
                       id={`paper-rubric-${activeTab.number}`}
                       rows={8}
-                      value={rubricEdits[activeTab.number] ?? activeTab.rubricMarkdown}
-                      onChange={(next) => setRubricEdits((current) => ({ ...current, [activeTab.number]: next }))}
+                      value={activeRubric}
+                      onChange={(next) => {
+                        const number = activeTab.number
+                        setRubricEdits((current) => ({ ...current, [number]: next }))
+                        queueRubricSave(number, next)
+                      }}
                       placeholder={t('teacher.wizard.essayItemRubricPlaceholder')}
                       disabled={locked}
                       expandable
                       heading={t('teacher.wizard.essayItemRubric')}
                       footer={
                         <RubricPreview
-                          rubric={rubricEdits[activeTab.number] ?? activeTab.rubricMarkdown}
+                          rubric={activeRubric}
                           totalPoints={activeTab.points}
                           title={t('teacher.wizard.rubricPreview')}
+                          scope="paper"
                         />
                       }
                     />
                   </Suspense>
                   <div className="hint">
-                    {activeTab.rubricMarkdown.trim() === ''
+                    {activeRubric.trim() === ''
                       ? t('teacher.wizard.essayItemRubricDefault', {
                           content: detail?.essayContentPercent ?? 80,
                           language: 100 - (detail?.essayContentPercent ?? 80),
                         })
                       : t('teacher.wizard.essayItemRubricHint')}
                   </div>
-                  <div className="row" style={{ marginTop: 8 }}>
-                    <Button busy={busy === 'rubric'} disabled={locked} onClick={() => void saveRubric()}>
-                      {t('teacher.wizard.saveEssay')}
-                    </Button>
-                  </div>
+                  {locked ? null : (
+                    <div
+                      className="hint"
+                      style={{ marginTop: 8, ...(rubricSave === 'error' ? { color: 'var(--red)' } : null) }}
+                      role="status"
+                      aria-live="polite"
+                    >
+                      {rubricSave === 'saving'
+                        ? t('teacher.wizard.rubricAutosaveSaving')
+                        : rubricSave === 'error'
+                          ? `${t('teacher.wizard.rubricAutosaveError')}${rubricError === null ? '' : `（${rubricError}）`}`
+                          : rubricSave === 'saved'
+                            ? t('teacher.wizard.rubricAutosaveSaved', { time: rubricSavedAt })
+                            : t('teacher.wizard.rubricAutosaveIdle')}
+                    </div>
+                  )}
                   <div className="inline-note" style={{ marginTop: 10 }}>{t('teacher.wizard.rubricRebuildNote')}</div>
                 </div>
               )}
@@ -918,7 +1077,7 @@ export default function PaperWizardPage() {
       )}
 
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 4 }}>
-        <button type="button" className="btn" disabled={step <= 1 || busy === 'generate'} onClick={goPrev}>
+        <button type="button" className="btn" disabled={step <= 1 || busy === 'generate'} onClick={() => void goPrev()}>
           {t('teacher.common.prev')}
         </button>
         <span className="small muted">{t('teacher.wizard.draftSavedAt', { key: storageKey })}</span>

@@ -1275,13 +1275,13 @@ PUBLISHED --generate-----> 拒绝（409）  （`confirm=true` 时也拒绝：已
 
 | 文件 | 变更 |
 | :--- | :--- |
-| `web/src/teacher/PaperWizardPage.tsx` | 重写：4 步；删掉 section/item/criteria 三套表单状态、`syncDraft` 的补建逻辑（约 100 行）、批量改题型、参考范文；保留 `localStorage` 草稿（键升级为 `teachloop.paperDraft.v2`） |
-| `web/src/teacher/paperFlow.ts` | **新增**纯函数：草稿 v2 规整、目标 vs 实际判定、预览行构造（缺答案 / 题号断档）、评分项列构造（`无`/`N/A` + 题号分块）、删除摘要、阶段文案序列 |
+| `web/src/teacher/PaperWizardPage.tsx` | 重写：4 步；删掉 section/item/criteria 三套表单状态、`syncDraft` 的补建逻辑（约 100 行）、批量改题型、参考范文；保留 `localStorage` 草稿（键升级为 `teachloop.paperDraft.v2`）。**2026-10-25 追记**：评分项去掉保存按钮改 800ms 防抖自动保存（离开本步冲刷、失败放回队列），第 3 步「下一步」加闸门（空必填拦截、合计不一致只提醒） |
+| `web/src/teacher/paperFlow.ts` | **新增**纯函数：草稿 v2 规整、目标 vs 实际判定、预览行构造（缺答案 / 题号断档）、评分项列构造（`无`/`N/A` + 题号分块）、删除摘要、阶段文案序列。**2026-10-25 补**：`essayRubricCheck` + `rubricGate`（第 3 步闸门：空 = 拦、合计不一致 = 只提醒、没写分值 = 只提醒） |
 | `web/src/teacher/PapersPage.tsx` | 删「导入考卷」按钮；其余不动 |
 | `web/src/App.tsx` | 删 `papers/import` 路由与 import |
 | `web/src/teacher/ImportPaperPage.tsx` | 删除文件；`teacher.import.*` 只删无引用的键 |
 | `web/src/components/VditorMarkdown.tsx` | 原计划不改；实际改了两处（2026-10-25 浏览器实测发现）：① 外部改值（导入 .md）改用「重建实例」而不是 `setValue`——IR 模式下 setValue 会漏更新，state 已是新原文、编辑器还是旧内容；② 只读态在 `after` 回调里补一次 `disabled()`——只挂 effect 时首次挂载的 `disabled` 会被 ready 的时序吞掉。两处都影响共用该组件的作业页，属于修既有缺陷 |
-| `web/src/components/RubricPreview.tsx` | **不改**：第 3 步每 tab 复用 |
+| `web/src/components/RubricPreview.tsx` | **不改**：第 3 步每 tab 复用。**2026-10-25 追记**：增可选 `scope`（`assignment` 默认 / `paper`）——作业页合计不一致是会被后端拒绝的硬错，试卷发布不校验本题合计，原文案「发布会被拒绝」在试卷页是错的 |
 | `web/src/teacher/teacher.css` | 只加 tab 条样式；颜色一律走令牌（`check-ui.py`） |
 
 `PaperDetail` 的回填规则：`contentMarkdown` 非空 → 填编辑器；空（旧卷）→ 编辑器空 + 提示，预览表用服务端

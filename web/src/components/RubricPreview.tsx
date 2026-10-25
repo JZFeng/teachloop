@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next'
 import { summarizeRubric } from './rubric'
 
+const round = (value: number) => Math.round(value * 100) / 100
+
 export interface RubricPreviewProps {
   rubric: string
   /** 作业总分；NaN / 0 / 不传时显示「—」，作业页的原行为。 */
@@ -13,6 +15,12 @@ export interface RubricPreviewProps {
   showTotalCheck?: boolean
   /** 已翻译的标题；默认沿用作业页的「AI 将看到」。 */
   title?: string
+  /**
+   * 合计不一致时说什么。
+   * - `assignment`：作业提交会被后端拒绝（原行为）；
+   * - `paper`：试卷发布不校验这里，只提醒（2026-10-25 用户要求：不一致不阻断进入下一步）。
+   */
+  scope?: 'assignment' | 'paper'
 }
 
 /**
@@ -21,7 +29,7 @@ export interface RubricPreviewProps {
  * T340：没有分值的分组标题/说明不算评分项，只提示数量。
  * T341：从 AssignmentCreatePage 抽出来，试卷向导复用（那里不判断总分）。
  */
-export function RubricPreview({ rubric, totalPoints, showTotalCheck = true, title }: RubricPreviewProps) {
+export function RubricPreview({ rubric, totalPoints, showTotalCheck = true, title, scope = 'assignment' }: RubricPreviewProps) {
   const { t } = useTranslation('translation')
   const summary = summarizeRubric(rubric)
   const expected = Number.isFinite(totalPoints) && (totalPoints ?? 0) > 0 ? (totalPoints as number) : null
@@ -35,10 +43,12 @@ export function RubricPreview({ rubric, totalPoints, showTotalCheck = true, titl
         {summary.criteria.length > 0 && (
           <span className="small muted">
             {showTotalCheck
-              ? t('teacher.assignmentCreate.aiPreviewSum', {
-                  total: summary.total,
-                  expected: expected ?? '—',
-                })
+              ? scope === 'paper'
+                ? t('teacher.wizard.rubricPreviewSum', { total: summary.total, expected: expected ?? '—' })
+                : t('teacher.assignmentCreate.aiPreviewSum', {
+                    total: summary.total,
+                    expected: expected ?? '—',
+                  })
               : t('teacher.wizard.rubricPreviewTotal', { total: summary.total })}
           </span>
         )}
@@ -62,8 +72,16 @@ export function RubricPreview({ rubric, totalPoints, showTotalCheck = true, titl
                 : !summary.anyPoints
                   ? t('teacher.assignmentCreate.aiPreviewEvenSplit')
                   : matched
-                    ? t('teacher.assignmentCreate.aiPreviewMatched')
-                    : t('teacher.assignmentCreate.aiPreviewMismatch', { expected: expected ?? '—' })}
+                    ? scope === 'paper'
+                      ? t('teacher.wizard.rubricPreviewMatched')
+                      : t('teacher.assignmentCreate.aiPreviewMatched')
+                    : scope === 'paper'
+                      ? t('teacher.wizard.rubricPreviewMismatch', {
+                          total: summary.total,
+                          expected: expected ?? '—',
+                          diff: round(Math.abs((expected ?? 0) - summary.total)),
+                        })
+                      : t('teacher.assignmentCreate.aiPreviewMismatch', { expected: expected ?? '—' })}
             </div>
           ) : (
             <div className="small muted">{t('teacher.wizard.rubricPreviewHint')}</div>

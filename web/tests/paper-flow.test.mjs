@@ -14,6 +14,7 @@ import {
   compareTarget,
   deleteSummary,
   draftFromDetail,
+  essayRubricCheck,
   essayTabs,
   findMetaProblem,
   metaPayload,
@@ -23,9 +24,12 @@ import {
   previewSummary,
   publishCheck,
   rubricBlocks,
+  rubricGate,
   stageIndex,
   toNumberOrNull,
 } from '../src/teacher/paperFlow.ts'
+// 页面里的胶水：先解析成摘要，再交给 paperFlow 判定。这里照抄两行，测的就是老师真正走的路径。
+import { summarizeRubric } from '../src/components/rubric.ts'
 
 /** 与真实卷同形状的详情：听力 2 题（1 缺答案）+ 写作 1 题（有 rubric）。 */
 const DETAIL = {
@@ -240,4 +244,57 @@ test('draftFromDetail：旧卷没有原文 / 没有 meta 时是空串而不是 "
   assert.equal(draft.targetTotalPoints, '')
   assert.equal(draft.contentMarkdown, '')
   assert.equal(draft.durationMinutes, '120')
+})
+
+/* ---------- 第 3 步评分项体检（2026-10-25：必填拦下一步、合计不一致只提醒） ---------- */
+
+const essayTab = (number, points) => ({ number, points, rubricMarkdown: '', sectionTitle: '第四部分 写作' })
+
+test('essayRubricCheck：完全没填是 empty（唯一的「拦下一步」）', () => {
+  const blank = essayTab(76, 15)
+  for (const text of ['', '   ', '\n\n']) {
+    assert.equal(essayRubricCheck(blank, text, summarizeRubric(text)).verdict, 'empty')
+  }
+})
+
+test('essayRubricCheck：合计与本题满分一致是 matched，差一分是 mismatch', () => {
+  const tab = essayTab(76, 15)
+  const ok = '1. 表达理解（5 分）\n2. 给出建议（5 分）\n3. 语法与拼写（5 分）'
+  const matched = essayRubricCheck(tab, ok, summarizeRubric(ok))
+  assert.equal(matched.verdict, 'matched')
+  assert.equal(matched.total, 15)
+
+  const short = '1. 表达理解（5 分）\n2. 给出建议（5 分）'
+  const mismatch = essayRubricCheck(tab, short, summarizeRubric(short))
+  assert.equal(mismatch.verdict, 'mismatch')
+  assert.equal(mismatch.total, 10)
+  assert.equal(mismatch.points, 15)
+})
+
+test('essayRubricCheck：有文字但没写分值只提醒（后端按均分），不算 mismatch', () => {
+  const tab = essayTab(77, 15)
+  const text = '1. 表达理解\n2. 给出建议\n3. 语法与拼写'
+  const check = essayRubricCheck(tab, text, summarizeRubric(text))
+  assert.equal(check.verdict, 'noPoints')
+  assert.equal(check.total, 0)
+})
+
+test('rubricGate：只有「完全没填」拦人，合计不一致不拦', () => {
+  const empty = essayRubricCheck(essayTab(76, 15), '', summarizeRubric(''))
+  const matched = essayRubricCheck(essayTab(77, 15), '1. 要点（15 分）', summarizeRubric('1. 要点（15 分）'))
+  const gate = rubricGate([empty, matched])
+  assert.equal(gate.blocked, true)
+  assert.deepEqual(gate.empty, [76])
+
+  const short = '1. 要点（10 分）'
+  const mismatch = essayRubricCheck(essayTab(76, 15), short, summarizeRubric(short))
+  const soft = rubricGate([mismatch, matched])
+  assert.equal(soft.blocked, false)
+  assert.deepEqual(soft.mismatch.map((entry) => entry.number), [76])
+  assert.deepEqual(soft.noPoints, [])
+
+  const noPoints = essayRubricCheck(essayTab(76, 15), '1. 要点', summarizeRubric('1. 要点'))
+  const all = rubricGate([mismatch, noPoints])
+  assert.equal(all.blocked, false)
+  assert.deepEqual(all.noPoints, [76])
 })

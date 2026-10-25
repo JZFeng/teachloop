@@ -1,4 +1,5 @@
 import type { PaperDetail, PaperItem } from '../api/types'
+import type { RubricSummary } from '../components/rubric'
 
 /**
  * 试卷向导的纯逻辑（D-34：Markdown 原文是唯一内容源）。
@@ -215,6 +216,58 @@ export function publishCheck(input: {
   if (input.missingCount > 0) return { ok: false, reason: 'missingAnswers' }
   if (compareTarget(input.target, input.actual) === 'mismatch') return { ok: false, reason: 'mismatch' }
   return { ok: true, reason: null }
+}
+
+/**
+ * 第 3 步「下一步」的评分项体检（2026-10-25 用户拍板）。
+ *
+ * - `empty`：完全没填 → **拦**（评分项必填，不进下一步）；
+ * - `mismatch`：评分项合计 ≠ 本题满分 → 只提醒，不拦；
+ * - `noPoints`：写了文字但一个分值都没写 → 只提醒（后端判分时按均分，不是错）。
+ *
+ * 为什么把「不一致」定为不拦：老师常常先写要点、分值后补，拦下来只会逼他随便编数字；
+ * 而「没填」是明确的缺口，放过去等于让 AI 无标准判分。
+ */
+export type RubricVerdict = 'empty' | 'matched' | 'mismatch' | 'noPoints'
+
+export interface RubricScoreCheck {
+  number: number
+  points: number
+  /** 有分值的评分项之和（没写分值时为 0）。 */
+  total: number
+  verdict: RubricVerdict
+}
+
+export interface RubricGate {
+  /** 有完全没填的题 → true（只有这一条会拦下一步）。 */
+  blocked: boolean
+  /** 完全没填的题号。 */
+  empty: number[]
+  /** 合计与本题满分不一致的题。 */
+  mismatch: RubricScoreCheck[]
+  /** 有文字但没写任何分值的题号。 */
+  noPoints: number[]
+  checks: RubricScoreCheck[]
+}
+
+/** 单题判定：解析摘要在页面里算好传进来，这里只做「算不算对得上」的判断（保持纯函数可单测）。 */
+export function essayRubricCheck(tab: EssayTab, text: string, summary: RubricSummary): RubricScoreCheck {
+  if (text.trim() === '') {
+    return { number: tab.number, points: tab.points, total: 0, verdict: 'empty' }
+  }
+  if (!summary.anyPoints) {
+    return { number: tab.number, points: tab.points, total: 0, verdict: 'noPoints' }
+  }
+  // 0.01 容差：前端合计保留两位小数，题项分值可能有 1.5 / 0.5 这种半分数。
+  const matched = Math.abs(summary.total - tab.points) <= 0.01
+  return { number: tab.number, points: tab.points, total: summary.total, verdict: matched ? 'matched' : 'mismatch' }
+}
+
+export function rubricGate(checks: RubricScoreCheck[]): RubricGate {
+  const empty = checks.filter((entry) => entry.verdict === 'empty').map((entry) => entry.number)
+  const mismatch = checks.filter((entry) => entry.verdict === 'mismatch')
+  const noPoints = checks.filter((entry) => entry.verdict === 'noPoints').map((entry) => entry.number)
+  return { blocked: empty.length > 0, empty, mismatch, noPoints, checks }
 }
 
 /**
