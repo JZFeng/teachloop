@@ -1,6 +1,6 @@
 # 决策 018 — 词详情内容结构 v2：多语言、例句配置、可配置页面模板
 
-日期：2026-10-24　状态：方案待确认　相关：US-60、AC-60.x、AC-48.14、T432/T433
+日期：2026-10-24　状态：生效（2026-10-24 用户确认）　相关：US-60、AC-60.x、AC-48.14、T432/T433
 输入：用户 2026-10-24 提供的 `word_detail_page` 样例 JSON 与语言/例句配置要求。
 
 ## 1. 内容结构 v2（每条内容 = 一个词，语言无关的键）
@@ -118,9 +118,34 @@
 迁移：新预生成包直接按 v2 生成；存量 delta 的 v1 内容打 `schemaVersion:1`，UI 过渡期兼容渲染，
 或在下次 prepare 时按 v2 重新生成（用户后续定）。
 
-## 6. 待确认
+## 6. 已确认（2026-10-24）
 
-1. `meanings`/`translations` 生成范围：三种语言（推荐，缓存与主语言无关）还是只生成主+目标两种。
-2. 语言档案存 vocab 表（推荐）还是加在 users 表。
-3. 页面模板与例句配置：DB 配置 + 管理员接口（推荐，免发版）还是配置文件。
-4. 存量 v1 内容：兼容渲染还是按 v2 重新生成。
+1. `meanings`/`translations` 生成 **zh/en/es 三种**：缓存键与主语言无关，换主语言不重新生成。
+2. 语言档案存 `vocab_language_profile`（vocab 模块），学生在个人资料页设置。
+3. 页面模板与例句参数存 DB 配置（`vocab_ui_config`），管理员接口可改，免发版。
+4. 存量 v1 内容：过渡期 UI 兼容渲染；新包直接产出 v2，存量词在下次 prepare 时按需重生成（待实现时确认）。
+
+## 7. 生成 prompt v2（草案）
+
+系统提示（要点）：
+
+- 角色：为「目标语言」的一个词生成学习内容；输出**严格 JSON**，字段与 v2 完全一致，禁止 markdown/解释。
+- `meanings`：给出 zh / en / es 三种语言的简明释义（学习者视角，含主要义项顺序）。
+- `examples`：**恰好 6 条**；`text` 用目标语言、必须包含该词（或其标准变形）；`translations` 给 zh/en/es；
+  `partOfSpeech` 必须是该词真实词性；`usagePattern` 写搭配（如 `struggle to do something`）；
+  `popularity` 从 1 到 6，按「词性常用度 + 用法常见度」排序（常用动词用法优先，名词用法随后）；
+  6 条里每个主要词性至少 1 条，搭配不重复，句子自然、不过长。
+- `memoryAids`：同义词/反义词只给真实存在的词（与目标词词性一致）；`mnemonic` 一句话、可记忆；
+  `supplement` 写常见混淆/搭配差异（如 struggle to do vs struggle with）。
+- `wordFamily`：只给真实派生/变形（含 inflections），每条带词性与 zh/en/es 释义，最多 8 条。
+- `basicInfo`：英美音标；词性按常用度排序；`image` 目前给 null。
+
+用户提示：`word`、`targetLanguage`、解释语言列表、例句数量与排序规则（来自配置）。
+
+输出校验（生成后、写库前）：
+
+- JSON 结构/字段类型校验；`examples` 数量 = 配置值；`popularity` 1..N 不重复；
+- `text` 必须包含目标词（大小写/屈折容错）；`translations` 覆盖 zh/en/es；
+- 不合格 → 重试一次，再失败标 FAILED（不写半成品）。
+
+待讨论：是否需要按学生 CEFR/年级限制例句难度；同义词是否要标注词性；`usagePattern` 的写法规范。
