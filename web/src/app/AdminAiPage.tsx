@@ -193,6 +193,7 @@ export default function AdminAiPage() {
         {active && (
           <p className="small muted">{t('app.ai.globalHint')}</p>
         )}
+        <p className="small muted">{t('app.ai.temperatureNote')}</p>
         <Button variant="primary" onClick={openAdd}>{t('app.ai.addProvider')}</Button>
       </div>
 

@@ -6,6 +6,9 @@ import java.util.Locale;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.context.support.ResourceBundleMessageSource;
 
@@ -47,6 +50,19 @@ class GlobalExceptionHandlerTest {
         assertThat(zh).contains("还没有交卷");
         assertThat(en).contains("has not been submitted");
         assertThat(zh).isNotEqualTo(en);
+    }
+
+    @Test
+    @DisplayName("方法不匹配：405 METHOD_NOT_ALLOWED，不能落进兜底的 500")
+    void returns405ForUnsupportedMethod() {
+        LocaleContextHolder.setLocale(Locale.SIMPLIFIED_CHINESE);
+        ResponseEntity<ApiError> response = new GlobalExceptionHandler(messageSource())
+                .handleMethodNotSupported(new HttpRequestMethodNotSupportedException("GET"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.METHOD_NOT_ALLOWED);
+        assertThat(response.getBody()).isNotNull();
+        assertThat(response.getBody().code()).isEqualTo("METHOD_NOT_ALLOWED");
+        assertThat(response.getBody().message()).contains("不支持");
     }
 
     @Test

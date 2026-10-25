@@ -25,6 +25,7 @@
       "keyOptionalPlaceholder": "leave blank for local models; sk-... for cloud",
       "currentModel": "Current global model",
       "globalHint": "v1 has one global model. After an administrator switches it, the whole site uses the new one.",
+      "temperatureNote": "Vocabulary content generation always uses temperature 0.2 (0.1 on retry). This page only manages providers, models and keys.",
       "addProvider": "Add model",
       "editProvider": "Edit model",
       "providers": "Configured models",
