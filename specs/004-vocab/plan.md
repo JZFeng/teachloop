@@ -151,6 +151,100 @@ lookup(form):
   本地 SQLite delta；`vocab_words.content_id` 引用全局内容，读路径由 `ContentStore` 解析；
   同一 `(language, normalized_form)` 只生成一次。P1 先落 SQLite delta 与 `content_id`，P2 再接预生成包。
 
+## 4.1 全局词内容：只读内容包 + 内存索引 + SQLite delta（decisions/017）
+
+目标（AC-48.14）：同一 `(language, normalized_form)` 只生成一次；不同学生共享同一份内容；
+预生成词命中不调 AI。**内容不进业务数据库**，只读包为主、SQLite delta 承接 AI 新内容。
+
+### 4.1.1 数据与产物
+
+| 产物 | 形态 | 键/索引 | 归属 |
+| :--- | :--- | :--- | :--- |
+| `content-<lang>-<version>.pack` | JSON 记录顺序拼接（记录 = `{id, form, senses, examples, analysis, phonetic}`），可 64KB 块压缩 | 由 idx 指向 offset/length | vocab（只读文件） |
+| `content-<lang>-<version>.idx` | 每条 `hash64(32B 截断 sha256/xxh3) + offset(8B) + length(4B)`，按 hash 排序 | hash → 记录 | vocab（只读文件） |
+| `manifest.json` | `language / version / promptVersion / count / packSha256 / idxSha256 / createdAt` | 启动校验 | vocab |
+| `content-delta.db` | SQLite（WAL），表 `word_content_delta(content_id INTEGER PRIMARY KEY, language, normalized_form, content TEXT, prompt_version, created_at)`，唯一 `(language, normalized_form, prompt_version)` | 主键 / 唯一键 | vocab（本地可变文件） |
+| `vocab_words.content_id` | `bigint null`，引用包内 id 或 delta 的 `content_id` | 仅引用，无跨源外键 | vocab（业务表） |
+
+**content_id 分配**：包内 id 从 **1** 连续递增（由生成脚本按 `normalized_form` 排序后分配，稳定可复现）；
+delta 的 `content_id` 从 **1_000_000_000** 起递增，两者不冲突。`ContentStore` 按 id 区间分派：
+`id < 1e9` → 包；否则 → delta。
+
+**版本**：包与 delta 都带 `prompt_version`；`ContentStore` 只返回与配置
+`teachloop.vocab.content.prompt-version` 一致的内容；换提示词 = 出新一轮包 + 升配置，旧 delta 不参与命中。
+
+### 4.1.2 模块与端口
+
+- 端口（vocab 模块内，不跨模块）：`ContentStore`
+  - `Optional<Content> get(language, form)`
+  - `Optional<Content> getById(contentId)`
+  - `long put(language, form, contentJson, source)`（写 delta + 更新内存索引，返回 content_id）
+  - `Stats stats()`（hit/miss/AI 计数，供指标与排障）
+- 实现链：`LruContentCache`（可选，进程内）→ `PackContentStore`（只读，idx 常驻）→ `DeltaContentStore`（SQLite）→ miss。
+- 包与 delta 都只被 vocab 拥有；`check-boundaries` 的 `TABLE_OWNER` 只登记 `vocab_words.content_id`（列，不是新表）。
+
+### 4.1.3 流程
+
+**prepare（学生进入复习/详情）**
+1. 取窗口词 `(language, normalized_form)`；
+2. 批量 `ContentStore.get`：命中 → 写 `vocab_words.content_id`、`content_status=READY`（P1/P2 仍同时写 `content` 副本，P3 起不再写）；未命中 → 入队 AI（priority 100）。
+3. 页面等 `pending` 归零（T428 规则不变）。
+
+**生成成功**
+`GenerationJobStore.succeed` 在同一事务里写用户行后，调用 `ContentStore.put` 写 delta + 内存索引；
+若 delta 写失败，用户行仍然 READY（复习不受影响），记 warn + 指标 `vocab.content.delta_write_failed`。
+
+**详情/队列/词库读取**
+P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` 从 `ContentStore` 解析，删除用户行副本。
+
+### 4.1.4 迁移
+
+| 迁移 | 内容 | 回滚 |
+| :--- | :--- | :--- |
+| V062 | `alter table vocab_words add column content_id bigint`（nullable，无外键） | drop column |
+| 回填（一次性命令） | 现有 `READY` 词按 `(language, normalized_form)` 写入 delta，拿回 content_id 回填；幂等，可重跑 | 不涉及 |
+| V063（P3） | `alter table vocab_words drop column content` | 需从 ContentStore 重建，故 P3 只在 P2 稳定后执行 |
+
+### 4.1.5 失败与降级
+
+| 场景 | 行为 |
+| :--- | :--- |
+| 包缺失/校验失败 | `content.pack.required=true` 时启动失败（提示重新部署包）；false 时 warn 并只用 delta + AI |
+| delta 打不开/写失败 | 读：跳过 delta 当 miss；写：warn + 指标，用户行仍 READY |
+| SQLite busy/locked | WAL + busy_timeout=5s，失败按上一条降级 |
+| 包内 id 越界/记录损坏 | 该词当 miss 走 AI，并记 `vocab.content.pack_corrupt`；不写半成品 |
+| 多实例 | v1 单实例；delta 是本地文件。多实例上线前必须把 delta 换成共享存储（另立决策） |
+
+### 4.1.6 容量与性能（数字待用户确认，先记目标）
+
+- 100k 词包：原始 ≈85MB，gzip ≈25–35MB；idx ≈1.6MB；内存索引 ≤8MB。
+- 启动：idx 装载 10–30ms；pack sha256 校验 85MB ≈0.2–0.5s（可配置跳过）。
+- 命中：内存 hash 查找 ~1µs；一次 `pread` + JSON 解析 ≈30–50µs/词；20 词窗口 <2ms。
+- delta 单行查询 0.05–0.2ms；写入 <1ms。
+- 指标（Micrometer）：`vocab.content.hit{layer}`、`vocab.content.put`、`vocab.prepare` timer、`vocab.ai.generate` timer。
+
+### 4.1.7 测试
+
+- 单测：idx 构造/查找、manifest 校验、content_id 区间分派、delta 幂等 put、prompt 版本过滤。
+- 集成（Testcontainers PG + 临时目录）：两学生先后同词 → 只 1 次 AI、第二个命中 delta；包命中 0 次 AI；
+  包损坏降级；重启后索引重建；delta 写失败不影响 READY。
+- 性能：10 万词合成包，启动装载、20 词窗口 p95、内存占用。
+- 浏览器：有包时进入复习不出现「数据准备中」；无包时退回 AI 并正常出卡。
+
+### 4.1.8 任务与验收
+
+| 任务 | 内容 | 验收 |
+| :--- | :--- | :--- |
+| T429（P1） | `content_id` 列 + `ContentStore` 端口 + SQLite delta + prepare 命中 + 生成写回 | 第二个学生同词 0 个新 job；delta 可追溯；重启后仍命中 |
+| T430（P2） | pack/idx/manifest 读取器 + 预生成 JSON 导入脚本 | 10 万词包启动 ≤1s；命中 ≤10ms/20 词；导入可复现（sha256） |
+| T431（P3） | 读路径改 `content_id`，删 `vocab_words.content`，回填与回归 | 队列/详情/词库/复习全部从 ContentStore 取内容；库空间下降；全量测试绿 |
+
+### 4.1.9 待定（需用户输入）
+
+1. 预生成 JSON 的路径与格式（一文件一词 / 大文件；id 类型；字段名）；
+2. 性能指标数字（用户说待讨论）；
+3. delta 在多实例部署时的共享方式（v1 单实例不阻塞）。
+
 ## 5. TTS 缓存
 
 - 键：`sha256(normalized_form + "|" + provider + "|" + voice + "|" + rate)`；值：音频字节 + contentType。

@@ -50,6 +50,7 @@
 | T428 | **复习首批等满 N 再出卡 + 后续窗口异步预取（T428）**：今日复习与「复习这些词」进入时先准备首批 N（默认 20），`pending` 归零才渲染卡片；当前窗口打开后立即在后台预取下一段（100/200/400…），学生走到边界时已就绪；仅在单张卡未就绪时显示准备中，不整页阻塞；等待超过 60 秒显示「先开始（不等剩余词）」兜底 | T426 | 首批 3 个词时 1/3、2/3 不出卡、3/3 自动出卡；窗口放大时后台任务已创建；生成失败/变慢不把整页卡死；`pnpm typecheck` 通过 |
 | T429 | **全局内容 P1（SQLite delta + content_id）**：`vocab_words` 加 `content_id`；`ContentStore` 端口（get/put/stats）落本地 SQLite delta（WAL、单写者、主键 `(language, normalized_form)`）；prepare 先查全局内容、命中直接 READY 不入队；AI 成功后写 delta；配置 `vocab.content.store-path` | T426 | 两个学生先后遇到同一词：第二个 prepare 命中、0 个新 job；AI 内容在 delta 可追溯；`VocabPrepareTest` 扩用例；typecheck 与集成测试绿 |
 | T430 | **全局内容 P2（只读内容包 + 导入器）**：`content-<lang>-<version>.pack/.idx/manifest` 读取器（启动校验 sha256、idx 装内存、hash→offset 查找）；从预生成 JSON 生成包的脚本；`ContentStore` 先查内存/包、再查 delta、最后 AI；Bloom filter 暂不做 | T429 | 10 万词包启动装载 ≤1s、内存索引 ≤8MB；命中路径 p95 ≤10ms（20 词窗口）；包损坏拒绝启动或降级；导入器可从用户提供的 JSON 生成可复现的包 |
+| T431 | **全局内容 P3（读路径与去重）**：队列/详情/自由复习/词库按 `content_id` 从 ContentStore 解析内容；回填存量 READY 词到 delta；V063 删除 `vocab_words.content`；回归 AC-48.3/48.4/48.14 | T429, T430 | 所有读路径不再依赖用户行内容副本；存量回填后可复习；全量测试与浏览器验收绿 |
 | T427 | **复习卡布局与快捷键（2026-10-24 用户反馈）**：卡片宽度 = 内容区 5/16；「不认识 / 认识」大按钮进卡片底部（间距 12px）；收藏星标与删除固定卡片右上角（删除二次确认、软删除）；去掉页面 h1「今日复习」、独立「说明」按钮与卡片下方快捷键行；eyebrow 右上方 ⓘ 打开「功能说明 | 快捷键」表（N/→、空格、1、2、U、A、F、Delete）；英/美音标旁各一个喇叭，`accent=uk|us` 选音色（`tts.voices.uk/us`），浏览器回落用 en-GB / en-US | T403, T410, T411 | 卡片布局与 5/16 宽度浏览器实测；星标/删除不触发翻面；快捷键全部可用；`VocabTtsTest` 断言英美音色与缓存键分离 |
 
 ## 阶段 E — 教师侧
