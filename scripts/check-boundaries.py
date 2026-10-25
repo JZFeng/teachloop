@@ -82,6 +82,9 @@ TABLE_OWNER: dict[str, str] = {
     "vocab_generation_jobs": "vocab",
     "vocab_feedback": "vocab",
     "vocab_audio_assets": "vocab",
+    # T448：学生词单（V064，只引用 word_id 的容器；word_id 不建外键）
+    "vocab_lists": "vocab",
+    "vocab_list_items": "vocab",
 }
 
 # plan §3.5：允许的跨模块外键（(引用方表, 被引用表)）。新增一条要在这里和 plan 同时登记。

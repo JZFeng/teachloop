@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { Button, Empty, ErrorState, Loading, PageHeader, useConfirm, useToast } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
+import { fetchLists } from './lists'
 import './vocab.css'
 
 interface SessionWord {
@@ -39,12 +40,47 @@ interface SessionView {
   cursor: number
 }
 
+/**
+ * 「跳过」计数只存在于本次页面会话里（T452）：后端 `Summary` 没有 skipped 字段，
+ * 而用 `seen - known - unknown` 反推会把「从上次位置继续」的已看数算成跳过。
+ * 存在 sessionStorage 里可以扛住刷新，换一个 sessionId（继续复习）自然从 0 开始。
+ */
+function skipKey(sessionId: string): string {
+  return `vocab:review:skip:${sessionId}`
+}
+
+function readSkipCount(sessionId: string): number {
+  try {
+    const raw = window.sessionStorage.getItem(skipKey(sessionId))
+    const value = Number(raw ?? 0)
+    return Number.isFinite(value) && value > 0 ? value : 0
+  } catch {
+    return 0
+  }
+}
+
+function writeSkipCount(sessionId: string, count: number): void {
+  try {
+    window.sessionStorage.setItem(skipKey(sessionId), String(count))
+  } catch {
+    // 隐私模式下写不进去也不影响本次复习
+  }
+}
+
 export default function VocabFreeReviewPage() {
   const { id = '' } = useParams()
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
+  const [searchParams] = useSearchParams()
   const toast = useToast()
   const confirm = useConfirm()
+  /** AC-69.7：从词单进来的这一轮，窄条显示范围、小结里回词单详情 */
+  const fromListId = searchParams.get('from') ?? ''
+  const [listName, setListName] = useState(
+    (location.state as { listName?: string } | null)?.listName ?? '',
+  )
+  const [skipped, setSkipped] = useState(0)
   const [word, setWord] = useState<SessionWord | null | undefined>(undefined)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [flipped, setFlipped] = useState(false)
@@ -76,6 +112,21 @@ export default function VocabFreeReviewPage() {
   }, [sessionId])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => { setSkipped(readSkipCount(sessionId)) }, [sessionId])
+
+  // 刷新后 route state 会丢：用 GET /lists 找回词单名（拿不到就显示通用标题，不阻塞复习）
+  useEffect(() => {
+    if (!fromListId || listName) return
+    let alive = true
+    fetchLists()
+      .then((lists) => {
+        const found = lists.find((item) => item.id === fromListId)
+        if (alive && found) setListName(found.name)
+      })
+      .catch(() => { /* 窄条退化成通用标题 */ })
+    return () => { alive = false }
+  }, [fromListId, listName])
 
   // T426/T428：进入「复习这些词」先准备首批 N 个词，等满再出卡
   useEffect(() => {
@@ -193,6 +244,11 @@ export default function VocabFreeReviewPage() {
     setBusy(true)
     try {
       await api.post(`/api/vocab/review-sessions/${sessionId}/advance`, { action, elapsedMs: 0 })
+      if (action === 'SKIP') {
+        const next = readSkipCount(sessionId) + 1
+        writeSkipCount(sessionId, next)
+        setSkipped(next)
+      }
       await load()
     } catch (advanceError) {
       toast.error((advanceError as Error).message)
@@ -218,7 +274,7 @@ export default function VocabFreeReviewPage() {
     const next = await api.post<SessionView>(`/api/vocab/review-sessions/${sessionId}/continue`, {})
     setSummary(null)
     setSessionId(next.id)
-    navigate(`/vocab/review/session/${next.id}`, { replace: true })
+    navigate(`/vocab/review/session/${next.id}${location.search}`, { replace: true })
   }
 
   useEffect(() => {
@@ -247,20 +303,46 @@ export default function VocabFreeReviewPage() {
     return () => window.removeEventListener('keydown', onKey)
   }, [advance, preparing, toggleFavorite])
 
+  /**
+   * 窄条：照词库页的 `vocab-banner`（不新造样式）。
+   * 小结页不再重复给按钮——那张卡里已经有主按钮「返回词单」。
+   */
+  const scopeBanner = (total: number, withAction = true) => (
+    fromListId ? (
+      <div className="vocab-banner">
+        <span>
+          {t('vocab.lists.reviewScope', { name: listName || t('vocab.lists.title'), count: total })}
+        </span>
+        {withAction && (
+          <Button size="small" onClick={() => navigate(`/vocab/lists/${fromListId}`)}>
+            {t('vocab.freeReview.backToList')}
+          </Button>
+        )}
+      </div>
+    ) : null
+  )
+
   if (error) return <ErrorState error={error} onRetry={() => void load()} />
 
   if (summary) {
     return (
       <>
         <PageHeader title={t('vocab.freeReview.summaryTitle')} />
+        {scopeBanner(summary.total, false)}
         <div className="card free-review-summary">
           <div className="row" style={{ gap: 18, flexWrap: 'wrap' }}>
             <span>{t('vocab.freeReview.summarySeen', { count: summary.seen })}</span>
             <span>{t('vocab.freeReview.summaryKnown', { count: summary.known })}</span>
             <span>{t('vocab.freeReview.summaryUnknown', { count: summary.unknown })}</span>
             <span>{t('vocab.freeReview.summaryPaused', { count: summary.paused })}</span>
+            <span>{t('vocab.freeReview.summarySkipped', { count: skipped })}</span>
           </div>
           <div className="row" style={{ gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            {fromListId && (
+              <Button variant="primary" onClick={() => navigate(`/vocab/lists/${fromListId}`)}>
+                {t('vocab.freeReview.backToList')}
+              </Button>
+            )}
             <Button onClick={() => navigate('/vocab/library')}>{t('vocab.freeReview.backToLibrary')}</Button>
             {summary.seen < summary.total && (
               <Button variant="primary" onClick={() => void continueReview()}>
@@ -283,6 +365,7 @@ export default function VocabFreeReviewPage() {
         <PageHeader title={t('vocab.freeReview.title')}
           sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
           actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
+        {scopeBanner(word.total)}
         <div className="review-stage review-stage--today">
           <div className="review-card-column">
             <div className="review-card">
@@ -312,6 +395,7 @@ export default function VocabFreeReviewPage() {
         <PageHeader title={t('vocab.freeReview.title')}
           sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
           actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
+        {scopeBanner(word.total)}
         <div className="review-stage review-stage--today">
           <div className="review-card-column">
             <div className="review-card">
@@ -348,6 +432,8 @@ export default function VocabFreeReviewPage() {
       <PageHeader title={t('vocab.freeReview.title')}
         sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
         actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
+
+      {scopeBanner(word.total)}
 
       <div className="review-stage review-stage--today">
         <div className="review-card-column">

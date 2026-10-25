@@ -14,6 +14,7 @@ import {
   useToast,
 } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
+import AddToListsModal from './AddToListsModal'
 import { prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
@@ -88,6 +89,8 @@ export default function VocabWordDetailPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackNote, setFeedbackNote] = useState('')
+  // AC-69.5：查词页（word-details）是「加入词单」的三个入口之一
+  const [addToListOpen, setAddToListOpen] = useState(false)
   const [prep, setPrep] = useState<PrepareResult | null>(null)
   const [retrying, setRetrying] = useState(false)
   const [flipped, setFlipped] = useState(true)
@@ -228,6 +231,7 @@ export default function VocabWordDetailPage() {
             onFlip={() => setFlipped((value) => !value)}
             onToggleFavorite={detail.inLibrary ? () => void toggleFavorite() : undefined}
             onAdd={detail.inLibrary ? undefined : () => void addToLibrary()}
+            onAddToList={() => setAddToListOpen(true)}
             emptyHint={emptyHint}
           />
           {contentFailed && (
@@ -248,6 +252,14 @@ export default function VocabWordDetailPage() {
           {t('common.back')}
         </Button>
       </div>
+
+      <AddToListsModal
+        open={addToListOpen}
+        form={detail.form}
+        inLibrary={detail.inLibrary}
+        onClose={() => setAddToListOpen(false)}
+        onDone={() => { void refreshSilently() }}
+      />
 
       <Modal open={feedbackOpen} title={t('vocab.detail.feedbackTitle')}
         onCancel={() => setFeedbackOpen(false)}

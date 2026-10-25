@@ -17,6 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>全部筛选都走查询参数（重复参数表示多选），因此前端可以把 URL 原样还原成筛选条件；
  * 分页与排序由服务端做（排序跨分页生效）。
+ *
+ * <p>T450：新增可重复参数 {@code list=<词单 id>}（多份词单取并集），与来源/标签/状态/收藏/
+ * 暂停/到期取交集；词单不属于本人时 404（AC-69.9）。
  */
 @RestController
 @RequestMapping("/api/vocab/words")
@@ -42,6 +45,7 @@ public class VocabularyWordsEndpoint {
             @RequestParam(required = false) Boolean paused,
             @RequestParam(required = false) Boolean due,
             @RequestParam(required = false) UUID deckId,
+            @RequestParam(required = false) List<UUID> list,
             @RequestParam(required = false) String sort,
             @RequestParam(required = false, name = "dir") String direction,
             @RequestParam(defaultValue = "1") int page,
@@ -55,6 +59,6 @@ public class VocabularyWordsEndpoint {
         }
         return repository.query(new VocabularyQueryRepository.WordQuery(
                 me.id(), language, search, state, source, tag, favorite, paused, due, deckId,
-                sort, direction, page, size));
+                list, sort, direction, page, size));
     }
 }

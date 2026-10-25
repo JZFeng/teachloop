@@ -17,6 +17,9 @@ import {
   useToast,
 } from '../ui'
 import type { Column, SortState } from '../ui'
+import AddToListsModal from './AddToListsModal'
+import { fetchLists } from './lists'
+import type { VocabList } from './lists'
 import './vocab.css'
 
 type ColumnKey = 'form' | 'meaning' | 'sources' | 'state' | 'due' | 'actions'
@@ -107,6 +110,8 @@ export default function VocabLibraryPage() {
   const pausedFilter = params.get('paused') === 'true'
   const dueFilter = params.get('due') === 'true'
   const tagFilter = params.get('tag') ?? ''
+  // AC-69.8：词单筛选是多值，URL 参数 `list`，与来源/标签/状态/收藏取交集
+  const listFilters = params.getAll('list')
 
   const [search, setSearch] = useState(q)
   const [data, setData] = useState<WordPage | null>(null)
@@ -122,8 +127,10 @@ export default function VocabLibraryPage() {
   const [reviewableCount, setReviewableCount] = useState(0)
   const [pending, setPending] = useState<PendingAssignment | null>(null)
   const [startingReview, setStartingReview] = useState(false)
+  const [lists, setLists] = useState<VocabList[]>([])
+  const [addTarget, setAddTarget] = useState<WordItem | null>(null)
   const [draft, setDraft] = useState({
-    states: [] as string[], sources: [] as string[], tag: '', favorite: false, paused: false, due: false,
+    states: [] as string[], sources: [] as string[], lists: [] as string[], tag: '', favorite: false, paused: false, due: false,
   })
 
   const queryString = useMemo(() => {
@@ -131,6 +138,7 @@ export default function VocabLibraryPage() {
     if (q) query.set('q', q)
     states.forEach((state) => query.append('state', state))
     sourceFilters.forEach((source) => query.append('source', source))
+    listFilters.forEach((listId) => query.append('list', listId))
     if (favorite) query.set('favorite', 'true')
     if (pausedFilter) query.set('paused', 'true')
     if (dueFilter) query.set('due', 'true')
@@ -140,7 +148,7 @@ export default function VocabLibraryPage() {
     query.set('page', String(page))
     query.set('size', String(size))
     return query.toString()
-  }, [q, states.join(','), sourceFilters.join(','), favorite, pausedFilter, dueFilter, tagFilter, sort, dir, page, size])
+  }, [q, states.join(','), sourceFilters.join(','), listFilters.join(','), favorite, pausedFilter, dueFilter, tagFilter, sort, dir, page, size])
 
   useEffect(() => setSearch(q), [q])
 
@@ -179,11 +187,21 @@ export default function VocabLibraryPage() {
     return () => { alive = false }
   }, [])
 
+  // 词单筛选维度的选项：词单接口未就绪时留空，筛选弹层照常打开（不阻塞词库页）
+  useEffect(() => {
+    let alive = true
+    fetchLists()
+      .then((value) => { if (alive) setLists(value) })
+      .catch(() => { if (alive) setLists([]) })
+    return () => { alive = false }
+  }, [reloadKey])
+
   const reviewableQuery = useMemo(() => {
     const query = new URLSearchParams()
     if (q) query.set('q', q)
     states.forEach((state) => query.append('state', state))
     sourceFilters.forEach((source) => query.append('source', source))
+    listFilters.forEach((listId) => query.append('list', listId))
     if (favorite) query.set('favorite', 'true')
     if (dueFilter) query.set('due', 'true')
     if (tagFilter) query.set('tag', tagFilter)
@@ -194,7 +212,7 @@ export default function VocabLibraryPage() {
     query.set('size', '20')
     query.set('page', '1')
     return query.toString()
-  }, [q, states.join(','), sourceFilters.join(','), favorite, dueFilter, tagFilter, sort, dir])
+  }, [q, states.join(','), sourceFilters.join(','), listFilters.join(','), favorite, dueFilter, tagFilter, sort, dir])
 
   useEffect(() => {
     let alive = true
@@ -252,15 +270,16 @@ export default function VocabLibraryPage() {
   }
 
   const openFilters = () => {
-    setDraft({ states, sources: sourceFilters, tag: tagFilter, favorite, paused: pausedFilter, due: dueFilter })
+    setDraft({ states, sources: sourceFilters, lists: listFilters, tag: tagFilter, favorite, paused: pausedFilter, due: dueFilter })
     setFilterOpen(true)
   }
 
   const applyFilters = () => {
     update((next) => {
-      ;['state', 'source', 'favorite', 'paused', 'due', 'tag'].forEach((key) => next.delete(key))
+      ;['state', 'source', 'favorite', 'paused', 'due', 'tag', 'list'].forEach((key) => next.delete(key))
       draft.states.forEach((state) => next.append('state', state))
       draft.sources.forEach((source) => next.append('source', source))
+      draft.lists.forEach((listId) => next.append('list', listId))
       if (draft.favorite) next.set('favorite', 'true')
       if (draft.paused) next.set('paused', 'true')
       if (draft.due) next.set('due', 'true')
@@ -272,12 +291,12 @@ export default function VocabLibraryPage() {
 
   const clearFilters = () => {
     update((next) => {
-      ;['state', 'source', 'favorite', 'paused', 'due', 'tag'].forEach((key) => next.delete(key))
+      ;['state', 'source', 'favorite', 'paused', 'due', 'tag', 'list'].forEach((key) => next.delete(key))
       next.set('page', '1')
     })
   }
 
-  const filterCount = states.length + sourceFilters.length + (favorite ? 1 : 0)
+  const filterCount = states.length + sourceFilters.length + listFilters.length + (favorite ? 1 : 0)
     + (pausedFilter ? 1 : 0) + (dueFilter ? 1 : 0) + (tagFilter ? 1 : 0)
 
   const visibleColumns = useMemo(() => {
@@ -497,6 +516,7 @@ export default function VocabLibraryPage() {
               title={word.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
               onClick={() => void toggleFavorite(word)}
             />
+            <Button size="small" onClick={() => setAddTarget(word)}>{t('vocab.lists.addToLists')}</Button>
             {word.contentStatus === 'FAILED' && (
               <Button size="small" onClick={() => void retryContent([word.id])}>{t('vocab.library.retry')}</Button>
             )}
@@ -583,6 +603,8 @@ export default function VocabLibraryPage() {
         </Button>
         <Button onClick={() => navigate('/vocab/add?tab=file')}>{t('vocab.library.import')}</Button>
         <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
+        {/* AC-69.11：纯文字「词单」，不带数量角标 */}
+        <Button onClick={() => navigate('/vocab/lists')}>{t('vocab.lists.toolbarEntry')}</Button>
       </div>
 
       <DataTable
@@ -660,6 +682,24 @@ export default function VocabLibraryPage() {
           </div>
         </div>
         <div className="vocab-filter-group">
+          <strong>{t('vocab.lists.filterList')}</strong>
+          <div className="row" style={{ flexWrap: 'wrap' }}>
+            {lists.length === 0 && <span className="muted">{t('vocab.lists.noListsHint')}</span>}
+            {lists.map((list) => (
+              <label key={list.id} className="row" style={{ gap: 4 }}>
+                <input type="checkbox" checked={draft.lists.includes(list.id)}
+                  onChange={() => setDraft({
+                    ...draft,
+                    lists: draft.lists.includes(list.id)
+                      ? draft.lists.filter((item) => item !== list.id)
+                      : [...draft.lists, list.id],
+                  })} />
+                {list.name}
+              </label>
+            ))}
+          </div>
+        </div>
+        <div className="vocab-filter-group">
           <strong>{t('vocab.library.filterFlags')}</strong>
           <div className="row">
             <label className="row" style={{ gap: 4 }}>
@@ -706,6 +746,14 @@ export default function VocabLibraryPage() {
           </div>
         ))}
       </Modal>
+
+      <AddToListsModal
+        open={addTarget !== null}
+        form={addTarget?.form ?? ''}
+        inLibrary
+        onClose={() => setAddTarget(null)}
+        onDone={refresh}
+      />
     </>
   )
 }

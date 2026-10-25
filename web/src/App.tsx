@@ -18,6 +18,8 @@ import VocabWordDetailPage from './vocab/WordDetailPage'
 import VocabFreeReviewPage from './vocab/FreeReviewPage'
 import VocabAddWordsPage from './vocab/AddWordsPage'
 import VocabAssignmentPreviewPage from './vocab/AssignmentPreviewPage'
+import VocabListsPage from './vocab/ListsPage'
+import VocabListDetailPage from './vocab/ListDetailPage'
 import LoginPage from './app/LoginPage'
 import { loginNextFrom, loginPath, safeNextPath } from './app/redirect'
 import NotificationsPage from './app/NotificationsPage'
@@ -117,6 +119,9 @@ export default function App() {
               <Route path="vocab/library" element={<VocabLibraryPage />} />
               <Route path="vocab/review" element={<VocabReviewPage />} />
               <Route path="vocab/sets" element={<VocabSetsPage />} />
+              {/* US-69：词单不占导航，从「我的词库」工具条进（AC-69.11） */}
+              <Route path="vocab/lists" element={<VocabListsPage />} />
+              <Route path="vocab/lists/:id" element={<VocabListDetailPage />} />
               <Route path="vocab/sets/new" element={<VocabSetEditPage />} />
               <Route path="vocab/sets/:id" element={<VocabSetEditPage />} />
               <Route path="vocab/assign" element={<VocabAssignPage />} />

@@ -8,7 +8,9 @@ import static org.mockito.Mockito.when;
 
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.vocab.lexicon.LexiconTestData;
+import com.teachloop.vocab.lists.VocabularyListRepository;
 import com.teachloop.vocab.spelling.SpellingChecker;
+import java.time.Clock;
 import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -18,10 +20,11 @@ import org.junit.jupiter.api.Test;
 class ImportPreviewEndpointTest {
 
     private final WordImportService importService = mock(WordImportService.class);
+    private final VocabularyListRepository lists = mock(VocabularyListRepository.class);
     private final ImportPreviewEndpoint endpoint = new ImportPreviewEndpoint(
             new DictionaryTextParser(),
             new SpellingChecker(LexiconTestData.installedIndex()),
-            importService);
+            importService, lists, Clock.systemUTC(), 100);
     private final CurrentUser me = new CurrentUser(UUID.randomUUID(), "STUDENT", "示例学生");
 
     @Test
@@ -33,7 +36,7 @@ class ImportPreviewEndpointTest {
                         List.of(new WordImportService.LineError(1, "waytoolong",
                                 "正面为空或超过 64 字符"))));
         var response = endpoint.preview(new ImportTextRequest(
-                "1. \"take off\", apple n.，brave", "en", null), me);
+                "1. \"take off\", apple n.，brave", "en", null, null), me);
         assertThat(response.distinctWords()).containsExactly("take off", "apple", "brave");
         assertThat(response.cleanups()).extracting(ImportPreviewEndpoint.CleanupView::rule)
                 .contains("去行首序号/项目符号", "去引号", "去词性标注", "全角标点转半角");
@@ -49,7 +52,7 @@ class ImportPreviewEndpointTest {
         when(importService.preview(any(), any(), any())).thenReturn(
                 new WordImportService.PreviewResult(new WordImportService.Counts(3, 2, 1, 0), List.of()));
         var response = endpoint.preview(new ImportTextRequest(
-                "apple, recieve, zyzzyva", "en", null), me);
+                "apple, recieve, zyzzyva", "en", null, null), me);
         assertThat(response.spellingChecked()).isTrue();
         var byWord = response.spelling().stream().collect(java.util.stream.Collectors.toMap(
                 ImportPreviewEndpoint.SpellingView::word, view -> view));
@@ -78,7 +81,7 @@ class ImportPreviewEndpointTest {
         when(importService.commit(any(), eq("en"), any(), eq("Unit 5 生词"))).thenReturn(
                 new WordImportService.CommitResult(
                         new WordImportService.Counts(2, 1, 1, 0), batchId, List.of()));
-        var result = endpoint.commit(new ImportTextRequest("apple, apple", "en", "Unit 5 生词"), me);
+        var result = endpoint.commit(new ImportTextRequest("apple, apple", "en", "Unit 5 生词", null), me);
         assertThat(result.batchId()).isEqualTo(batchId);
         assertThat(result.counts().created()).isEqualTo(1);
         assertThat(result.counts().duplicated()).isEqualTo(1);

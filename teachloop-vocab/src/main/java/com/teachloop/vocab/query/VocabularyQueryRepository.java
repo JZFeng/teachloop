@@ -26,6 +26,9 @@ import tools.jackson.databind.ObjectMapper;
  *
  * <p>排序在 SQL 里做（不是只排当前页），并追加 `w.id` 作为稳定次序，翻页不抖动。
  * 软删除的词一律排除；**暂停（removed）的词保留**，列表仍可搜到（AC-59.2）。
+ *
+ * <p>T450：学生词单筛选（`?list=`，可重复）也是「同一类内部并集」——多份词单 = 任一命中；
+ * 与来源/标签/状态/收藏/暂停/到期取交集。词单必须属于本人且未删除，否则 404（不静默忽略）。
  */
 @Repository
 public class VocabularyQueryRepository {
@@ -43,6 +46,7 @@ public class VocabularyQueryRepository {
 
     public record WordQuery(UUID userId, String language, String search, List<String> states,
                             List<String> sources, List<String> tags, Boolean favorite, Boolean paused, Boolean due, UUID deckId,
+                            List<UUID> listIds,
                             String sort, String direction, int page, int size) {
     }
 
@@ -91,6 +95,25 @@ public class VocabularyQueryRepository {
         where.add("w.language = ?");
         arguments.add(language);
         where.add("w.deleted = false");
+
+        // T450 / US-69：按学生词单筛选（可重复参数，多份词单取并集），与其他筛选取交集。
+        // 词单 id 必须都属于本人，否则 404——不静默忽略（AC-69.9 不泄漏存在性）。
+        List<UUID> listIds = new ArrayList<>(new LinkedHashSet<>(nonNull(query.listIds())));
+        if (!listIds.isEmpty()) {
+            List<Object> ownedArguments = new ArrayList<>();
+            ownedArguments.add(query.userId());
+            ownedArguments.addAll(listIds);
+            Long owned = jdbc.queryForObject(
+                    "select count(*) from vocab_lists where user_id = ? and deleted = false"
+                            + " and id in (" + placeholders(listIds.size()) + ")",
+                    Long.class, ownedArguments.toArray());
+            if (owned == null || owned != listIds.size()) {
+                throw ApiException.notFound("word list not found");
+            }
+            where.add("exists (select 1 from vocab_list_items i where i.word_id = w.id"
+                    + " and i.list_id in (" + placeholders(listIds.size()) + "))");
+            arguments.addAll(listIds);
+        }
 
         if (!states.isEmpty()) {
             where.add("p.state in (" + placeholders(states.size()) + ")");
@@ -259,7 +282,7 @@ public class VocabularyQueryRepository {
         return String.join(",", java.util.Collections.nCopies(count, "?"));
     }
 
-    private static List<String> nonNull(List<String> values) {
+    private static <T> List<T> nonNull(List<T> values) {
         return values == null ? List.of() : values;
     }
 

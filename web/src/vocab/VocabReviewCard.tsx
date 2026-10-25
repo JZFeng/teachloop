@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import {
+  BookOutlined,
   Button,
   DeleteOutlined,
   PauseCircleOutlined,
@@ -52,6 +53,7 @@ export function VocabReviewCard({
   onFlip,
   onToggleFavorite,
   onAdd,
+  onAddToList,
   onDelete,
   paused = false,
   onTogglePause,
@@ -67,6 +69,8 @@ export function VocabReviewCard({
   onToggleFavorite?: () => void
   /** 不在库时的「＋ 加入词库」，与收藏同一行的图标按钮 */
   onAdd?: () => void
+  /** AC-69.5 查词页入口：「加入词单」图标，点开页内弹层 */
+  onAddToList?: () => void
   onDelete?: () => void
   /** 自由复习的暂停开关：`paused` 决定图标（⏸/▶），点一下切换 */
   paused?: boolean
@@ -120,7 +124,7 @@ export function VocabReviewCard({
               </span>
             </div>
           </div>
-          {(onToggleFavorite || onAdd || (!flipped && (onDelete || onTogglePause))) && (
+          {(onToggleFavorite || onAdd || onAddToList || (!flipped && (onDelete || onTogglePause))) && (
             <div className="review-card-head-actions" onClick={(event) => event.stopPropagation()}>
               {onToggleFavorite && (
                 <button
@@ -143,6 +147,17 @@ export function VocabReviewCard({
                   onClick={onAdd}
                 >
                   <PlusOutlined />
+                </button>
+              )}
+              {onAddToList && (
+                <button
+                  type="button"
+                  className="review-icon-action"
+                  aria-label={t('vocab.lists.addToLists')}
+                  title={t('vocab.lists.addToLists')}
+                  onClick={onAddToList}
+                >
+                  <BookOutlined />
                 </button>
               )}
               {!flipped && onDelete && (

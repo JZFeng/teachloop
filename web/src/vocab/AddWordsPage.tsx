@@ -14,9 +14,20 @@ interface Preview {
   spellingChecked: boolean
 }
 
+interface ListAttachment {
+  name: string
+  listId: string | null
+  created: boolean
+  added: number
+  duplicated: number
+  skippedReason: string | null
+}
+
 interface CommitResult {
   counts: { total: number; created: number; duplicated: number; failed: number }
   errors: Array<{ line: number; raw: string; reason: string }>
+  /** AC-69.5：提交时带了词单名才有；null/undefined 表示没指定。 */
+  list?: ListAttachment | null
 }
 
 export default function VocabAddWordsPage() {
@@ -27,6 +38,7 @@ export default function VocabAddWordsPage() {
   const [tab, setTab] = useState<'paste' | 'file'>(params.get('tab') === 'file' ? 'file' : 'paste')
   const [text, setText] = useState('')
   const [label, setLabel] = useState('')
+  const [listName, setListName] = useState('')
   const [preview, setPreview] = useState<Preview | null>(null)
   const [result, setResult] = useState<CommitResult | null>(null)
   const [busy, setBusy] = useState(false)
@@ -48,9 +60,16 @@ export default function VocabAddWordsPage() {
     setBusy(true)
     try {
       const committed = await api.post<CommitResult>('/api/vocab/import/commit',
-        { text, language: 'en', label: label.trim() || null })
+        { text, language: 'en', label: label.trim() || null, listName: listName.trim() || null })
       setResult(committed)
-      toast.success(t('vocab.add.done'))
+      const attached = committed.list
+      if (attached?.skippedReason) {
+        toast.error(t('vocab.add.listLimitSkipped', { name: attached.name }))
+      } else if (attached) {
+        toast.success(t('vocab.add.addedToList', { name: attached.name, added: attached.added }))
+      } else {
+        toast.success(t('vocab.add.done'))
+      }
     } catch (commitError) {
       toast.error((commitError as Error).message)
     } finally {
@@ -91,9 +110,13 @@ export default function VocabAddWordsPage() {
         <TextArea rows={10} value={text} placeholder={t('vocab.add.placeholder')}
           onChange={(event) => { setText(event.target.value); setPreview(null); setResult(null) }} />
 
+        <p className="muted sm" style={{ margin: '8px 0 0' }}>{t('vocab.add.listNameHint')}</p>
+
         <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <Input value={label} placeholder={t('vocab.add.sourceLabel')} style={{ maxWidth: 260 }}
             onChange={(event) => setLabel(event.target.value)} />
+          <Input value={listName} placeholder={t('vocab.add.listName')} style={{ maxWidth: 240 }}
+            onChange={(event) => setListName(event.target.value)} />
           <Button onClick={() => void doPreview()} busy={busy}>{t('vocab.add.preview')}</Button>
           <Button variant="primary" onClick={() => void doCommit()} busy={busy}>{t('vocab.add.commit')}</Button>
           <Button onClick={() => navigate('/vocab/library')}>{t('vocab.add.back')}</Button>
@@ -138,6 +161,11 @@ export default function VocabAddWordsPage() {
               duplicated: result.counts.duplicated,
               failed: result.counts.failed,
             })}</p>
+            {result.list && (
+              result.list.skippedReason
+                ? <p className="sm">{t('vocab.add.listLimitSkipped', { name: result.list.name })}</p>
+                : <p className="sm">{t('vocab.add.addedToList', { name: result.list.name, added: result.list.added })}</p>
+            )}
             {result.errors.length > 0 && (
               <ul className="sm">
                 {result.errors.map((error) => (
