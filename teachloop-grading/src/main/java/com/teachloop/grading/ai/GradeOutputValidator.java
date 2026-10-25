@@ -1,5 +1,6 @@
 package com.teachloop.grading.ai;
 
+import com.teachloop.grading.domain.ReviewText;
 import com.teachloop.grading.prompt.SubjectiveGradeRequest;
 import com.teachloop.shared.port.Ports;
 import java.math.BigDecimal;
@@ -128,9 +129,11 @@ public class GradeOutputValidator {
             throw new InvalidGradeOutputException("total=" + total + " 超过主观题满分 " + subjectiveMax);
         }
 
-        String overall = text(root, "overall");
-        String strength = text(root, "strength");
-        String suggestion = text(root, "suggestion");
+        // 模型有时把「总评：」「优点：」「建议：」写进字段本身；字段名由界面渲染，
+        // 这里先剥掉，落库的三段文本与学生反馈才不会出现「优点：优点：……」。
+        String overall = ReviewText.stripLabel(text(root, "overall"));
+        String strength = ReviewText.stripLabel(text(root, "strength"));
+        String suggestion = ReviewText.stripLabel(text(root, "suggestion"));
         if (overall.isEmpty()) {
             throw new InvalidGradeOutputException("overall 缺失或为空");
         }

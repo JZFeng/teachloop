@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.teachloop.grading.domain.Review;
 import com.teachloop.grading.domain.ReviewRepository;
 import com.teachloop.grading.domain.ReviewStatus;
+import com.teachloop.grading.domain.ReviewText;
 import com.teachloop.grading.service.TextLengthCounter;
 import com.teachloop.shared.audit.AuditEvent;
 import com.teachloop.shared.audit.AuditPort;
@@ -228,7 +229,10 @@ public class ReviewEndpoint {
                 item.rubricMarkdown(), item.feedbackLanguage(),
                 scores.objectiveTotal(), scores.subjectiveTotal(),
                 review.getOriginalSubjective(), criteriaOf(review), review.getAiFeedback(),
-                review.getAiOverall(), review.getAiStrength(), review.getAiSuggestion(),
+                // 旧数据里 ai_overall / ai_strength / ai_suggestion 可能带「总评：」「优点：」「建议：」前缀，
+                // 界面自己会渲染字段名，这里读取时统一剥掉（不写迁移脚本）。
+                ReviewText.stripLabel(review.getAiOverall()), ReviewText.stripLabel(review.getAiStrength()),
+                ReviewText.stripLabel(review.getAiSuggestion()),
                 review.getAiFailure(), review.getAiModel(), review.getAiPromptVersion(),
                 review.getAiKeySource(),
                 TextLengthCounter.count(item.contentText() == null ? "" : item.contentText(), "policy_default"),
@@ -500,9 +504,12 @@ public class ReviewEndpoint {
     }
 
     private static ReviewView view(Review r) {
+        // 界面自己渲染「优点」「建议」标签：正文里再带的「优点：」「建议：」是重复前缀，
+        // 旧数据（已落库）在读取时剥掉，不必写迁移脚本。
         return new ReviewView(r.getId().toString(), r.getSubmissionId().toString(), r.getStatus().name(),
                 r.getTeacherId() == null ? null : r.getTeacherId().toString(),
-                r.getComment(), r.getStrengths(), r.getSuggestions(), r.getOriginalSubjective(),
+                r.getComment(), ReviewText.stripLabel(r.getStrengths()), ReviewText.stripLabel(r.getSuggestions()),
+                r.getOriginalSubjective(),
                 r.isPublished(), r.getPublishedAt() == null ? null : r.getPublishedAt().toString(),
                 r.getCreatedAt().toString());
     }

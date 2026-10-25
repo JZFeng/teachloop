@@ -370,7 +370,7 @@ export default function AssignmentPage() {
               : <span className="tag amber">{t('exam.pendingGrade')}</span>}
             {showResult.lateBySeconds > 0 && <span className="tag amber">{t('exam.lateTag')}</span>}
             <button type="button" className="btn" onClick={() => navigate(`/feedback/${offeringId}`)}>
-              {t('exam.viewFeedback')}
+              {t('exam.viewResult')}
             </button>
           </div>
           <SubmittedContentSection
@@ -404,11 +404,11 @@ export default function AssignmentPage() {
             {latest.autoSubmitted && <span className="tag gray">{t('exam.submittedAuto')}</span>}
             {attempts?.canRetry && (
               <button type="button" className="btn" disabled={busy} onClick={() => void startAttempt()}>
-                {t('exam.newAttempt')}
+                {t('exam.retrySubmit')}
               </button>
             )}
             <button type="button" className="btn" onClick={() => navigate(`/feedback/${offeringId}`)}>
-              {t('exam.viewFeedback')}
+              {t('exam.viewResult')}
             </button>
           </div>
           <SubmittedContentSection

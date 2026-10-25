@@ -74,6 +74,23 @@ class AiGradingEngineTest {
     }
 
     @Test
+    @DisplayName("模型把「优点：」「建议：」写进字段：落库前剥掉前缀，组合文本不重复字段名")
+    void stripsLabelPrefixesFromModelFields() {
+        FakeLlmClient llm = FakeLlmClient.responding(response(LABELED_JSON, 1200, 300, 850));
+        AiGradingEngine engine = engine(llm);
+
+        Ports.GradingResult result = engine.grade(workItem());
+
+        assertThat(result.overall()).isEqualTo("文章表达了班级学习情况，结构清楚。");
+        assertThat(result.strength()).isEqualTo("用“We learn English together every day”说明了日常学习。");
+        assertThat(result.suggestion()).isEqualTo("补充一个具体的课堂活动例子。");
+        assertThat(result.feedback())
+                .isEqualTo("总评：文章表达了班级学习情况，结构清楚。\n"
+                        + "优点：用“We learn English together every day”说明了日常学习。\n"
+                        + "建议：补充一个具体的课堂活动例子。");
+    }
+
+    @Test
     @DisplayName("非法 JSON：重试一次，第二次带纠正提示并成功；两次调用都留痕")
     void retriesOnceAfterInvalidJson() {
         FakeLlmClient llm = FakeLlmClient.responding(
@@ -313,6 +330,12 @@ class AiGradingEngineTest {
             {"criteria":[{"name":"内容要点","points":9,"comment":"正文写到了“My class is great”，并说明每天一起学英语，覆盖了题目要求的要点。"},
             {"name":"语言准确性","points":4,"comment":"使用了“We learn English together every day”，语法基本准确。"}],
             "total":13,"overall":"总评：文章表达了班级学习情况，结构清楚。","strength":"用“We learn English together every day”说明了日常学习。","suggestion":"建议补充一个具体的课堂活动例子。"}""";
+
+    /** 模型把字段名写进正文本身：strength 以「优点：」开头、suggestion 以「建议：」开头。 */
+    private static final String LABELED_JSON = """
+            {"criteria":[{"name":"内容要点","points":9,"comment":"正文写到了“My class is great”，并说明每天一起学英语，覆盖了题目要求的要点。"},
+            {"name":"语言准确性","points":4,"comment":"使用了“We learn English together every day”，语法基本准确。"}],
+            "total":13,"overall":"总评：文章表达了班级学习情况，结构清楚。","strength":"优点：用“We learn English together every day”说明了日常学习。","suggestion":"建议：补充一个具体的课堂活动例子。"}""";
 
     private static Ports.WorkItem workItem() {
         return new Ports.WorkItem(UUID.randomUUID(), UUID.randomUUID(), UUID.randomUUID(), "张三",
