@@ -265,6 +265,44 @@ class NotificationTest {
         assertThat(en.get("title")).isEqualTo("New word preview");
     }
 
+    @Test
+    @DisplayName("发词通知：班级 + 老师 + 词集 + 截止时间都进正文；没有截止时间用另一套措辞")
+    void rendersVocabAssignmentDetail() throws Exception {
+        // 2026-11-30T07:00Z = 15:00 Asia/Shanghai（通知正文的截止时间按部署时区渲染）
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "VOCAB_ASSIGNMENT",
+                "VOCAB_ASSIGNMENT", UUID.randomUUID().toString(), null, null,
+                Map.of("setName", "不规则动词预习", "teacher", "周杰伦老师", "className", "三年二班",
+                        "dueAt", "2026-11-30T07:00:00Z"))));
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "VOCAB_ASSIGNMENT",
+                "VOCAB_ASSIGNMENT", UUID.randomUUID().toString(), null, null,
+                Map.of("setName", "无截止词集", "teacher", "周杰伦老师", "className", "三年二班"))));
+
+        List<?> zhRows = getListLang(studentA, "/api/notifications", "zh-CN");
+        List<?> zhVocab = zhRows.stream().map(row -> (Map<?, ?>) row)
+                .filter(row -> "VOCAB_ASSIGNMENT".equals(row.get("kind"))).toList();
+        assertThat(zhVocab).hasSize(2);
+        assertThat(bodyOf(zhVocab, "不规则动词预习"))
+                .isEqualTo("三年二班的周杰伦老师发来一组生词「不规则动词预习」，请在2026/11/30 15:00之前完成预习。");
+        assertThat(bodyOf(zhVocab, "无截止词集"))
+                .isEqualTo("三年二班的周杰伦老师发来一组生词「无截止词集」，请在截止前完成预习。");
+
+        List<?> enVocab = getListLang(studentA, "/api/notifications", "en").stream()
+                .map(row -> (Map<?, ?>) row)
+                .filter(row -> "VOCAB_ASSIGNMENT".equals(row.get("kind"))).toList();
+        assertThat(bodyOf(enVocab, "不规则动词预习"))
+                .contains("周杰伦老师").contains("三年二班").contains("不规则动词预习")
+                .contains("11/30/26").contains("3:00");
+    }
+
+    private static String bodyOf(List<?> rows, String marker) {
+        return rows.stream()
+                .map(row -> (Map<?, ?>) row)
+                .map(row -> String.valueOf(row.get("body")))
+                .filter(body -> body.contains(marker))
+                .findFirst()
+                .orElseThrow(() -> new AssertionError("没有正文包含 " + marker + " 的通知"));
+    }
+
     private static Map<?, ?> byKind(List<?> rows, String kind) {
         return rows.stream()
                 .map(row -> (Map<?, ?>) row)

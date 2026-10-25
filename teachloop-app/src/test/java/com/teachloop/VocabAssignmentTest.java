@@ -74,10 +74,28 @@ class VocabAssignmentTest {
                 Map.of("words", List.of("alpha", "beta")));
 
         JsonNode created = post(base, teacher, "/api/vocab/assignments", Map.of(
-                "setId", setId, "classIds", List.of(classId), "note", "预习"));
+                "setId", setId, "classIds", List.of(classId), "note", "预习",
+                "dueAt", "2026-11-30T07:00:00Z"));
         String assignmentId = created.get("id").asString();
         assertThat(created.get("wordCount").asInt()).isEqualTo(2);
         assertThat(created.get("recipientCount").asInt()).isEqualTo(1);
+
+        // 2026-10-24 学生反馈：发词通知要写出班级、老师、词集名与截止时间（Asia/Shanghai 15:00）。
+        String payloadTeacher = jdbc.queryForObject(
+                "select payload->>'teacher' from notifications where kind = 'VOCAB_ASSIGNMENT'",
+                String.class);
+        assertThat(payloadTeacher).isEqualTo("示例老师");
+        JsonNode inbox = get(base, student, "/api/notifications");
+        JsonNode vocabNotice = null;
+        for (JsonNode row : inbox) {
+            if ("VOCAB_ASSIGNMENT".equals(row.get("kind").asString())) {
+                vocabNotice = row;
+            }
+        }
+        assertThat(vocabNotice).as("学生收到一条发词通知").isNotNull();
+        assertThat(vocabNotice.get("body").asString())
+                .contains("Unit 5 班").contains("示例老师").contains("发词测试词集")
+                .contains("2026/11/30 15:00");
 
         JsonNode detail = get(base, student, "/api/vocab/assignments/" + assignmentId);
         assertThat(detail.get("words")).hasSize(2);

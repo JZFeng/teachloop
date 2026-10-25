@@ -32,6 +32,10 @@ spring:
       max-request-size: 100MB
 
 teachloop:
+  notification:
+    # 通知正文里的截止时间按这个时区渲染（A1：正文由服务端拼，页面上的时间仍跟浏览器本地时区）。
+    # 学生反馈样例「请在 10/28 15:00 之前预习」；换部署地区时改这里，不要依赖 JVM 默认时区。
+    due-zone: ${TEACHLOOP_NOTIFICATION_DUE_ZONE:Asia/Shanghai}
   storage:
     # T067/T386：附件存储端口；开发用 local，生产切 s3（S3 兼容协议：阿里云 OSS / MinIO / R2）
     backend: ${STORAGE_BACKEND:local}

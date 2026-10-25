@@ -56,17 +56,20 @@ export default function VocabSetsPage() {
 
   const refresh = () => setReloadKey((value) => value + 1)
 
+  /** 启用/停用合并成一个切换按钮（2026-10-24 教师要求）：批量动作是可逆的，不再二次确认。 */
   const batch = async (action: 'ACTIVATE' | 'DEACTIVATE' | 'DELETE') => {
     const ids = [...selected]
     if (ids.length === 0) return
-    const ok = await confirm({
-      title: action === 'DELETE' ? t('vocab.sets.deleteTitle') : t('vocab.sets.batchTitle'),
-      content: t('vocab.sets.batchBody', { count: ids.length }),
-      okText: t('common.confirm'),
-      cancelText: t('common.cancel'),
-      danger: action === 'DELETE',
-    })
-    if (!ok) return
+    if (action === 'DELETE') {
+      const ok = await confirm({
+        title: t('vocab.sets.deleteTitle'),
+        content: t('vocab.sets.batchBody', { count: ids.length }),
+        okText: t('common.confirm'),
+        cancelText: t('common.cancel'),
+        danger: true,
+      })
+      if (!ok) return
+    }
     await api.post('/api/vocab/sets/batch', { ids, action })
     toast.success(t('vocab.sets.batchDone', { count: ids.length }))
     setSelected(new Set())
@@ -87,6 +90,9 @@ export default function VocabSetsPage() {
   if (tab === 'records' && records === null) return <Loading label={t('common.loading')} />
 
   const allSelected = (sets?.length ?? 0) > 0 && sets!.every((set) => selected.has(set.id))
+  const selectedSets = (sets ?? []).filter((set) => selected.has(set.id))
+  /** 切换方向以「选中项是否全部启用」判定：全部启用时点一下是停用，否则是启用。 */
+  const allSelectedActive = selectedSets.length > 0 && selectedSets.every((set) => set.active)
 
   return (
     <>
@@ -112,8 +118,10 @@ export default function VocabSetsPage() {
           {selected.size > 0 && (
             <div className="vocab-batch">
               <span>{t('vocab.sets.selected', { count: selected.size })}</span>
-              <Button size="small" onClick={() => void batch('ACTIVATE')}>{t('vocab.sets.activate')}</Button>
-              <Button size="small" onClick={() => void batch('DEACTIVATE')}>{t('vocab.sets.deactivate')}</Button>
+              <Button size="small"
+                onClick={() => void batch(allSelectedActive ? 'DEACTIVATE' : 'ACTIVATE')}>
+                {allSelectedActive ? t('vocab.sets.deactivate') : t('vocab.sets.activate')}
+              </Button>
               <Button size="small" variant="danger" onClick={() => void batch('DELETE')}>{t('vocab.sets.delete')}</Button>
             </div>
           )}

@@ -18,9 +18,11 @@
 **A1：通知只存事实，读取时按请求的 `Accept-Language` 渲染。**
 
 - `notifications` 新增 `payload jsonb`；`title`/`body` 降级为「历史行 + 未知 kind」的回退原文，新行可为空（V052 去掉 `title` 的 NOT NULL）。
-- 模板放 `messages_zh_CN.properties` / `messages.properties`，键为 `notification.<kind>[.<variant>].title|body`；`variant` 目前用于 `offering_published` 的 `exam`/`assignment` 与 `feedback_published` 的 `scored`。
+- 模板放 `messages_zh_CN.properties` / `messages.properties`，键为 `notification.<kind>[.<variant>].title|body`；`variant` 目前用于 `offering_published` 的 `exam`/`assignment`、`feedback_published` 的 `scored`，以及 `vocab_assignment` 的 `detail`（带截止）/`detail_nodue`（不带截止）。
 - `NotificationEndpoint` 用 `LocaleContextHolder.getLocale()`（与错误文案同一套机制）渲染；前端零改动，仍显示 `title`/`body`。
-- 调用方只传 payload：`offering_published` 传 `{title, offeringKind}`，`scores_published` 传 `{title}`，`feedback_published` 传 `{title, score, total}`，`VOCAB_ASSIGNMENT` 传空 payload。
+- 调用方只传 payload：`offering_published` 传 `{title, offeringKind}`，`scores_published` 传 `{title}`，`feedback_published` 传 `{title, score, total}`，`VOCAB_ASSIGNMENT` 传 `{setName, teacher, className, dueAt?}`（2026-10-24 起；早前的空 payload 行仍能用泛化模板渲染）。
+- 模板参数按固定顺序传给 MessageFormat：`{0}` title、`{1}` score、`{2}` total、`{3}` count、`{4}` teacher、`{5}` className、`{6}` setName、`{7}` dueAt。**新参数只能追加**，插到前面会让老模板串位。
+- `dueAt` 在 payload 里是 ISO-8601 瞬间，正文里的时间按 `teachloop.notification.due-zone`（默认 `Asia/Shanghai`）渲染成短日期时间；不能用 JVM 默认时区——容器里通常是 UTC，学生会看到差 8 小时的时间。
 - `WorkItem` 增加 `offeringTitle`（由 `SittingLedgerImpl` 从快照带出），复核发布时用它拼「《作业名》的反馈已发布」。
 
 ## 为什么不是 B（按收件人 locale 拼文案）

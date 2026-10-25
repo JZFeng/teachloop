@@ -228,6 +228,13 @@ public final class Ports {
 
         /** T329：这批班级里哪些属于该教师（报表按班级取数时的归属校验）。 */
         java.util.Set<UUID> classIdsOwnedBy(java.util.Collection<UUID> classIds, UUID teacherId);
+
+        /**
+         * 班级名（只给展示用，例如通知文案里的「三年二班」）；查不到的班级不出现在返回里。
+         *
+         * <p>2026-10-24 学生反馈：发词通知要写出「哪个班的哪位老师」，跨模块只能走端口取名字。
+         */
+        java.util.Map<UUID, String> classNames(java.util.Collection<UUID> classIds);
     }
 
     /** 管理员/教师保存的 AI 配置；key 不随端口返回给业务方以外的接口。 */

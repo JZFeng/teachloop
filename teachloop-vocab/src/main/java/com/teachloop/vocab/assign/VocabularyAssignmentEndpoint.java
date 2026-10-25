@@ -13,7 +13,9 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
@@ -93,9 +95,9 @@ public class VocabularyAssignmentEndpoint {
             throw ApiException.notFound("class not found");
         }
 
-        String language = assignments.activeSet(request.setId(), me.id())
-                .orElseThrow(() -> ApiException.notFound("word set not found"))
-                .language();
+        VocabularyAssignmentRepository.ActiveSet activeSet = assignments.activeSet(request.setId(), me.id())
+                .orElseThrow(() -> ApiException.notFound("word set not found"));
+        String language = activeSet.language();
 
         List<VocabularyAssignmentRepository.SetWordSnapshot> setWords =
                 assignments.wordsOfSet(request.setId());
@@ -112,18 +114,25 @@ public class VocabularyAssignmentEndpoint {
             assignments.addAssignmentWord(UUID.randomUUID(), assignmentId, word, now);
         }
 
-        Set<UUID> uniqueRecipients = new HashSet<>();
+        // 收件人 = 选中的班级成员（快照）；同时记住每个学生落在这几个班的哪个班里，
+        // 通知文案要写「三年二班的周杰伦老师」（2026-10-24 学生反馈）。
+        Map<UUID, String> classNames = classes.classNames(classIds);
+        Map<UUID, List<String>> classNamesByStudent = new LinkedHashMap<>();
         for (UUID classId : classIds) {
             assignments.linkClass(assignmentId, classId);
-            uniqueRecipients.addAll(classes.membersOf(classId));
+            String className = classNames.getOrDefault(classId, "");
+            for (UUID studentId : classes.membersOf(classId)) {
+                classNamesByStudent.computeIfAbsent(studentId, key -> new ArrayList<>()).add(className);
+            }
         }
-        for (UUID studentId : uniqueRecipients) {
+        for (UUID studentId : classNamesByStudent.keySet()) {
             assignments.addRecipient(assignmentId, studentId);
         }
 
-        notifyStudents(assignmentId, uniqueRecipients);
+        notifyStudents(assignmentId, activeSet.name(), me.displayName(), request.dueAt(),
+                classNamesByStudent);
         assignments.touchSet(request.setId(), now);
-        return new Created(assignmentId, setWords.size(), uniqueRecipients.size());
+        return new Created(assignmentId, setWords.size(), classNamesByStudent.size());
     }
 
     /** T409：教师发词记录，按时间倒序；领取情况是实发收件人与 claimed_at 的实时聚合。 */
@@ -185,18 +194,36 @@ public class VocabularyAssignmentEndpoint {
         return new ClaimResult(id, added, duplicated);
     }
 
-    private void notifyStudents(UUID assignmentId, Set<UUID> recipients) {
+    /**
+     * A1：文案在读取时按学生界面语言渲染（模板见 messages*.properties）。
+     *
+     * <p>payload 只放事实：词集名、老师名、学生所在的班、截止时间（ISO-8601）。
+     * 通知读取侧把它们填进「三年二班的周杰伦老师发来一组生词『…』，请在 … 之前预习」。
+     */
+    private void notifyStudents(UUID assignmentId, String setName, String teacherName, Instant dueAt,
+                                Map<UUID, List<String>> classNamesByStudent) {
         try {
-            // A1：文案在读取时按学生界面语言渲染（模板见 messages*.properties）。
-            List<Ports.NotificationMessage> messages = recipients.stream()
-                    .map(studentId -> new Ports.NotificationMessage(studentId, "VOCAB_ASSIGNMENT",
+            List<Ports.NotificationMessage> messages = classNamesByStudent.entrySet().stream()
+                    .map(entry -> new Ports.NotificationMessage(entry.getKey(), "VOCAB_ASSIGNMENT",
                             "VOCAB_ASSIGNMENT", assignmentId.toString(),
-                            null, null, java.util.Map.of()))
+                            null, null, vocabPayload(setName, teacherName, entry.getValue(), dueAt)))
                     .toList();
             notifications.notify(messages);
         } catch (RuntimeException ex) {
             log.warn("发词通知失败（不回滚发词）assignment={}：{}", assignmentId, ex.getMessage());
         }
+    }
+
+    private static Map<String, String> vocabPayload(String setName, String teacherName,
+                                                    List<String> classNames, Instant dueAt) {
+        Map<String, String> payload = new LinkedHashMap<>();
+        payload.put("setName", setName == null ? "" : setName);
+        payload.put("teacher", teacherName == null ? "" : teacherName);
+        payload.put("className", String.join("、", classNames));
+        if (dueAt != null) {
+            payload.put("dueAt", dueAt.toString());
+        }
+        return payload;
     }
 
     private static void requireTeacher(CurrentUser me) {
