@@ -213,15 +213,10 @@ apply_contract(Path(os.environ.get("VOCAB_PROMPT_FILE", CONTRACT_DEFAULT)))
 # --------------------------------------------------------------------------- #
 
 def user_prompt(word: str, language: str, example_count: int) -> str:
-    others = [lang for lang in LANGUAGES if lang != language]
-    return (
-        f"Word: {word}\n"
-        f"Target language: {language}\n"
-        f"Explanation languages: zh, en (translations exclude {language}; use {', '.join(others)})\n"
-        f"Example count: up to {example_count} (fewer is fine when the word has few natural patterns)\n"
-        "Sort rule: order examples by part-of-speech frequency and usage commonness; "
-        "the most common verb patterns first, noun uses after."
-    )
+    """用户提示词模板来自契约，Java 运行时用同一份，保证批量与实时措辞一致。"""
+    others = ", ".join(lang for lang in LANGUAGES if lang != language)
+    return CONTRACT["userPrompt"].format(
+        word=word, language=language, otherLanguages=others, exampleCount=example_count)
 
 
 def request_payload(provider: str, word: str, language: str, model: str,
@@ -237,7 +232,11 @@ def request_payload(provider: str, word: str, language: str, model: str,
         ],
     }
     # 关思考：默认会先吐 9k–24k reasoning tokens，把 max_tokens 吃光导致正文截断
-    payload.update(CONTRACT["providers"][provider]["reasoningOff"])
+    style = CONTRACT["providers"][provider].get("disableThinking")
+    if style == "thinking":
+        payload["thinking"] = {"type": "disabled"}
+    elif style == "chat_template_kwargs":
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
     return payload
 
 

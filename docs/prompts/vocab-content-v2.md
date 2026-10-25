@@ -202,6 +202,16 @@ python3 scripts/vocab/check_content.py \
 python3 scripts/vocab/test_generate_content.py -v
 ```
 
+Java 运行时（`AiVocabularyContentGenerator`，T439）读同一份契约：prompt、`max_tokens`、温度、
+超时、UA、`x-opencode-session` 都来自 JSON，代码里不再有第二份 prompt。真实调用冒烟（不跑 CI）：
+
+```bash
+OPENCODE_GO_KEY=... ./mvnw -pl teachloop-vocab -am test \
+  -Dtest=AiVocabularyContentGeneratorLiveTest -Dvocab.live-ai=true
+```
+
+2026-10-25 实测：apple 4819ms / resilient 6148ms / serendipity 5592ms，p50 5592ms。
+
 ## 8. 版本
 
 `prompt_version = vocab-content-v2.3`。写进内容包 manifest 与 delta 的 `prompt_version`；

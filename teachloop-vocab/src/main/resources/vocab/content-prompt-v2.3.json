@@ -18,38 +18,28 @@
       "type": "json_object"
     },
     "timeoutSeconds": 20,
-    "userAgent": "teachloop-vocab-content/1.0",
-    "thinking": {
-      "type": "disabled"
-    },
-    "sessionHeader": "x-opencode-session"
+    "userAgent": "teachloop-vocab-content/1.0"
   },
   "providers": {
     "opencode": {
       "baseUrl": "https://opencode.ai/inference/go/openai/v1",
       "model": "deepseek-v4.1-flash",
       "sessionHeader": "x-opencode-session",
-      "reasoningOff": {
-        "thinking": {
-          "type": "disabled"
-        }
-      }
+      "disableThinking": "thinking"
     },
     "local": {
       "baseUrl": "http://192.168.68.101:8080/v1",
       "model": "qwen3.8-flash-next-iq2_xs",
-      "reasoningOff": {
-        "chat_template_kwargs": {
-          "enable_thinking": false
-        }
-      }
+      "sessionHeader": null,
+      "disableThinking": "chat_template_kwargs"
     }
   },
   "notes": [
     "Java 运行时（AiVocabularyContentGenerator）与 Python 批量工具读同一份文件，prompt 与请求参数不允许各自维护。",
     "User-Agent 不能留库默认值：Python urllib 默认的 Python-urllib/x.y 会被 Cloudflare 拦成 403 error 1010；显式写产品 UA 即可（Java-http-client/.. 也能过）。",
-    "thinking 必须显式关闭：默认会先吐 9k-24k reasoning tokens，把 max_tokens 吃光导致正文截断。",
+    "disableThinking=thinking → 发 {\"thinking\":{\"type\":\"disabled\"}}；=chat_template_kwargs → 发 {\"chat_template_kwargs\":{\"enable_thinking\":false}}。不关会先吐 9k-24k reasoning tokens，把 max_tokens 吃光导致正文截断。",
     "x-opencode-session 是网关路由头（缺了 400 MissingSessionID），不是对话上下文，每次请求随机 UUID 即可。",
     "promptVersion 升版必须同时改文件名与本字段，旧内容与旧包不参与新版本命中。"
-  ]
+  ],
+  "userPrompt": "Word: {word}\nTarget language: {language}\nExplanation languages: zh, en (translations exclude {language}; use {otherLanguages})\nExample count: up to {exampleCount} (fewer is fine when the word has few natural patterns)\nSort rule: order examples by part-of-speech frequency and usage commonness; the most common verb patterns first, noun uses after."
 }
