@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError, csrfHeaders, fmtDateTime } from '../api/client'
@@ -15,30 +15,44 @@ import type {
 import { RichTextEditor } from '../components/RichTextEditor'
 import { Markdown } from '../components/Markdown'
 import { ErrorState, Loading, PageHeader } from '../components/States'
+import { Button } from '../ui'
 import { countWrittenWords, fmtScore } from './examUtils'
 import './exam.css'
 
 const LOCAL_DRAFT_PREFIX = 'teachloop.assignment.'
 
-type SubmissionMode = 'text' | 'file' | 'rich'
-
-/** 本机草稿：纯文本、富文本 HTML 与当前输入形态一起存，刷新后能原样恢复。 */
-interface LocalDraft { text: string; html: string; mode: SubmissionMode }
+/** 本机草稿：富文本 HTML 与它的纯文本（字数/回退用）一起存，刷新后能原样恢复。 */
+interface LocalDraft { text: string; html: string }
 
 function readLocalDraft(offeringId: string): LocalDraft {
   try {
     const raw = window.localStorage.getItem(`${LOCAL_DRAFT_PREFIX}${offeringId}`) ?? ''
-    if (!raw) return { text: '', html: '', mode: 'text' }
-    if (!raw.startsWith('{')) return { text: raw, html: '', mode: 'text' } // 旧版只存纯文本
+    if (!raw) return { text: '', html: '' }
+    if (!raw.startsWith('{')) return { text: raw, html: '' } // 旧版只存纯文本
     const parsed = JSON.parse(raw) as Partial<LocalDraft>
     return {
       text: typeof parsed.text === 'string' ? parsed.text : '',
       html: typeof parsed.html === 'string' ? parsed.html : '',
-      mode: parsed.mode === 'rich' || parsed.mode === 'file' ? parsed.mode : 'text',
     }
   } catch {
-    return { text: '', html: '', mode: 'text' }
+    return { text: '', html: '' }
   }
+}
+
+/** 旧版纯文本草稿 → 编辑器认的 HTML：先转义，再按空行分段、单换行变 <br>。 */
+function textToHtml(text: string): string {
+  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+  return escaped
+    .split(/\n{2,}/)
+    .map((block) => `<p>${block.replace(/\n/g, '<br>')}</p>`)
+    .join('')
+}
+
+/** 只有 HTML 时（换浏览器读到服务端富文本）用这个回填纯文本，保证字数与 contentText 不为空。 */
+function htmlToText(html: string): string {
+  if (!html) return ''
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  return (doc.body.textContent ?? '').replace(/\u00a0/g, ' ')
 }
 
 function writeLocalDraft(offeringId: string, draft: LocalDraft): void {
@@ -79,10 +93,10 @@ export default function AssignmentPage() {
   const [submitResult, setSubmitResult] = useState<SubmitResponse | null>(null)
   // 刚交完这一页的正文副本：提交后 load() 会清空草稿，回显先靠它，服务端字段回来后再以服务端为准。
   const [submittedSnapshot, setSubmittedSnapshot] = useState<{ html: string | null; text: string } | null>(null)
-  const [mode, setMode] = useState<SubmissionMode>('text')
   const [richHtml, setRichHtml] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
     if (!offeringId) return
@@ -108,14 +122,14 @@ export default function AssignmentPage() {
       const hasLocal = Boolean(local && (local.text.trim() || local.html.trim()))
       const serverHtml = latest?.contentHtml ?? ''
       const serverText = latest?.contentText ?? ''
+      // 编辑器只认 HTML：本地草稿优先（可能比服务端新），旧版纯文本草稿当场转成段落。
       if (hasLocal) {
-        setContent(local!.text)
-        setRichHtml(local!.html)
-        setMode(local!.mode)
+        const html = local!.html.trim() ? local!.html : textToHtml(local!.text)
+        setRichHtml(html)
+        setContent(local!.text.trim() ? local!.text : htmlToText(html))
       } else {
-        setContent(serverText)
         setRichHtml(serverHtml)
-        setMode(serverHtml ? 'rich' : 'text')
+        setContent(serverText || htmlToText(serverHtml))
       }
     } catch (loadError) {
       setError(loadError as Error)
@@ -135,11 +149,11 @@ export default function AssignmentPage() {
   const canStart = !!attempts?.canRetry && !hasDraft && !submitted
   const attemptsLeft = attempts ? Math.max(0, attempts.maxAttempts - attempts.attemptsUsed) : null
 
-  // 草稿正文只存本机：后端没有「读取草稿正文」的接口；纯文本和富文本 HTML 都存。
+  // 草稿正文只存本机：后端没有「读取草稿正文」的接口；HTML 与纯文本都存。
   useEffect(() => {
     if (!hasDraft) return
-    writeLocalDraft(offeringId, { text: content, html: richHtml, mode })
-  }, [content, richHtml, mode, hasDraft, offeringId])
+    writeLocalDraft(offeringId, { text: content, html: richHtml })
+  }, [content, richHtml, hasDraft, offeringId])
 
   const startAttempt = async () => {
     setBusy(true)
@@ -164,7 +178,7 @@ export default function AssignmentPage() {
     try {
       const response = await api.put<AnswerSaveResponse>(`/api/offerings/${offeringId}/answers`, {
         contentText: content,
-        contentHtml: mode === 'rich' ? richHtml : null,
+        contentHtml: richHtml.trim() ? richHtml : null,
         answers: [],
       })
       setLastSaved(response.serverTime)
@@ -187,12 +201,12 @@ export default function AssignmentPage() {
     try {
       const response = await api.post<SubmitResponse>(`/api/offerings/${offeringId}/submissions`, {
         contentText: content,
-        contentHtml: mode === 'rich' ? richHtml : null,
+        contentHtml: richHtml.trim() ? richHtml : null,
         answers: [],
       })
       setSubmitResult(response)
-      setSubmittedSnapshot({ html: mode === 'rich' ? richHtml : null, text: content })
-      trackEvent('submit', { offeringId, mode: 'text' })
+      setSubmittedSnapshot({ html: richHtml.trim() ? richHtml : null, text: content })
+      trackEvent('submit', { offeringId, mode: 'rich' })
       clearLocalDraft(offeringId)
       await load()
     } catch (submitFailure) {
@@ -409,61 +423,53 @@ export default function AssignmentPage() {
       {hasDraft && !rejected && (
         <div className="card">
           <h2>{t('exam.assignmentSubmission')}</h2>
-          <div className="row" style={{ marginBottom: 8 }}>
-            <button type="button" className={`chip${mode === 'text' ? ' on' : ''}`} onClick={() => setMode('text')}>{t('exam.textMode')}</button>
-            <button type="button" className={`chip${mode === 'rich' ? ' on' : ''}`} onClick={() => setMode('rich')}>{t('exam.richMode')}</button>
-            <button type="button" className={`chip${mode === 'file' ? ' on' : ''}`} onClick={() => setMode('file')}>{t('exam.fileMode')}</button>
-          </div>
-          {mode === 'file' && (
-            <>
-              <p className="small muted" style={{ marginTop: 0 }}>{t('exam.fileHint')}</p>
-              <input type="file" accept=".pdf,.docx,.txt,.md" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
-              {file && <div className="small muted" style={{ marginTop: 6 }}>{file.name} · {Math.round(file.size / 1024)} KB</div>}
-            </>
-          )}
-          {mode === 'rich' && (
-            <>
-              <p className="small muted" style={{ marginTop: 0 }}>{t('exam.richHint')}</p>
-              <RichTextEditor
-                initialHtml={richHtml}
-                placeholder={t('exam.richPlaceholder')}
-                expandable
-                onChange={(html, text) => {
-                  setRichHtml(html)
-                  setContent(text)
-                }}
-              />
-            </>
-          )}
-          {mode === 'text' && (
-          <>
-          <textarea
-            className="writearea assignment-textarea"
-            value={content}
+          <p className="small muted" style={{ marginTop: 0 }}>{t('exam.richHint')}</p>
+          <RichTextEditor
+            initialHtml={richHtml}
+            placeholder={t('exam.richPlaceholder')}
             disabled={busy}
-            placeholder={t('exam.assignmentPlaceholder')}
-            onChange={(event) => setContent(event.target.value)}
+            expandable
+            onChange={(html, text) => {
+              setRichHtml(html)
+              setContent(text)
+            }}
           />
           <div className="wcount"><span className="wn">{words}</span> {t('exam.assignmentWordCount')}</div>
-          </>
-          )}
-          {mode === 'rich' && <div className="wcount"><span className="wn">{words}</span> {t('exam.assignmentWordCount')}</div>}
-          {mode === 'file' && (
-            <button type="button" className="btn pri" style={{ marginTop: 10 }} disabled={!file || uploading} onClick={() => void uploadFile()}>
-              {uploading ? t('exam.submitting') : t('exam.uploadSubmit')}
-            </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.docx,.txt,.md"
+            hidden
+            onChange={(e) => {
+              setFile(e.target.files?.[0] ?? null)
+              e.target.value = ''
+            }}
+          />
+          {file && (
+            <div className="inline-note" style={{ marginTop: 10 }}>
+              <div className="row" style={{ alignItems: 'center', gap: 10 }}>
+                <b>{t('exam.fileSelected', { name: file.name })}</b>
+                <span className="small muted">{Math.round(file.size / 1024)} KB</span>
+                <Button variant="primary" busy={uploading} onClick={() => void uploadFile()}>
+                  {t('exam.uploadSubmit')}
+                </Button>
+                <Button disabled={uploading} onClick={() => setFile(null)}>
+                  {t('common.cancel')}
+                </Button>
+              </div>
+              <div className="small muted" style={{ marginTop: 6 }}>{t('exam.fileHint')}</div>
+            </div>
           )}
           <div className="row" style={{ marginTop: 12 }}>
-            {(mode === 'text' || mode === 'rich') && (
-              <button type="button" className="btn" disabled={busy} onClick={() => void saveDraft()}>
-                {busy ? t('exam.saving') : t('exam.saveDraft')}
-              </button>
-            )}
-            {(mode === 'text' || mode === 'rich') && (
-              <button type="button" className="btn pri" disabled={busy} onClick={() => void submit()}>
-                {busy ? t('exam.submitting') : t('exam.submitAssignment')}
-              </button>
-            )}
+            <Button busy={busy} onClick={() => void saveDraft()}>
+              {t('exam.saveDraft')}
+            </Button>
+            <Button variant="primary" busy={busy} onClick={() => void submit()}>
+              {t('exam.submitAssignment')}
+            </Button>
+            <Button disabled={busy || uploading} onClick={() => fileInputRef.current?.click()}>
+              {t('exam.upload')}
+            </Button>
             <div style={{ flex: 1 }} />
             <span className="small muted">
               {lastSaved ? t('exam.savedAt', { time: fmtDateTime(lastSaved) }) : t('exam.draftLocalOnly')}
