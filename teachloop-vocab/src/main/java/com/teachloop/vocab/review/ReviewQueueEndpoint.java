@@ -129,7 +129,8 @@ public class ReviewQueueEndpoint {
         int remaining = due.size() - Math.max(0, newDueTotal - Math.min(newDueTotal, newCap));
         long todayReviewed = countReviewedToday(me.id());
         List<QueueItem> items = selected.stream()
-                .map(row -> row.toItem(ContentView.resolve(contentStore, row.contentId())))
+                .map(row -> row.toItem(ContentView.resolve(contentStore, row.contentId(),
+                        row.language(), row.form())))
                 .toList();
         return new QueueView(items, due.size(), todayReviewed, remaining, newSelected,
                 newDueTotal > newCap);

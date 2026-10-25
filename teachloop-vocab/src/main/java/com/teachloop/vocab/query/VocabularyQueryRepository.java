@@ -182,7 +182,7 @@ public class VocabularyQueryRepository {
         Map<UUID, List<SourceItem>> sourcesByWord = sourcesFor(items.stream().map(WordItem::id).toList());
         List<WordItem> enriched = items.stream()
                 .map(item -> new WordItem(item.id(), item.form(), item.language(), item.contentId(),
-                        ContentView.resolve(contentStore, item.contentId()),
+                        ContentView.resolve(contentStore, item.contentId(), item.language(), item.form()),
                         item.contentStatus(), item.favorite(), item.tags(), item.paused(), item.state(),
                         item.dueAt(), item.intervalDays(), item.ease(), item.createdAt(),
                         item.updatedAt(), item.generating(),

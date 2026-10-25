@@ -89,7 +89,7 @@ public class VocabularyWordDetailEndpoint {
                 .map(row -> new DetailView(true, row.id(), row.form(), row.language(),
                         row.contentStatus(), row.favorite(), row.paused(), parseTags(row.tagsJson()),
                         row.state(), row.dueAt(), row.intervalDays(), row.ease(),
-                        ContentView.resolve(contentStore, row.contentId()),
+                        ContentView.resolve(contentStore, row.contentId(), row.language(), row.form()),
                         sources(me.id(), row.id()), family))
                 .orElseGet(() -> new DetailView(false, null, WordNormalizer.display(form), lang,
                         null, false, false, List.of(), null, null, null, null, null, List.of(), family));

@@ -135,14 +135,36 @@ class ContentViewTest {
         assertThat(ContentView.resolve(store, 42L)).isNull();
     }
 
-    /** 测试替身：只实现 resolve 需要的 getById。 */
+    @Test
+    @DisplayName("包重建后 content_id 指向别的词：按词形核对失败时回退 get(language, form)，不返回错词")
+    void staleContentIdFallsBackToForm() {
+        InMemoryStore store = new InMemoryStore();
+        store.json = "{\"schemaVersion\":2,\"meanings\":{\"zh\":\"kettle 水壶\"}}";
+        store.formNormalized = "brave";
+        store.formJson = "{\"schemaVersion\":2,\"meanings\":{\"zh\":\"brave 勇敢的\"}}";
+
+        // content_id=42 是 kettle；词形是 brave → 不能把 kettle 的内容显示成 brave
+        JsonNode brave = ContentView.resolve(store, 42L, "en", "brave");
+        assertThat(brave.path("senses").get(0).path("zh").asString()).isEqualTo("brave 勇敢的");
+
+        // 词形与 id 一致时走 id 读取
+        JsonNode kettle = ContentView.resolve(store, 42L, "en", "KETTLE");
+        assertThat(kettle.path("senses").get(0).path("zh").asString()).isEqualTo("kettle 水壶");
+    }
+
+    /** 测试替身：只实现 resolve 需要的 getById 与按词形读取。 */
     private static final class InMemoryStore implements ContentStore {
 
         private String json;
+        private String formNormalized;
+        private String formJson;
 
         @Override
         public Optional<StoredContent> get(String language, String form) {
-            return Optional.empty();
+            if (formNormalized == null || !formNormalized.equals(form)) {
+                return Optional.empty();
+            }
+            return Optional.of(new StoredContent(7L, "en", formNormalized, "v1", formJson, "TEST"));
         }
 
         @Override

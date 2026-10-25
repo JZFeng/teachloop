@@ -18,7 +18,8 @@ import org.springframework.stereotype.Component;
  * 内容生成轮询器（T394 / plan §4）：与 grading worker 同思路，不引入 MQ。
  *
  * <p>每轮：先把超过 24 小时仍未完成的 job 标「内容缺失」并移出可领取状态；
- * 再用 {@code FOR UPDATE SKIP LOCKED} 领一批 QUEUED job；成功写 content 并置 READY，
+ * 再用 {@code FOR UPDATE SKIP LOCKED} 领一批 QUEUED job；成功后把内容写全局
+ * {@code ContentStore}（delta）并把用户行置 READY + {@code content_id}，
  * 失败按 1 分钟 / 5 分钟退避，第 3 次失败标 FAILED。
  */
 @Component
@@ -93,7 +94,7 @@ public class VocabularyGenerationWorker {
                 log.warn("内容写入全局 delta 失败 word={}（用户行仍 READY）：{}",
                         word.get().form(), ex.getMessage());
             }
-            store.succeed(job.id(), word.get().id(), content, contentId, clock.instant());
+            store.succeed(job.id(), word.get().id(), contentId, clock.instant());
         } catch (RuntimeException ex) {
             int attempts = job.attempts() + 1;
             boolean finalFailure = attempts >= maxAttempts;

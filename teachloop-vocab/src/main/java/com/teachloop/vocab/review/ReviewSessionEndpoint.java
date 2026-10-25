@@ -120,7 +120,7 @@ public class ReviewSessionEndpoint {
         UUID wordId = ids.get(session.cursor());
         return sessions.currentWord(wordId, me.id())
                 .map(row -> new CurrentWord(row.id(), row.form(), row.language(),
-                        ContentView.resolve(contentStore, row.contentId()),
+                        ContentView.resolve(contentStore, row.contentId(), row.language(), row.form()),
                         row.contentStatus(), row.favorite(), row.paused(), session.cursor(), session.total()))
                 .orElse(null);
     }

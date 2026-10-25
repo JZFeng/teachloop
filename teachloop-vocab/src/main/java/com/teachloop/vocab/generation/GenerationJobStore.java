@@ -110,11 +110,11 @@ public class GenerationJobStore {
      * 生成成功：job 标 SUCCEEDED，词条只写 {@code content_id} + READY（T431 / decisions/017 P3）。
      *
      * <p>内容本身已在 {@code ContentStore}（worker 先写 delta）；这里不再写用户行副本。
-     * {@code contentJson} 保留参数只为不改调用方，P3 后不使用。{@code contentId} 为 null
-     * （delta 写失败）时记 warn，状态仍置 READY——读路径按未准备显示，不阻塞复习。
+     * {@code contentId} 为 null（delta 写失败）时记 warn，状态仍置 READY——读路径按未准备显示，
+     * 不阻塞复习。
      */
     @Transactional
-    public void succeed(long jobId, UUID wordId, String contentJson, Long contentId, Instant now) {
+    public void succeed(long jobId, UUID wordId, Long contentId, Instant now) {
         Timestamp timestamp = Timestamp.from(now);
         if (contentId == null) {
             log.warn("内容生成成功但全局 content_id 为空 word={}（词条仍 READY，读路径显示未准备）", wordId);

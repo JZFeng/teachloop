@@ -1,5 +1,6 @@
 package com.teachloop.vocab.content;
 
+import com.teachloop.vocab.word.WordNormalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
@@ -69,10 +70,37 @@ public final class ContentView {
      * 页面显示「未准备」/空，不抛异常、不影响复习。
      */
     public static JsonNode resolve(ContentStore store, Long contentId) {
-        if (store == null || contentId == null || contentId <= 0) {
+        return resolve(store, contentId, null, null);
+    }
+
+    /**
+     * 读路径入口（带词形校验）：内容包的 contentId 是按 normalizedForm 排序后分配的 1..N，
+     * 重新出包（增词）会让 id 指向另一条记录。这里先按 id 取，再核对记录词形；不一致或取不到时
+     * 按 {@code (language, form)} 重新解析，避免把旧 id 解析成别的词的内容。
+     *
+     * <p>delta 的 contentId 是稳定的，正常路径只多一次字符串比较；只有包重建后才走回退查询。
+     */
+    public static JsonNode resolve(ContentStore store, Long contentId, String language, String form) {
+        if (store == null) {
             return null;
         }
-        return store.getById(contentId)
+        String expected = form == null ? "" : WordNormalizer.normalized(form);
+        if (contentId != null && contentId > 0) {
+            JsonNode byId = store.getById(contentId)
+                    .filter(content -> expected.isEmpty()
+                            || expected.equals(content.normalizedForm()))
+                    .map(StoredContent::json)
+                    .map(ContentView::parse)
+                    .map(ContentView::toView)
+                    .orElse(null);
+            if (byId != null) {
+                return byId;
+            }
+        }
+        if (expected.isEmpty()) {
+            return null;
+        }
+        return store.get(language, form)
                 .map(StoredContent::json)
                 .map(ContentView::parse)
                 .map(ContentView::toView)
