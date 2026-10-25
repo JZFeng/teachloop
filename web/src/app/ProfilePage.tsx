@@ -6,7 +6,7 @@ import { api } from '../api/client'
 import { LANGUAGES, changeLanguage } from '../i18n'
 import { Alert, Button, Field, Input, PageHeader, ThemeToggle } from '../ui'
 import { UiKitPanel } from './UiKitPanel'
-import type { AiModelOption, AiModelsView, GradingPreference } from '../api/types'
+import type { GradingPreference } from '../api/types'
 
 interface ProfileView {
   id: string
@@ -25,8 +25,8 @@ const TIME_ZONES = [
 /**
  * 资料 / 教师设置。
  *
- * 学生只看到账号资料与界面偏好；教师额外看到「AI 与批改设置」（决策 010）。
- * AI 配置按用户自定义 provider 设计：provider ID、显示名、API 地址、Key 可空、连接后选模型。
+ * 学生只看到账号资料与界面偏好；教师额外看到「作业批改时机」（决策 010）。
+ * 模型选择只属于管理员（/admin/ai）：教师页不再出现任何 AI 配置或模型下拉（2026-10-24 用户拍板）。
  */
 export default function ProfilePage() {
   const { t, i18n } = useTranslation('translation')
@@ -38,12 +38,6 @@ export default function ProfilePage() {
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const [aiOptions, setAiOptions] = useState<AiModelOption[]>([])
-  const [aiCurrent, setAiCurrent] = useState<string | null>(null)
-  const [aiSelected, setAiSelected] = useState('')
-  const [aiMessage, setAiMessage] = useState<string | null>(null)
-  const [aiError, setAiError] = useState<string | null>(null)
-
   const [grading, setGrading] = useState<GradingPreference | null>(null)
   const [gradingMode, setGradingMode] = useState<'FIXED_TIME' | 'DUE_DATE'>('FIXED_TIME')
   const [fixedTime, setFixedTime] = useState('02:30')
@@ -53,9 +47,9 @@ export default function ProfilePage() {
   const [gradingError, setGradingError] = useState<string | null>(null)
 
   const isTeacher = me?.role === 'TEACHER'
-  const canConfigureAi = isTeacher || me?.role === 'ADMIN'
   const [params, setParams] = useSearchParams()
-  const canViewDesign = canConfigureAi
+  // 界面标准（组件与样式）只给教师与管理员看。
+  const canViewDesign = isTeacher || me?.role === 'ADMIN'
   const designOpen = canViewDesign && params.get('panel') === 'ui-kit'
 
   const toggleDesign = () => {
@@ -90,15 +84,6 @@ export default function ProfilePage() {
   }, [])
 
   useEffect(() => {
-    if (!canConfigureAi) return
-    api.get<AiModelsView>('/api/ai-models').then((value) => {
-      setAiOptions(value.options)
-      setAiCurrent(value.currentKey)
-      setAiSelected(value.currentKey || value.options[0]?.key || '')
-    }).catch((e: Error) => setAiError(e.message))
-  }, [canConfigureAi])
-
-  useEffect(() => {
     if (!isTeacher) return
     api.get<GradingPreference>('/api/profile/grading-preferences').then((value) => {
       setGrading(value)
@@ -125,27 +110,6 @@ export default function ProfilePage() {
       await Promise.all([refresh(), refreshProfile()])
     } catch (e) {
       setError((e as Error).message)
-    }
-  }
-
-  const saveAi = async () => {
-    setAiError(null)
-    setAiMessage(null)
-    try {
-      const option = aiOptions.find((item) => item.key === aiSelected)
-      if (!option) {
-        setAiError(t('profile.aiNoOptions'))
-        return
-      }
-      const saved = await api.put<AiModelsView>('/api/ai-models/current', {
-        providerId: option.providerId, model: option.model,
-      })
-      setAiOptions(saved.options)
-      setAiCurrent(saved.currentKey)
-      setAiSelected(saved.currentKey || aiSelected)
-      setAiMessage(t('profile.aiSaved'))
-    } catch (e) {
-      setAiError((e as Error).message)
     }
   }
 
@@ -242,38 +206,6 @@ export default function ProfilePage() {
           </>
         )}
       </div>
-
-      {canConfigureAi && (
-        <div className="card" style={{ maxWidth: 760, marginTop: 16 }}>
-          <h2>{t('profile.aiTitle')}</h2>
-          <p className="small muted">{t('profile.aiSub')}</p>
-          {aiError && <Alert type="error" showIcon message={aiError} style={{ marginBottom: 12 }} />}
-          {aiMessage && <Alert type="success" showIcon message={aiMessage} style={{ marginBottom: 12 }} />}
-          {aiOptions.length === 0 ? (
-            <div className="inline-note">{t('profile.aiNoOptions')}</div>
-          ) : (
-            <>
-              <Field label={t('profile.aiChoose')} hint={t('profile.aiChooseHint')} htmlFor="teacher-ai-model">
-                <select id="teacher-ai-model" value={aiSelected}
-                  onChange={(e) => setAiSelected(e.target.value)}>
-                  {aiOptions.map((option) => (
-                    <option key={option.key} value={option.key}>{option.label}</option>
-                  ))}
-                </select>
-              </Field>
-              <div className="row" style={{ gap: 8 }}>
-                <Button variant="primary" onClick={() => void saveAi()}>{t('profile.aiSave')}</Button>
-              </div>
-              <p className="small muted" style={{ marginTop: 10 }}>
-                {aiCurrent
-                  ? t('profile.aiCurrent', { model: aiOptions.find((o) => o.key === aiCurrent)?.label ?? aiCurrent })
-                  : t('profile.aiNoCurrent')}
-              </p>
-            </>
-          )}
-          <p className="small muted" style={{ marginTop: 10 }}>{t('profile.aiAdminHint')}</p>
-        </div>
-      )}
 
       {isTeacher && (
         <div className="card" style={{ maxWidth: 760, marginTop: 16 }}>

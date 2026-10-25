@@ -26,7 +26,7 @@
 | 表 | 新增 `ai_providers`：`id`、`provider_key`（Provider ID）、`display_name`、`base_url`、`protocol`、`api_key_cipher`、`model`（兼容列，第一个模型）、`models`（JSON 数组，可多个）、`created_at`、`updated_at`、`updated_by` |
 | 当前模型 | `ai_settings.active_provider_id` + `active_model` 指向正在使用的 provider 和模型；v1 只有这一份全局选择 |
 | 谁能配 | 只有 ADMIN：`/admin/ai` 新增/编辑/删除 provider，`POST /models` 拉 `GET {baseUrl}/models`，`POST /test` 测试连接 |
-| 谁能选 | 教师与管理员：`GET /api/ai-models` 返回下拉选项，`PUT /api/ai-models/current` 切换当前 provider；**教师切换后全站生效** |
+| 谁能选 | 只有 ADMIN（2026-10-24 修订，见下）：`PUT /api/ai-models/current` 切换当前 provider，教师调用 403；`GET /api/ai-models` 仍对教师开放，只给顶栏「AI 未配置」提示 |
 | Key | 可空；本地 provider 不需要 Key；只存密文、接口只回掩码；留空表示不修改已保存的 Key |
 | 协议 | v1 只实现 OpenAI 兼容（DeepSeek / Ollama / LM Studio / vLLM）；`anthropic` 字段保留但界面置灰、后端拒绝 |
 | 模型 | 一个 provider 可以保存多个模型；「获取可用模型」后以勾选列表展示，只允许从发现结果里勾选；手填模型 ID 的输入与「添加」按钮已于 2026-10-24 撤除，发现失败即无法保存 |
@@ -38,8 +38,8 @@
 | :--- | :--- |
 | 路由 | 不新增路由；`/profile` 按 `me.role` 渲染 |
 | 学生 | 只看到账号资料（姓名/手机/邮箱）与界面偏好（语言/主题）；不请求 AI 接口 |
-| 教师 | 账号资料 + 界面偏好 + **AI 模型下拉** + 作业批改时机；不填地址/Key/协议 |
-| 管理员 | `/admin/ai` 维护 provider 列表；`/profile` 的 AI 卡片可切换当前模型 |
+| 教师 | 账号资料 + 界面偏好 + 作业批改时机；**没有任何 AI 入口**（AI 卡片与下拉 2026-10-24 撤除） |
+| 管理员 | `/admin/ai` 维护 provider 列表并在每个模型行「设为当前」；`/profile` 不再有 AI 卡片 |
 
 ### C. 批改触发偏好（教师级）
 
@@ -99,3 +99,17 @@ alter table ai_settings add column active_model varchar(100);
 - `teachloop-sitting`：教师级偏好表、调度器、按教师派发（同前）；
 - `web`：`AdminAiPage` provider 列表 + 表单；`ProfilePage` 只保留模型下拉；`Shell` 无模型提示；
 - `specs/002-v2-platform`：D-30、US-45、AC-45、FR-087/088、plan §5/§6.6、tasks T380–T385。
+
+## 2026-10-24 修订：模型选择只属于管理员（D-33）
+
+用户的判断：大模型跟老师没关系，老师只管老师的事，用什么模型和他们无关。
+
+原口径「教师在 `/profile` 只从下拉里选当前全局模型」有两个问题：
+
+1. **它不是教师的个人设置**：`AiProviderService.select` 写的是唯一的 `ai_settings.active_provider_id/active_model`，
+   任何教师点一下「保存选择」，全站所有人的批改模型都被换掉，审计里记的却是这个教师。
+2. **信息层级错了**：管理员在 `/admin/ai` 每个模型行已经有「设为当前」，教师页那张卡只是把同一个全局开关复制了一份。
+
+改法：`/profile` 删掉 AI 卡片（含下拉、当前模型、保存）；`PUT /api/ai-models/current` 收紧为仅 ADMIN，
+教师 403；顶栏「AI 未配置」提示对管理员跳 `/admin/ai`、对教师只显示「请联系管理员」。
+`GET /api/ai-models` 仍对教师开放，只用于这个提示判断当前模型是否存在。

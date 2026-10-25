@@ -45,7 +45,7 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 | 压测 | 50 份提交、并发 10；1+1 p95 45ms/33.8s，2+2 p95 97ms/7.22s | `.docs/perf-report-v2.md` |
 | 质量基线 | v1 四模型段落计数移植，10 份 parity 全一致 | `TextLengthCounterFixtureTest` |
 | Golden set | 10 份人工均分 9.6；deepseek-flash 平均偏差 0.0、最大 0、方向持平 | `docs/reports/golden-set-baseline.md`、`make test-ai` |
-| 管理员初始设置 | `/setup` 创建首个管理员（Key 可空）；`/admin/ai` 维护全局 provider 列表（Key AES-GCM 加密、只回掩码、测试连接、模型发现），教师 `/profile` 只从下拉里选当前全局模型（D-30） | `AiSetupTest`；QA 浏览器 `scripts/verify/ai-model-settings.mjs` 12/12，截图 `docs/reports/t386-ai-model-settings/` |
+| 管理员初始设置 | `/setup` 创建首个管理员（Key 可空）；`/admin/ai` 维护全局 provider 列表（Key AES-GCM 加密、只回掩码、测试连接、模型发现）并切换当前模型；教师 `/profile` 没有任何 AI 入口（D-33，2026-10-24 修订） | `AiSetupTest`；QA 浏览器 `scripts/verify/ai-model-settings.mjs` 12/12，截图 `docs/reports/t386-ai-model-settings/` |
 
 ## 四、部分完成 / 已知偏差
 

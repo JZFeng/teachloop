@@ -582,8 +582,9 @@ GradingWorker 领取 submission
   `user_ai_settings` 与 V038 保留兼容，但不再读取。
 - **谁能配**：`/admin/ai` 仅 ADMIN；`POST /api/admin/ai-providers` 新增，`PUT/DELETE /{id}` 编辑/删除，
   `POST /models` 拉 `GET {baseUrl}/models`，`POST /test` 测试连接。第一个 provider 自动设为当前。
-- **谁能选**：`GET /api/ai-models` 按 provider+model 展开下拉选项；`PUT /api/ai-models/current`
-  写 `active_provider_id` + `active_model`。教师与管理员都可切；**教师切换对全站生效**（v1 口径）。
+- **谁能选**：`GET /api/ai-models` 按 provider+model 展开选项；`PUT /api/ai-models/current`
+  写 `active_provider_id` + `active_model`。**只有 ADMIN 能切**，教师调用 403；教师页没有 AI 入口，
+  教师只是读 `GET`（顶栏「AI 未配置」提示用）。2026-10-24 按 D-33 修订。
 - **可用性**：provider 行只要 `base_url` 与 `model` 非空就可用；Key 可空，本地模型不需要 Key。
   空 Key 的 JDK 客户端不发 `Authorization`；Spring AI 客户端用 `local-no-key` 占位值。
 - **协议**：v1 只接受 `openai`；`anthropic` 字段保留但后端 400、界面置灰。
@@ -936,7 +937,7 @@ WHERE grading_state = 'FAILED'
 | 上传 | 扩展名 + 内容类型双校验；100 MB 上限；视频 ffprobe 探测 |
 | 富文本 | OWASP Sanitizer 白名单；脚本标签丢弃并记安全事件 |
 | 越权 | 访问非本人资源一律 **404**（不泄漏存在性） |
-| AI Key（D-16） | 管理员初始化必填；教师/管理员 `/profile` 可配；全局 Key 在 `/admin/ai`；AES-GCM 密文；GET 只回掩码（末 4 位）；保存即生效；`test` 临时 Key 不落库；不写日志/审计 |
+| AI Key（D-16） | 全局 Key 只在 `/admin/ai` 配（仅 ADMIN，2026-10-24 按 D-33 修订）；AES-GCM 密文；GET 只回掩码（末 4 位）；保存即生效；`test` 临时 Key 不落库；不写日志/审计 |
 | Key 归属 | 作业创建者 Key → 全局 Key；不静默跨 Key 重试；审计只记 `key_source` 与操作者 |
 | Key 生命周期 | 仅 TEACHER/ADMIN 可写；删除/清空需二次确认；密钥轮换只换 `teachloop.security.secret` 时需重填（解密失败给出明确错误） |
 
@@ -1224,7 +1225,7 @@ make seed             # 1 个班 + 30 个学生 + 1 份带标准答案的试卷
 | US-26 | 一次布置（考试 / 作业） | §5.0（`offerings` / `offering_classes` / D-14）、§7.6、§3.3 |
 | US-27 | AI 批改质量与密钥 | §6.1（prompt v2）、§6.5（预填/批量）、§6.6（Key 解析）、§6.7（篇幅/语言）、§9、§11、§18.5 |
 | US-28 | 评分标准契约与质量基准 | §5（rubric 快照/锚点/指标）、§6.1、§18.5、§3.3 |
-| US-45 | 全局 AI provider、教师选模型与批改时机 | §5（`ai_providers` / `ai_settings.active_provider_id` / `teacher_grading_preferences`）、§6.6、§7.3、§7.4、§3.3 |
+| US-45 | 全局 AI provider、模型选择与批改时机（D-33：只有管理员选模型） | §5（`ai_providers` / `ai_settings.active_provider_id` / `teacher_grading_preferences`）、§6.6、§7.3、§7.4、§3.3 |
 | US-62 | AI 调用重试、熔断与失败通知 | §7.7、§3.3（`ai_circuit_state` / `submissions.grading_failed_at`）、§18 |
 
 ## 附录 B：本文件与下游文档的约定

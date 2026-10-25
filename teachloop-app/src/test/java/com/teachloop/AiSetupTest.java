@@ -104,12 +104,15 @@ class AiSetupTest {
                 "select api_key_cipher from ai_providers where provider_key = 'local'", String.class);
         assertThat(providerCipher).isNotBlank().doesNotContain("sk-provider-9999");
 
-        // 教师只看到下拉选项并切换全局模型；学生 403。
+        // 2026-10-24 修订：只有管理员切换全局模型；教师只读（顶栏「AI 未配置」判断要用）；
+        // 教师自己切模型一律 403，避免任何教师改掉全站的批改模型。
         Map<String, Object> options = Json.parse(request(base, teacher, "GET", "/api/ai-models", null).body());
         assertThat(options.get("currentProviderId")).isEqualTo("local");
         assertThat(options.get("currentModel")).isEqualTo("qwen3.8");
         assertThat(options.toString()).contains("Local Qwen");
-        Map<String, Object> switched = Json.parse(request(base, teacher, "PUT", "/api/ai-models/current",
+        assertThat(request(base, teacher, "PUT", "/api/ai-models/current",
+                Map.of("providerId", "local", "model", "qwen3.8-instruct")).statusCode()).isEqualTo(403);
+        Map<String, Object> switched = Json.parse(request(base, admin, "PUT", "/api/ai-models/current",
                 Map.of("providerId", "local", "model", "qwen3.8-instruct")).body());
         assertThat(switched.get("currentModel")).isEqualTo("qwen3.8-instruct");
 

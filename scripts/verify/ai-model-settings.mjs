@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /*
- * 验证 D-30 修订：管理员 provider 列表 + 多模型勾选 + 教师全局模型下拉；学生看不到 AI 设置。
+ * 验证 D-30 修订（2026-10-24 再修订）：管理员 provider 列表 + 多模型勾选 + 管理员切换当前模型；
+ * 教师页没有任何 AI 入口且教师切模型 403；学生看不到 AI 设置。
  * 用法：node scripts/verify/ai-model-settings.mjs（QA 5174 已部署）
  * 依赖：本机 Chrome；脚本自带一个假 OpenAI 服务，不需要真实 Ollama。
  */
@@ -217,30 +218,30 @@ async function main() {
   check('保存后 provider 存了两个模型', saved?.models?.length === 2 && saved?.models?.includes('qwen3.8-instruct'), JSON.stringify(saved))
   await shot('admin')
 
-  // ---- 教师：下拉出现两个模型；选第二个并保存 ----
+  // ---- 教师：/profile 没有任何 AI 入口；教师切模型 403 ----
   await evaluate(`fetch('/api/auth/logout', { method: 'POST' })`)
   check('教师登录', (await login(TEACHER)) === 200)
   await navigate('/profile')
-  await waitUntil(`!!document.querySelector('#teacher-ai-model')`, { label: '教师模型下拉' })
+  await waitUntil(`!!document.querySelector('#profile-name')`, { label: '教师资料页' })
   const teacherView = await evaluate(`({
-    options: [...document.querySelector('#teacher-ai-model').options].map(o => ({ text: o.textContent, value: o.value })),
-    hasOldProviderFields: !!document.querySelector('#ai-provider') || !!document.querySelector('#ai-base-url') || !!document.querySelector('#ai-key'),
+    hasModelSelect: !!document.querySelector('#teacher-ai-model'),
+    hasAiCard: document.body.innerText.includes('AI 模型'),
     hasGrading: !!document.querySelector('#grading-mode'),
+    hasPhone: !!document.querySelector('#profile-phone'),
   })`)
-  check('教师下拉有两个模型', teacherView.options.length === 2 && teacherView.options.some(o => o.text.includes('qwen3.8-instruct')), JSON.stringify(teacherView))
-  check('教师页没有旧自定义 provider 字段', !teacherView.hasOldProviderFields)
-  await evaluate(`(() => {
-    const el = document.querySelector('#teacher-ai-model');
-    const target = [...el.options].find(o => o.value.includes('qwen3.8-instruct'));
-    const setter = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, 'value').set;
-    setter.call(el, target.value);
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-  })()`)
-  await clickButton('保存选择')
-  await sleep(700)
-  const current = await api('/api/ai-models')
-  check('教师选中第二个模型后全站生效', current.body?.currentModel === 'qwen3.8-instruct', JSON.stringify(current.body))
+  check('教师看到资料与批改时机', teacherView.hasPhone && teacherView.hasGrading, JSON.stringify(teacherView))
+  check('教师页没有 AI 模型卡片与下拉', !teacherView.hasModelSelect && !teacherView.hasAiCard, JSON.stringify(teacherView))
+  const teacherPut = await api('/api/ai-models/current', 'PUT', { providerId: 'qaval', model: 'qwen3.8-instruct' })
+  check('教师切换当前模型返回 403', teacherPut.status === 403, JSON.stringify(teacherPut))
   await shot('teacher')
+
+  // ---- 管理员切换当前模型，全站生效 ----
+  await evaluate(`fetch('/api/auth/logout', { method: 'POST' })`)
+  check('管理员登录', (await login(ADMIN)) === 200)
+  const adminPut = await api('/api/ai-models/current', 'PUT', { providerId: 'qaval', model: 'qwen3.8-instruct' })
+  check('管理员切换当前模型成功', adminPut.status === 200 && adminPut.body?.currentModel === 'qwen3.8-instruct', JSON.stringify(adminPut))
+  const current = await api('/api/ai-models')
+  check('切换后全站当前模型是第二个', current.body?.currentModel === 'qwen3.8-instruct', JSON.stringify(current.body))
 
   // ---- 学生：看不到 AI ----
   await evaluate(`fetch('/api/auth/logout', { method: 'POST' })`)

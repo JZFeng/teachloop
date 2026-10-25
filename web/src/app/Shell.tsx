@@ -131,11 +131,14 @@ export function Shell({ children }: { children: ReactNode }) {
                 {t('profile.completeAction')}
               </Button>
             )}
-            {aiMissing && (
-              <Button size="small" variant="primary" onClick={() => navigate('/profile')}>
-                {t('profile.aiMissingAction')}
-              </Button>
-            )}
+            {/* 模型只在 /admin/ai 配；教师页没有 AI 入口，所以教师看到的是提示而不是跳转。 */}
+            {aiMissing && (me?.role === 'ADMIN'
+              ? (
+                <Button size="small" variant="primary" onClick={() => navigate('/admin/ai')}>
+                  {t('profile.aiMissingAction')}
+                </Button>
+              )
+              : <span className="small muted">{t('profile.aiMissingTeacher')}</span>)}
             <Button size="small" icon={<BellOutlined aria-hidden="true" />} onClick={() => navigate('/notifications')}>
               {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
             </Button>
