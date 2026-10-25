@@ -1531,7 +1531,7 @@
       "previewSummary": "解析出 {{words}} 个词，跳过 {{skipped}} 行，清洗 {{cleanups}} 处",
       "wordsEmpty": "还没有词条。",
       "word": "单词",
-      "band": "频段",
+      "band": "常用度",
       "remove": "移除",
       "removeHint": "「移除」只把词移出这个词集：不删词条、不影响学生已领的词与复习进度。",
       "savedToast": "已保存",
@@ -1587,7 +1587,7 @@
       "examples": "例句",
       "analysis": "构词分析",
       "family": "词族（word family）",
-      "familyBand": "BNC 第 {{band}} 千词族",
+      "familyBand": "常用度：前 {{count}} 个高频词族",
       "familySupplement": "补充词表",
       "familyFrequency": "族频次 {{freq}}",
       "familyMissing": "词族待补全（本地词表未命中）",
@@ -1660,7 +1660,7 @@
       "claim": "加入我的词库",
       "claimedDone": "已加入 {{added}} 个词，{{duplicated}} 个已在库",
       "word": "单词",
-      "band": "频段",
+      "band": "常用度",
       "back": "返回词库",
       "empty": "这次布置没有词。"
     }

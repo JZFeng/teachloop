@@ -192,7 +192,7 @@ export default function VocabSetEditPage() {
                       <SpeakerButton form={word.form} compact />
                     </span>
                   </td>
-                  <td>{word.band ? t('vocab.detail.familyBand', { band: word.band }) : '—'}</td>
+                  <td>{word.band ? t('vocab.detail.familyBand', { count: word.band * 1000 }) : '—'}</td>
                   <td>
                     <span className="row" style={{ gap: 6 }}>
                       <Button size="small" disabled={index === 0}

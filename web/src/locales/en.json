@@ -1531,7 +1531,7 @@
       "previewSummary": "{{words}} words, {{skipped}} lines skipped, {{cleanups}} cleanups",
       "wordsEmpty": "No words yet.",
       "word": "Word",
-      "band": "Band",
+      "band": "Frequency",
       "remove": "Remove",
       "removeHint": "\"Remove\" only takes the word out of this set: the word and students' progress are untouched.",
       "savedToast": "Saved",
@@ -1587,7 +1587,7 @@
       "examples": "Examples",
       "analysis": "Word formation",
       "family": "Word family",
-      "familyBand": "BNC band {{band}}",
+      "familyBand": "Frequency: top {{count}} word families",
       "familySupplement": "Supplementary list",
       "familyFrequency": "Family frequency {{freq}}",
       "familyMissing": "Word family pending (not in local list)",
@@ -1660,7 +1660,7 @@
       "claim": "Add to my library",
       "claimedDone": "Added {{added}} words, {{duplicated}} already in library",
       "word": "Word",
-      "band": "Band",
+      "band": "Frequency",
       "back": "Back to library",
       "empty": "This assignment has no words."
     }

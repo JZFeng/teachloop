@@ -91,7 +91,7 @@ export default function VocabAssignmentPreviewPage() {
                 <tr key={`${word.form}-${index}`}>
                   <td>{index + 1}</td>
                   <td>{word.form}</td>
-                  <td>{word.band ? t('vocab.detail.familyBand', { band: word.band }) : '—'}</td>
+                  <td>{word.band ? t('vocab.detail.familyBand', { count: word.band * 1000 }) : '—'}</td>
                 </tr>
               ))}
             </tbody>

@@ -221,7 +221,7 @@ export default function VocabWordDetailPage() {
             <>
               <p className="muted">
                 {detail.family.band >= 1 && detail.family.band <= 30
-                  ? t('vocab.detail.familyBand', { band: detail.family.band })
+                  ? t('vocab.detail.familyBand', { count: detail.family.band * 1000 })
                   : t('vocab.detail.familySupplement')}
                 {' · '}
                 {t('vocab.detail.familyFrequency', { freq: detail.family.familyFreq })}

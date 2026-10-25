@@ -128,7 +128,6 @@ export default function VocabSetsPage() {
                         onChange={() => setSelected(allSelected ? new Set() : new Set(sets!.map((set) => set.id)))} />
                     </th>
                     <th>{t('vocab.sets.name')}</th>
-                    <th>{t('vocab.sets.language')}</th>
                     <th>{t('vocab.sets.wordCount')}</th>
                     <th>{t('vocab.sets.status')}</th>
                     <th>{t('vocab.sets.assignedClasses')}</th>
@@ -155,7 +154,6 @@ export default function VocabSetsPage() {
                           {set.name}
                         </span>
                       </td>
-                      <td>{set.language}</td>
                       <td>{set.wordCount}</td>
                       <td><span className="chip">{set.active ? t('vocab.sets.active') : t('vocab.sets.inactive')}</span></td>
                       <td>{set.assignedClasses}</td>
