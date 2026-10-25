@@ -25,6 +25,9 @@ import java.util.regex.Pattern;
  * 所以同一部分里小节分值不同（完形 1 分、语法填空 1.5 分）也能算对总分。
  * 主观题部分（写作/作文/应用文/口语）不产题项，只给一条提醒。</p>
  *
+ * <p>标题里的三个数字自检（T454）：能同时读到「共 N 题」「每题 X 分」「满分 Y 分」时，
+ * 校验 {@code N × X == Y}；对不上只进 {@code warnings}，不改分值、不阻断导入。</p>
+ *
  * <p>材料（T231）：完形填空、七选五、语法填空的短文没有独立字段，
  * 因此把材料并入题干开头，并把「第 k 空」标成 {@code ___(题号)___}，
  * 让每道题单独拿出来也能作答。</p>
@@ -111,13 +114,49 @@ public final class PaperTextParser {
             Pattern.CASE_INSENSITIVE);
 
     /**
-     * {@code 每小题 1.5 分} / {@code 每题 2 分} / {@code 每小题 1.5 points} / {@code 1.5 points each}。
+     * 「每小题 1.5 分」的各种写法：{@code 每小题 1.5 分} / {@code 每题 2 分} /
+     * {@code 每小题 1.5 points} / {@code 1.5 points each} / {@code 1.5/题} /
+     * {@code 1.5 / quiz /question} / {@code each （question）1.5} / {@code each 1.5 points}。
      *
-     * <p>D-27：中文老师出英文卷时两种写法混用，分值语法统一到 {@code 分|points?|pts?}。</p>
+     * <p>D-27：中文老师出英文卷时两种写法混用，分值语法统一到 {@code 分|points?|pts?}。
+     * T454 按教师实测再放宽两类：斜杠式（{@code 1.5/题}、{@code 1.5 / quiz /question}），
+     * 以及题数词在前、分数在后的英文式（{@code each （question）1.5}）。</p>
+     *
+     * <p>「每(小)题」分支仍要求单位：{@code 每小题 5 秒钟} 不能被读成 5 分。</p>
      */
     private static final Pattern POINTS_PER_ITEM = Pattern.compile(
-            "每(?:小)?题\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)"
-                    + "|(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)\\s*(?:每(?:小)?题|each)",
+            // 每(小)题 1.5 分 / 每题 1.5 points
+            "每(?:小)?题\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)"
+                    // 1.5 分 每题 / 1.5 points each
+                    + "|(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)\\s*(?:每(?:小)?题|each)"
+                    // 1.5/题、1.5 分/题、1.5 / quiz /question
+                    + "|(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)?\\s*/\\s*"
+                    + "(?:小题|题|questions?|quiz(?:zes|s)?|items?)"
+                    // each （question）1.5 / each 1.5 points
+                    + "|each\\s*[（(]?\\s*(?:questions?|quiz(?:zes|s)?|items?)?\\s*[)）]?\\s*"
+                    + "[:：]?\\s*(\\d+(?:\\.\\d+)?)",
+            Pattern.CASE_INSENSITIVE);
+    /**
+     * 标题里的题数：{@code 共 5 小题} / {@code 共5题} / {@code total 5 questions} / {@code total 5 quizs}。
+     *
+     * <p>只用于「题数 × 每题分值 = 满分」的自检（T454），不改
+     * {@link #SUB_QUESTION_COUNT} 那条题数核对的语义。</p>
+     */
+    private static final Pattern ITEM_COUNT_IN_TITLE = Pattern.compile(
+            "共\\s*(\\d+)\\s*(?:小题|题)"
+                    + "|(?:total|共)\\s*(\\d+)\\s*(?:questions?|quiz(?:zes|s)?|items?)",
+            Pattern.CASE_INSENSITIVE);
+    /**
+     * 标题里的满分：{@code 满分 7.5 分} / {@code 满分7.5分} / {@code total score： 7.5} /
+     * {@code total： 7.5 points}。
+     *
+     * <p>英文要求 {@code total score} 或 {@code total:} 带冒号：{@code total 5 questions}
+     * 里的 5 是题数，不能读成满分。</p>
+     */
+    private static final Pattern TOTAL_SCORE_IN_TITLE = Pattern.compile(
+            "(?:满分|总分)\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)?"
+                    + "|total\\s*score\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)?"
+                    + "|total\\s*[:：]\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)?",
             Pattern.CASE_INSENSITIVE);
     /** 任何带单位的分值：{@code 15 分} / {@code 15 points} / {@code 15 pts}。 */
     private static final Pattern ANY_POINTS = Pattern.compile(
@@ -198,7 +237,7 @@ public final class PaperTextParser {
         }
 
         List<ParsedSection> sections = new ArrayList<>();
-        for (Block block : group(lines.subList(0, answerStart))) {
+        for (Block block : group(lines.subList(0, answerStart), warnings)) {
             if (SUBJECTIVE.matcher(block.title).find()) {
                 // D-23：写作/口语部分建 ESSAY 题项（有节按节一题、否则按带题号的写作任务行一题）
                 List<ParsedItem> writing = interpretWriting(block, ctx, warnings);
@@ -306,7 +345,7 @@ public final class PaperTextParser {
     }
 
     /** 按「第X部分 / 第X节」把行分组；没有标题时归到一个匿名部分。 */
-    private static List<Block> group(List<DocumentTextExtractor.SourceLine> lines) {
+    private static List<Block> group(List<DocumentTextExtractor.SourceLine> lines, List<String> warnings) {
         List<Block> blocks = new ArrayList<>();
         List<Sub> subs = null;
         Sub current = null;
@@ -314,6 +353,7 @@ public final class PaperTextParser {
             String text = strip(line.text());
             if (PART_HEADER.matcher(text).matches() || CHINESE_SECTION.matcher(text).matches()
                     || ENGLISH_SECTION.matcher(text).matches()) {
+                checkScoreArithmetic(text, line.number(), warnings);
                 subs = new ArrayList<>();
                 blocks.add(new Block(cleanTitle(text), subs));
                 current = new Sub(cleanTitle(text), text, pointsOf(text), null);
@@ -321,6 +361,7 @@ public final class PaperTextParser {
                 continue;
             }
             if (SUB_HEADER.matcher(text).matches()) {
+                checkScoreArithmetic(text, line.number(), warnings);
                 if (subs == null) {
                     subs = new ArrayList<>();
                     blocks.add(new Block("", subs));
@@ -1210,8 +1251,53 @@ public final class PaperTextParser {
         if (!matcher.find()) {
             return null;
         }
-        String value = matcher.group(1) != null ? matcher.group(1) : matcher.group(2);
-        return value == null ? null : new BigDecimal(value);
+        for (int group = 1; group <= matcher.groupCount(); group++) {
+            if (matcher.group(group) != null) {
+                return new BigDecimal(matcher.group(group));
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 标题行里三个数字的自检：题数 × 每题分值 = 满分（T454）。
+     *
+     * <p>只发提醒，不改分值、不阻断导入——卷面把「共 5 小题；每小题 1.5 分，满分 7.5 分」
+     * 写错时老师要能看到，但导入照走（2026-10-25 用户定：{@code 5 × 1.5 == 7.5} 用来自检，
+     * 不是闸门）。三个数字缺任意一个就不自检，部分标题「（共两节，满分 30 分）」因此不会误报。</p>
+     */
+    private static void checkScoreArithmetic(String rawTitle, int line, List<String> warnings) {
+        BigDecimal count = firstNumber(ITEM_COUNT_IN_TITLE, rawTitle);
+        BigDecimal perItem = pointsOf(rawTitle);
+        BigDecimal total = firstNumber(TOTAL_SCORE_IN_TITLE, rawTitle);
+        if (count == null || perItem == null || total == null || count.signum() <= 0) {
+            return;
+        }
+        BigDecimal computed = perItem.multiply(count);
+        if (computed.compareTo(total) == 0) {
+            return;
+        }
+        warnings.add("第 " + line + " 行「" + rawTitle + "」的分值对不上："
+                + plain(count) + " 题 × " + plain(perItem) + " 分 = " + plain(computed)
+                + " 分，标题写的是满分 " + plain(total) + " 分；已按每题 " + plain(perItem)
+                + " 分导入，请核对");
+    }
+
+    private static BigDecimal firstNumber(Pattern pattern, String text) {
+        Matcher matcher = pattern.matcher(text);
+        if (!matcher.find()) {
+            return null;
+        }
+        for (int group = 1; group <= matcher.groupCount(); group++) {
+            if (matcher.group(group) != null) {
+                return new BigDecimal(matcher.group(group));
+            }
+        }
+        return null;
+    }
+
+    private static String plain(BigDecimal value) {
+        return value.stripTrailingZeros().toPlainString();
     }
 
     private static Integer countOf(String text) {
