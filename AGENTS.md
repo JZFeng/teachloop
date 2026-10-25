@@ -134,3 +134,18 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d
 ```
 
 已知存量（2026-10-23 实测，修之前不要新增）：`AC-27.1–27.6`、`AC-28.1–28.3` 在 002 与 003 各定义一次；`T341` 在 002 与 006 各定义一次。
+
+### 新增编号前先取全局空闲号（MUST）
+
+编号 `US-` / `AC-` / `FR-` / `T` 是**跨 spec 全局唯一**的，不是每个 spec 各排一套。只看自己那份 spec 的最大号就会撞（2026-10-25 实际撞了 4 次：`US-62`、`AC-62.x` 被 002 的「AI 重试」占用，`FR-116–119` 被 002/003 占用，`T441–T446` 被 003 占用）。
+
+落笔前先跑一遍，取下一个空闲号：
+
+```bash
+echo "US $(grep -ho '^### US-[0-9]*' specs/*/spec.md | grep -o '[0-9]*' | sort -n | tail -1)"
+echo "AC $(grep -ho '^- \[[ x]\] AC-[0-9]*' specs/*/spec.md | grep -o '[0-9]*$' | sort -n | tail -1)"
+echo "FR $(grep -ho '^| FR-[0-9]*' specs/*/spec.md | grep -o '[0-9]*' | sort -n | tail -1)"
+echo "T  $(grep -ho '^| T[0-9]*' specs/*/tasks.md | grep -o '[0-9]*' | sort -n | tail -1)"
+```
+
+写完后**必须**再跑上面那两条 `uniq -d`：若出现新重号，说明号取错了，改号重提，不要留在仓库里。
