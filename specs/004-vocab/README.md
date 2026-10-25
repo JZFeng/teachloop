@@ -11,7 +11,7 @@
 | 1. Research | 同类系统做法与取舍；本地词表可行性 | **已补齐**：词表实测见 [`docs/research/2026-10-23-vocab-wordlists-feasibility.md`](../../docs/research/2026-10-23-vocab-wordlists-feasibility.md)；产品对比留待需要时补 |
 | 2. Constitution | 复核是否需要新增条款 | **已复核**：隐私与模块边界沿用第十四/十五条，无需新增条款 |
 | 3. Spec | 用户故事 + 可验收的验收标准 + 功能需求 | **定稿待 final review** 2026-10-23 → [`spec.md`](spec.md)（US-46–69 / **126 条 AC** / FR-091–145）。2026-10-25 增补 **US-69 学生词单**（决策 [`020`](../../docs/decisions/020-vocab-word-lists.md)），同日 US-47 卡组视图标为暂缓 |
-| 4. Mock ⇄ Spec | 可点击原型，画图时发现的缺口回写 Spec | **定稿** 2026-10-23 → [`docs/mock/vocab-2026-10-23/`](../../docs/mock/vocab-2026-10-23/index.html)（13 屏 / 19 张截图；10 轮反馈全部回写 spec §11–23） |
+| 4. Mock ⇄ Spec | 可点击原型，画图时发现的缺口回写 Spec | **定稿** 2026-10-23 → [`docs/mock/vocab-2026-10-23/`](../../docs/mock/vocab-2026-10-23/index.html)（13 屏 / 19 张截图；10 轮反馈全部回写 spec §11–23）。**2026-10-25 追加 US-69 词单原型** → [`docs/mock/vocab-lists-2026-10-25/`](../../docs/mock/vocab-lists-2026-10-25/index.html)（5 屏 + 三态 / 9 张截图；3 条细节回写 AC-69.2/69.3/69.10，10 条待拍板见 spec §25.2） |
 | 5. Plan | 架构、数据模型、模块与端口、迁移路径、测试策略（6 条清单） | **已认可**（用户 2026-10-23），§15 收尾项已闭环；实现前按最终 spec 复核一次 |
 | 6. Tasks | 按依赖排序，每个任务自带验收 | **已完成** 2026-10-23 → [`tasks.md`](tasks.md)（T387–T453 共 50 个任务，含 AC→任务覆盖映射）；2026-10-25 追加 T448–T453（US-69 词单） |
 | 7. Implement | 代码 | **未授权**（用户明确说「开始实现」之后才动） |
