@@ -114,9 +114,26 @@ public final class PaperTextParser {
             Pattern.CASE_INSENSITIVE);
 
     /**
+     * 数字段：阿拉伯数字（可带小数点），或中文数字（{@code 一}、{@code 两}、{@code 十五}、
+     * {@code 二十五}、{@code 一百零五}、{@code 一点五}）。
+     *
+     * <p>T455（2026-10-25 用户要求）：老师写「每小题一分」与「每小题 1 分」必须等价。</p>
+     */
+    private static final String NUMBER = "(?:\\d+(?:\\.\\d+)?"
+            + "|[零一二两三四五六七八九十百]+(?:点[零一二三四五六七八九]+)?)";
+    /** 分值单位：分 / point(s) / pt(s)；{@code 分(?!钟)} 防止「每小题 5 分钟」被读成 5 分。 */
+    private static final String SCORE_UNIT = "(?:分(?!钟)|points?|pts?)";
+    /** 中文数字逐位表（「两」按 2 读）。 */
+    private static final Map<Character, Integer> CHINESE_DIGITS = Map.ofEntries(
+            Map.entry('零', 0), Map.entry('一', 1), Map.entry('二', 2), Map.entry('两', 2),
+            Map.entry('三', 3), Map.entry('四', 4), Map.entry('五', 5), Map.entry('六', 6),
+            Map.entry('七', 7), Map.entry('八', 8), Map.entry('九', 9));
+
+    /**
      * 「每小题 1.5 分」的各种写法：{@code 每小题 1.5 分} / {@code 每题 2 分} /
      * {@code 每小题 1.5 points} / {@code 1.5 points each} / {@code 1.5/题} /
-     * {@code 1.5 / quiz /question} / {@code each （question）1.5} / {@code each 1.5 points}。
+     * {@code 1.5 / quiz /question} / {@code each （question）1.5} / {@code each 1.5 points} /
+     * {@code 每小题一分}。
      *
      * <p>D-27：中文老师出英文卷时两种写法混用，分值语法统一到 {@code 分|points?|pts?}。
      * T454 按教师实测再放宽两类：斜杠式（{@code 1.5/题}、{@code 1.5 / quiz /question}），
@@ -125,16 +142,16 @@ public final class PaperTextParser {
      * <p>「每(小)题」分支仍要求单位：{@code 每小题 5 秒钟} 不能被读成 5 分。</p>
      */
     private static final Pattern POINTS_PER_ITEM = Pattern.compile(
-            // 每(小)题 1.5 分 / 每题 1.5 points
-            "每(?:小)?题\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)"
+            // 每(小)题 1.5 分 / 每题一分
+            "每(?:小)?题\\s*[:：]?\\s*(" + NUMBER + ")\\s*" + SCORE_UNIT
                     // 1.5 分 每题 / 1.5 points each
-                    + "|(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)\\s*(?:每(?:小)?题|each)"
+                    + "|(" + NUMBER + ")\\s*" + SCORE_UNIT + "\\s*(?:每(?:小)?题|each)"
                     // 1.5/题、1.5 分/题、1.5 / quiz /question
-                    + "|(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)?\\s*/\\s*"
+                    + "|(" + NUMBER + ")\\s*(?:" + SCORE_UNIT + ")?\\s*/\\s*"
                     + "(?:小题|题|questions?|quiz(?:zes|s)?|items?)"
                     // each （question）1.5 / each 1.5 points
                     + "|each\\s*[（(]?\\s*(?:questions?|quiz(?:zes|s)?|items?)?\\s*[)）]?\\s*"
-                    + "[:：]?\\s*(\\d+(?:\\.\\d+)?)",
+                    + "[:：]?\\s*(" + NUMBER + ")",
             Pattern.CASE_INSENSITIVE);
     /**
      * 标题里的题数：{@code 共 5 小题} / {@code 共5题} / {@code total 5 questions} / {@code total 5 quizs}。
@@ -143,8 +160,8 @@ public final class PaperTextParser {
      * {@link #SUB_QUESTION_COUNT} 那条题数核对的语义。</p>
      */
     private static final Pattern ITEM_COUNT_IN_TITLE = Pattern.compile(
-            "共\\s*(\\d+)\\s*(?:小题|题)"
-                    + "|(?:total|共)\\s*(\\d+)\\s*(?:questions?|quiz(?:zes|s)?|items?)",
+            "共\\s*(" + NUMBER + ")\\s*(?:小题|题)"
+                    + "|(?:total|共)\\s*(" + NUMBER + ")\\s*(?:questions?|quiz(?:zes|s)?|items?)",
             Pattern.CASE_INSENSITIVE);
     /**
      * 标题里的满分：{@code 满分 7.5 分} / {@code 满分7.5分} / {@code total score： 7.5} /
@@ -154,24 +171,25 @@ public final class PaperTextParser {
      * 里的 5 是题数，不能读成满分。</p>
      */
     private static final Pattern TOTAL_SCORE_IN_TITLE = Pattern.compile(
-            "(?:满分|总分)\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)?"
-                    + "|total\\s*score\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)?"
-                    + "|total\\s*[:：]\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)?",
+            "(?:满分|总分)\\s*[:：]?\\s*(" + NUMBER + ")\\s*(?:" + SCORE_UNIT + ")?"
+                    + "|total\\s*score\\s*[:：]?\\s*(" + NUMBER + ")\\s*(?:" + SCORE_UNIT + ")?"
+                    + "|total\\s*[:：]\\s*(" + NUMBER + ")\\s*(?:" + SCORE_UNIT + ")?",
             Pattern.CASE_INSENSITIVE);
-    /** 任何带单位的分值：{@code 15 分} / {@code 15 points} / {@code 15 pts}。 */
+    /** 任何带单位的分值：{@code 15 分} / {@code 15 points} / {@code 15 pts} / {@code 十五分}。 */
     private static final Pattern ANY_POINTS = Pattern.compile(
-            "(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)", Pattern.CASE_INSENSITIVE);
-    /** 写作任务行的「满分 N 分」：{@code 满分 15 分} / {@code 总分: 15 points}。 */
+            "(" + NUMBER + ")\\s*" + SCORE_UNIT, Pattern.CASE_INSENSITIVE);
+    /** 写作任务行的「满分 N 分」：{@code 满分 15 分} / {@code 总分: 15 points} / {@code 满分十五分}。 */
     private static final Pattern TASK_SCORE = Pattern.compile(
-            "(?:满分|总分|total)\\s*[:：]?\\s*(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)",
+            "(?:满分|总分|total)\\s*[:：]?\\s*(" + NUMBER + ")\\s*" + SCORE_UNIT,
             Pattern.CASE_INSENSITIVE);
     /** 写作任务行的人才有的词：用来把「15. 应用文写作」和「1. 表达理解；」区分开。 */
     private static final Pattern WRITING_TASK_HINT = Pattern.compile(
             "写作|作文|应用文|书面表达|口语|演讲|发言稿|书信|通知");
     /** 只有下划线的作答行：不进题干。 */
     private static final Pattern BLANK_ANSWER_LINE = Pattern.compile("^\\s*_{3,}\\s*$");
-    /** {@code 共 5 小题}。 */
-    private static final Pattern SUB_QUESTION_COUNT = Pattern.compile("共\\s*(\\d+)\\s*小题");
+    /** {@code 共 5 小题} / {@code 共五小题}。 */
+    private static final Pattern SUB_QUESTION_COUNT = Pattern.compile(
+            "共\\s*(" + NUMBER + ")\\s*小题");
     /** 主观题小节：不产题项。 */
     private static final Pattern SUBJECTIVE = Pattern.compile(
             "写作|作文|应用文|书面表达|口语|翻译|简答|论述|书面");
@@ -747,10 +765,10 @@ public final class PaperTextParser {
         }
         Matcher score = TASK_SCORE.matcher(text);
         if (score.find()) {
-            return new BigDecimal(score.group(1));
+            return numberOf(score.group(1));
         }
         Matcher any = ANY_POINTS.matcher(text);
-        return any.find() ? new BigDecimal(any.group(1)) : null;
+        return any.find() ? numberOf(any.group(1)) : null;
     }
 
     private static int firstLine(List<DocumentTextExtractor.SourceLine> lines) {
@@ -1253,10 +1271,65 @@ public final class PaperTextParser {
         }
         for (int group = 1; group <= matcher.groupCount(); group++) {
             if (matcher.group(group) != null) {
-                return new BigDecimal(matcher.group(group));
+                return numberOf(matcher.group(group));
             }
         }
         return null;
+    }
+
+    /**
+     * 把捕获到的数字段转成数值：阿拉伯数字直接解析，中文数字按「十 / 百 / 点」组合（T455）。
+     *
+     * <p>{@code 一} → 1、{@code 两} → 2、{@code 十五} → 15、{@code 二十五} → 25、
+     * {@code 一百零五} → 105、{@code 一点五} → 1.5。</p>
+     */
+    private static BigDecimal numberOf(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        String text = raw.strip();
+        if (Character.isDigit(text.charAt(0))) {
+            return new BigDecimal(text);
+        }
+        return chineseDecimal(text);
+    }
+
+    private static BigDecimal chineseDecimal(String text) {
+        int dot = text.indexOf('点');
+        if (dot < 0) {
+            return BigDecimal.valueOf(chineseInteger(text));
+        }
+        StringBuilder fraction = new StringBuilder();
+        for (int i = dot + 1; i < text.length(); i++) {
+            Integer digit = CHINESE_DIGITS.get(text.charAt(i));
+            if (digit == null) {
+                return null;
+            }
+            fraction.append(digit);
+        }
+        return new BigDecimal(chineseInteger(text.substring(0, dot)) + "." + fraction);
+    }
+
+    /** 中文整数：{@code 十五} → 15、{@code 一百零五} → 105；分值量级只到百位。 */
+    private static int chineseInteger(String text) {
+        int total = 0;
+        int number = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c == '百') {
+                total += (number == 0 ? 1 : number) * 100;
+                number = 0;
+            } else if (c == '十') {
+                total += (number == 0 ? 1 : number) * 10;
+                number = 0;
+            } else {
+                Integer digit = CHINESE_DIGITS.get(c);
+                if (digit != null) {
+                    number = digit;
+                }
+            }
+        }
+        return total + number;
     }
 
     /**
@@ -1290,7 +1363,7 @@ public final class PaperTextParser {
         }
         for (int group = 1; group <= matcher.groupCount(); group++) {
             if (matcher.group(group) != null) {
-                return new BigDecimal(matcher.group(group));
+                return numberOf(matcher.group(group));
             }
         }
         return null;
@@ -1302,7 +1375,11 @@ public final class PaperTextParser {
 
     private static Integer countOf(String text) {
         Matcher matcher = SUB_QUESTION_COUNT.matcher(text);
-        return matcher.find() ? Integer.valueOf(matcher.group(1)) : null;
+        if (!matcher.find()) {
+            return null;
+        }
+        BigDecimal count = numberOf(matcher.group(1));
+        return count == null ? null : count.intValue();
     }
 
     private static int parseNumber(String raw, int line) {

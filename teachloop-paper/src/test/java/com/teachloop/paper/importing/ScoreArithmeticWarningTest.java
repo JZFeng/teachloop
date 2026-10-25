@@ -68,6 +68,57 @@ class ScoreArithmeticWarningTest {
                 assertThat(item.points()).isNull());
     }
 
+    @Test
+    @DisplayName("中文数字分值等价：每小题一分 = 每小题 1 分")
+    void readsChineseDigitPointsPerItem() {
+        PaperTextParser.Result result = parse("第一节 每小题一分");
+
+        assertThat(result.warnings()).isEmpty();
+        assertThat(result.items()).hasSize(5).allSatisfy(item ->
+                assertThat(item.points()).isEqualByComparingTo("1"));
+    }
+
+    @Test
+    @DisplayName("题数、每题分值、满分全用中文也能自检：五小题 × 一点五分 = 七点五分")
+    void checksArithmeticWithChineseNumeralsEverywhere() {
+        PaperTextParser.Result result = parse("第一节（共五小题；每小题一点五分，满分七点五分）");
+
+        assertThat(result.warnings()).isEmpty();
+        assertThat(result.items()).hasSize(5).allSatisfy(item ->
+                assertThat(item.points()).isEqualByComparingTo("1.5"));
+    }
+
+    @Test
+    @DisplayName("中文写错也只提醒：五小题 × 二分 ≠ 八分")
+    void warnsOnChineseNumeralsThatDoNotAddUp() {
+        PaperTextParser.Result result = parse("第一节（共五小题；每小题二分，满分八分）");
+
+        assertThat(result.items()).hasSize(5);
+        assertThat(result.warnings()).anySatisfy(warning -> assertThat(warning)
+                .contains("5 题 × 2 分 = 10 分")
+                .contains("满分 8 分"));
+    }
+
+    @Test
+    @DisplayName("「每小题 5 分钟」不是分值")
+    void doesNotMistakeMinutesForPoints() {
+        PaperTextParser.Result result = parse("第一节（共 5 小题；每小题 5 分钟）");
+
+        assertThat(result.warnings()).isEmpty();
+        assertThat(result.items()).hasSize(5).allSatisfy(item ->
+                assertThat(item.points()).isNull());
+    }
+
+    @Test
+    @DisplayName("只有正文行写了「每小题 1.5 分」也照导入，不拦老师")
+    void keepsImportingWhenTheScoreIsOnlyInBodyText() {
+        PaperTextParser.Result result = parse("每小题 1.5 分");
+
+        assertThat(result.warnings()).isEmpty();
+        assertThat(result.items()).hasSize(5).allSatisfy(item ->
+                assertThat(item.points()).isNull());
+    }
+
     /** 一份 5 道题的最小卷子；小节标题由用例给定。 */
     private static PaperTextParser.Result parse(String subHeader) {
         StringBuilder raw = new StringBuilder("第一部分 听力\n").append(subHeader).append('\n');

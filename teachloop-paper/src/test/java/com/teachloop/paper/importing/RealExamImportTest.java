@@ -135,6 +135,13 @@ class RealExamImportTest {
         assertThat(result.missingAnswers()).hasSize(75);
     }
 
+    @Test
+    void reportsNoWarningsOnTheRealPaper() throws IOException {
+        // T454/T455：标题行的「N 题 × 每题分值 = 满分」自检与中文数字支持
+        // 不能在这份真实的、分值全写对的卷子上产生误报。
+        assertThat(parseFixture().warnings()).isEmpty();
+    }
+
     private static BigDecimal pointsOf(PaperTextParser.Result result, int number) {
         return item(result, number).points();
     }
