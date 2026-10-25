@@ -50,14 +50,31 @@ export function SpeakerButton({
     audioRef.current?.pause()
     audioRef.current = null
     release()
+    if (utteranceRef.current && 'speechSynthesis' in window) {
+      window.speechSynthesis.cancel()
+      utteranceRef.current = null
+    }
   }, [])
 
+  // T438：浏览器回落——语速略放慢（默认 1.0 太快）；保留 utterance 引用，
+  // 否则被 GC 回收时 Chrome/Safari 会把结尾吞掉（听起来像被 cut）。
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null)
   const fallback = () => {
-    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(form)
-      utterance.lang = accent === 'uk' ? 'en-GB' : 'en-US'
-      window.speechSynthesis.speak(utterance)
+    if (!('speechSynthesis' in window)) return
+    const synth = window.speechSynthesis
+    synth.cancel()
+    const utterance = new SpeechSynthesisUtterance(form)
+    utterance.lang = accent === 'uk' ? 'en-GB' : 'en-US'
+    utterance.rate = 0.9
+    utterance.pitch = 1
+    utterance.volume = 1
+    utteranceRef.current = utterance
+    const release = () => {
+      if (utteranceRef.current === utterance) utteranceRef.current = null
     }
+    utterance.onend = release
+    utterance.onerror = release
+    synth.speak(utterance)
   }
 
   const speak = async () => {

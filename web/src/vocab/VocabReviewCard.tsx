@@ -4,6 +4,7 @@ import {
   DeleteOutlined,
   PauseCircleOutlined,
   PlayCircleOutlined,
+  PlusOutlined,
   StarFilled,
   StarOutlined,
 } from '../ui'
@@ -46,6 +47,7 @@ export function VocabReviewCard({
   flipped,
   onFlip,
   onToggleFavorite,
+  onAdd,
   onDelete,
   paused = false,
   onTogglePause,
@@ -58,6 +60,8 @@ export function VocabReviewCard({
   flipped: boolean
   onFlip: () => void
   onToggleFavorite?: () => void
+  /** 不在库时的「＋ 加入词库」，与收藏同一行的图标按钮 */
+  onAdd?: () => void
   onDelete?: () => void
   /** 自由复习的暂停开关：`paused` 决定图标（⏸/▶），点一下切换 */
   paused?: boolean
@@ -100,7 +104,7 @@ export function VocabReviewCard({
               </span>
             </div>
           </div>
-          {(onToggleFavorite || (!flipped && (onDelete || onTogglePause))) && (
+          {(onToggleFavorite || onAdd || (!flipped && (onDelete || onTogglePause))) && (
             <div className="review-card-head-actions" onClick={(event) => event.stopPropagation()}>
               {onToggleFavorite && (
                 <button
@@ -112,6 +116,17 @@ export function VocabReviewCard({
                   onClick={onToggleFavorite}
                 >
                   {word.favorite ? <StarFilled /> : <StarOutlined />}
+                </button>
+              )}
+              {onAdd && (
+                <button
+                  type="button"
+                  className="review-icon-action"
+                  aria-label={t('vocab.detail.addToLibrary')}
+                  title={t('vocab.detail.addToLibrary')}
+                  onClick={onAdd}
+                >
+                  <PlusOutlined />
                 </button>
               )}
               {!flipped && onDelete && (

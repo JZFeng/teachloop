@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import {
+  ArrowLeftOutlined,
   Button,
   Empty,
   ErrorState,
@@ -204,21 +205,13 @@ export default function VocabWordDetailPage() {
       <PageHeader
         title={detail.form}
         hideTitle
-        actions={(
-          <div className="row" style={{ gap: 8 }}>
-            {detail.inLibrary
-              ? (
-                <Button size="small" onClick={() => setFeedbackOpen(true)}>
-                  {t('vocab.detail.feedback')}
-                </Button>
-              )
-              : (
-                <Button size="small" variant="primary" onClick={() => void addToLibrary()}>
-                  {t('vocab.detail.addToLibrary')}
-                </Button>
-              )}
-          </div>
-        )}
+        actions={detail.inLibrary
+          ? (
+            <Button size="small" onClick={() => setFeedbackOpen(true)}>
+              {t('vocab.detail.feedback')}
+            </Button>
+          )
+          : undefined}
       />
 
       <div className="review-stage review-stage--today">
@@ -233,17 +226,26 @@ export default function VocabWordDetailPage() {
             flipped={flipped}
             onFlip={() => setFlipped((value) => !value)}
             onToggleFavorite={detail.inLibrary ? () => void toggleFavorite() : undefined}
+            onAdd={detail.inLibrary ? undefined : () => void addToLibrary()}
             emptyHint={emptyHint}
           />
-          <div className="review-session-foot">
-            <Button size="small" onClick={() => navigate(-1)}>{t('common.back')}</Button>
-            {contentFailed && (
+          {contentFailed && (
+            <div className="review-session-foot">
               <Button size="small" loading={retrying} onClick={() => void retryContent()}>
                 {t('vocab.review.retryContent')}
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
+
+        <Button
+          size="large"
+          className="review-exit"
+          icon={<ArrowLeftOutlined />}
+          onClick={() => navigate(-1)}
+        >
+          {t('common.back')}
+        </Button>
       </div>
 
       <Modal open={feedbackOpen} title={t('vocab.detail.feedbackTitle')}

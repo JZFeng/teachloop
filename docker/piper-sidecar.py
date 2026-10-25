@@ -22,6 +22,18 @@ PIPER_MODEL_DIR = os.environ.get("PIPER_MODEL_DIR", "/app/piper")
 PIPER_DEFAULT_VOICE = os.environ.get("PIPER_DEFAULT_VOICE", "en_US-amy-medium")
 PIPER_PORT = int(os.environ.get("PIPER_PORT", "5002"))
 
+# T438：不同版本的 piper CLI 参数名不一样（旧版 --length_scale，新版可能 --length-scale）。
+# 启动时探一次 --help，按实际支持的写法传语速，避免某个版本直接 503。
+try:
+    _HELP = subprocess.run([PIPER_BIN, "--help"], capture_output=True, text=True, timeout=10).stdout
+except Exception:  # 引擎未装好时按不支持处理，等真调用再回落
+    _HELP = ""
+LENGTH_SCALE_FLAG = (
+    "--length_scale" if "--length_scale" in _HELP
+    else "--length-scale" if "--length-scale" in _HELP
+    else None
+)
+
 
 def model_for(voice: str) -> str | None:
     """T427：一个 voice 一个模型文件；默认音色仍尊重 PIPER_MODEL 覆盖。"""
@@ -57,11 +69,20 @@ class Handler(BaseHTTPRequestHandler):
             if model is None:
                 self._json(503, {"error": f"voice model missing: {voice}"})
                 return
+            # T438：rate<1 表示放慢；piper 用 length_scale（越大越慢）
+            try:
+                rate = float(payload.get("rate") or 1.0)
+            except (TypeError, ValueError):
+                rate = 1.0
+            rate = min(2.0, max(0.5, rate))
             with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as output:
                 output_path = output.name
+            command = [PIPER_BIN, "--model", model, "--output_file", output_path]
+            if LENGTH_SCALE_FLAG:
+                command += [LENGTH_SCALE_FLAG, f"{1.0 / rate:.3f}"]
             try:
                 subprocess.run(
-                    [PIPER_BIN, "--model", model, "--output_file", output_path],
+                    command,
                     input=text.encode("utf-8"), check=True, timeout=10,
                     stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
                 )

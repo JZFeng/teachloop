@@ -153,6 +153,20 @@
 .review-next.is-highlighted { opacity: 1; color: var(--on-accent); }
 .review-next.is-highlighted:hover { color: var(--on-accent); }
 
+/* T438：查词页的「返回」放在原「下一个」的位置，同尺寸、次要样式 */
+.review-exit.ant-btn {
+  align-self: center;
+  min-width: 168px;
+  height: 58px;
+  padding: 0 28px;
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--text);
+  border-color: var(--line-strong);
+  transition: border-color 0.12s, color 0.12s;
+}
+.review-exit.ant-btn:hover { color: var(--text); border-color: var(--accent); }
+
 /* T436：自由复习的「暂停这个词」与快捷键行，放在卡片下方居中 */
 .review-session-foot {
   display: flex;
@@ -248,7 +262,8 @@
 }
 @media (max-width: 760px) {
   .review-stage { flex-direction: column; align-items: stretch; }
-  .review-next.ant-btn { margin-top: 0; align-self: flex-end; }
+  .review-next.ant-btn,
+  .review-exit.ant-btn { margin-top: 0; align-self: flex-end; }
   .review-card { min-height: 360px; padding: 24px 20px; }
 }
 
