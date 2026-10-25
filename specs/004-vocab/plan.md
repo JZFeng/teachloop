@@ -250,7 +250,8 @@ P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` �
 ### 4.2.1 内容结构
 
 - 每条内容 = 一个词，`schemaVersion: 2`；字段见 decisions/018：`basicInfo` / `meanings{zh,en,es}` /
-  `examples[{text, translations, partOfSpeech, usagePattern, popularity}]` / `memoryAids` / `wordFamily`。
+  `examples[{text, translations, partOfSpeech, usagePattern, popularity}]`（1–6 条，自然优先）/
+  `wordFormation{analysis, parts[], confidence}`（可选）/ `memoryAids` / `wordFamily`。
 - 内容包（P2）的每条记录就是这份 JSON；delta 行同样存 v2。`schemaVersion` 与配置不一致时按 miss 处理（重新生成）。
 - 词库/复习卡只取 `meanings` + 前 1–2 条例句；详情页按模板渲染。
 

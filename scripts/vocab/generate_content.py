@@ -26,7 +26,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-PROMPT_VERSION = "vocab-content-v2.1"
+PROMPT_VERSION = "vocab-content-v2.2"
 LANGUAGES = ("zh", "en", "es")
 
 SYSTEM = """You write vocabulary learning content as strict JSON.
@@ -52,6 +52,11 @@ Schema:
       "popularity": integer
     }
   ],
+  "wordFormation": {
+    "analysis": string,
+    "parts": [{"text": string, "type": string, "meaning": string}],
+    "confidence": "high"
+  },
   "memoryAids": {
     "synonyms": [{"word": string, "partOfSpeech": string}],
     "antonyms": [{"word": string, "partOfSpeech": string}],
@@ -64,12 +69,13 @@ Schema:
 }
 
 Rules:
-1. examples: exactly 6 entries. Each sentence must be natural, idiomatic and short, the kind a native speaker actually says, and must contain the word or a standard inflection. Cover every major part of speech of the word at least once. usagePattern is the real phrase the sentence uses, starting with the word or its article: "struggle to do something", "struggle with something", "the apple of one's eye", "an apple a day". Do not repeat a usagePattern. popularity is a unique integer 1..6 ordering examples by part-of-speech frequency and usage commonness, common verb patterns first, noun uses after.
+1. examples: 1 to 6 entries. Give 6 when the word naturally supports it; 1 to 3 is acceptable for function words, rare words or concrete nouns with few collocations. Never pad with unnatural sentences. Each sentence must be natural, idiomatic and short, the kind a native speaker actually says, and must contain the word or a standard inflection. Cover every major part of speech at least once when you give more than one example. usagePattern is the real phrase the sentence uses, starting with the word or its article: "struggle to do something", "the apple of one's eye". usagePattern may repeat when the word has few patterns, but the sentences must be distinct. popularity is a unique integer starting at 1, ordered by part-of-speech frequency and usage commonness, common verb patterns first, noun uses after.
 2. translations: only the explanation languages that differ from the target language (for an English word: zh and es, never en). The target-language sentence is already in text.
 3. meanings: concise learner-facing definitions in Simplified Chinese (zh), English (en) and Spanish (es), covering the main senses and their order.
-4. synonyms and antonyms: only real words with the same part of speech as the target; arrays may be empty; never invent.
-5. wordFamily: at most 6 real derived forms or inflections, no duplicates and no invented compounds, each with part of speech and meanings in zh, en, es.
-6. pronunciation: IPA in slashes (UK and US).
+4. wordFormation: real morphology only (root, prefix, suffix, derivation, origin). Use "parts" only when you are sure of the segmentation; set confidence high/medium/low. Omit the whole wordFormation object when you are not confident; never invent etymology.
+5. synonyms and antonyms: only real words with the same part of speech as the target; arrays may be empty; never invent.
+6. wordFamily: at most 6 real derived forms or inflections, no duplicates and no invented compounds, each with part of speech and meanings in zh, en, es.
+7. pronunciation: IPA in slashes (UK and US).
 """
 
 
@@ -79,7 +85,7 @@ def user_prompt(word: str, language: str, example_count: int) -> str:
         f"Word: {word}\n"
         f"Target language: {language}\n"
         f"Explanation languages: zh, en, es (translations exclude {language}; use {', '.join(others)})\n"
-        f"Example count: {example_count}\n"
+        f"Example count: up to {example_count} (fewer is fine when the word has few natural patterns)\n"
         "Sort rule: order examples by part-of-speech frequency and usage commonness; "
         "the most common verb patterns first, noun uses after."
     )
@@ -143,11 +149,11 @@ def validate(obj: dict, word: str, language: str, example_count: int) -> list[st
             problems.append(f"meanings.{lang} empty")
 
     examples = obj.get("examples")
-    if not isinstance(examples, list) or len(examples) != example_count:
-        problems.append(f"examples count != {example_count}")
+    if not isinstance(examples, list) or not (1 <= len(examples) <= example_count):
+        problems.append(f"examples count must be 1..{example_count}")
     else:
         popularity = []
-        patterns = []
+        sentences = []
         for index, example in enumerate(examples):
             text = str(example.get("text", ""))
             if not text.strip():
@@ -156,12 +162,11 @@ def validate(obj: dict, word: str, language: str, example_count: int) -> list[st
                 problems.append(f"examples[{index}].text missing word")
             if not str(example.get("partOfSpeech", "")).strip():
                 problems.append(f"examples[{index}].partOfSpeech empty")
-            pattern = str(example.get("usagePattern", "")).strip()
-            if not pattern:
+            if not str(example.get("usagePattern", "")).strip():
                 problems.append(f"examples[{index}].usagePattern empty")
-            if pattern.lower() in patterns:
-                problems.append(f"examples[{index}].usagePattern duplicated")
-            patterns.append(pattern.lower())
+            if text.strip().lower() in sentences:
+                problems.append(f"examples[{index}].text duplicated")
+            sentences.append(text.strip().lower())
             translations = example.get("translations") or {}
             for lang in LANGUAGES:
                 if lang == language:
@@ -173,8 +178,26 @@ def validate(obj: dict, word: str, language: str, example_count: int) -> list[st
                 problems.append(f"examples[{index}].popularity is not integer")
             else:
                 popularity.append(value)
-        if sorted(popularity) != list(range(1, example_count + 1)):
+        if sorted(popularity) != list(range(1, len(examples) + 1)):
             problems.append("popularity must be unique 1..N")
+
+    formation = obj.get("wordFormation")
+    if formation is not None:
+        if not isinstance(formation, dict):
+            problems.append("wordFormation must be an object")
+        else:
+            if not str(formation.get("analysis", "")).strip():
+                problems.append("wordFormation.analysis empty")
+            if formation.get("confidence") not in ("high", "medium", "low"):
+                problems.append("wordFormation.confidence invalid")
+            parts = formation.get("parts", [])
+            if not isinstance(parts, list):
+                problems.append("wordFormation.parts must be a list")
+            else:
+                for index, part in enumerate(parts):
+                    if not isinstance(part, dict) or not all(
+                            str(part.get(key, "")).strip() for key in ("text", "type", "meaning")):
+                        problems.append(f"wordFormation.parts[{index}] incomplete")
 
     family = (obj.get("wordFamily") or {}).get("items")
     if not isinstance(family, list):

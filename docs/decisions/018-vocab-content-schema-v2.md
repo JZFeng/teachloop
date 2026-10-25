@@ -1,6 +1,6 @@
 # 决策 018 — 词详情内容结构 v2：多语言、例句配置、可配置页面模板
 
-日期：2026-10-24　状态：生效（2026-10-24 用户确认）　相关：US-60、AC-60.x、AC-48.14、T432/T433
+日期：2026-10-24　状态：生效（2026-10-24 用户确认，v2.2）　相关：US-60、AC-60.x、AC-48.14、T432/T433
 输入：用户 2026-10-24 提供的 `word_detail_page` 样例 JSON 与语言/例句配置要求。
 
 ## 1. 内容结构 v2（每条内容 = 一个词，语言无关的键）
@@ -31,6 +31,11 @@
       "popularity": 1
     }
   ],
+  "wordFormation": {
+    "analysis": "struggle 源自古法语 estrangler…",
+    "parts": [{ "text": "strive", "type": "root", "meaning": "努力" }],
+    "confidence": "high"
+  },
   "memoryAids": {
     "synonyms": ["strive", "fight", "battle", "endeavor"],
     "antonyms": ["surrender", "yield", "give up"],
@@ -51,7 +56,11 @@
 - `language` 是**词本身**的语言（目标语言）；`meanings` / `translations` 的键是解释语言。
 - 例句 `text` 用目标语言，`translations` 至少含主语言；`partOfSpeech`、`usagePattern`、`popularity`
   用于排序与展示；前端在 `text` 里高亮该词。
-- `examples` 至少返回 `AIRequestCount` 条（默认 6），页面默认显示 3 条，「More」再显示 3 条。
+- `examples` **1–6 条**：自然情况下给 6 条，虚词/罕见词/单义具体名词给 1–3 条也接受，绝不硬凑；
+  `usagePattern` 可重复（词的搭配本来就少时），但句子必须不同；`popularity` 1..N。
+  页面默认显示 3 条（不足 3 条就显示实际条数），「More」展开剩余。
+- `wordFormation` 单独顶层字段（不放进 `memoryAids`）：`analysis` 构词/来源说明，`parts[]` 词根词缀，
+  `confidence` high/medium/low；没把握就整个省略，不编词源。
 - `schemaVersion` 每记录一份；ContentStore 只返回与配置一致的版本，换结构 = 出新包/新 prompt 版本。
 
 ## 2. 语言档案（per user，不属于词内容）
