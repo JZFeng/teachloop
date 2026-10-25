@@ -9,7 +9,9 @@
 不再出现「先入队、worker 失败、界面只剩『失败』」。
 
 - 前端：`isAIReady()`（用户点名要的那个函数）+ 批改详情页常驻横幅 + 4 个 AI 按钮的前置守卫 + 背单词重试守卫。
-- 后端：`GET /api/ai-readiness`（唯一真源）+ 5 处 409 闸门；自动派发与定时作业一行未动。
+- 后端：`GET /api/ai-readiness`（唯一真源）+ 5 处手动入口的 409 闸门。
+- 自动派发 / 夜间作业（2026-10-24 追加拍板）：**quick fail** —— 不入队、提交留在 QUEUED、固定时刻不消耗，
+  每个「未就绪周期」记一条日志并给管理员与相关老师各发一条站内通知；配好模型后下一轮扫描自动继续。
 
 ## 问题与预期（用户报的 Bug）
 
@@ -30,6 +32,8 @@
 | 闸门 | `OfferingEndpoint.retryFailed` | 同上（重试只会再失败一次） |
 | 闸门 | `ExplanationEndpoint.generate` | 看 `configured`（错题解析没有 stub 替身） |
 | 闸门 | `VocabularyWordActionsEndpoint.retry` | 看 `configured`；只放宽「词库生成引擎=stub」这一种测试/演示组合 |
+| 自动派发闸门 | `OfferingGradingDispatcher.autoDispatch` / `dispatchAssignmentsForTeacher` / `dispatchAssignmentsDueForTeacher` | 未就绪时不建 run、不推进队列；记日志 + 通知；固定时刻不消耗 |
+| 调度器 | `TeacherGradingScheduler` | 被 quick fail 拦住时**不**写 `last_fixed_run_at`，配置后下一轮扫描继续 |
 
 为什么区分 `configured` / `ready`：`stub` 是开发替身，没有 Key 也能出分。若只用「有没有 Key」判断，
 QA/测试环境（`teachloop.grading.engine=stub`）点「让 AI 先批」会被误拦，演示流程直接坏掉。
@@ -37,6 +41,22 @@ QA/测试环境（`teachloop.grading.engine=stub`）点「让 AI 先批」会被
 
 文案走 `messages.properties` / `messages_zh_CN.properties` 的 `error.ai.notConfigured`（中英各一条），
 `api/`、`service/` 包里没有新增中文字面量。
+
+### 自动派发 / 夜间作业：quick fail（2026-10-24 用户拍板）
+
+用户口径：「小概率事件，这种情况 quick fail，计入 log，发送 notification 给管理员和相关老师」。
+
+| 场景 | 行为 |
+| :--- | :--- |
+| 到期考试（`autoDispatch`） | 未就绪时整轮跳过：不 `markGradingDispatched`、不建 run、不把 QUEUED 转 PENDING |
+| 固定时刻作业（`dispatchAssignmentsForTeacher`） | 同上；返回 `AssignmentDispatch(0, blockedByAi=true)`，调度器**不**记「今天跑过了」 |
+| due-date 作业（`dispatchAssignmentsDueForTeacher`） | 同上；每分钟扫描会重试，配好模型后自动继续 |
+| 日志 | 每个「未就绪周期」一条 `WARN`（含场次数、老师、首个场次 id）；重复扫描不再刷屏 |
+| 站内通知 | 每个「未就绪周期」给**相关老师**（作业/考试创建者）与**全部管理员**各一条，kind=`ai_not_ready`，文案按收件人语言渲染（`notification.ai_not_ready.title/body`） |
+| 去重 | 老师按 id 去重、管理员一个全局标志；恢复就绪后清空，下次断供再通知一次 |
+| 恢复后 | 提交仍是 QUEUED，下一轮扫描自动派发；不需要老师点「重试失败」 |
+
+多实例部署时每个实例各通知一次（可接受的重复）；语义仍由 `readiness()` 决定，不会因为实例不同而状态分叉。
 
 ### 前端
 
@@ -55,10 +75,12 @@ QA/测试环境（`teachloop.grading.engine=stub`）点「让 AI 先批」会被
 
 | 测试 / 守卫 | 结果 |
 | :--- | :--- |
-| `AiReadinessTest`（新，唯一 `engine=ai` 的 app 测试） | 1 / 1：无 provider 时 200 且 `configured=ready=false`、学生 403、派发与单份派发 409 且 run 数=0 / 提交仍 QUEUED、配好 provider 后 `source=provider` 且派发 200 / `enqueued=1` |
+| `AiReadinessTest`（新，唯一 `engine=ai` 的 app 测试） | 1 / 1：就绪契约（无 provider → `configured=ready=false`、学生 403）；手动派发与单份派发 409 且 run=0/仍 QUEUED；**自动派发 quick fail**（固定时刻扫描不推进队列、不消耗 `last_fixed_run_at`、老师+管理员各一条通知、重复扫描不重复通知；到期考试同样跳过）；配好 provider 后考试按到期、作业按固定时刻自动派发，手动派发幂等 200 |
 | `ExplanationEndpointTest` | 8 / 8（新增「未配置 → CONFLICT 且不选题」） |
 | `GradingDispatchTest` / `AiSetupTest` / `ClassAccessTest` / `ManualGradingTest` / `ReviewWorkflowTest` / `NightlyAssignmentGradingTest` | 21 / 21（stub 引擎下 `ready` 恒 true，没有被误拦） |
 | `VocabularyWordActionsTest` / `VocabGenerationTest` | 3 / 3、4 / 4 |
+| `NightlyAssignmentGradingTest` | 1 / 1（固定时刻/due-date 派发未被破坏） |
+| `NotificationTest` | 7 / 7（新增「ai_not_ready 按语言渲染、作业名与场次数进文案」） |
 | `check-boundaries` / `check-deps` / `check-i18n` / `check-ui` | 退出码 0（48 表 / 8 端口；zh/en 键完全对齐；无新增中文硬编码；无新增 UI 违规） |
 | `cd web && pnpm typecheck` / `pnpm test` | 退出码 0；38 / 38 |
 
@@ -86,8 +108,11 @@ QA/测试环境（`teachloop.grading.engine=stub`）点「让 AI 先批」会被
 - 没有真实模型的端到端批改：`AiReadinessTest` 配好 provider 后只断言 200 / 入队，worker 在测试窗口内不会真的调模型。
 - `source="env"`（只配 `DEEPSEEK_API_KEY`、没有 provider 行）只有代码路径，没有自动化用例。
 - 背单词「重试内容生成」的 toast 没在浏览器里点过（dev 库没有失败词条）；后端闸门与单测覆盖。
-- **自动派发 / 定时作业未加闸门**：AI 未配置时夜间作业仍会把提交推进队列并落 FAILED（AC-27.5 的既有语义）。
-  本次只拦用户主动点的入口；要不要让自动派发在未就绪时留在 QUEUED，需要单独拍板。
+- 通知中心页面没做目视验收：`ai_not_ready` 的标题/正文渲染由 `NotificationTest` 覆盖（中英各一条断言），
+  但没在浏览器里打开通知列表看这条新通知。
+- 多实例部署时「未就绪周期」去重是进程内的，两个实例会各通知一次；没有做跨实例去重表。
+- 自动派发被 quick fail 时，**已派发场次的迟到提交**（`enqueueQueuedOfDispatched*`）同样留在 QUEUED，
+  但这条路径不产生通知（无法判断是否有迟到提交）；只记 `WARN`。
 - 前端探测失败一律放行：若后端还没部署这个接口，教师点按钮仍会走旧路径（只看到「失败」）。
   这是刻意的取舍——只读探测失败不该挡住合法批改。
 

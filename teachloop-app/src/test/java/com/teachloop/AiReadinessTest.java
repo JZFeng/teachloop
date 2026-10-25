@@ -6,15 +6,20 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.core.env.Environment;
 import org.springframework.test.context.DynamicPropertyRegistry;
+import com.teachloop.sitting.service.OfferingGradingDispatcher;
+import com.teachloop.sitting.service.TeacherGradingPreferenceService;
+import com.teachloop.sitting.service.TeacherGradingScheduler;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
@@ -56,14 +61,24 @@ class AiReadinessTest {
     @Autowired
     Environment env;
 
+    @Autowired
+    OfferingGradingDispatcher dispatcher;
+
+    @Autowired
+    TeacherGradingScheduler scheduler;
+
+    @Autowired
+    TeacherGradingPreferenceService preferences;
+
     private final HttpClient client = HttpClient.newHttpClient();
 
     @Test
-    @DisplayName("就绪契约：无 provider 时 409 并提示联系管理员；配好 provider 后放行")
-    void readinessGatesManualDispatch() throws Exception {
+    @DisplayName("AI 就绪契约 + 手动/自动派发闸门：未就绪 quick fail（日志+通知），提交留在 QUEUED，配好后自动继续")
+    void readinessGatesManualAndAutomaticDispatch() throws Exception {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
         String teacher = login(base, "teacher@teachloop.local");
         String student = login(base, "student@teachloop.local");
+        UUID teacherId = userId("teacher@teachloop.local");
 
         // ---------- 1. 没有任何 provider：configured=false, ready=false, engine=ai ----------
         HttpResponse<String> before = raw(base, teacher, "GET", "/api/ai-readiness", null, "zh-CN");
@@ -81,7 +96,7 @@ class AiReadinessTest {
         assertThat(raw(base, student, "GET", "/api/ai-readiness", null, "zh-CN").statusCode())
                 .as("学生读就绪状态应 403").isEqualTo(403);
 
-        // ---------- 2. 建好一份已交卷的作业：手动派发在未配置时 409，且状态不变 ----------
+        // ---------- 2. 建班/交卷：手动派发在未配置时 409，且状态不变 ----------
         String classId = createClass(base, teacher, "AI 就绪测试班");
         String invite = classInvite(base, teacher, classId);
         join(base, student, invite);
@@ -107,8 +122,34 @@ class AiReadinessTest {
         assertThat(blockedOne.statusCode()).withFailMessage(blockedOne.body()).isEqualTo(409);
         assertThat(gradingState(submissionId)).isEqualTo("QUEUED");
 
-        // ---------- 3. 管理员建 provider（自动成为当前模型）→ configured=true, ready=true ----------
+        // ---------- 3. 自动派发（夜间作业）同样 quick fail：不入队、记日志、通知管理员与老师 ----------
         String admin = createAdmin(base);
+        UUID adminId = userId("ai-readiness-admin@teachloop.local");
+        preferences.update(teacherId, teacherId,
+                new TeacherGradingPreferenceService.UpdateRequest("FIXED_TIME", "00:00", "Asia/Shanghai", true));
+        scheduler.scan(Instant.now());
+        assertThat(gradingState(submissionId)).as("AI 未就绪时自动派发不推进队列").isEqualTo("QUEUED");
+        assertThat(runCount(offeringId)).isZero();
+        assertThat(preferences.view(teacherId).lastFixedRunAt())
+                .as("quick fail 不消耗今天的固定时刻，配置后下一轮扫描继续").isNull();
+        assertThat(aiNotReadyRecipients()).as("管理员与相关老师各一条通知")
+                .containsExactlyInAnyOrder(adminId.toString(), teacherId.toString());
+
+        // 扫描每 60 秒一轮：同一个未就绪周期不重复通知。
+        scheduler.scan(Instant.now());
+        assertThat(aiNotReadyCount()).as("不重复通知").isEqualTo(2);
+
+        // ---------- 4. 考试自动派发路径：同样跳过，不产生 run ----------
+        String examId = createExamOffering(base, teacher, classId);
+        String examSubmission = submitAs(base, student, examId);
+        jdbc.update("update offerings set due_at = ?, grace_hours = 0 where id = ?",
+                java.sql.Timestamp.from(Instant.now().minusSeconds(3600)), UUID.fromString(examId));
+        assertThat(dispatcher.autoDispatch()).isZero();
+        assertThat(gradingState(examSubmission)).as("考试提交也留在 QUEUED").isEqualTo("QUEUED");
+        assertThat(runCount(examId)).isZero();
+        assertThat(aiNotReadyCount()).as("同一未就绪周期仍只有两条通知").isEqualTo(2);
+
+        // ---------- 5. 管理员建 provider（自动成为当前模型）→ configured=true, ready=true ----------
         HttpResponse<String> created = raw(base, admin, "POST", "/api/admin/ai-providers",
                 Map.of("providerId", "readiness-local", "displayName", "Local Test",
                         "baseUrl", "http://127.0.0.1:8080/v1", "protocol", "openai",
@@ -124,13 +165,23 @@ class AiReadinessTest {
         assertThat(ready.get("provider")).isEqualTo("readiness-local");
         assertThat(ready.get("model")).isEqualTo("qwen3.8");
 
-        // ---------- 4. 同一派发请求现在 200，并且真的入队 ----------
+        // ---------- 6. 配好之后自动派发自己继续：考试按到期派发、作业按固定时刻派发 ----------
+        assertThat(dispatcher.autoDispatch()).isEqualTo(1);
+        assertThat(gradingState(examSubmission)).isEqualTo("PENDING");
+        assertThat(runCount(examId)).isEqualTo(1);
+
+        scheduler.scan(Instant.now());
+        assertThat(gradingState(submissionId)).isEqualTo("PENDING");
+        assertThat(runCount(offeringId)).isEqualTo(1);
+        assertThat(preferences.view(teacherId).lastFixedRunAt()).isNotNull();
+
+        // ---------- 7. 手动派发此时 200；已派发过所以幂等 enqueued=0 ----------
         HttpResponse<String> dispatched = raw(base, teacher, "POST",
                 "/api/offerings/" + offeringId + "/grading/dispatch", Map.of(), "zh-CN");
         assertThat(dispatched.statusCode()).withFailMessage(dispatched.body()).isEqualTo(200);
         Map<String, Object> body = Json.parse(dispatched.body());
         assertThat(body.get("offeringId")).isEqualTo(offeringId);
-        assertThat(((Number) body.get("enqueued")).intValue()).isEqualTo(1);
+        assertThat(((Number) body.get("enqueued")).intValue()).isZero();
         assertThat(gradingState(submissionId)).isEqualTo("PENDING");
         assertThat(runCount(offeringId)).isEqualTo(1);
     }
@@ -164,6 +215,40 @@ class AiReadinessTest {
 
     private void join(String base, String student, String inviteCode) throws Exception {
         send(base, student, "POST", "/api/classes/join", Map.of("inviteCode", inviteCode));
+    }
+
+    /** 考试场次（引用试卷）：autoDispatch 只扫 EXAM，所以通知/闸门的考试路径要有它。 */
+    private String createExamOffering(String base, String teacher, String classId) throws Exception {
+        Map<String, Object> paper = new HashMap<>();
+        paper.put("title", "AI 就绪测试试卷");
+        paper.put("defaultDurationMinutes", 30);
+        String paperId = send(base, teacher, "POST", "/api/papers", paper).get("id").toString();
+
+        Map<String, Object> section = new HashMap<>();
+        section.put("title", "作文");
+        section.put("pointsPerItem", 10);
+        String sectionId = send(base, teacher, "POST", "/api/papers/" + paperId + "/sections", section)
+                .get("id").toString();
+
+        Map<String, Object> item = new HashMap<>();
+        item.put("number", 1);
+        item.put("questionType", "ESSAY");
+        item.put("stem", "Write a short letter.");
+        item.put("points", 10);
+        item.put("sectionId", sectionId);
+        send(base, teacher, "POST", "/api/papers/" + paperId + "/items", item);
+        send(base, teacher, "POST", "/api/papers/" + paperId + "/publish", Map.of());
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("paperId", paperId);
+        body.put("timingMode", "INDIVIDUAL");
+        body.put("dueAt", Instant.now().plusSeconds(3600).toString());
+        body.put("graceHours", 0);
+        body.put("durationMinutes", 30);
+        body.put("classes", List.of(Map.of("classId", classId)));
+        String offeringId = send(base, teacher, "POST", "/api/offerings", body).get("id").toString();
+        send(base, teacher, "POST", "/api/offerings/" + offeringId + "/publish", Map.of());
+        return offeringId;
     }
 
     /** 作业自带内容（D-14）：不建卷、不带 paperId。 */
@@ -200,6 +285,22 @@ class AiReadinessTest {
         Integer count = jdbc.queryForObject("select count(*) from grading_runs where offering_id = ?",
                 Integer.class, java.util.UUID.fromString(offeringId));
         return count == null ? 0 : count;
+    }
+
+    private UUID userId(String email) {
+        return UUID.fromString(jdbc.queryForObject("select id::text from users where email = ?",
+                String.class, email));
+    }
+
+    private int aiNotReadyCount() {
+        Integer count = jdbc.queryForObject(
+                "select count(*) from notifications where kind = 'ai_not_ready'", Integer.class);
+        return count == null ? 0 : count;
+    }
+
+    private List<String> aiNotReadyRecipients() {
+        return jdbc.queryForList(
+                "select recipient_id::text from notifications where kind = 'ai_not_ready'", String.class);
     }
 
     @Autowired

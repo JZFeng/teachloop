@@ -11,10 +11,16 @@ import com.teachloop.sitting.domain.Submission;
 import com.teachloop.sitting.domain.SubmissionRepository;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -47,17 +53,36 @@ public class OfferingGradingDispatcher {
     private final Clock clock;
     /** AI 未就绪时手动派发必须拦在改状态/入队之前；无 identity 装配（单元测试）时放行。 */
     private final ObjectProvider<Ports.AiSettingsLookup> aiSettings;
+    /** 自动派发被 AI 未就绪挡住时的通知出口（管理员 + 相关老师）。 */
+    private final Ports.NotificationPort notifications;
+    /** 作业/考试标题在内容快照里（offerings 没有 title 列）。 */
+    private final SnapshotCodec snapshotCodec;
+
+    /** 通知读侧按 kind 取模板：notification.ai_not_ready.title/body。 */
+    private static final String AI_NOT_READY = "ai_not_ready";
+
+    /**
+     * 每个「AI 未就绪」周期只通知一次：按老师去重 + 管理员一个全局标志。
+     * 扫描每 60 秒一轮，不去重会变成通知风暴；恢复就绪后清空，下一次断供再通知。
+     * 多实例部署时每个实例各通知一次（可接受的重复），语义仍由 readiness 决定。
+     */
+    private final Set<UUID> blockedTeachersNotified = ConcurrentHashMap.newKeySet();
+    private final AtomicBoolean blockedAdminsNotified = new AtomicBoolean(false);
 
     public OfferingGradingDispatcher(OfferingRepository offerings, SubmissionRepository submissions,
                                      Ports.GradingDispatch gradingDispatch,
                                      AuditPort audit, Clock clock,
-                                     ObjectProvider<Ports.AiSettingsLookup> aiSettings) {
+                                     ObjectProvider<Ports.AiSettingsLookup> aiSettings,
+                                     Ports.NotificationPort notifications,
+                                     SnapshotCodec snapshotCodec) {
         this.offerings = offerings;
         this.submissions = submissions;
         this.gradingDispatch = gradingDispatch;
         this.audit = audit;
         this.clock = clock;
         this.aiSettings = aiSettings;
+        this.notifications = notifications;
+        this.snapshotCodec = snapshotCodec;
     }
 
     /** 一次派发的结果：run 是幂等键，所以重复派发返回同一个 id。 */
@@ -72,6 +97,10 @@ public class OfferingGradingDispatcher {
     public record SubmissionDispatch(UUID offeringId, UUID submissionId, UUID runId) {
     }
 
+    /** 教师级派发结果：本次派发场次数 + 是否因 AI 未就绪整批跳过（调用方据此决定要不要记「今天跑过了」）。 */
+    public record AssignmentDispatch(int dispatched, boolean blockedByAi) {
+    }
+
     /**
      * 自动派发（T092）：扫描到期的 PUBLISHED 场次，逐场走条件更新。
      *
@@ -84,6 +113,14 @@ public class OfferingGradingDispatcher {
     public int autoDispatch() {
         Instant now = Instant.now(clock);
         List<UUID> due = offerings.findDueForGrading(now);
+        // 决策 2026-10-24：AI 未就绪时 quick fail —— 不入队、不改状态，记日志并通知管理员与相关老师。
+        // 提交留在 QUEUED：配好模型后的下一轮扫描会自己继续，不必等老师点「重试失败」。
+        if (!aiReady()) {
+            if (!due.isEmpty()) {
+                notifyAiBlocked(due, null);
+            }
+            return 0;
+        }
         int dispatched = 0;
         for (UUID offeringId : due) {
             if (dispatchFirstTime(offeringId, now, null, "auto") != null) {
@@ -107,9 +144,15 @@ public class OfferingGradingDispatcher {
      * @return 本次真正完成首次派发的场次数
      */
     @Transactional
-    public int dispatchAssignmentsForTeacher(UUID teacherId) {
+    public AssignmentDispatch dispatchAssignmentsForTeacher(UUID teacherId) {
         Instant now = Instant.now(clock);
         List<UUID> pending = offerings.findAssignmentsWithQueuedByTeacher(teacherId);
+        if (!aiReady()) {
+            if (!pending.isEmpty()) {
+                notifyAiBlocked(pending, teacherId);
+            }
+            return new AssignmentDispatch(0, true);
+        }
         int dispatched = 0;
         for (UUID offeringId : pending) {
             if (dispatchFirstTime(offeringId, now, null, "fixed") != null) {
@@ -120,7 +163,7 @@ public class OfferingGradingDispatcher {
             submissions.enqueueQueued(offeringId);
         }
         submissions.enqueueQueuedOfDispatchedByTeacher(teacherId);
-        return dispatched;
+        return new AssignmentDispatch(dispatched, false);
     }
 
     /**
@@ -130,8 +173,14 @@ public class OfferingGradingDispatcher {
      * @return 本次真正完成首次派发的场次数
      */
     @Transactional
-    public int dispatchAssignmentsDueForTeacher(UUID teacherId, Instant now) {
+    public AssignmentDispatch dispatchAssignmentsDueForTeacher(UUID teacherId, Instant now) {
         List<UUID> due = offerings.findDueAssignmentsForGrading(teacherId, now);
+        if (!aiReady()) {
+            if (!due.isEmpty()) {
+                notifyAiBlocked(due, teacherId);
+            }
+            return new AssignmentDispatch(0, true);
+        }
         int dispatched = 0;
         for (UUID offeringId : due) {
             if (dispatchFirstTime(offeringId, now, null, "due") != null) {
@@ -140,7 +189,7 @@ public class OfferingGradingDispatcher {
         }
         // 已派发场次的迟到提交继续进同一个 run。
         submissions.enqueueQueuedOfDispatchedByTeacher(teacherId);
-        return dispatched;
+        return new AssignmentDispatch(dispatched, false);
     }
 
     /**
@@ -201,12 +250,88 @@ public class OfferingGradingDispatcher {
      * 自动派发与定时作业不走这里（它们的失败由 worker / 熔断处理）。
      */
     private void requireAiReady() {
+        if (!aiReady()) {
+            throw ApiException.conflict("error.ai.notConfigured");
+        }
+    }
+
+    /**
+     * 现在就绪吗（无 identity 装配 / 读不到就绪状态时放行）。
+     *
+     * <p>恢复就绪时顺手清空「已通知」标记：下一次 AI 断供要能重新通知一次。
+     */
+    private boolean aiReady() {
         Ports.AiSettingsLookup lookup = aiSettings.getIfAvailable();
         if (lookup == null) {
-            return;
+            return true;
         }
-        if (!lookup.readiness().ready()) {
-            throw ApiException.conflict("error.ai.notConfigured");
+        Ports.AiReadiness readiness = lookup.readiness();
+        if (readiness == null) {
+            return true;
+        }
+        if (readiness.ready()) {
+            blockedTeachersNotified.clear();
+            blockedAdminsNotified.set(false);
+        }
+        return readiness.ready();
+    }
+
+    /**
+     * 自动派发被 AI 未就绪挡住：不入队、不改状态（提交留在 QUEUED），记一条日志，
+     * 并给相关老师与全部管理员各发一条站内通知。
+     *
+     * <p>扫描每 60 秒一轮，所以按「未就绪周期」去重：每个老师 + 管理员各通知一次；
+     * 多实例部署时每个实例各通知一次（可接受的重复）。
+     */
+    private void notifyAiBlocked(List<UUID> offeringIds, UUID teacherId) {
+        UUID firstId = offeringIds.get(0);
+        Offering first = offerings.findById(firstId).orElse(null);
+        Map<String, String> payload = new LinkedHashMap<>();
+        payload.put("title", titleOf(first));
+        payload.put("count", String.valueOf(offeringIds.size()));
+
+        Set<UUID> teachers = new LinkedHashSet<>();
+        if (teacherId != null) {
+            teachers.add(teacherId);
+        }
+        for (UUID offeringId : offeringIds) {
+            offerings.findById(offeringId).map(Offering::getCreatedBy)
+                    .filter(Objects::nonNull).ifPresent(teachers::add);
+        }
+
+        List<Ports.NotificationMessage> messages = new ArrayList<>();
+        for (UUID recipient : teachers) {
+            if (blockedTeachersNotified.add(recipient)) {
+                messages.add(new Ports.NotificationMessage(recipient, AI_NOT_READY, "offering",
+                        firstId.toString(), null, null, payload));
+            }
+        }
+        boolean adminFirst = blockedAdminsNotified.compareAndSet(false, true);
+        if (adminFirst) {
+            notifications.notifyAdmins(new Ports.NotificationMessage(null, AI_NOT_READY, "offering",
+                    firstId.toString(), null, null, payload));
+        }
+        if (!messages.isEmpty()) {
+            notifications.notify(messages);
+        }
+        if (!messages.isEmpty() || adminFirst) {
+            log.warn("AI not ready: skipped automatic dispatch for {} offering(s) (teachers={}, first={}, "
+                            + "firstOfferingId={}); submissions stay QUEUED, the next scan retries after AI is set up",
+                    offeringIds.size(), teachers, payload.get("title"), firstId);
+        }
+    }
+
+    /** 标题只在内容快照里；快照读不出来时用占位符，不让通知因为标题解析失败而发不出去。 */
+    private String titleOf(Offering offering) {
+        if (offering == null || offering.getPaperSnapshot() == null) {
+            return "-";
+        }
+        try {
+            String title = snapshotCodec.read(offering.getPaperSnapshot()).title();
+            return title == null || title.isBlank() ? "-" : title;
+        } catch (RuntimeException ex) {
+            log.debug("cannot read offering snapshot title offering={}", offering.getId(), ex);
+            return "-";
         }
     }
 

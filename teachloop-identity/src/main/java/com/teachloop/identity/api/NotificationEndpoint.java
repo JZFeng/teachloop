@@ -38,8 +38,8 @@ public class NotificationEndpoint {
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 200;
 
-    /** 模板参数按这个顺序传给 MessageFormat：{0}=作业名，{1}=得分，{2}=满分。 */
-    private static final List<String> ARG_KEYS = List.of("title", "score", "total");
+    /** 模板参数按这个顺序传给 MessageFormat：{0}=作业名，{1}=得分，{2}=满分，{3}=场次数。 */
+    private static final List<String> ARG_KEYS = List.of("title", "score", "total", "count");
 
     private static final ObjectMapper JSON = new ObjectMapper();
 

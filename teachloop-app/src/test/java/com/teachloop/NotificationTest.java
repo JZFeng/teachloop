@@ -236,6 +236,22 @@ class NotificationTest {
     }
 
     @Test
+    @DisplayName("A1：AI 未就绪的自动派发通知按语言渲染，作业名与场次数都进文案")
+    void rendersAiNotReadyNotification() throws Exception {
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "ai_not_ready",
+                "offering", UUID.randomUUID().toString(), null, null,
+                Map.of("title", "演示作业", "count", "3"))));
+
+        Map<?, ?> zh = byKind(getListLang(studentA, "/api/notifications", "zh-CN"), "ai_not_ready");
+        assertThat(String.valueOf(zh.get("title"))).contains("AI 未配置");
+        assertThat(String.valueOf(zh.get("body"))).contains("演示作业").contains("3 场");
+
+        Map<?, ?> en = byKind(getListLang(studentA, "/api/notifications", "en"), "ai_not_ready");
+        assertThat(String.valueOf(en.get("title"))).contains("AI is not configured");
+        assertThat(String.valueOf(en.get("body"))).contains("演示作业").contains("3");
+    }
+
+    @Test
     @DisplayName("A1：空 payload（无参数模板，如发词）也要按语言渲染，不能被当成空通知丢掉")
     void rendersEmptyPayloadTemplate() throws Exception {
         notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "VOCAB_ASSIGNMENT",

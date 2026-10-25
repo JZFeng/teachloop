@@ -68,11 +68,20 @@ public class TeacherGradingScheduler {
             try {
                 if (p.getTriggerMode() == TriggerMode.FIXED_TIME) {
                     if (fixedRunDue(p, now)) {
-                        dispatched += dispatcher.dispatchAssignmentsForTeacher(teacherId);
-                        preferences.markFixedRun(teacherId, now);
+                        OfferingGradingDispatcher.AssignmentDispatch result =
+                                dispatcher.dispatchAssignmentsForTeacher(teacherId);
+                        dispatched += result.dispatched();
+                        if (result.blockedByAi()) {
+                            // AI 未就绪时整批被跳过：不消耗今天的固定时刻，配置好后下一轮扫描继续。
+                            // 通知与日志由 dispatcher 按「未就绪周期」去重，这里不再每 60 秒刷一行。
+                            log.debug("AI not ready: keeping today's fixed-time slot for teacher {} at {}",
+                                    teacherId, p.getFixedTime());
+                        } else {
+                            preferences.markFixedRun(teacherId, now);
+                        }
                     }
                 } else {
-                    dispatched += dispatcher.dispatchAssignmentsDueForTeacher(teacherId, now);
+                    dispatched += dispatcher.dispatchAssignmentsDueForTeacher(teacherId, now).dispatched();
                 }
             } catch (RuntimeException ex) {
                 log.warn("Assignment dispatch failed for teacher {}, retrying on next scan: {}", teacherId, ex.toString());
