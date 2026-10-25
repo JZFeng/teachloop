@@ -94,6 +94,10 @@ teachloop:
       engine: ${VOCAB_TTS_ENGINE:piper}
       engine-url: ${VOCAB_TTS_ENGINE_URL:http://127.0.0.1:5002}
       voice: ${VOCAB_TTS_VOICE:en_US-amy-medium}
+      # T427：复习卡英/美两个喇叭各用各的音色；本地 Piper 按 voice 找模型文件
+      voices:
+        uk: ${VOCAB_TTS_VOICE_UK:en_GB-alan-medium}
+        us: ${VOCAB_TTS_VOICE_US:en_US-amy-medium}
       rate: ${VOCAB_TTS_RATE:1.0}
       timeout-ms: ${VOCAB_TTS_TIMEOUT_MS:2000}
     srs:

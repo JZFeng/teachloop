@@ -47,6 +47,7 @@
 | T405 | **日志与幂等**：每次评分写 `review_logs`；同一次提交带幂等键不双写 | T402 | 重放同一请求只落一条；断网重试不重复 |
 | T424 | **复习卡内容生成中态（已并入 T426）**：原计划在卡片上显示「内容生成中」。2026-10-24 改为「进入复习先准备前 N 个词、页面显示数据准备中」的整体方案，见 T426 | T403, T395 | 由 T426 覆盖，不再单独实现 |
 | T426 | **按需准备 + 懒加载窗口（T426）**：`V061` 给 `vocab_generation_jobs` 加 `priority`（按需 100 / 后台 0，领取按优先级）；`generation.on-import` 默认 false（导入只入库）；`POST /api/vocab/review/prepare`（TODAY/SESSION/WORD，只给缺内容的词入队）；复习页/自由复习页/详情页显示「数据准备中…（x/N）」并 2s 轮询；窗口 20→100→200→400…（`review.prepare-first` / `prepare-window-max`）；词库区分未准备/生成中，只在有任务时轮询 | T403, T404, T399 | 导入默认 0 个 job；prepare 后按需词入队且优先级高于后台任务；生成完成页面无需手动刷新即出内容；`on-import=true` 时旧行为不变；VocabPrepareTest + 前端构建/类型检查全绿 |
+| T427 | **复习卡布局与快捷键（2026-10-24 用户反馈）**：卡片宽度 = 内容区 5/16；「不认识 / 认识」大按钮进卡片底部（间距 12px）；收藏星标与删除固定卡片右上角（删除二次确认、软删除）；去掉页面 h1「今日复习」、独立「说明」按钮与卡片下方快捷键行；eyebrow 右上方 ⓘ 打开「功能说明 | 快捷键」表（N/→、空格、1、2、U、A、F、Delete）；英/美音标旁各一个喇叭，`accent=uk|us` 选音色（`tts.voices.uk/us`），浏览器回落用 en-GB / en-US | T403, T410, T411 | 卡片布局与 5/16 宽度浏览器实测；星标/删除不触发翻面；快捷键全部可用；`VocabTtsTest` 断言英美音色与缓存键分离 |
 
 ## 阶段 E — 教师侧
 
@@ -84,12 +85,12 @@
 | US-49 词集 | 49.1–49.10 | T387, T406, T407, T409 |
 | US-50 发词 | 50.1–50.6 | T408, T425, T389 |
 | US-51 领取 | 51.1–51.4 | T408, T395 |
-| US-52 队列 | 52.1–52.6 | T402, T426 |
-| US-53 评分 | 53.1–53.8 | T401, T403, T405 |
+| US-52 队列 | 52.1–52.6 | T402, T426, T427 |
+| US-53 评分 | 53.1–53.10 | T401, T403, T405, T427 |
 | US-54 隐私 | 54.1–54.4 | T389, T396, T408 |
-| US-55 删除 | 55.1–55.3 | T387, T397 |
+| US-55 删除 | 55.1–55.3 | T387, T397, T427 |
 | US-56 界面 | 56.1–56.3 | T389, T397, T403 |
-| US-57 发音 | 57.1–57.6 | T410, T411 |
+| US-57 发音 | 57.1–57.7 | T410, T411, T427 |
 | US-58 语言 | 58.1–58.4 | T387, T389 |
 | US-59 表格 | 59.1–59.11 | T396, T397, T398 |
 | US-60 详情 | 60.1–60.8 | T388, T399, T400 |
@@ -157,3 +158,4 @@
 | 2026-10-24 | 反馈跟进：学生链接文案 + 老师点开提示 + 登录回跳 + 加入后排序 | 按用户选择「A+B」并补两条：① 发词记录按钮改「复制给学生」并加 title 说明，成功/失败提示改成学生链接口径；② 老师点开自己的学生链接，`GET /api/vocab/assignments/{id}` 由 404 改 403（`teacherOf` 判属主），前端显示「这是给学生的链接」+ 返回词集；其他人仍 404；③ 未登录点链接：`RequireAuth` 带 `?next=`，登录后 `safeNextPath` 校验并回跳（只接受站内路径）；④ 领取成功后进入词库并按 `sort=createdAt&dir=desc` 展示，新词在顶部、已有词不动（默认排序仍 dueAt，AC-59.6 不变） | 新增 `web/tests/login-redirect.test.mjs` 4/4；web typecheck、i18n、check-ui、web 测试通过；`VocabAssignmentTest` 断言老师 403 / 随机 id 仍 404；spec AC-49.10 改写、新增 AC-51.5/51.6。**残余**：浏览器未复验（5174 是旧构建） |
 | 2026-10-24 | T425 发词通知标题与老师称谓 | 补 `notification.vocab_assignment.detail.title` / `.detail_nodue.title`（「新的词集」/ "New word set"），修掉上一轮「detail 变体只定义 body → 标题渲染为空」的回归；中文正文恢复「{5}的{4}老师」措辞，显示名末尾自带的「老师」在渲染时按 `notification.vocab_assignment.teacherSuffix` 先去重（英文后缀为空、不删名字原文） | `NotificationTest` 断言两个变体标题都是「新的词集」/ "New word set"、正文「周杰伦老师」不重复、「JZ」自动补成「JZ老师」；`VocabAssignmentTest` 仍断言正文含「示例老师」；check-i18n 通过（称谓字符串在 properties，不在 Java 字面量） |
 | 2026-10-24 | T426 按需准备 + 懒加载窗口 | 完成：V061 给 `vocab_generation_jobs` 加 `priority`（按需 100 / 后台 0，`claim` 排序 `priority desc, next_run_at`）；`generation.on-import` 默认 false，导入/领取只入库；新增 `POST /api/vocab/review/prepare`（TODAY/SESSION/WORD，只对缺内容的词入队，按需任务绕开日预算、幂等）；前端 `prepare.ts` 统一窗口 20→100→200→400→800…（上限 1000），复习页/自由复习页/详情页显示「数据准备中…（x/N）」并每 2s 刷新，当前卡就绪即开始，FAILED 可重试；词库列表区分「未准备 / 生成中」，只在存在 QUEUED/RUNNING 任务时 5s 轮询；`contentStatus` 加进会话当前卡响应 | `VocabPrepareTest` 3/3（导入 0 job、prepare 入队且 priority=100、按需任务先于后台任务领取）；`VocabGenerationTest` 4/4、`VocabGenerationBudgetTest` 1/1（显式 on-import=true 保持旧行为）；`pnpm typecheck` 通过。QA 已部署 97a4377 并用 student02 浏览器验收：新词进入今日复习显示「数据准备中… 已准备 0/1」，内容就绪后卡片自动出现（无需刷新）；详情页同样从「数据准备中」自动出内容；词库对新词显示「未准备」。实测 kettle 第一次生成 60s 超时、第二次成功（本地单槽模型的老问题，待数据讨论）。测试词已删，QA 恢复原状 |
+| 2026-10-24 | T427 复习卡布局、快捷键说明与英美音色 | 按用户 5 条反馈改 `ReviewPage`：卡片宽度 5/16（≤1100px 回落整列）、两档大按钮（52px 高、间距 12px）进卡片底部、收藏星标/删除按钮固定右上角（删除二次确认 + 软删除、原地换卡）、去掉 h1/「说明」按钮/卡片下快捷键行；eyebrow 右上 ⓘ 打开「功能说明 \| 快捷键」表，新增 F（收藏）与 Delete（删除）键；英/美音标旁各一个喇叭，`accent=uk\|us` 经 `tts.voices.uk/us` 选音色，浏览器回落 en-GB/en-US；Piper sidecar 按 voice 找模型，Dockerfile 增 en_GB-alan-medium | `pnpm typecheck`、`check-i18n`（1555 键）、`check-ui` 通过；`VocabTtsTest` 新增英美音色/缓存键用例（见验证记录）；浏览器视觉见下条 |

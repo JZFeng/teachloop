@@ -1500,9 +1500,20 @@
       "known": "Known",
       "unknown": "Don't know",
       "next": "Next →",
-      "keys": "Space flips · 1 don't know · 2 known · N/→ next",
-      "info": "About",
-      "goLibrary": "Go to library"
+      "goLibrary": "Go to library",
+      "shortcuts": "Shortcuts and help",
+      "shortcutAction": "Action",
+      "shortcutKey": "Shortcut",
+      "shortcutNext": "Next word",
+      "shortcutDetail": "Word details (flip)",
+      "shortcutUnknown": "Don't know",
+      "shortcutKnown": "Known",
+      "shortcutFavorite": "Favorite / unfavorite",
+      "shortcutDelete": "Delete this word",
+      "keySpace": "Space",
+      "statsLine": "Reviewed today {{reviewed}} · Remaining {{remaining}} · New cards {{newCards}}",
+      "favoriteAdded": "Added to favorites",
+      "favoriteRemoved": "Removed from favorites"
     },
     "sets": {
       "title": "Word sets",
@@ -1638,6 +1649,8 @@
     },
     "audio": {
       "play": "Play",
+      "playUk": "Play UK pronunciation",
+      "playUs": "Play US pronunciation",
       "stop": "Stop"
     },
     "add": {

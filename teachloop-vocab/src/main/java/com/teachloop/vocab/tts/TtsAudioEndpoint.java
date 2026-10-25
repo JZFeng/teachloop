@@ -25,6 +25,9 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>键 = sha256(规范化词形 | provider | voice | rate)；只朗读单词本身，不读释义与例句。
  * 命中缓存带长期缓存头；引擎失败不让复习卡住——返回 404，前端用 SpeechSynthesis。
+ *
+ * <p>T427：`accent=uk|us` 把音色切到英音/美音；不带 accent 时仍用 `tts.voice` 的默认音色，
+ * 缓存键里本来就含音色，所以两种口音互不复用。
  */
 @RestController
 @RequestMapping("/api/vocab/audio")
@@ -39,26 +42,34 @@ public class TtsAudioEndpoint {
     private final Optional<TtsEngine> engine;
     private final String provider;
     private final String voice;
+    private final String ukVoice;
+    private final String usVoice;
     private final double rate;
 
     public TtsAudioEndpoint(BlobStore blobs, Optional<TtsEngine> engine,
                             @Value("${teachloop.vocab.tts.provider:local}") String provider,
                             @Value("${teachloop.vocab.tts.voice:en_US-amy-medium}") String voice,
+                            @Value("${teachloop.vocab.tts.voices.uk:en_GB-alan-medium}") String ukVoice,
+                            @Value("${teachloop.vocab.tts.voices.us:en_US-amy-medium}") String usVoice,
                             @Value("${teachloop.vocab.tts.rate:1.0}") double rate) {
         this.blobs = blobs;
         this.engine = engine;
         this.provider = provider;
         this.voice = voice;
+        this.ukVoice = ukVoice;
+        this.usVoice = usVoice;
         this.rate = rate;
     }
 
     @GetMapping(params = "form")
-    public ResponseEntity<byte[]> synthesize(@RequestParam String form) {
+    public ResponseEntity<byte[]> synthesize(@RequestParam String form,
+                                             @RequestParam(required = false) String accent) {
         String word = WordNormalizer.display(form);
         if (word.isEmpty() || word.length() > 64) {
             throw ApiException.badRequest("form is required (<=64 chars)");
         }
-        String key = key(word);
+        String voice = voiceFor(accent);
+        String key = key(word, voice);
         Optional<byte[]> cached = load(key);
         if (cached.isPresent()) {
             return audio(cached.get(), key);
@@ -100,7 +111,18 @@ public class TtsAudioEndpoint {
                 .body(bytes);
     }
 
-    private String key(String word) {
+    /** T427：uk/us 各用各的音色；未知 accent 退回默认音色，不报错打断播放。 */
+    private String voiceFor(String accent) {
+        if ("uk".equalsIgnoreCase(accent)) {
+            return ukVoice;
+        }
+        if ("us".equalsIgnoreCase(accent)) {
+            return usVoice;
+        }
+        return voice;
+    }
+
+    private String key(String word, String voice) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             digest.update((WordNormalizer.normalized(word) + "|" + provider + "|" + voice + "|"

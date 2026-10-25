@@ -24,12 +24,17 @@ RUN apt-get update \
  && apt-get install -y --no-install-recommends fonts-noto-cjk ffmpeg curl python3 python3-pip \
  && rm -rf /var/lib/apt/lists/*
 # T411：Piper 本地 TTS（模型随镜像；构建期需能访问模型源，可用 PIPER_MODEL_URL 覆盖）
+# T427：美音 + 英音两个模型；复习卡的两个喇叭按 voice 选模型。
 ARG PIPER_MODEL_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx
 ARG PIPER_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json
+ARG PIPER_UK_MODEL_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx
+ARG PIPER_UK_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json
 RUN pip install --no-cache-dir piper-tts \
  && mkdir -p /app/piper \
  && curl -fsSL "$PIPER_MODEL_URL" -o /app/piper/en_US-amy-medium.onnx \
- && curl -fsSL "$PIPER_CONFIG_URL" -o /app/piper/en_US-amy-medium.onnx.json
+ && curl -fsSL "$PIPER_CONFIG_URL" -o /app/piper/en_US-amy-medium.onnx.json \
+ && curl -fsSL "$PIPER_UK_MODEL_URL" -o /app/piper/en_GB-alan-medium.onnx \
+ && curl -fsSL "$PIPER_UK_CONFIG_URL" -o /app/piper/en_GB-alan-medium.onnx.json
 WORKDIR /app
 COPY --from=build /build/teachloop-app/target/teachloop-app-*.jar /app/app.jar
 COPY docker/piper-sidecar.py /app/piper-sidecar.py

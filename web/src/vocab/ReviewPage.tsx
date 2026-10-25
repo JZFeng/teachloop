@@ -2,7 +2,20 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import { Button, Empty, ErrorState, Loading, PageHeader, Popover, useToast } from '../ui'
+import {
+  Button,
+  DeleteOutlined,
+  Empty,
+  ErrorState,
+  InfoCircleOutlined,
+  Loading,
+  PageHeader,
+  Popover,
+  StarFilled,
+  StarOutlined,
+  useConfirm,
+  useToast,
+} from '../ui'
 import { SpeakerButton } from './SpeakerButton'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
@@ -17,6 +30,7 @@ interface QueueItem {
     phonetic?: { uk?: string; us?: string }
   } | null
   contentStatus: string
+  favorite: boolean
   state: string
   newCard: boolean
 }
@@ -32,9 +46,22 @@ interface QueueView {
 
 type Rated = 'KNOWN' | 'DONT_KNOW' | null
 
+/** T427：快捷键表（顺序即展示顺序）；发音两行与卡片上的喇叭一一对应。 */
+const SHORTCUTS = [
+  { label: 'vocab.review.shortcutNext', keys: 'N / →' },
+  { label: 'vocab.review.shortcutDetail', keys: 'Space' },
+  { label: 'vocab.review.shortcutUnknown', keys: '1' },
+  { label: 'vocab.review.shortcutKnown', keys: '2' },
+  { label: 'vocab.audio.playUk', keys: 'U' },
+  { label: 'vocab.audio.playUs', keys: 'A' },
+  { label: 'vocab.review.shortcutFavorite', keys: 'F' },
+  { label: 'vocab.review.shortcutDelete', keys: 'Delete' },
+] as const
+
 export default function VocabReviewPage() {
   const { t } = useTranslation()
   const toast = useToast()
+  const confirm = useConfirm()
   const [queue, setQueue] = useState<QueueView | null>(null)
   const [index, setIndex] = useState(0)
   const [flipped, setFlipped] = useState(false)
@@ -162,9 +189,57 @@ export default function VocabReviewPage() {
     setRated(null)
   }, [current])
 
+  // T427：卡面右上角的星标；只改收藏标记，不碰排期
+  const toggleFavorite = useCallback(async () => {
+    if (!current) return
+    const favorite = !current.favorite
+    try {
+      await api.put(`/api/vocab/words/${current.id}/favorite`, { favorite })
+      setQueue((previous) => (previous ? {
+        ...previous,
+        items: previous.items.map((item) => (
+          item.id === current.id ? { ...item, favorite } : item
+        )),
+      } : previous))
+      toast.success(favorite ? t('vocab.review.favoriteAdded') : t('vocab.review.favoriteRemoved'))
+    } catch (favoriteError) {
+      toast.error((favoriteError as Error).message)
+    }
+  }, [current, t, toast])
+
+  // T427：删除当前词（软删除，二次确认），删完原地换下一张
+  const removeCurrent = useCallback(async () => {
+    if (!current) return
+    const ok = await confirm({
+      title: t('vocab.library.deleteTitle'),
+      content: t('vocab.library.deleteBody', { word: current.form }),
+      okText: t('vocab.library.delete'),
+      cancelText: t('common.cancel'),
+    })
+    if (!ok) return
+    try {
+      await api.del(`/api/vocab/words/${current.id}`)
+      toast.success(t('vocab.library.deletedToast'))
+      setQueue((previous) => {
+        if (!previous) return previous
+        return {
+          ...previous,
+          items: previous.items.filter((item) => item.id !== current.id),
+          total: Math.max(0, previous.total - 1),
+          remaining: Math.max(0, previous.remaining - 1),
+        }
+      })
+      setFlipped(false)
+      setRated(null)
+    } catch (deleteError) {
+      toast.error((deleteError as Error).message)
+    }
+  }, [confirm, current, t, toast])
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (preparing) return
+      if (event.metaKey || event.ctrlKey || event.altKey) return
       const target = event.target as HTMLElement | null
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
       if (event.key === ' ') {
@@ -176,28 +251,66 @@ export default function VocabReviewPage() {
         void submit('KNOWN')
       } else if (event.key === 'n' || event.key === 'N' || event.key === 'ArrowRight') {
         if (rated) next()
+      } else if (event.key === 'f' || event.key === 'F') {
+        event.preventDefault()
+        void toggleFavorite()
+      } else if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault()
+        void removeCurrent()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [submit, next, rated, preparing])
+  }, [submit, next, rated, preparing, toggleFavorite, removeCurrent])
 
+  // T427：三个数与「评分会改变什么」仍收在 ⓘ 里（AC-52.2），并新增快捷键表
   const info = useMemo(() => (
-    <div className="sm">
-      <p>{t('vocab.review.statsReviewed')}: {queue?.todayReviewed ?? 0}</p>
-      <p>{t('vocab.review.statsRemaining')}: {queue?.remaining ?? 0}</p>
-      <p>{t('vocab.review.statsNew')}: {queue?.newToday ?? 0}
-        {queue?.newLimitReached ? ` (${t('vocab.review.newLimit')})` : ''}</p>
-      <p className="muted">{t('vocab.review.ratingHint')}</p>
+    <div className="review-info">
+      <p className="review-info-stats muted">
+        {t('vocab.review.statsLine', {
+          reviewed: queue?.todayReviewed ?? 0,
+          remaining: queue?.remaining ?? 0,
+          newCards: queue?.newToday ?? 0,
+        })}
+        {queue?.newLimitReached && <span> · {t('vocab.review.newLimit')}</span>}
+      </p>
+      <table className="review-shortcut-table">
+        <thead>
+          <tr>
+            <th>{t('vocab.review.shortcutAction')}</th>
+            <th>{t('vocab.review.shortcutKey')}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {SHORTCUTS.map((row) => (
+            <tr key={row.label}>
+              <td>{t(row.label)}</td>
+              <td><kbd>{row.keys === 'Space' ? t('vocab.review.keySpace') : row.keys}</kbd></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="muted review-info-hint">{t('vocab.review.ratingHint')}</p>
     </div>
   ), [queue, t])
 
   const header = (
-    <PageHeader title={t('vocab.review.title')} actions={(
-      <Popover content={info} trigger="click">
-        <Button size="small">{t('vocab.review.info')}</Button>
-      </Popover>
-    )} />
+    <PageHeader
+      title={t('vocab.review.title')}
+      hideTitle
+      actions={(
+        <Popover content={info} trigger="click" placement="bottomRight">
+          <button
+            type="button"
+            className="review-info-icon"
+            aria-label={t('vocab.review.shortcuts')}
+            title={t('vocab.review.shortcuts')}
+          >
+            <InfoCircleOutlined />
+          </button>
+        </Popover>
+      )}
+    />
   )
 
   if (loading) return <Loading label={t('common.loading')} />
@@ -207,30 +320,32 @@ export default function VocabReviewPage() {
     return (
       <>
         {header}
-        <div className="review-stage">
+        <div className="review-stage review-stage--today">
           <div className="review-card-column">
             <div className="review-card">
-              <div className="review-word">{current.form}</div>
-              {preparing ? (
-                <>
-                  <div className="muted">{t('vocab.review.preparing')}</div>
-                  {prep && (
-                    <div className="muted">
-                      {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
+              <div className="review-card-body">
+                <div className="review-word">{current.form}</div>
+                {preparing ? (
+                  <>
+                    <div className="muted">{t('vocab.review.preparing')}</div>
+                    {prep && (
+                      <div className="muted">
+                        {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
+                      </div>
+                    )}
+                    <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
+                  </>
+                ) : (
+                  <>
+                    <div className="muted">{t('vocab.review.contentFailed')}</div>
+                    <div className="review-actions">
+                      <Button variant="primary" loading={retrying} onClick={() => void retryContent()}>
+                        {t('vocab.review.retryContent')}
+                      </Button>
                     </div>
-                  )}
-                  <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
-                </>
-              ) : (
-                <>
-                  <div className="muted">{t('vocab.review.contentFailed')}</div>
-                  <div className="review-actions">
-                    <Button variant="primary" loading={retrying} onClick={() => void retryContent()}>
-                      {t('vocab.review.retryContent')}
-                    </Button>
-                  </div>
-                </>
-              )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -260,7 +375,7 @@ export default function VocabReviewPage() {
     <>
       {header}
 
-      <div className="review-stage">
+      <div className="review-stage review-stage--today">
         <div className="review-card-column">
           <div
             className={`review-card${flipped ? ' is-flipped' : ''}`}
@@ -272,50 +387,86 @@ export default function VocabReviewPage() {
               if (event.key === 'Enter') setFlipped((value) => !value)
             }}
           >
-            <div className="review-word">{current.form}</div>
-            <div><SpeakerButton form={current.form} /></div>
-            {phonetic && (
-              <div className="row muted" style={{ gap: 12, justifyContent: 'center' }}>
-                <span>{t('vocab.detail.phoneticUk')} {phonetic.uk ?? '—'}</span>
-                <span>{t('vocab.detail.phoneticUs')} {phonetic.us ?? '—'}</span>
-              </div>
-            )}
-            {flipped && (
-              <div className="review-back">
-                {(content?.senses?.length ?? 0) > 0 && (
-                  <ul className="vocab-sense">
-                    {content!.senses!.map((sense, senseIndex) => (
-                      <li key={senseIndex}>
-                        {sense.pos && <span className="chip">{sense.pos}</span>} {sense.zh ?? sense.en}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {(content?.examples?.length ?? 0) > 0 && (
-                  <div className="review-examples">
-                    {content!.examples!.map((example, exampleIndex) => (
-                      <div key={exampleIndex}>
-                        <div>{example.en}</div>
-                        {example.zh && <div className="muted">{example.zh}</div>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {content?.analysis && <p className="muted">{content.analysis}</p>}
-              </div>
-            )}
-            {!flipped && <div className="review-hint muted">{t('vocab.review.showAnswer')}</div>}
-          </div>
+            <div className="review-card-tools">
+              <button
+                type="button"
+                className={`review-icon-action${current.favorite ? ' is-on' : ''}`}
+                aria-label={current.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
+                aria-pressed={current.favorite}
+                title={`${current.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')} · F`}
+                onClick={(event) => { event.stopPropagation(); void toggleFavorite() }}
+              >
+                {current.favorite ? <StarFilled /> : <StarOutlined />}
+              </button>
+              <button
+                type="button"
+                className="review-icon-action is-danger"
+                aria-label={t('vocab.library.delete')}
+                title={`${t('vocab.library.delete')} · Delete`}
+                onClick={(event) => { event.stopPropagation(); void removeCurrent() }}
+              >
+                <DeleteOutlined />
+              </button>
+            </div>
 
-          <div className="review-actions">
-            <Button className="review-unknown" disabled={disabled} onClick={() => void submit('DONT_KNOW')}>
-              {t('vocab.review.unknown')}
-            </Button>
-            <Button variant="primary" disabled={disabled} onClick={() => void submit('KNOWN')}>
-              {t('vocab.review.known')}
-            </Button>
+            <div className="review-card-body">
+              <div className="review-word">{current.form}</div>
+              <div className="review-phonetic-row muted">
+                <span className="review-phonetic">
+                  {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
+                  <SpeakerButton form={current.form} accent="uk" shortcut="u" compact variant="text" />
+                </span>
+                <span className="review-phonetic">
+                  {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
+                  <SpeakerButton form={current.form} accent="us" shortcut="a" compact variant="text" />
+                </span>
+              </div>
+              {flipped && (
+                <div className="review-back">
+                  {(content?.senses?.length ?? 0) > 0 && (
+                    <ul className="vocab-sense">
+                      {content!.senses!.map((sense, senseIndex) => (
+                        <li key={senseIndex}>
+                          {sense.pos && <span className="chip">{sense.pos}</span>} {sense.zh ?? sense.en}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {(content?.examples?.length ?? 0) > 0 && (
+                    <div className="review-examples">
+                      {content!.examples!.map((example, exampleIndex) => (
+                        <div key={exampleIndex}>
+                          <div>{example.en}</div>
+                          {example.zh && <div className="muted">{example.zh}</div>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {content?.analysis && <p className="muted">{content.analysis}</p>}
+                </div>
+              )}
+              {!flipped && <div className="review-hint muted">{t('vocab.review.showAnswer')}</div>}
+            </div>
+
+            <div className="review-card-actions" onClick={(event) => event.stopPropagation()}>
+              <Button
+                size="large"
+                className="review-unknown"
+                disabled={disabled}
+                onClick={() => void submit('DONT_KNOW')}
+              >
+                {t('vocab.review.unknown')}
+              </Button>
+              <Button
+                size="large"
+                variant="primary"
+                disabled={disabled}
+                onClick={() => void submit('KNOWN')}
+              >
+                {t('vocab.review.known')}
+              </Button>
+            </div>
           </div>
-          <div className="review-keys muted">{t('vocab.review.keys')}</div>
         </div>
 
         <Button

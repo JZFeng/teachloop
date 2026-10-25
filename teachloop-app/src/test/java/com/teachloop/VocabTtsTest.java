@@ -89,6 +89,31 @@ class VocabTtsTest {
         assertThat(send(base, cookie, "/api/vocab/audio/deadbeef").statusCode()).isEqualTo(404);
     }
 
+    @Test
+    @DisplayName("T427：英音/美音各选各的音色，缓存键互不复用")
+    void accentVoices() throws Exception {
+        String base = base();
+        String cookie = login(base);
+        String form = "accentprobe" + UUID.randomUUID().toString().replace("-", "");
+        int before = engine.calls();
+
+        HttpResponse<byte[]> uk = send(base, cookie, "/api/vocab/audio?form=" + form + "&accent=uk");
+        assertThat(uk.statusCode()).isEqualTo(200);
+        assertThat(engine.lastVoice()).isEqualTo("en_GB-alan-medium");
+        assertThat(engine.calls()).isEqualTo(before + 1);
+
+        HttpResponse<byte[]> us = send(base, cookie, "/api/vocab/audio?form=" + form + "&accent=us");
+        assertThat(us.statusCode()).isEqualTo(200);
+        assertThat(engine.lastVoice()).isEqualTo("en_US-amy-medium");
+        assertThat(engine.calls()).isEqualTo(before + 2);
+        assertThat(us.headers().firstValue("ETag")).isNotEqualTo(uk.headers().firstValue("ETag"));
+
+        // 同一种口音再播命中缓存，不再调引擎
+        assertThat(send(base, cookie, "/api/vocab/audio?form=" + form + "&accent=uk").statusCode())
+                .isEqualTo(200);
+        assertThat(engine.calls()).isEqualTo(before + 2);
+    }
+
     private String base() {
         return "http://127.0.0.1:" + env.getProperty("local.server.port");
     }

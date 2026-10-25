@@ -76,12 +76,14 @@
   gap: 18px;
 }
 .review-card-column { flex: 1; max-width: 720px; }
+/* T427：今日复习卡固定为内容区的 5/16；窄屏放回整列，避免卡片被压扁 */
+.review-stage--today .review-card-column { flex: 0 0 31.25%; max-width: 31.25%; min-width: 0; }
 .review-card {
+  position: relative;
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 10px;
-  min-height: 280px;
+  min-height: 420px;
   padding: 32px;
   text-align: center;
   cursor: pointer;
@@ -90,6 +92,14 @@
   border-radius: 14px;
 }
 .review-card.is-flipped { text-align: left; }
+.review-card-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+}
 .review-word { font-size: 34px; font-weight: 750; }
 .review-back { margin-top: 12px; }
 .review-examples { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
@@ -103,9 +113,101 @@
 .review-keys { text-align: center; margin-top: 6px; }
 .review-next { margin-top: 150px; opacity: 0.55; }
 .review-next.is-highlighted { opacity: 1; }
+
+/* T427：卡片右上角收藏/删除、音标旁喇叭、卡片底部两档评分 */
+.review-card-tools {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+  display: flex;
+  gap: 2px;
+}
+.review-icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  font-size: 16px;
+  color: var(--muted);
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: 8px;
+  transition: background 0.12s, color 0.12s;
+}
+.review-icon-action:hover { color: var(--text); background: var(--panel-2); }
+.review-icon-action:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.review-icon-action.is-on { color: var(--amber); }
+.review-icon-action.is-danger:hover { color: var(--red); }
+.review-phonetic-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 16px;
+}
+.review-phonetic { display: inline-flex; align-items: center; gap: 2px; }
+.review-phonetic .ant-btn { padding-inline: 4px; color: var(--muted); }
+.review-card-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 18px;
+}
+.review-card-actions .ant-btn {
+  flex: 1;
+  min-width: 0;
+  height: 52px;
+  font-size: 16px;
+  font-weight: 650;
+}
+.review-info { width: 268px; }
+.review-info-stats { margin: 0 0 8px; font-size: 12px; line-height: 1.6; }
+.review-info-hint { margin: 8px 0 0; font-size: 12px; line-height: 1.55; }
+.review-shortcut-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.review-shortcut-table th,
+.review-shortcut-table td {
+  padding: 4px 0;
+  text-align: left;
+  border-bottom: 1px solid var(--line-2);
+}
+.review-shortcut-table th { color: var(--muted-2); font-size: 12px; font-weight: 600; }
+.review-shortcut-table th:last-child,
+.review-shortcut-table td:last-child { text-align: right; }
+.review-shortcut-table kbd {
+  padding: 0 5px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.review-info-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  font-size: 14px;
+  color: var(--muted-2);
+  cursor: pointer;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  transition: color 0.12s, border-color 0.12s;
+}
+.review-info-icon:hover { color: var(--accent-text); border-color: var(--accent); }
+.review-info-icon:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+@media (max-width: 1100px) {
+  .review-stage--today .review-card-column { flex: 1 1 auto; max-width: 100%; }
+}
 @media (max-width: 760px) {
   .review-stage { flex-direction: column; align-items: stretch; }
   .review-next { margin-top: 0; align-self: flex-end; }
+  .review-card { min-height: 360px; padding: 24px 20px; }
 }
 
 .free-review-summary { padding: 20px; }

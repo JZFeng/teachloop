@@ -1500,9 +1500,20 @@
       "known": "认识",
       "unknown": "不认识",
       "next": "下一个 →",
-      "keys": "空格翻面 · 1 不认识 · 2 认识 · N/→ 下一个",
-      "info": "说明",
-      "goLibrary": "去词库加词"
+      "goLibrary": "去词库加词",
+      "shortcuts": "快捷键与说明",
+      "shortcutAction": "功能说明",
+      "shortcutKey": "快捷键",
+      "shortcutNext": "下个单词",
+      "shortcutDetail": "单词详情（翻面）",
+      "shortcutUnknown": "不认识",
+      "shortcutKnown": "认识",
+      "shortcutFavorite": "收藏 / 取消收藏",
+      "shortcutDelete": "删除当前单词",
+      "keySpace": "空格",
+      "statsLine": "今日已复习 {{reviewed}} · 剩余 {{remaining}} · 新卡 {{newCards}}",
+      "favoriteAdded": "已收藏",
+      "favoriteRemoved": "已取消收藏"
     },
     "sets": {
       "title": "词集",
@@ -1638,6 +1649,8 @@
     },
     "audio": {
       "play": "发音",
+      "playUk": "英音发音",
+      "playUs": "美音发音",
       "stop": "停止"
     },
     "add": {

@@ -13,11 +13,13 @@ public class StubTtsEngine implements TtsEngine {
 
     private final AtomicInteger calls = new AtomicInteger();
     private volatile String lastText = "";
+    private volatile String lastVoice = "";
 
     @Override
     public byte[] synthesize(String text, String voice, double rate) {
         calls.incrementAndGet();
         lastText = text;
+        lastVoice = voice;
         return toneWav();
     }
 
@@ -27,6 +29,10 @@ public class StubTtsEngine implements TtsEngine {
 
     public String lastText() {
         return lastText;
+    }
+
+    public String lastVoice() {
+        return lastVoice;
     }
 
     /** 0.2s / 440Hz 正弦波 WAV：测试/演示能听到干净短音，不会像文本字节那样变成噪音。 */

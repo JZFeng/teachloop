@@ -48,6 +48,7 @@ export function PageHeader({
   actions,
   eyebrow,
   tone,
+  hideTitle = false,
 }: {
   title: ReactNode
   sub?: ReactNode
@@ -55,6 +56,8 @@ export function PageHeader({
   /** 覆盖路由推断；只在路由表表达不了时用。 */
   eyebrow?: ReactNode
   tone?: PageTone
+  /** 只保留 eyebrow 与操作区（复习卡这类把标题让给内容的页面用）。 */
+  hideTitle?: boolean
 }) {
   const { pathname } = useLocation()
   const { t } = useTranslation()
@@ -70,7 +73,7 @@ export function PageHeader({
             {label}
           </div>
         )}
-        <h1 className="tl-page-title">{title}</h1>
+        {!hideTitle && <h1 className="tl-page-title">{title}</h1>}
         {sub && <p className="tl-page-sub">{sub}</p>}
       </div>
       {actions && <div className="tl-page-actions">{actions}</div>}
