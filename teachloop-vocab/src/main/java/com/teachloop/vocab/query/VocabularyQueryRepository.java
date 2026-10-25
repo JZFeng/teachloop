@@ -48,7 +48,8 @@ public class VocabularyQueryRepository {
     public record WordItem(UUID id, String form, String language, JsonNode content,
                            String contentStatus, boolean favorite, List<String> tags, boolean paused,
                            String state, Instant dueAt, BigDecimal intervalDays, BigDecimal ease,
-                           Instant createdAt, Instant updatedAt, List<SourceItem> sources) {
+                           Instant createdAt, Instant updatedAt, boolean generating,
+                           List<SourceItem> sources) {
     }
 
     public record WordPage(List<WordItem> items, long total, int page, int size) {
@@ -143,7 +144,10 @@ public class VocabularyQueryRepository {
         List<WordItem> items = jdbc.query("""
                         select w.id, w.form, w.language, cast(w.content as text), w.content_status,
                                w.favorite, cast(w.tags as text), w.removed, p.state, p.due_at,
-                               p.interval_days, p.ease, w.created_at, w.updated_at
+                               p.interval_days, p.ease, w.created_at, w.updated_at,
+                               exists (select 1 from vocab_generation_jobs j
+                                        where j.subject_type = 'WORD' and j.subject_id = w.id
+                                          and j.state in ('QUEUED', 'RUNNING')) as generating
                           from vocab_words w
                           left join vocab_progress p on p.word_id = w.id
                          where %s
@@ -165,6 +169,7 @@ public class VocabularyQueryRepository {
                         rs.getBigDecimal(12),
                         rs.getTimestamp(13).toInstant(),
                         rs.getTimestamp(14).toInstant(),
+                        rs.getBoolean(15),
                         List.of()),
                 pageArguments.toArray());
 
@@ -173,7 +178,8 @@ public class VocabularyQueryRepository {
                 .map(item -> new WordItem(item.id(), item.form(), item.language(), item.content(),
                         item.contentStatus(), item.favorite(), item.tags(), item.paused(), item.state(),
                         item.dueAt(), item.intervalDays(), item.ease(), item.createdAt(),
-                        item.updatedAt(), sourcesByWord.getOrDefault(item.id(), List.of())))
+                        item.updatedAt(), item.generating(),
+                        sourcesByWord.getOrDefault(item.id(), List.of())))
                 .toList();
         return new WordPage(enriched, total == null ? 0 : total, page, query.size());
     }

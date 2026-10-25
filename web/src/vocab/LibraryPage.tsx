@@ -34,6 +34,7 @@ interface WordItem {
   language: string
   content: { senses?: Array<{ pos?: string; zh?: string; en?: string }> } | null
   contentStatus: string
+  generating: boolean
   favorite: boolean
   tags: string[]
   paused: boolean
@@ -152,13 +153,13 @@ export default function VocabLibraryPage() {
     return () => { alive = false }
   }, [queryString, reloadKey])
 
-  // T395：只有存在「内容生成中」的词才轮询；间隔 5s，生成完自动刷新并停表（无轮询风暴）
-  const hasPending = (data?.items ?? []).some((word) => word.contentStatus === 'PENDING')
+  // T426：惰性生成后 PENDING 可能只是「还没轮到」，只有真有生成任务时才轮询（5s），避免空转
+  const hasGenerating = (data?.items ?? []).some((word) => word.generating)
   useEffect(() => {
-    if (!hasPending) return
+    if (!hasGenerating) return
     const timer = setInterval(() => setReloadKey((value) => value + 1), 5000)
     return () => clearInterval(timer)
-  }, [hasPending])
+  }, [hasGenerating])
 
   useEffect(() => {
     let alive = true
@@ -444,8 +445,11 @@ export default function VocabLibraryPage() {
         return (
           <span className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
             <span className="chip">{stateLabel(word)}</span>
-            {word.contentStatus === 'PENDING'
-              && <span className="chip">{t('vocab.library.contentGenerating')}</span>}
+            {word.contentStatus === 'PENDING' && (
+              <span className="chip">
+                {word.generating ? t('vocab.library.contentGenerating') : t('vocab.library.contentIdle')}
+              </span>
+            )}
             {word.contentStatus === 'FAILED'
               && <span className="chip">{t('vocab.library.contentFailed')}</span>}
           </span>

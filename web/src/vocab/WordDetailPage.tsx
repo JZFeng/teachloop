@@ -14,6 +14,7 @@ import {
   useToast,
 } from '../ui'
 import { SpeakerButton } from './SpeakerButton'
+import { prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
 interface Sense {
@@ -81,8 +82,15 @@ export default function VocabWordDetailPage() {
   const [reloadKey, setReloadKey] = useState(0)
   const [feedbackOpen, setFeedbackOpen] = useState(false)
   const [feedbackNote, setFeedbackNote] = useState('')
+  const [prep, setPrep] = useState<PrepareResult | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
   const refresh = useCallback(() => setReloadKey((value) => value + 1), [])
+
+  const refreshSilently = useCallback(async () => {
+    const value = await api.get<Detail>(`/api/vocab/words/by-form/${encodeURIComponent(form)}`)
+    setDetail(value)
+  }, [form])
 
   useEffect(() => {
     let alive = true
@@ -94,6 +102,48 @@ export default function VocabWordDetailPage() {
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [form, reloadKey])
+
+  const wordId = detail?.id ?? null
+  const preparing = !!detail?.inLibrary && detail?.contentStatus === 'PENDING'
+  const contentFailed = !!detail?.inLibrary && detail?.contentStatus === 'FAILED'
+
+  // T426：打开详情时只为这一个词按需准备内容
+  useEffect(() => {
+    if (!wordId || !preparing) return
+    void prepareWords('WORD', 1, { wordId }).then(setPrep).catch(() => { /* 轮询会再试 */ })
+  }, [wordId, preparing])
+
+  // 数据准备中：每 2 秒看一次进度，好了自动出现内容
+  useEffect(() => {
+    if (!preparing || !wordId) return
+    let alive = true
+    const tick = async () => {
+      try {
+        const result = await prepareWords('WORD', 1, { wordId })
+        if (!alive) return
+        setPrep(result)
+        await refreshSilently()
+      } catch {
+        // 单次失败不打断等待
+      }
+    }
+    const timer = setInterval(() => void tick(), 2000)
+    return () => { alive = false; clearInterval(timer) }
+  }, [preparing, wordId, refreshSilently])
+
+  const retryContent = useCallback(async () => {
+    if (!wordId) return
+    setRetrying(true)
+    try {
+      await api.post('/api/vocab/words/retry', { ids: [wordId] })
+      await refreshSilently()
+      setPrep(await prepareWords('WORD', 1, { wordId }))
+    } catch (retryError) {
+      toast.error((retryError as Error).message)
+    } finally {
+      setRetrying(false)
+    }
+  }, [wordId, refreshSilently, toast])
 
   const toggleFavorite = async () => {
     if (!detail?.id) return
@@ -164,11 +214,40 @@ export default function VocabWordDetailPage() {
     </div>
   )
 
+  const emptyText = preparing
+    ? t('vocab.review.preparing')
+    : contentFailed
+      ? t('vocab.review.contentFailed')
+      : t('vocab.detail.noContent')
+
   return (
     <>
       <PageHeader title={detail.form} sub={detail.inLibrary ? undefined : t('vocab.detail.notInLibraryHint')} actions={(
         <div className="row" style={{ gap: 8 }}><SpeakerButton form={detail.form} />{actions}</div>
       )} />
+      {detail.inLibrary && (preparing || contentFailed) && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <div className="row" style={{ gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+            {preparing ? (
+              <>
+                <span>{t('vocab.review.preparing')}</span>
+                {prep && (
+                  <span className="muted">
+                    {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
+                  </span>
+                )}
+              </>
+            ) : (
+              <>
+                <span>{t('vocab.review.contentFailed')}</span>
+                <Button size="small" variant="primary" loading={retrying} onClick={() => void retryContent()}>
+                  {t('vocab.review.retryContent')}
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
       <div className="vocab-detail-grid">
         <section className="card">
           <h3>{t('vocab.detail.phonetic')}</h3>
@@ -181,7 +260,7 @@ export default function VocabWordDetailPage() {
         <section className="card">
           <h3>{t('vocab.detail.senses')}</h3>
           {(content?.senses?.length ?? 0) === 0
-            ? <p className="muted">{t('vocab.detail.noContent')}</p>
+            ? <p className="muted">{emptyText}</p>
             : (
               <ul className="vocab-sense">
                 {content!.senses!.map((sense, index) => (
@@ -197,7 +276,7 @@ export default function VocabWordDetailPage() {
         <section className="card">
           <h3>{t('vocab.detail.examples')}</h3>
           {(content?.examples?.length ?? 0) === 0
-            ? <p className="muted">{t('vocab.detail.noContent')}</p>
+            ? <p className="muted">{emptyText}</p>
             : (
               <ul className="vocab-sense">
                 {content!.examples!.map((example, index) => (
@@ -212,7 +291,7 @@ export default function VocabWordDetailPage() {
 
         <section className="card">
           <h3>{t('vocab.detail.analysis')}</h3>
-          <p>{content?.analysis || t('vocab.detail.noContent')}</p>
+          <p>{content?.analysis || emptyText}</p>
         </section>
 
         <section className="card">

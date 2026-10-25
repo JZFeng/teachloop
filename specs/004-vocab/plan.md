@@ -138,9 +138,10 @@ lookup(form):
 
 ## 4. 异步内容生成
 
-- 触发：导入/加词提交后、详情页未命中词表时；只对 `content_status=PENDING` 且**词形尚不存在**的词建 job（幂等键 `(subject_type, subject_id)`）。
+- 触发：**按需准备（2026-10-24 / T426 起默认）**——学生进入复习或打开详情时，只对即将用到的前 N 个词建 job（默认 20，窗口 20/100/200/400…）；导入/加词只入库，不再全量预生成。想恢复旧行为设 `generation.on-import=true`。
+- 优先级：按需准备的 job `priority=100`，后台批量任务 `priority=0`，领取排序 `priority DESC, next_run_at`（V061）。
 - 执行：`vocab_generation_jobs` + 一个 `@Scheduled` 轮询器（与 grading worker 同思路，不引入 MQ）：
-  `SELECT ... WHERE state='QUEUED' AND next_run_at<=now() ORDER BY next_run_at LIMIT n FOR UPDATE SKIP LOCKED`。
+  `SELECT ... WHERE state='QUEUED' AND next_run_at<=now() ORDER BY priority DESC, next_run_at LIMIT n FOR UPDATE SKIP LOCKED`。
 - 生成内容（写入 `content jsonb`）：`senses[]`（词性 + 中英释义）、`examples[]`（英文 + 中文）、`analysis`（构词）、`family[]`（词族，词表命中时以本地为准）、`phonetic {uk, us}`。
 - 幂等：同一词形已 `READY` 不再生成；重复导入不重复入队。
 - 重试：失败指数退避（1min / 5min / 30min），3 次后 `FAILED`；24h 仍失败标「内容缺失」，从队列移除并提醒（AC-48.9）。
@@ -154,7 +155,7 @@ lookup(form):
 - 读取：`GET /api/vocab/audio/{key}`（需登录）→ 命中直接返回，附 `ETag` 与 `Cache-Control: private, max-age=31536000, immutable`。
 - 回落链：**缓存 → 本地引擎（Piper，`http://127.0.0.1:5002`）→ 浏览器 SpeechSynthesis**；本地 2s 超时即回落，不阻塞复习。
 - 失败：写指标与审计（不含正文），不弹阻塞错误；同一键 5 分钟内不重复重试。
-- 预热（可选）：导入完成后对前 N 个词批量生成，避免首次播放等待。
+- 预热（可选）：内容生成改为按需准备后（§4），首个窗口由复习/详情页触发，不再在导入后预热。
 
 ## 6. 复习调度
 

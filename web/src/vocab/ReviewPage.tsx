@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { Button, Empty, ErrorState, Loading, PageHeader, Popover, useToast } from '../ui'
 import { SpeakerButton } from './SpeakerButton'
+import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
 interface QueueItem {
@@ -15,6 +16,7 @@ interface QueueItem {
     analysis?: string
     phonetic?: { uk?: string; us?: string }
   } | null
+  contentStatus: string
   state: string
   newCard: boolean
 }
@@ -41,6 +43,9 @@ export default function VocabReviewPage() {
   const [error, setError] = useState<Error | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
   const [refetched, setRefetched] = useState(false)
+  const [windowSize, setWindowSize] = useState(PREPARE_STEPS[0])
+  const [prep, setPrep] = useState<PrepareResult | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
   const refresh = useCallback(() => setReloadKey((value) => value + 1), [])
 
@@ -48,14 +53,21 @@ export default function VocabReviewPage() {
     let alive = true
     setLoading(true)
     setError(null)
+    setWindowSize(PREPARE_STEPS[0])
+    setPrep(null)
     api.get<QueueView>('/api/vocab/review/queue')
-      .then((value) => {
+      .then(async (value) => {
         if (!alive) return
         setQueue(value)
         setIndex(0)
         setFlipped(false)
         setRated(null)
         setRefetched(false)
+        // T426：进入复习就只为前 N 个词准备内容，不再等全量生成
+        if (value.items.length > 0) {
+          const result = await prepareWords('TODAY', PREPARE_STEPS[0]).catch(() => null)
+          if (alive && result) setPrep(result)
+        }
       })
       .catch((loadError) => { if (alive) setError(loadError as Error) })
       .finally(() => { if (alive) setLoading(false) })
@@ -74,8 +86,56 @@ export default function VocabReviewPage() {
     return () => clearTimeout(timer)
   }, [done, refetched, refresh])
 
+  const currentReady = current?.contentStatus === 'READY'
+  const currentFailed = current?.contentStatus === 'FAILED'
+  const preparing = !!current && !currentReady && !currentFailed
+
+  // 数据准备中：每 2 秒问一次准备进度并刷新当前卡的 content，就绪后自动开始
+  useEffect(() => {
+    if (!preparing) return
+    let alive = true
+    const tick = async () => {
+      try {
+        const [nextPrep, nextQueue] = await Promise.all([
+          prepareWords('TODAY', windowSize),
+          api.get<QueueView>('/api/vocab/review/queue'),
+        ])
+        if (!alive) return
+        setPrep(nextPrep)
+        setQueue((previous) => (previous ? { ...previous, items: nextQueue.items } : nextQueue))
+      } catch {
+        // 单次轮询失败不打断等待，下一次再试
+      }
+    }
+    const timer = setInterval(() => void tick(), 2000)
+    return () => { alive = false; clearInterval(timer) }
+  }, [preparing, windowSize])
+
+  // 懒加载窗口：背到窗口末尾前 5 张时把下一段（100/200/400…）提前排上
+  useEffect(() => {
+    if (items.length === 0) return
+    if (index < windowSize - 5) return
+    const next = nextPrepareWindow(windowSize)
+    if (next === windowSize) return
+    setWindowSize(next)
+    void prepareWords('TODAY', next).then(setPrep).catch(() => { /* 下一轮轮询再试 */ })
+  }, [index, windowSize, items.length])
+
+  const retryContent = useCallback(async () => {
+    if (!current) return
+    setRetrying(true)
+    try {
+      await api.post('/api/vocab/words/retry', { ids: [current.id] })
+      setPrep(await prepareWords('TODAY', windowSize))
+    } catch (retryError) {
+      toast.error((retryError as Error).message)
+    } finally {
+      setRetrying(false)
+    }
+  }, [current, windowSize, toast])
+
   const submit = useCallback(async (rating: 'KNOWN' | 'DONT_KNOW') => {
-    if (!current || rated) return
+    if (!current || rated || !currentReady) return
     try {
       await api.post('/api/vocab/review', {
         wordId: current.id,
@@ -93,7 +153,7 @@ export default function VocabReviewPage() {
     } catch (submitError) {
       toast.error((submitError as Error).message)
     }
-  }, [current, rated, toast])
+  }, [current, rated, currentReady, toast])
 
   const next = useCallback(() => {
     if (!current) return
@@ -104,6 +164,7 @@ export default function VocabReviewPage() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (preparing) return
       const target = event.target as HTMLElement | null
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
       if (event.key === ' ') {
@@ -119,7 +180,7 @@ export default function VocabReviewPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [submit, next, rated])
+  }, [submit, next, rated, preparing])
 
   const info = useMemo(() => (
     <div className="sm">
@@ -131,13 +192,56 @@ export default function VocabReviewPage() {
     </div>
   ), [queue, t])
 
+  const header = (
+    <PageHeader title={t('vocab.review.title')} actions={(
+      <Popover content={info} trigger="click">
+        <Button size="small">{t('vocab.review.info')}</Button>
+      </Popover>
+    )} />
+  )
+
   if (loading) return <Loading label={t('common.loading')} />
   if (error) return <ErrorState error={error} onRetry={refresh} />
+
+  if (current && (preparing || currentFailed)) {
+    return (
+      <>
+        {header}
+        <div className="review-stage">
+          <div className="review-card-column">
+            <div className="review-card">
+              <div className="review-word">{current.form}</div>
+              {preparing ? (
+                <>
+                  <div className="muted">{t('vocab.review.preparing')}</div>
+                  {prep && (
+                    <div className="muted">
+                      {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
+                    </div>
+                  )}
+                  <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
+                </>
+              ) : (
+                <>
+                  <div className="muted">{t('vocab.review.contentFailed')}</div>
+                  <div className="review-actions">
+                    <Button variant="primary" loading={retrying} onClick={() => void retryContent()}>
+                      {t('vocab.review.retryContent')}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   if (!current) {
     return (
       <>
-        <PageHeader title={t('vocab.review.title')} />
+        {header}
         <Empty>
           <div>{t('vocab.review.empty')}</div>
           <div style={{ marginTop: 8 }}>
@@ -154,11 +258,7 @@ export default function VocabReviewPage() {
 
   return (
     <>
-      <PageHeader title={t('vocab.review.title')} actions={(
-        <Popover content={info} trigger="click">
-          <Button size="small">{t('vocab.review.info')}</Button>
-        </Popover>
-      )} />
+      {header}
 
       <div className="review-stage">
         <div className="review-card-column">

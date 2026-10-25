@@ -45,7 +45,8 @@
 | T403 | **复习页前端**：两档按钮（✕/✓）、不认识自动翻面并停留、下一个在卡片外右侧、N/→、1/2、ⓘ 气泡 | T402 | 四种状态（正面/翻面/已评/空）；键盘全部可用；窄屏布局 |
 | T404 | **自由复习会话**：scope=筛选快照、cursor 续位、S 暂停、结束小结、不计入今日完成数 | T401, T396 | 看 12 个后结束，再次进入从第 13 个开始；认识照常推进调度 |
 | T405 | **日志与幂等**：每次评分写 `review_logs`；同一次提交带幂等键不双写 | T402 | 重放同一请求只落一条；断网重试不重复 |
-| T424 | **复习卡内容生成中态（待改，用户 2026-10-24 拍板先记录）**：`content` 为空时按 `contentStatus` 显示「内容生成中 / 生成失败」并允许跳过；PENDING 时每 5s 轮询队列、生成完成自动出内容；详情页同步去掉「稍后自动刷新」的假承诺，改为真轮询 + 失败重试 | T403, T395 | AC-48.4：PENDING 卡片有可见提示且不阻塞评分/跳过；生成完成后无需手动刷新即出现释义/例句；FAILED 有可见失败态与重试；QA 用待生成词做浏览器验收 |
+| T424 | **复习卡内容生成中态（已并入 T426）**：原计划在卡片上显示「内容生成中」。2026-10-24 改为「进入复习先准备前 N 个词、页面显示数据准备中」的整体方案，见 T426 | T403, T395 | 由 T426 覆盖，不再单独实现 |
+| T426 | **按需准备 + 懒加载窗口（T426）**：`V061` 给 `vocab_generation_jobs` 加 `priority`（按需 100 / 后台 0，领取按优先级）；`generation.on-import` 默认 false（导入只入库）；`POST /api/vocab/review/prepare`（TODAY/SESSION/WORD，只给缺内容的词入队）；复习页/自由复习页/详情页显示「数据准备中…（x/N）」并 2s 轮询；窗口 20→100→200→400…（`review.prepare-first` / `prepare-window-max`）；词库区分未准备/生成中，只在有任务时轮询 | T403, T404, T399 | 导入默认 0 个 job；prepare 后按需词入队且优先级高于后台任务；生成完成页面无需手动刷新即出内容；`on-import=true` 时旧行为不变；VocabPrepareTest + 前端构建/类型检查全绿 |
 
 ## 阶段 E — 教师侧
 
@@ -79,11 +80,11 @@
 | :--- | :--- | :--- |
 | US-46 词库 | 46.1–46.5 | T387, T396, T397 |
 | US-47 卡组 | 47.1–47.5 | T387, T396, T397 |
-| US-48 导入 | 48.1–48.12 | T390–T395, T424 |
+| US-48 导入 | 48.1–48.13 | T390–T395, T426 |
 | US-49 词集 | 49.1–49.10 | T387, T406, T407, T409 |
 | US-50 发词 | 50.1–50.6 | T408, T425, T389 |
 | US-51 领取 | 51.1–51.4 | T408, T395 |
-| US-52 队列 | 52.1–52.6 | T402 |
+| US-52 队列 | 52.1–52.6 | T402, T426 |
 | US-53 评分 | 53.1–53.8 | T401, T403, T405 |
 | US-54 隐私 | 54.1–54.4 | T389, T396, T408 |
 | US-55 删除 | 55.1–55.3 | T387, T397 |
@@ -92,7 +93,7 @@
 | US-58 语言 | 58.1–58.4 | T387, T389 |
 | US-59 表格 | 59.1–59.11 | T396, T397, T398 |
 | US-60 详情 | 60.1–60.8 | T388, T399, T400 |
-| US-61 自由复习 | 61.1–61.6 | T404 |
+| US-61 自由复习 | 61.1–61.6 | T404, T426 |
 
 ## 执行顺序建议
 
@@ -152,7 +153,7 @@
 | 2026-10-24 | 反馈跟进：频段文案与语言列 | 按用户选择：频段不再显示 BNC 术语，改为「常用度：前 {{count}} 个高频词族」（详情页/词集编辑/预习页三处，count = band×1000）；词集列表去掉「学习语言」列；spec AC-49.1/§24 已同步 | build、i18n、check-ui、web 测试全绿；浏览器复验词集编辑页 |
 | 2026-10-24 | 反馈跟进：启停合并为切换按钮（T407） | 按教师反馈「启用和停用合并一个按钮」：词集列表批量操作条改为**一个启停切换按钮**（选中项全部启用 → 显示「停用」，否则显示「启用」），可逆动作不再二次确认；删除仍独立且二次确认。后端 `POST /api/vocab/sets/batch` 不变（ACTIVATE / DEACTIVATE 仍在） | `pnpm typecheck` 通过；spec AC-49.2 已同步。**残余**：浏览器视觉未复验（本轮仅类型检查 + 结构校验） |
 | 2026-10-24 | 反馈跟进：发词通知写明班级/老师/词集/截止（T408） | 按学生反馈：`Ports.ClassMembership` 新增 `classNames`（classroom 实现）；发词时 payload 追加 `teacher`（`users.display_name` 原文）、`className`（学生所在班，多个班用「、」连接）、`setName`、`dueAt`（ISO-8601）；`NotificationEndpoint` 参数表追加 {4}–{7} 并按 `teachloop.notification.due-zone`（默认 Asia/Shanghai）渲染截止时间；新增模板 `notification.vocab_assignment.detail[.nodue]`，老的空 payload 行仍走泛化文案 | `NotificationTest` 新增用例（中文整句断言 / 英文关键字）；`VocabAssignmentTest` 断言 payload.teacher 与通知正文含班级、老师、词集、`2026/11/30 15:00`。spec AC-50.6 已加；`docs/decisions/015` 已更新 payload 契约 |
-| 2026-10-24 | T424 复习卡内容生成中态（**记录待办，未实现**） | 用户要求先记录、与后续需求一起改，本轮**无代码改动**。QA 实测结论：AI 内容链路本身正常（student01 的 10 个词全部 READY，复习卡背面与详情页浏览器可见完整释义/例句/构词/音标）；但生成窗口内队列项 `content:null`、`contentStatus:PENDING`，复习卡背面全白且无「内容生成中」提示，复习页只在挂载时取一次队列不轮询，详情页写「稍后自动刷新」却不刷新——违反 AC-48.4，用户看到空白会以为 AI 没跑通 | 另实测到真实故障：新词 `kettle` 三次 60s 超时后 FAILED（同时段 `/v1/models` 秒回、AI ping 20s 超时，槽空后 0.34s 恢复；lantern/meadow/pencil/rabbit 均 12–20s 成功），说明本地单槽 qwen 会被长生成占住；生成器未设 `max_tokens`、vocab 生成不写 `ai_calls`。顺带发现 `GradingWorker` 对被教师锁定的提交每 2s 重复打 `grading skipped` 日志。测试词已删，QA 词库恢复 10 词全 READY |
-| 2026-10-24 | T425 发词通知标题与老师称谓（**记录待办，未实现**） | 用户要求「title 改为新的词集，正文 JZ 后加老师」。QA 库取证：`notifications` 行的 `title` 与 `body` 为空、payload 为 `{setName:不不不, teacher:JZ, className:演示班, dueAt:…}`；根因是 `NotificationEndpoint.templateKey` 对 detail 变体查 `notification.vocab_assignment.detail.title`，该键不存在 → 回退到空 title；老师称谓沿用 AC-50.6 的「display_name 原文，不补老师」 | 本轮无代码改动；实现要点已写进 T425：补两个 title 键、中文模板补「老师」、payload 传去掉尾部「老师」的姓名、英文不加中文称谓，并同步 AC-50.6 与 `docs/decisions/015` |
+| 2026-10-24 | T424 复习卡内容生成中态（**已并入 T426**） | 用户要求先记录、与后续需求一起改，本轮**无代码改动**。QA 实测结论：AI 内容链路本身正常（student01 的 10 个词全部 READY，复习卡背面与详情页浏览器可见完整释义/例句/构词/音标）；但生成窗口内队列项 `content:null`、`contentStatus:PENDING`，复习卡背面全白且无「内容生成中」提示，复习页只在挂载时取一次队列不轮询，详情页写「稍后自动刷新」却不刷新——违反 AC-48.4，用户看到空白会以为 AI 没跑通 | 另实测到真实故障：新词 `kettle` 三次 60s 超时后 FAILED（同时段 `/v1/models` 秒回、AI ping 20s 超时，槽空后 0.34s 恢复；lantern/meadow/pencil/rabbit 均 12–20s 成功），说明本地单槽 qwen 会被长生成占住；生成器未设 `max_tokens`、vocab 生成不写 `ai_calls`。顺带发现 `GradingWorker` 对被教师锁定的提交每 2s 重复打 `grading skipped` 日志。测试词已删，QA 词库恢复 10 词全 READY |
 | 2026-10-24 | 反馈跟进：学生链接文案 + 老师点开提示 + 登录回跳 + 加入后排序 | 按用户选择「A+B」并补两条：① 发词记录按钮改「复制给学生」并加 title 说明，成功/失败提示改成学生链接口径；② 老师点开自己的学生链接，`GET /api/vocab/assignments/{id}` 由 404 改 403（`teacherOf` 判属主），前端显示「这是给学生的链接」+ 返回词集；其他人仍 404；③ 未登录点链接：`RequireAuth` 带 `?next=`，登录后 `safeNextPath` 校验并回跳（只接受站内路径）；④ 领取成功后进入词库并按 `sort=createdAt&dir=desc` 展示，新词在顶部、已有词不动（默认排序仍 dueAt，AC-59.6 不变） | 新增 `web/tests/login-redirect.test.mjs` 4/4；web typecheck、i18n、check-ui、web 测试通过；`VocabAssignmentTest` 断言老师 403 / 随机 id 仍 404；spec AC-49.10 改写、新增 AC-51.5/51.6。**残余**：浏览器未复验（5174 是旧构建） |
 | 2026-10-24 | T425 发词通知标题与老师称谓 | 补 `notification.vocab_assignment.detail.title` / `.detail_nodue.title`（「新的词集」/ "New word set"），修掉上一轮「detail 变体只定义 body → 标题渲染为空」的回归；中文正文恢复「{5}的{4}老师」措辞，显示名末尾自带的「老师」在渲染时按 `notification.vocab_assignment.teacherSuffix` 先去重（英文后缀为空、不删名字原文） | `NotificationTest` 断言两个变体标题都是「新的词集」/ "New word set"、正文「周杰伦老师」不重复、「JZ」自动补成「JZ老师」；`VocabAssignmentTest` 仍断言正文含「示例老师」；check-i18n 通过（称谓字符串在 properties，不在 Java 字面量） |
+| 2026-10-24 | T426 按需准备 + 懒加载窗口 | 完成：V061 给 `vocab_generation_jobs` 加 `priority`（按需 100 / 后台 0，`claim` 排序 `priority desc, next_run_at`）；`generation.on-import` 默认 false，导入/领取只入库；新增 `POST /api/vocab/review/prepare`（TODAY/SESSION/WORD，只对缺内容的词入队，按需任务绕开日预算、幂等）；前端 `prepare.ts` 统一窗口 20→100→200→400→800…（上限 1000），复习页/自由复习页/详情页显示「数据准备中…（x/N）」并每 2s 刷新，当前卡就绪即开始，FAILED 可重试；词库列表区分「未准备 / 生成中」，只在存在 QUEUED/RUNNING 任务时 5s 轮询；`contentStatus` 加进会话当前卡响应 | `VocabPrepareTest` 3/3（导入 0 job、prepare 入队且 priority=100、按需任务先于后台任务领取）；`VocabGenerationTest` 4/4、`VocabGenerationBudgetTest` 1/1（显式 on-import=true 保持旧行为）；`pnpm typecheck` 通过。**未做**：QA 重新部署与浏览器验收（本地构建未部署） |

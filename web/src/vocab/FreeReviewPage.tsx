@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { Button, Empty, ErrorState, Loading, PageHeader, useConfirm, useToast } from '../ui'
+import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
 interface SessionWord {
@@ -14,6 +15,7 @@ interface SessionWord {
     analysis?: string
     phonetic?: { uk?: string; us?: string }
   } | null
+  contentStatus: string
   cursor: number
   total: number
 }
@@ -44,6 +46,9 @@ export default function VocabFreeReviewPage() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [sessionId, setSessionId] = useState(id)
+  const [windowSize, setWindowSize] = useState(PREPARE_STEPS[0])
+  const [prep, setPrep] = useState<PrepareResult | null>(null)
+  const [retrying, setRetrying] = useState(false)
 
   const load = useCallback(async () => {
     setError(null)
@@ -63,6 +68,62 @@ export default function VocabFreeReviewPage() {
   }, [sessionId])
 
   useEffect(() => { void load() }, [load])
+
+  // T426：进入「复习这些词」就只为当前窗口的词准备内容
+  useEffect(() => {
+    setWindowSize(PREPARE_STEPS[0])
+    setPrep(null)
+    if (!sessionId) return
+    void prepareWords('SESSION', PREPARE_STEPS[0], { sessionId })
+      .then(setPrep)
+      .catch(() => { /* 准备失败不阻塞，轮询会再试 */ })
+  }, [sessionId])
+
+  const preparing = !!word && word.contentStatus !== 'READY' && word.contentStatus !== 'FAILED'
+  const contentFailed = word?.contentStatus === 'FAILED'
+
+  // 数据准备中：每 2 秒刷新准备进度与当前卡，就绪后自动开始
+  useEffect(() => {
+    if (!preparing) return
+    let alive = true
+    const tick = async () => {
+      try {
+        const result = await prepareWords('SESSION', windowSize, { sessionId })
+        if (!alive) return
+        setPrep(result)
+        await load()
+      } catch {
+        // 单次失败不打断等待
+      }
+    }
+    const timer = setInterval(() => void tick(), 2000)
+    return () => { alive = false; clearInterval(timer) }
+  }, [preparing, windowSize, sessionId, load])
+
+  // 懒加载窗口：快到窗口末尾时提前准备下一段（100/200/400…）
+  useEffect(() => {
+    if (!word || !sessionId) return
+    if (word.cursor < windowSize - 5) return
+    const next = nextPrepareWindow(windowSize)
+    if (next === windowSize) return
+    setWindowSize(next)
+    void prepareWords('SESSION', next, { sessionId })
+      .then(setPrep)
+      .catch(() => { /* 下一轮轮询再试 */ })
+  }, [word, windowSize, sessionId])
+
+  const retryContent = useCallback(async () => {
+    if (!word) return
+    setRetrying(true)
+    try {
+      await api.post('/api/vocab/words/retry', { ids: [word.id] })
+      setPrep(await prepareWords('SESSION', windowSize, { sessionId }))
+    } catch (retryError) {
+      toast.error((retryError as Error).message)
+    } finally {
+      setRetrying(false)
+    }
+  }, [word, windowSize, sessionId, toast])
 
   const advance = useCallback(async (action: 'KNOWN' | 'DONT_KNOW' | 'PAUSE') => {
     if (!word || busy) return
@@ -99,6 +160,7 @@ export default function VocabFreeReviewPage() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (preparing) return
       const target = event.target as HTMLElement | null
       if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
       if (event.key === ' ') {
@@ -114,7 +176,7 @@ export default function VocabFreeReviewPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [advance])
+  }, [advance, preparing])
 
   if (error) return <ErrorState error={error} onRetry={() => void load()} />
 
@@ -145,6 +207,43 @@ export default function VocabFreeReviewPage() {
 
   if (word === undefined) return <Loading label={t('common.loading')} />
   if (word === null) return <Empty>{t('vocab.freeReview.empty')}</Empty>
+
+  if (preparing || contentFailed) {
+    return (
+      <>
+        <PageHeader title={t('vocab.freeReview.title')}
+          sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
+          actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
+        <div className="review-stage">
+          <div className="review-card-column">
+            <div className="review-card">
+              <div className="review-word">{word.form}</div>
+              {preparing ? (
+                <>
+                  <div className="muted">{t('vocab.review.preparing')}</div>
+                  {prep && (
+                    <div className="muted">
+                      {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
+                    </div>
+                  )}
+                  <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
+                </>
+              ) : (
+                <>
+                  <div className="muted">{t('vocab.review.contentFailed')}</div>
+                  <div className="review-actions">
+                    <Button variant="primary" loading={retrying} onClick={() => void retryContent()}>
+                      {t('vocab.review.retryContent')}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </>
+    )
+  }
 
   const content = word.content
   const phonetic = content?.phonetic

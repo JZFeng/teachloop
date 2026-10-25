@@ -63,7 +63,8 @@ public class ReviewSessionEndpoint {
     public record SessionView(UUID id, int total, int cursor, int lastCursor, String scopeKey) {
     }
 
-    public record CurrentWord(UUID id, String form, JsonNode content, int cursor, int total) {
+    public record CurrentWord(UUID id, String form, JsonNode content, String contentStatus,
+                              int cursor, int total) {
     }
 
     public record AdvanceRequest(String action, Integer elapsedMs) {
@@ -114,7 +115,7 @@ public class ReviewSessionEndpoint {
         return sessions.currentWord(wordId, me.id())
                 .map(row -> new CurrentWord(row.id(), row.form(),
                         row.contentJson() == null ? null : mapper.readTree(row.contentJson()),
-                        session.cursor(), session.total()))
+                        row.contentStatus(), session.cursor(), session.total()))
                 .orElse(null);
     }
 

@@ -28,7 +28,8 @@ import tools.jackson.databind.ObjectMapper;
                 "teachloop.vocab.lexicon.enabled=false",
                 "teachloop.vocab.generation.engine=stub",
                 "teachloop.vocab.generation.poll-ms=3600000",
-                "teachloop.vocab.generation.daily-budget=0"
+                "teachloop.vocab.generation.daily-budget=0",
+                "teachloop.vocab.generation.on-import=true"
         })
 @Testcontainers
 class VocabGenerationBudgetTest {
