@@ -1100,11 +1100,28 @@ function screenReview(){
       <span class="n">认识</span> <span class="kbd">2</span>
     </button>
   </div>
-  <div class="hint">空格翻面 · 1 不认识 · 2 认识 · 评分后自动推进下一张</div>
+  <div class="row" style="justify-content:flex-end;margin-top:10px">
+    <button class="btn" onclick="skipWord()">跳过 <span class="kbd">N / →</span></button>
+  </div>
+  <div class="hint">空格翻面 · 1 不认识 · 2 认识 · N / → 跳过（只推进游标，不写日志、不动排期）</div>
   <div class="foot-note">词单复习复用自由复习的会话：同一张卡、同一两档评分；不写入「今日复习」的完成数（AC-69.7 / AC-61.5）。示例数据。</div>`;
 }
 function togglePauseInReview(form){
   togglePause(form);
+}
+function skipWord(){
+  if (S.rv.total===0) return;
+  S.rv.skip++;
+  S.rv.cursor++;
+  S.flip=false;
+  if (S.rv.cursor>=S.rv.total){
+    render();
+    toast('已跳过 · 这一轮看完了');
+    go('summary');
+    return;
+  }
+  render();
+  toast('已跳过这张（不写日志、不动排期）');
 }
 function rate(kind){
   if (S.rv.total===0) return;
@@ -1156,7 +1173,7 @@ function screenSummary(){
       词单复习不写入「今日复习」的完成数；「认识 / 不认识」按与今日复习相同的规则推进进度，一份排期、不属于任何词单。
     </div>
     <div class="sm muted-2" style="text-align:center;margin:6px auto 0;max-width:520px">
-      这一轮没有「跳过」：本原型底部的两个评分按钮就是全部动作；真实页面另有「下一个（N / →）」只推进游标、不写日志（AC-61.2）。
+      「跳过（N / →）」只推进游标：不写日志、不动排期，也不计入认识/不认识；它与自由复习的「下一个」是同一个动作（AC-61.2 / AC-69.7）。
     </div>
   </div>`;
 }
@@ -1218,6 +1235,7 @@ document.addEventListener('keydown', e=>{
     if (e.code==='Space'){ e.preventDefault(); S.flip=!S.flip; render(); }
     if (e.key==='1') rate('again');
     if (e.key==='2') rate('good');
+    if (e.key==='n' || e.key==='N' || e.key==='ArrowRight') skipWord();
   }
 });
 
