@@ -18,7 +18,11 @@ const CDP = process.env.CDP ?? 'http://127.0.0.1:9343'
 const OUT = path.join(ROOT, process.env.OUT_DIR ?? 'docs/reports/t386-ai-model-settings')
 const PROFILE = path.join(ROOT, '.cache/chrome-ai-model-settings')
 const FAKE_PORT = Number(process.env.FAKE_PORT ?? 18089)
-const ADMIN = { email: 'qa-admin@teachloop.local', password: 'qa-admin-pass-123' }
+// 管理员账号可用环境变量覆盖：现有 QA 库里若不是 qa-admin，脚本会在 ensureAdmin 处直接失败。
+const ADMIN = {
+  email: process.env.ADMIN_EMAIL ?? 'qa-admin@teachloop.local',
+  password: process.env.ADMIN_PASSWORD ?? 'qa-admin-pass-123',
+}
 const TEACHER = { email: 'teacher@teachloop.local', password: 'teachloop123' }
 const STUDENT = { email: 'student@teachloop.local', password: 'teachloop123' }
 const MODELS = ['qwen3.8', 'qwen3.8-instruct']
