@@ -2,7 +2,7 @@
 
 - 项目名：**TeachLoop**（2026-10-19 定名；仓库 `teachloop`，groupId / 包根 `com.teachloop`）
 - 特性编号：`002-v2-platform`
-- 上游：`spec.md`（30 用户故事 / 281 验收标准 / 77 功能需求）、`.specify/memory/constitution.md`（v2.1）
+- 上游：`spec.md`（30 用户故事 / 287 验收标准 / 82 功能需求；2026-10-25 随 AC-4.24–4.29、FR-146–150 更新）、`.specify/memory/constitution.md`（v2.1）
 - 日期：2026-10-19（本版为整份重写，非增量修补）
 - 技术栈变更说明：早期方案用 Python/FastAPI，理由是复用 v1 资产与 `dsh` 子进程。用户 review 后确定部署阿里云、取消 OCR、生产直连模型 API，这两条理由都不再成立；且用户最熟悉 Java。故整体改用 Java。
 - 名字为什么叫 TeachLoop：`loop` 同时指两件事——批改反馈的闭环（出卷→作答→批改→复核→发布），与将来背单词模块的间隔重复循环。所以加模块不需要改名。
@@ -15,7 +15,7 @@ Plan 的退出条件是下面 6 条全部打勾。每条标注了自评结果与
 
 | # | 检查项 | 自评 | 验法 |
 | :--- | :--- | :--- | :--- |
-| 1 | 每个用户故事在本文件里有承接结构 | ✅ | 附录 A 逐条对照 30 个故事。**追溯粒度到故事与 FR**：281 条 AC 不逐条映射（理由见 `tasks.md` 追踪矩阵开头） |
+| 1 | 每个用户故事在本文件里有承接结构 | ✅ | 附录 A 逐条对照 30 个故事。**追溯粒度到故事与 FR**：287 条 AC 不逐条映射（理由见 `tasks.md` 追踪矩阵开头） |
 | 2 | 每个实体的表、字段、索引、状态迁移写全 | ✅ | §5（含 `ai_providers` / `ai_settings.active_provider_id` / `ai_circuit_state` / `submissions.grading_failed_at` / `offerings.created_by` / `submission_metrics` / `reviews` AI 溯源列）；状态机见 §7、§7.6、§7.7 |
 | 3 | 每条外部依赖写了失败与重试路径 | ✅ | §6.4 失败处理、§6.6 Key 失败分类（NO_KEY/AUTH/TIMEOUT/INVALID_OUTPUT/RATE_LIMITED）、§7.2 崩溃恢复、§7.7 调用重试与熔断（429/5xx/连接失败）、§9 上传、§15 字体自检 |
 | 4 | 模块依赖无环、跨模块只走端口 | ✅ | §3.1 编译期强制；§3.2 端口表；T203 专门验证 |
@@ -1191,6 +1191,144 @@ make seed             # 1 个班 + 30 个学生 + 1 份带标准答案的试卷
 
 ---
 
+## 20. 试卷录入重构：Markdown 单一内容源（2026-10-25，D-34）
+
+承接：US-4 的 AC-4.3 / AC-4.9 / AC-4.10 / AC-4.17④ / AC-4.23④ / AC-4.24–4.29、FR-146–150；
+决策见 `docs/decisions/021-paper-single-source-authoring.md`，调研见
+`docs/research/2026-10-25-paper-authoring-single-source.md`，可点击原型
+`docs/mock/paper-flow-2026-10-25/index.html`。
+
+### 20.1 范围
+
+- **改**：`/papers` 列表页（去掉「导入考卷」）、`/papers/new` 与 `/papers/:id` 的向导（5 步 → 4 步）、
+  试卷的创建与导入接口、发布校验。
+- **不改**：部分/题项/评分项 CRUD 接口（保留）、答案表接口（保留）、导出、判分、快照生成（`PaperCatalogImpl`）、
+  学生端与布置页、试卷库列结构。
+- **删除**：`/papers/import` 路由与 `ImportPaperPage.tsx`；向导里的「内容（部分）」「上传整卷导入」
+  「批量改题型」三张卡与第 3 步「标准答案」。
+
+### 20.2 数据模型（`teachloop-paper`，属主单一）
+
+迁移 `V065__paper_meta_and_content.sql`（取号实测：V063 是最后一个已提交版本，**V064 已被并行的 `V064__vocab_lists.sql` 占用**，故用 V065；只动 paper 模块的表，符合「一条迁移只建一个模块的表」）：
+
+```sql
+alter table papers add column target_total_points numeric(8,2);
+alter table papers add column author_name varchar(80);
+alter table papers add column reviewer_name varchar(80);
+alter table papers add column content_markdown text;
+
+create table paper_content_snapshots (
+  id uuid primary key,
+  paper_id uuid not null references papers (id) on delete cascade,
+  created_at timestamptz not null,
+  reason varchar(40) not null,
+  payload jsonb not null
+);
+create index paper_content_snapshots_paper_ix on paper_content_snapshots (paper_id, created_at desc);
+```
+
+| 列 / 表 | 语义 | 空值 | 谁写 |
+| :--- | :--- | :--- | :--- |
+| `papers.target_total_points` | 教师手填的期望总分；**不参与** `total_points` 计算 | 允许（旧卷全空） | `POST /meta`、`POST /papers` |
+| `papers.author_name` / `reviewer_name` | 自由文本姓名，不做账号外键 | 允许 | 同上 |
+| `papers.content_markdown` | 最近一次「生成考题」提交的原文；只用于回填编辑器 | 允许（旧卷没有） | 生成接口 |
+| `paper_content_snapshots` | 替换重建前的旧内容（部分/题项/评分项 JSON），每卷保留最近 3 条 | — | 生成接口（replace=true 时） |
+
+状态机不变，只是写入口收窄：
+
+```
+DRAFT --generate(replace)--> DRAFT      （同一事务：快照 → 删 criteria/items/sections → 解析重建 → recalcTotal）
+DRAFT --publish----------> PUBLISHED    （三条校验，见 20.3）
+PUBLISHED --meta---------> PUBLISHED    （只改 meta，写审计 paper:meta_updated）
+PUBLISHED --generate-----> 拒绝（409）  （`confirm=true` 时也拒绝：已发布卷只允许复制后重建，避免题号/分值漂移进快照）
+```
+
+### 20.3 接口契约（都在 `PaperEndpoint`）
+
+| 方法 / 路径 | 变更 | 关键点 |
+| :--- | :--- | :--- |
+| `POST /api/papers` | 增 `authorName` / `reviewerName` / `targetTotalPoints`（均可空） | `authorName` 空则写 `me.displayName()` |
+| `PUT /api/papers/{id}/meta` | **新增** | 三个字段全量替换（null 即清空）；不改 title/duration；PUBLISHED 允许并写审计 |
+| `POST /api/papers/{id}/import`（multipart） | 增 `replace` 参数（默认 false）；落 `content_markdown` | `replace=true`：快照 → 事务内删除 → 重建 |
+| `POST /api/papers/{id}/import/text` | 同上；去掉写死的 `editable(id,false,...)`，改走 `editable(id, confirm, ...)` | 文本入口是「生成考题」的主路径 |
+| `GET /api/papers/{id}` | `PaperDetail` 增 `contentMarkdown`；`PaperView` 增 `authorName` / `reviewerName` / `targetTotalPoints` | 列表接口**不返回**正文，避免 `/api/papers` 变重 |
+| `POST /api/papers/{id}/publish` | 增三条复校验 | ①`total_points > 0` ②非 ESSAY 题项无空 `answer_key` ③`target_total_points` 非空时合计 == 目标（容差 0.001）；失败用消息 key |
+| `POST /api/papers/{id}/copy` | 复制 `content_markdown` 与 `target_total_points` | `author_name = me.displayName()`、`reviewer_name = null` |
+
+`ImportResult` 增两个字段：`contentMarkdown`（本次提交的原文）与 `metaHints`
+（`{authorName, reviewerName, targetTotalPoints}`，来自原文头部；解析在新增的小类
+`importing/PaperHeaderMeta` 里，**不动** 1359 行的 `PaperTextParser`）。
+
+### 20.4 「生成考题」一次请求里发生什么
+
+1. 前端选定输入：编辑器文本或文件；`paperId` 不存在时先 `POST /api/papers`（meta 一起提交）。
+2. 已有内容时先弹确认（三类会丢的界面内编辑 + 将删除的部分/题项数，见 AC-4.24③）。
+3. `POST /api/papers/{id}/import[/text]?replace=true`：
+   `editable(confirm)` → 解析（`DocumentTextExtractor` + `PaperTextParser`）→
+   `replace=true` 时写快照（同事务）→ 删 `section_criteria` → 删 `objective_items` → 删 `paper_sections`
+   → `createItems()` 重建 → `papers.content_markdown = 原文` → `recalcTotal()` → 返回 `ImportResult`。
+4. 前端用返回结果渲染只读预览表（**同一份解析结果**，不二次解析）+ 阶段进度收尾。
+
+并发：两个标签页同时生成时后写赢，单事务保证不出现「删了一半」。不做乐观锁（与其它写操作一致）。
+
+### 20.5 前端结构与复用
+
+| 文件 | 变更 |
+| :--- | :--- |
+| `web/src/teacher/PaperWizardPage.tsx` | 重写：4 步；删掉 section/item/criteria 三套表单状态、`syncDraft` 的补建逻辑（约 100 行）、批量改题型、参考范文；保留 `localStorage` 草稿（键升级为 `teachloop.paperDraft.v2`） |
+| `web/src/teacher/paperFlow.ts` | **新增**纯函数：草稿 v2 规整、目标 vs 实际判定、预览行构造（缺答案 / 题号断档）、评分项列构造（`无`/`N/A` + 题号分块）、删除摘要、阶段文案序列 |
+| `web/src/teacher/PapersPage.tsx` | 删「导入考卷」按钮；其余不动 |
+| `web/src/App.tsx` | 删 `papers/import` 路由与 import |
+| `web/src/teacher/ImportPaperPage.tsx` | 删除文件；`teacher.import.*` 只删无引用的键 |
+| `web/src/components/VditorMarkdown.tsx` | 原计划不改；实际改了两处（2026-10-25 浏览器实测发现）：① 外部改值（导入 .md）改用「重建实例」而不是 `setValue`——IR 模式下 setValue 会漏更新，state 已是新原文、编辑器还是旧内容；② 只读态在 `after` 回调里补一次 `disabled()`——只挂 effect 时首次挂载的 `disabled` 会被 ready 的时序吞掉。两处都影响共用该组件的作业页，属于修既有缺陷 |
+| `web/src/components/RubricPreview.tsx` | **不改**：第 3 步每 tab 复用 |
+| `web/src/teacher/teacher.css` | 只加 tab 条样式；颜色一律走令牌（`check-ui.py`） |
+
+`PaperDetail` 的回填规则：`contentMarkdown` 非空 → 填编辑器；空（旧卷）→ 编辑器空 + 提示，预览表用服务端
+`sections/items` 渲染。第 3 步 tab 由 `items[questionType=ESSAY]` 生成，按题号升序。
+
+### 20.6 失败与恢复
+
+| 失败 | 处理 | 恢复路径 |
+| :--- | :--- | :--- |
+| 解析错误（行号级） | 事务回滚，题项不变；前端保留原文并显示 detail | 改原文再生成 |
+| 文件格式不支持 / 坏 docx | 同上传接口现状（`DocumentTextExtractor` 明确报错） | 换文件 |
+| 请求超时 / 断网 | 前端停止进度、按钮恢复；服务端事务回滚 | 重试（幂等：replace 前会快照） |
+| 重建写坏了 | 用 `paper_content_snapshots` 最近一条恢复（v1 无界面按钮，走运维 SQL） | 快照 |
+| 已发布卷误操作 | 生成按钮不渲染；接口 409 | 复制为新卷 |
+| 旧卷无原文 | 只读预览可用，发布按旧规则（只校验 >0） | 贴原文后生成 |
+
+### 20.7 迁移与兼容
+
+- 迁移只加可空列与新表，无回填、无新索引以外的影响；回滚 = 前端回退（路由与向导），DB 列留着不影响旧代码。
+- `section_criteria`：列与接口保留（复核页读旧数据）；新流程不写，重建会删本卷的行。
+- `reference_markdown`：保留、解析保留、复核页可读，向导不写。
+- `/papers/import` 删除后旧书签落到 404 页（可接受，已在决策 021 记录）。
+- `localStorage`：换键名，旧草稿不解析（避免旧形状崩页）。
+
+### 20.8 测试策略
+
+| 层 | 内容 |
+| :--- | :--- |
+| 后端端点（Mockito，不启容器，沿用 `PaperImportEndpointTest` 的构造重载） | replace 后题项/总分正确、快照写入、content_markdown 落库、meta 全量替换与清空、publish 三条拦截、copy 语义、PUBLISHED 拒绝生成 |
+| 后端解析单测 | `PaperHeaderMeta` 用真实 fixture 头部；`PaperTextParser` 现有 77 条不动 |
+| 前端纯函数（`node --test`） | `paperFlow.ts` 全分支：`无/N/A`、双作文分块、断档、目标不一致、v2 草稿迁移、删除摘要 |
+| 守卫脚本 | `make check-i18n`（键对齐 + 禁新增中文字面量）、`make check-ui`、`make check-boundaries`、`pnpm run build`（tsc） |
+| 手工 E2E（三档报告） | 接口：curl 打 meta / generate / publish 三条拦截；界面：dev 5173 走完四步并截图；端到端：发布后 `/papers` 可见并可进布置页。未做到的档位在报告里写明 |
+
+### 20.9 本次改动的 6 条清单自评
+
+| # | 检查项 | 本次结论 |
+| :--- | :--- | :--- |
+| 1 | 每条 AC 有承接 | AC-4.24→20.3/20.4；AC-4.25→20.4④；AC-4.26→20.2/20.3；AC-4.27→20.2/20.3；AC-4.28→20.5；AC-4.29→20.5 |
+| 2 | 表/字段/索引/状态迁移写全 | 20.2（四列 + 快照表 + 状态机四行） |
+| 3 | 外部依赖失败与重试 | 本次不新增外部依赖；解析/上传/超时/并发见 20.6 |
+| 4 | 模块依赖无环 | 只动 `teachloop-paper` 自身表 + `web`；无跨模块调用，`check-boundaries` 守卫 |
+| 5 | 单表属主 / 无跨模块 JOIN | `papers/paper_sections/objective_items/section_criteria/paper_content_snapshots` 全归 `teachloop-paper` |
+| 6 | 拆服务路径 | 不新增进程；`paper` 仍只依赖 `shared` 端口（`PaperUsage`/`ObjectiveRecompute`），不引入新端口 |
+
+---
+
 ## 附录 A：用户故事 → 本文件章节
 
 用于验检查项 1（每个用户故事都有承接结构）。`tasks.md` 的追踪矩阵再把 26 个故事与 42 条 FR 映射到任务；203 条 AC 不逐条映射，理由写在该矩阵开头。
@@ -1200,7 +1338,7 @@ make seed             # 1 个班 + 30 个学生 + 1 份带标准答案的试卷
 | US-1 | 登录与账号资料 | §4、§9、§2 |
 | US-2 | 班级与邀请码 | §3.3（`classes` / `class_members`）、§5 |
 | US-3 | 账号开通 | §4、§9 |
-| US-4 | 试卷（内容，独立于班级） | §5.0（`papers` 无 `class_id`）、§5 |
+| US-4 | 试卷（内容，独立于班级） | §5.0（`papers` 无 `class_id`）、§5、§20（2026-10-25 录入重构：Markdown 单一内容源） |
 | US-5 | 标准答案与匹配策略 | §4（`MatchStrategy`）、§5、§6 |
 | US-6 | 提交 | §6、§10 |
 | US-7 | 新 attempt | §5（`(offering_id, student_id) WHERE active`） |

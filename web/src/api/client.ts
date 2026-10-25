@@ -57,11 +57,30 @@ async function request<T>(method: string, path: string, body?: unknown,
   return (text ? JSON.parse(text) : undefined) as T
 }
 
+async function requestForm<T>(path: string, form: FormData): Promise<T> {
+  // multipart 的 Content-Type（含 boundary）必须由浏览器自己写，手写会丢 boundary。
+  const headers: Record<string, string> = { ...csrfHeaders(), 'Accept-Language': i18n.language || 'zh-CN' }
+  const res = await fetch(path, { method: 'POST', credentials: 'include', headers, body: form })
+  if (!res.ok) {
+    let parsed: ApiErrorBody | null = null
+    try {
+      parsed = (await res.json()) as ApiErrorBody
+    } catch {
+      // 非 JSON 错误体（网关 502 等）也走 ApiError
+    }
+    throw new ApiError(res.status, parsed)
+  }
+  const text = await res.text()
+  return (text ? JSON.parse(text) : undefined) as T
+}
+
 export const api = {
   get: <T>(path: string) => request<T>('GET', path),
   post: <T>(path: string, body?: unknown, headers?: Record<string, string>) => request<T>('POST', path, body, headers),
   put: <T>(path: string, body?: unknown) => request<T>('PUT', path, body),
   del: <T>(path: string) => request<T>('DELETE', path),
+  /** 文件上传（multipart）；试卷「生成考题」用它。 */
+  postForm: <T>(path: string, form: FormData) => requestForm<T>(path, form),
 }
 
 /** 把后端时间（ISO 8601，UTC）格式化为本地时间；空值返回 "—"。 */

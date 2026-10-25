@@ -38,6 +38,11 @@ export interface PaperView {
   status: 'DRAFT' | 'PUBLISHED' | 'ARCHIVED'
   defaultDurationMinutes: number | null
   assignmentCount?: number
+  /** D-34：命题人 / 审题人是自由文本姓名；旧卷两列为空。 */
+  authorName?: string | null
+  reviewerName?: string | null
+  /** D-34：教师手填的期望总分（发布闸门），不覆盖自动合计。 */
+  targetTotalPoints?: number | null
 }
 
 export interface PaperItem {
@@ -79,12 +84,22 @@ export interface PaperImportSection {
   pointsPerItem: number | string | null
 }
 
+export interface PaperImportMetaHints {
+  authorName?: string | null
+  reviewerName?: string | null
+  targetTotalPoints?: number | null
+}
+
 export interface PaperImportResult {
   imported: number
   missingAnswers: number[]
   items: PaperImportItem[]
   sections?: PaperImportSection[]
   warnings: string[]
+  /** D-34：服务端落库的原文（上传 .docx/.xlsx 时编辑器要回填这份）。 */
+  contentMarkdown?: string | null
+  /** D-34：原文头部解析出的命题人 / 审题人 / 总分，只用于回填空白字段。 */
+  metaHints?: PaperImportMetaHints | null
 }
 
 export interface PaperDetail {
@@ -96,6 +111,8 @@ export interface PaperDetail {
   gradingPromptTemplate: string | null
   /** D-28：作文默认内容占比（语法与拼写取其余），只用于界面回显当前系统配置。 */
   essayContentPercent?: number
+  /** D-34：最近一次「生成考题」提交的原文，编辑模式用它回填编辑器；旧卷为空。 */
+  contentMarkdown?: string | null
 }
 
 export type OfferingKind = 'EXAM' | 'ASSIGNMENT'

@@ -1,1184 +1,431 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
-import { api } from '../api/client'
-import type {
-  PaperDetail,
-  PaperImportResult,
-  PaperItem,
-  PaperSection,
-  PaperView,
-} from '../api/types'
-import { ErrorState, Loading, PageHeader } from '../components/States'
-import { Button } from '../ui'
+import { useAuth } from '../api/auth'
+import { ApiError, api } from '../api/client'
+import type { PaperDetail, PaperImportResult, PaperView } from '../api/types'
+import { Button, CheckOutlined, ErrorState, Loading, PageHeader, Tag, useConfirm, useToast } from '../ui'
 import { RubricPreview } from '../components/RubricPreview'
+import { errorMessage, fmtNum, TeacherPage } from './common'
+import { readMarkdownFile } from './markdownImport'
 import {
-  errorMessage,
-  fmtNum,
-  Tag,
-  TeacherPage,
-} from './common'
+  PROGRESS_STAGES,
+  WIZARD_STEPS,
+  applyMetaHints,
+  blankDraft,
+  compareTarget,
+  deleteSummary,
+  draftFromDetail,
+  essayTabs,
+  findMetaProblem,
+  metaPayload,
+  needsReplaceConfirm,
+  normalizeDraft,
+  previewRows,
+  previewSummary,
+  publishCheck,
+  rubricBlocks,
+  stageIndex,
+  toNumberOrNull,
+  type DraftV2,
+  type EssayTab,
+  type WizardStep,
+} from './paperFlow'
 
-type QType = 'SINGLE_CHOICE' | 'MULTIPLE_CHOICE' | 'FILL_BLANK' | 'ESSAY'
-type ScoringStrategy = 'ALL_OR_NOTHING' | 'PARTIAL'
+/** 进度条最短展示时间：解析通常几百毫秒，太短会一闪而过，看不见「在读 / 在切题号」。 */
+const MIN_PROGRESS_MS = 700
 
-const QUESTION_TYPES: QType[] = ['SINGLE_CHOICE', 'MULTIPLE_CHOICE', 'FILL_BLANK', 'ESSAY']
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
-/** T341：与新建作业共用 Vditor 编辑器 chunk，只在打开试卷向导时需要评分标准时加载。 */
+/** 后端把定位信息放在 ApiError.detail（缺答案的题号 / 合计与目标），展示时一起给出来。 */
+function describeError(err: unknown): string {
+  if (err instanceof ApiError && err.detail) return `${err.message}（${err.detail}）`
+  return errorMessage(err)
+}
+
+/** T341：与新建作业共用 Vditor 编辑器 chunk；只在需要时加载。 */
 const VditorMarkdown = lazy(() => import('../components/VditorMarkdown'))
 
-interface DraftItem {
-  key: string
-  serverId?: string
-  number: number
-  questionType: QType
-  stem: string
-  options: string
-  answerKey: string
-  points: number
-  scoringStrategy: ScoringStrategy
-  /** D-24：写作题自己的评分标准（只对 ESSAY 生效）。 */
-  rubricMarkdown: string
-  /** D-25：参考范文；只给教师端看。 */
-  referenceMarkdown: string
-}
-
-interface DraftCriterion {
-  key: string
-  serverId?: string
-  name: string
-  maxPoints: number
-  description: string
-}
-
-interface DraftSection {
-  key: string
-  serverId?: string
-  title: string
-  pointsPerItem: number
-  items: DraftItem[]
-  criteria: DraftCriterion[]
-}
-
-interface Draft {
-  mode: 'create' | 'edit'
-  paperId: string | null
-  step: number
-  title: string
-  defaultDurationMinutes: string
-  sections: DraftSection[]
-  /** 编辑模式：详情接口只返回评分项名称，逐项分值用「总分 − 题项分」推导。 */
-  legacyCriteriaNames: string[]
-  existingCriteriaTotal: number
-  /** D-28：作文默认内容占比（判分侧同一配置），用于向导回显，不参与保存。 */
-  essayContentPercent: number
-  rubricMarkdown: string
-  gradingPromptTemplate: string
-  rubricTouched: boolean
-  serverTotalPoints: number | null
-  locked: boolean
-  updatedAt: string
-}
-
-const STORAGE_KEY = 'teachloop.paperDraft'
-const STEP_IDS = [1, 2, 3, 4, 5] as const
-type Step = (typeof STEP_IDS)[number]
-
-function uid(): string {
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-}
-
-function blankDraft(): Draft {
-  return {
-    mode: 'create',
-    paperId: null,
-    step: 1,
-    title: '',
-    defaultDurationMinutes: '',
-    sections: [],
-    legacyCriteriaNames: [],
-    existingCriteriaTotal: 0,
-    essayContentPercent: 80,
-    rubricMarkdown: '',
-    gradingPromptTemplate: '',
-    rubricTouched: false,
-    serverTotalPoints: null,
-    locked: false,
-    updatedAt: '',
-  }
-}
-
-function fromDetail(detail: PaperDetail): Draft {
-  const itemsTotal = detail.sections.reduce(
-    (acc, section) => acc + section.items.reduce((sum, item) => sum + Number(item.points), 0),
-    0,
-  )
-  const criteriaTotal = Math.max(0, Number(detail.paper.totalPoints) - itemsTotal)
-  return {
-    ...blankDraft(),
-    mode: 'edit',
-    paperId: detail.paper.id,
-    title: detail.paper.title,
-    defaultDurationMinutes:
-      detail.paper.defaultDurationMinutes === null
-        ? ''
-        : String(detail.paper.defaultDurationMinutes),
-    sections: detail.sections.map((section) => ({
-      key: section.id,
-      serverId: section.id,
-      title: section.title,
-      pointsPerItem: Number(section.pointsPerItem),
-      items: section.items.map((item) => ({
-        key: item.id,
-        serverId: item.id,
-        number: item.number,
-        questionType: item.questionType,
-        stem: item.stem ?? '',
-        options: item.options ?? '',
-        answerKey: item.answerKey ?? '',
-        points: Number(item.points),
-        scoringStrategy: (item.scoringStrategy ?? 'ALL_OR_NOTHING') as ScoringStrategy,
-        rubricMarkdown: item.rubricMarkdown ?? '',
-        referenceMarkdown: item.referenceMarkdown ?? '',
-      })),
-      criteria: [],
-    })),
-    legacyCriteriaNames: detail.criteriaNames,
-    existingCriteriaTotal: criteriaTotal,
-    essayContentPercent: detail.essayContentPercent ?? 80,
-    rubricMarkdown: detail.rubricMarkdown ?? '',
-    gradingPromptTemplate: detail.gradingPromptTemplate ?? '',
-    serverTotalPoints: Number(detail.paper.totalPoints),
-    locked: detail.paper.status === 'PUBLISHED',
-  }
-}
-
-function loadStoredDraft(): Draft | null {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as Partial<Draft>
-    if (!parsed || !Array.isArray(parsed.sections)) return null
-    return {
-      ...blankDraft(),
-      ...parsed,
-      mode: parsed.mode === 'edit' ? 'edit' : 'create',
-      step: Math.min(5, Math.max(1, Number(parsed.step ?? 1) || 1)),
-      essayContentPercent: Number(parsed.essayContentPercent ?? 80),
-      sections: parsed.sections.map((section) => ({
-        key: section.key ?? uid(),
-        serverId: section.serverId,
-        title: section.title ?? '',
-        pointsPerItem: Number(section.pointsPerItem ?? 0),
-        items: (section.items ?? []).map((item) => ({
-          key: item.key ?? uid(),
-          serverId: item.serverId,
-          number: Number(item.number ?? 0),
-          questionType: (item.questionType ?? 'SINGLE_CHOICE') as QType,
-          scoringStrategy: (item.scoringStrategy ?? 'ALL_OR_NOTHING') as ScoringStrategy,
-          stem: item.stem ?? '',
-          options: item.options ?? '',
-          answerKey: item.answerKey ?? '',
-          points: Number(item.points ?? 0),
-          rubricMarkdown: item.rubricMarkdown ?? '',
-          referenceMarkdown: item.referenceMarkdown ?? '',
-        })),
-        criteria: (section.criteria ?? []).map((criterion) => ({
-          key: criterion.key ?? uid(),
-          serverId: criterion.serverId,
-          name: criterion.name ?? '',
-          maxPoints: Number(criterion.maxPoints ?? 0),
-          description: criterion.description ?? '',
-        })),
-      })),
-    }
-  } catch {
-    return null
-  }
-}
-
-/** 服务端题项 → 本地草稿题项；同一条记录的 key 保持不变，避免输入框被重挂。 */
-function itemFromServer(item: PaperItem, previous?: DraftItem): DraftItem {
-  return {
-    key: previous?.key ?? item.id,
-    serverId: item.id,
-    number: item.number,
-    questionType: item.questionType,
-    stem: item.stem ?? '',
-    options: item.options ?? '',
-    answerKey: item.answerKey ?? '',
-    points: Number(item.points),
-    scoringStrategy: (item.scoringStrategy ?? 'ALL_OR_NOTHING') as ScoringStrategy,
-    rubricMarkdown: item.rubricMarkdown ?? '',
-    referenceMarkdown: item.referenceMarkdown ?? '',
-  }
-}
-
-function sectionFromServer(section: PaperSection): DraftSection {
-  return {
-    key: section.id,
-    serverId: section.id,
-    title: section.title,
-    pointsPerItem: Number(section.pointsPerItem),
-    items: section.items.map((item) => itemFromServer(item)),
-    criteria: [],
-  }
-}
-
 /**
- * 把 GET /api/papers/{id} 的结果合并回本地草稿。
- * 已同步部分以服务端为准（题项、标题、每题分值），本地还没同步的部分与新增题项原样保留。
- */
-function mergeDetailIntoDraft(draft: Draft, detail: PaperDetail): Draft {
-  const serverById = new Map(detail.sections.map((section) => [section.id, section]))
-  const used = new Set<string>()
-  const sections: DraftSection[] = []
-  for (const section of draft.sections) {
-    // 本地新增（还没有 serverId）一律保留。
-    if (!section.serverId) {
-      sections.push(section)
-      continue
-    }
-    const server = serverById.get(section.serverId)
-    // 已同步的部分在服务端不存在了 = 被删掉，本地也要移除。
-    if (!server) continue
-    used.add(server.id)
-    const previousByServerId = new Map(
-      section.items
-        .filter((item) => item.serverId)
-        .map((item) => [item.serverId as string, item] as const),
-    )
-    const serverItems = server.items.map((item) =>
-      itemFromServer(item, previousByServerId.get(item.id)),
-    )
-    const localOnly = section.items.filter((item) => !item.serverId)
-    sections.push({
-      ...section,
-      title: server.title,
-      pointsPerItem: Number(server.pointsPerItem),
-      items: [...serverItems, ...localOnly],
-    })
-  }
-  for (const server of detail.sections) {
-    if (!used.has(server.id)) sections.push(sectionFromServer(server))
-  }
-  return {
-    ...draft,
-    sections,
-    // 重新拉详情时同步 rubric：老师正在改（rubricTouched）就不覆盖编辑器内容。
-    rubricMarkdown: draft.rubricTouched ? draft.rubricMarkdown : (detail.rubricMarkdown ?? ''),
-    gradingPromptTemplate: draft.rubricTouched
-      ? draft.gradingPromptTemplate
-      : (detail.gradingPromptTemplate ?? ''),
-    serverTotalPoints: Number(detail.paper.totalPoints),
-    locked: detail.paper.status === 'PUBLISHED',
-  }
-}
-
-function cloneSections(sections: DraftSection[]): DraftSection[] {
-  return sections.map((section) => ({
-    ...section,
-    items: section.items.map((item) => ({ ...item })),
-    criteria: section.criteria.map((criterion) => ({ ...criterion })),
-  }))
-}
-
-function itemsTotalOf(draft: Draft): number {
-  return draft.sections.reduce(
-    (acc, section) => acc + section.items.reduce((sum, item) => sum + item.points, 0),
-    0,
-  )
-}
-
-function criteriaTotalOf(draft: Draft): number {
-  return (
-    draft.existingCriteriaTotal +
-    draft.sections.reduce(
-      (acc, section) => acc + section.criteria.reduce((sum, criterion) => sum + criterion.maxPoints, 0),
-      0,
-    )
-  )
-}
-
-function localTotalOf(draft: Draft): number {
-  return itemsTotalOf(draft) + criteriaTotalOf(draft)
-}
-
-function missingAnswerCount(draft: Draft): number {
-  return draft.sections.reduce(
-    (acc, section) =>
-      acc +
-      section.items.filter((item) => item.questionType !== 'ESSAY' && !item.answerKey.trim()).length,
-    0,
-  )
-}
-
-type Problem =
-  | 'title'
-  | 'duration'
-  | 'sectionTitle'
-  | 'sectionPoints'
-  | 'itemNumber'
-  | 'itemDuplicate'
-  | 'itemPoints'
-  | 'criteriaName'
-  | 'criteriaPoints'
-  | null
-
-function findProblem(draft: Draft): Problem {
-  if (!draft.title.trim()) return 'title'
-  if (draft.defaultDurationMinutes.trim() !== '') {
-    const minutes = Number(draft.defaultDurationMinutes)
-    if (!Number.isInteger(minutes) || minutes <= 0) return 'duration'
-  }
-  for (const section of draft.sections) {
-    if (!section.title.trim()) return 'sectionTitle'
-    if (!Number.isFinite(section.pointsPerItem) || section.pointsPerItem < 0) return 'sectionPoints'
-    const seen = new Set<number>()
-    for (const item of section.items) {
-      if (!Number.isInteger(item.number) || item.number <= 0) return 'itemNumber'
-      if (seen.has(item.number)) return 'itemDuplicate'
-      seen.add(item.number)
-      if (!Number.isFinite(item.points) || item.points <= 0) return 'itemPoints'
-    }
-    for (const criterion of section.criteria) {
-      if (!criterion.name.trim()) return 'criteriaName'
-      if (!Number.isFinite(criterion.maxPoints) || criterion.maxPoints <= 0) return 'criteriaPoints'
-    }
-  }
-  return null
-}
-
-/**
- * T185 新建 / 编辑试卷：5 步向导 + localStorage 草稿。
- * 整条流程不出现班级选择；班级只在「布置」页选择。
+ * 新建 / 编辑试卷（T185 重写，D-34 / AC-4.9、AC-4.24–4.29）。
+ *
+ * 四步：① 基本信息 ② 内容（Markdown 原文是唯一内容源，一个「生成考题」按钮）
+ * ③ 评分项（写作题一题一 tab）④ 预览与发布。
+ *
+ * 与旧实现的区别（都是用户 2026-10-25 拍板的）：
+ * - 不再手工建部分 / 逐题建题项 / 逐题补答案：原文解析出什么就是什么；
+ * - 再次生成 = **替换重建**（确认框会数出会丢的三类界面内编辑）；
+ * - 第 3 步（标准答案）删除；第 4 步取消参考范文输入；
+ * - 新增命题人 / 审题人 / 目标总分；目标总分只做发布闸门，不覆盖自动合计。
+ *
+ * 纯判定都在 `paperFlow.ts`（有单测），这里只做取值、渲染与发请求。
  */
 export default function PaperWizardPage() {
   const { t } = useTranslation('translation')
   const { paperId: paperIdParam } = useParams()
-  const editMode = Boolean(paperIdParam)
+  const { me } = useAuth()
+  const confirmDialog = useConfirm()
+  const toast = useToast()
 
-  const [draft, setDraft] = useState<Draft | null>(null)
+  const [draft, setDraft] = useState<DraftV2 | null>(null)
+  const [detail, setDetail] = useState<PaperDetail | null>(null)
   const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
-  const [reloadKey, setReloadKey] = useState(0)
-  const [importFile, setImportFile] = useState<File | null>(null)
-  const [importing, setImporting] = useState(false)
-  const [importResult, setImportResult] = useState<PaperImportResult | null>(null)
-  const [importError, setImportError] = useState<string | null>(null)
-  const [importMode, setImportMode] = useState<'file' | 'text'>('file')
-  const [importText, setImportText] = useState('')
-  const [importSectionKey, setImportSectionKey] = useState('')
-  const [batchForm, setBatchForm] = useState({ from: '', to: '', type: 'SINGLE_CHOICE' as QType })
-  const [batchMessage, setBatchMessage] = useState<string | null>(null)
-  const [batchError, setBatchError] = useState<string | null>(null)
-  const [resumed, setResumed] = useState(false)
-
-  // 第 2 / 3 步的行内编辑与删除（locked 时这些按钮不渲染）。
-  const [editingSectionKey, setEditingSectionKey] = useState<string | null>(null)
-  const [sectionEdit, setSectionEdit] = useState({ title: '', pointsPerItem: '' })
-  const [deletingSectionKey, setDeletingSectionKey] = useState<string | null>(null)
-  const [editingItemKey, setEditingItemKey] = useState<string | null>(null)
-  const [deletingItemKey, setDeletingItemKey] = useState<string | null>(null)
-  const [rowBusy, setRowBusy] = useState<string | null>(null)
-
-  const [sectionForm, setSectionForm] = useState({ title: '', pointsPerItem: '' })
-  const [itemSectionKey, setItemSectionKey] = useState('')
-  const [itemForm, setItemForm] = useState({
-    number: '',
-    questionType: 'SINGLE_CHOICE' as QType,
-    stem: '',
-    options: '',
-    answerKey: '',
-    points: '',
-    scoringStrategy: 'ALL_OR_NOTHING' as ScoringStrategy,
-  })
-  const [criteriaSectionKey, setCriteriaSectionKey] = useState('')
-  const [criteriaForm, setCriteriaForm] = useState({ name: '', maxPoints: '', description: '' })
+  const [busy, setBusy] = useState<'meta' | 'generate' | 'rubric' | 'sync' | 'publish' | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
-  // 第 4 步：写作题的题项级 rubric / 参考范文（D-24 / D-25）
-  const [essayBusyKey, setEssayBusyKey] = useState<string | null>(null)
-  const [essaySavedKey, setEssaySavedKey] = useState<string | null>(null)
+  const [note, setNote] = useState<{ tone: 'ok' | 'err' | 'info'; text: string } | null>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [elapsed, setElapsed] = useState(0)
+  const [tab, setTab] = useState(0)
+  const [rubricEdits, setRubricEdits] = useState<Record<number, string>>({})
 
-  const [syncing, setSyncing] = useState(false)
-  const [syncError, setSyncError] = useState<string | null>(null)
-  const [syncMessage, setSyncMessage] = useState<string | null>(null)
-  const [publishing, setPublishing] = useState(false)
-  const [publishedNow, setPublishedNow] = useState(false)
+  const storageKey = 'teachloop.paperDraft.v2'
+  const step = draft?.step ?? 1
+  const locked = detail?.paper.status === 'PUBLISHED'
 
-  // 载入：编辑模式先 GET 详情回填；新建模式优先恢复 localStorage 草稿。
+  const loadDetail = useCallback(async (id: string, keepStep: WizardStep = 1) => {
+    const fresh = await api.get<PaperDetail>(`/api/papers/${id}`)
+    setDetail(fresh)
+    setDraft((current) => {
+      // 已经打开过同一张卷：只刷新服务端字段，别把老师正在编辑的原文/步数冲掉。
+      const base = current && current.paperId === id ? current : draftFromDetail(fresh, keepStep)
+      return {
+        ...base,
+        paperId: id,
+        title: base.title || fresh.paper.title,
+        durationMinutes: base.durationMinutes,
+        authorName: base.authorName || (fresh.paper.authorName ?? ''),
+        reviewerName: base.reviewerName || (fresh.paper.reviewerName ?? ''),
+        targetTotalPoints:
+          base.targetTotalPoints !== ''
+            ? base.targetTotalPoints
+            : fresh.paper.targetTotalPoints === null || fresh.paper.targetTotalPoints === undefined
+              ? ''
+              : String(fresh.paper.targetTotalPoints),
+        contentMarkdown: base.contentMarkdown || (fresh.contentMarkdown ?? ''),
+      }
+    })
+  }, [])
+
+  // 载入：有 paperId 就先取详情；新建模式优先恢复本地草稿（v2）。
   useEffect(() => {
     let alive = true
     setReady(false)
     setLoadError(null)
     setFormError(null)
-    setSyncError(null)
-    setSyncMessage(null)
-
+    setNote(null)
     if (paperIdParam) {
-      const stored = loadStoredDraft()
-      if (stored && stored.mode === 'edit' && stored.paperId === paperIdParam) {
-        setDraft(stored)
-        setResumed(true)
-        setReady(true)
-        return () => {
-          alive = false
-        }
-      }
-      api
-        .get<PaperDetail>(`/api/papers/${paperIdParam}`)
-        .then((detail) => {
-          if (!alive) return
-          setDraft(fromDetail(detail))
-          setResumed(false)
-          setReady(true)
-        })
+      loadDetail(paperIdParam)
         .catch((err: unknown) => {
-          if (!alive) return
-          setLoadError(err instanceof Error ? err : new Error(String(err)))
-          setReady(true)
+          if (alive) setLoadError(err instanceof Error ? err : new Error(String(err)))
+        })
+        .finally(() => {
+          if (alive) setReady(true)
         })
       return () => {
         alive = false
       }
     }
-
-    const stored = loadStoredDraft()
-    const hasContent =
-      stored !== null &&
-      (stored.title.trim() !== '' || stored.sections.length > 0 || stored.paperId !== null)
-    if (stored && stored.mode === 'create' && hasContent) {
-      setDraft(stored)
-      setResumed(true)
-      // 已经落过服务端草稿：后台对一次详情，剪掉在别处删掉的部分、刷新总分。
-      if (stored.paperId) {
-        api
-          .get<PaperDetail>(`/api/papers/${stored.paperId}`)
-          .then((detail) => {
-            if (!alive) return
-            setDraft((current) => (current ? mergeDetailIntoDraft(current, detail) : current))
-          })
-          .catch(() => {
-            // 详情取不到（离线/被删）时保留本地草稿，不阻塞继续编辑。
-          })
-      }
-    } else {
-      setDraft(blankDraft())
-      setResumed(false)
+    let restored: DraftV2 | null = null
+    try {
+      const raw = localStorage.getItem(storageKey)
+      restored = raw === null ? null : normalizeDraft(JSON.parse(raw))
+    } catch {
+      restored = null
+    }
+    const next = restored ?? { ...blankDraft(), authorName: me?.displayName ?? '' }
+    setDraft(next.authorName.trim() === '' && me ? { ...next, authorName: me.displayName } : next)
+    if (next.paperId) {
+      loadDetail(next.paperId, next.step).catch(() => {
+        // 草稿指向的卷被删了：保留原文与 meta，让老师重新生成时再建卷。
+        setDraft((current) => (current ? { ...current, paperId: null } : current))
+      })
     }
     setReady(true)
     return () => {
       alive = false
     }
-  }, [paperIdParam, reloadKey])
+    // me 只在登录后从 null 变为对象一次，不需要触发重新载入
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paperIdParam, loadDetail])
 
-  // 自动保存草稿：编辑模式同样保存，切换论文时按 paperId 判断归属。
+  // useAuth 的 me 可能比本页挂载晚一次：只在命题人还空着时补填，不覆盖老师已经改过的值。
   useEffect(() => {
-    if (!ready || !draft || publishedNow) return
+    if (!draft || !me) return
+    if (draft.paperId !== null || draft.authorName.trim() !== '') return
+    setDraft({ ...draft, authorName: me.displayName })
+  }, [me, draft])
+
+  // 草稿自动保存；已发布的卷不再写草稿，避免下次打开停在只读页却提示「恢复了草稿」。
+  useEffect(() => {
+    if (!draft || detail?.paper.status === 'PUBLISHED') return
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(draft))
+      localStorage.setItem(storageKey, JSON.stringify(draft))
     } catch {
       // 浏览器禁用 localStorage 时向导仍可在当前页面完成。
     }
-  }, [ready, draft, publishedNow])
+  }, [draft, detail?.paper.status, storageKey])
 
+  // 生成中的计时器：只用于「已用 N 秒 + 阶段」的不确定进度（AC-4.24⑤）。
   useEffect(() => {
+    if (busy !== 'generate') return
+    setElapsed(0)
+    const timer = setInterval(() => setElapsed((value) => value + 200), 200)
+    return () => clearInterval(timer)
+  }, [busy])
+
+  const update = (patch: Partial<DraftV2>) => setDraft((current) => (current ? { ...current, ...patch } : current))
+  const setStep = (next: WizardStep) => update({ step: next })
+
+  const summary = useMemo(() => previewSummary(detail), [detail])
+  const rows = useMemo(() => previewRows(detail), [detail])
+  const tabs = useMemo(() => essayTabs(detail), [detail])
+  const activeTab: EssayTab | null = tabs[tab] ?? tabs[0] ?? null
+  const target = draft ? toNumberOrNull(draft.targetTotalPoints) : null
+  const actual = detail ? Number(detail.paper.totalPoints) : 0
+  const legacyCriteria = detail
+    ? Math.max(0, Math.round((Number(detail.paper.totalPoints) - summary.itemsTotal) * 100) / 100)
+    : 0
+  const check = publishCheck({
+    itemCount: summary.itemCount,
+    actual,
+    target,
+    missingCount: summary.missingCount,
+    locked,
+  })
+  const verdict = compareTarget(target, actual)
+
+  /** 建卷 / 改 meta。返回最新的 paperId（新建时是刚建出来的）。 */
+  const persistMeta = async (): Promise<string | null> => {
+    if (!draft) return null
+    const problem = findMetaProblem(draft)
+    if (problem) {
+      setFormError(t(`teacher.wizard.errors.${problem}`))
+      return null
+    }
+    if (draft.paperId) {
+      const payload = metaPayload(draft)
+      const current = detail?.paper
+      const unchanged = current !== undefined
+        && (current.authorName ?? null) === payload.authorName
+        && (current.reviewerName ?? null) === payload.reviewerName
+        && (current.targetTotalPoints === null || current.targetTotalPoints === undefined
+          ? null
+          : Number(current.targetTotalPoints)) === payload.targetTotalPoints
+      if (unchanged) return draft.paperId
+      const view = await api.put<PaperView>(`/api/papers/${draft.paperId}/meta`, payload)
+      setDetail((existing) => (existing ? { ...existing, paper: view } : existing))
+      setNote({ tone: 'ok', text: t('teacher.wizard.metaSaved') })
+      return draft.paperId
+    }
+    const created = await api.post<PaperView>('/api/papers', {
+      title: draft.title.trim(),
+      defaultDurationMinutes: toNumberOrNull(draft.durationMinutes),
+      ...metaPayload(draft),
+    })
+    update({ paperId: created.id })
+    setNote({ tone: 'ok', text: t('teacher.wizard.metaCreated') })
+    return created.id
+  }
+
+  const goNext = async () => {
     if (!draft) return
-    if (!itemSectionKey && draft.sections.length > 0) {
-      setItemSectionKey(draft.sections[0].key)
-    }
-    if (!criteriaSectionKey && draft.sections.length > 0) {
-      setCriteriaSectionKey(draft.sections[0].key)
-    }
-  }, [draft, itemSectionKey, criteriaSectionKey])
-
-  const update = (fn: (current: Draft) => Draft) => {
-    setDraft((current) => (current ? fn(current) : current))
-  }
-
-  const setStep = (step: Step) => update((current) => ({ ...current, step }))
-
-  /** 用服务端详情刷新本地草稿（总分、锁定态、已同步题项）。 */
-  const mergeFromServer = (detail: PaperDetail) => {
-    setDraft((current) => (current ? mergeDetailIntoDraft(current, detail) : current))
-  }
-
-  const refreshFromServer = async (paperId: string) => {
-    const detail = await api.get<PaperDetail>(`/api/papers/${paperId}`)
-    mergeFromServer(detail)
-    return detail
-  }
-
-  /**
-   * 导入前置：确保试卷与至少一个部分已在服务端存在，并回填 local → serverId。
-   * 与 syncDraft 的区别：不校验答案是否齐全、不创建题项，只保证「有卷、有部分」。
-   */
-  const ensurePaper = async (): Promise<Draft> => {
-    if (!draft) throw new Error(t('teacher.wizard.errors.noDraft'))
-    let current: Draft = { ...draft, sections: cloneSections(draft.sections) }
-    const persist = (next: Draft) => {
-      current = next
-      setDraft(next)
-      return next
-    }
-    if (!current.title.trim()) throw new Error(t('teacher.wizard.errors.title'))
-    if (!current.paperId) {
-      const durationText = current.defaultDurationMinutes.trim()
-      const duration = durationText === '' ? null : Number(durationText)
-      if (duration !== null && (!Number.isInteger(duration) || duration <= 0)) {
-        throw new Error(t('teacher.wizard.errors.duration'))
-      }
-      const created = await api.post<PaperView>('/api/papers', {
-        title: current.title.trim(),
-        defaultDurationMinutes: duration,
-      })
-      persist({ ...current, paperId: created.id })
-    }
-    const pid = current.paperId as string
-    if (current.sections.length === 0) {
-      persist({
-        ...current,
-        sections: [
-          {
-            key: uid(),
-            title: t('teacher.wizard.defaultSection'),
-            pointsPerItem: 1,
-            items: [],
-            criteria: [],
-          },
-        ],
-      })
-    }
-    for (let index = 0; index < current.sections.length; index += 1) {
-      if (current.sections[index].serverId) continue
-      const created = await api.post<{ id: string }>(`/api/papers/${pid}/sections`, {
-        title: current.sections[index].title.trim() || t('teacher.wizard.defaultSection'),
-        pointsPerItem: current.sections[index].pointsPerItem,
-      })
-      persist({
-        ...current,
-        sections: current.sections.map((section, i) =>
-          i === index ? { ...section, serverId: created.id } : section,
-        ),
-      })
-    }
-    if (!itemSectionKey && current.sections.length > 0) {
-      setItemSectionKey(current.sections[0].key)
-    }
-    if (!importSectionKey && current.sections.length > 0) {
-      setImportSectionKey(current.sections[0].key)
-    }
-    return current
-  }
-
-  const goNext = () => {
-    if (!draft) return
+    setFormError(null)
     if (draft.step === 1) {
-      const problem = findProblem({ ...draft, sections: [] })
+      const problem = findMetaProblem(draft)
       if (problem) {
         setFormError(t(`teacher.wizard.errors.${problem}`))
         return
       }
-    }
-    if (draft.step === 2 && !itemForm.number) {
-      const section =
-        draft.sections.find((s) => s.key === itemSectionKey) ?? draft.sections[0] ?? null
-      if (section) {
-        const nextNumber = Math.max(0, ...section.items.map((item) => item.number)) + 1
-        setItemForm((current) => ({ ...current, number: String(nextNumber) }))
+      if (draft.paperId) {
+        setBusy('meta')
+        try {
+          await persistMeta()
+        } catch (err) {
+          setFormError(describeError(err))
+          return
+        } finally {
+          setBusy(null)
+        }
       }
+      setStep(2)
+      return
     }
-    setFormError(null)
-    setStep(Math.min(5, draft.step + 1) as Step)
+    if (draft.step === 2) {
+      if (!draft.paperId || summary.itemCount === 0) {
+        setFormError(t('teacher.wizard.errors.generateFirst'))
+        return
+      }
+      setStep(3)
+      return
+    }
+    if (draft.step === 3) {
+      setStep(4)
+    }
   }
 
   const goPrev = () => {
-    if (!draft) return
+    if (!draft || draft.step <= 1) return
     setFormError(null)
-    setStep(Math.max(1, draft.step - 1) as Step)
+    setStep((draft.step - 1) as WizardStep)
   }
 
-  const addSection = () => {
-    if (!draft || draft.locked) return
-    const title = sectionForm.title.trim()
-    const pointsPerItem = Number(sectionForm.pointsPerItem)
-    if (!title) {
-      setFormError(t('teacher.wizard.errors.sectionTitle'))
+  const readFileIntoEditor = async (file: File) => {
+    const result = await readMarkdownFile(file)
+    if (!result.ok) {
+      setFormError(t(`teacher.wizard.errors.import_${result.reason}`))
       return
     }
-    if (!Number.isFinite(pointsPerItem) || pointsPerItem < 0) {
-      setFormError(t('teacher.wizard.errors.sectionPoints'))
+    update({ contentMarkdown: result.text })
+    setPendingFile(null)
+    setNote({ tone: 'info', text: t('teacher.wizard.fileReadIntoEditor', { name: file.name }) })
+  }
+
+  /** 「生成考题」：唯一的内容写入口（AC-4.24②）。replace=true 时是替换重建。 */
+  const generate = async () => {
+    if (!draft || locked) return
+    const hasText = draft.contentMarkdown.trim() !== ''
+    if (!hasText && !pendingFile) {
+      setFormError(t('teacher.wizard.errors.importText'))
       return
     }
-    const section: DraftSection = {
-      key: uid(),
-      title,
-      pointsPerItem,
-      items: [],
-      criteria: [],
-    }
-    update((current) => ({ ...current, sections: [...current.sections, section] }))
-    if (!itemSectionKey) setItemSectionKey(section.key)
-    if (!criteriaSectionKey) setCriteriaSectionKey(section.key)
-    setSectionForm({ title: '', pointsPerItem: '' })
-    setFormError(null)
-  }
-
-  const startEditSection = (section: DraftSection) => {
-    setEditingSectionKey(section.key)
-    setDeletingSectionKey(null)
-    setSectionEdit({ title: section.title, pointsPerItem: fmtNum(section.pointsPerItem) })
-    setFormError(null)
-  }
-
-  const cancelEditSection = () => {
-    setEditingSectionKey(null)
-    setSectionEdit({ title: '', pointsPerItem: '' })
-    setFormError(null)
-  }
-
-  const saveSectionEdit = async (section: DraftSection) => {
-    if (!draft || draft.locked) return
-    const title = sectionEdit.title.trim()
-    const pointsPerItem = Number(sectionEdit.pointsPerItem)
-    if (!title) {
-      setFormError(t('teacher.wizard.errors.sectionTitle'))
-      return
-    }
-    if (!Number.isFinite(pointsPerItem) || pointsPerItem < 0) {
-      setFormError(t('teacher.wizard.errors.sectionPoints'))
-      return
-    }
-    const pid = draft.paperId
-    setRowBusy(`section:${section.key}`)
-    try {
-      if (section.serverId && pid) {
-        const saved = await api.put<{ title: string; pointsPerItem: number }>(
-          `/api/papers/${pid}/sections/${section.serverId}${draft.locked ? '?confirm=true' : ''}`,
-          { title, pointsPerItem },
-        )
-        // 服务端已返回小数分值（SectionView.pointsPerItem 是 BigDecimal），以服务端结果为准。
-        update((current) => ({
-          ...current,
-          sections: current.sections.map((s) =>
-            s.key === section.key
-              ? { ...s, title: saved.title ?? title, pointsPerItem: Number(saved.pointsPerItem ?? pointsPerItem) }
-              : s,
-          ),
-        }))
-      } else {
-        update((current) => ({
-          ...current,
-          sections: current.sections.map((s) =>
-            s.key === section.key ? { ...s, title, pointsPerItem } : s,
-          ),
-        }))
-      }
-      setEditingSectionKey(null)
-      setSectionEdit({ title: '', pointsPerItem: '' })
-      setFormError(null)
-    } catch (err) {
-      setFormError(errorMessage(err))
-    } finally {
-      setRowBusy(null)
-    }
-  }
-
-  const removeSection = async (section: DraftSection) => {
-    if (!draft || draft.locked) return
-    const pid = draft.paperId
-    setRowBusy(`section:${section.key}`)
-    setFormError(null)
-    try {
-      if (section.serverId && pid) {
-        await api.del(
-          `/api/papers/${pid}/sections/${section.serverId}${draft.locked ? '?confirm=true' : ''}`,
-        )
-        await refreshFromServer(pid)
-      } else {
-        update((current) => ({
-          ...current,
-          sections: current.sections.filter((s) => s.key !== section.key),
-        }))
-      }
-      const remaining = draft.sections.filter((s) => s.key !== section.key)
-      const nextKey = remaining[0]?.key ?? ''
-      if (itemSectionKey === section.key) setItemSectionKey(nextKey)
-      if (criteriaSectionKey === section.key) setCriteriaSectionKey(nextKey)
-      if (importSectionKey === section.key) setImportSectionKey(nextKey)
-      if (editingSectionKey === section.key) setEditingSectionKey(null)
-      if (editingItemKey && section.items.some((item) => item.key === editingItemKey)) {
-        setEditingItemKey(null)
-      }
-      setDeletingSectionKey(null)
-    } catch (err) {
-      setFormError(errorMessage(err))
-    } finally {
-      setRowBusy(null)
-    }
-  }
-
-  /** 校验题型表单；ignoreKey 让编辑态把自己排除在重号检查之外。返回 null 表示已写入 formError。 */
-  const readItemForm = (
-    section: DraftSection,
-    ignoreKey: string | null,
-  ): { number: number; points: number; answerKey: string; scoringStrategy: ScoringStrategy } | null => {
-    const number = Number(itemForm.number)
-    const points = Number(itemForm.points)
-    if (!Number.isInteger(number) || number <= 0) {
-      setFormError(t('teacher.wizard.errors.itemNumber'))
-      return null
-    }
-    if (section.items.some((item) => item.number === number && item.key !== ignoreKey)) {
-      setFormError(t('teacher.wizard.errors.itemDuplicate'))
-      return null
-    }
-    if (!Number.isFinite(points) || points <= 0) {
-      setFormError(t('teacher.wizard.errors.itemPoints'))
-      return null
-    }
-    return {
-      number,
-      points,
-      answerKey: itemForm.questionType === 'ESSAY' ? '' : itemForm.answerKey,
-      scoringStrategy:
-        itemForm.questionType === 'MULTIPLE_CHOICE' ? itemForm.scoringStrategy : 'ALL_OR_NOTHING',
-    }
-  }
-
-  const addItem = () => {
-    if (!draft || draft.locked) return
-    const section = draft.sections.find((s) => s.key === itemSectionKey)
-    if (!section) {
-      setFormError(t('teacher.wizard.errors.needSection'))
-      return
-    }
-    const parsed = readItemForm(section, null)
-    if (!parsed) return
-    const item: DraftItem = {
-      key: uid(),
-      number: parsed.number,
-      questionType: itemForm.questionType,
-      stem: itemForm.stem,
-      options: itemForm.options,
-      answerKey: parsed.answerKey,
-      points: parsed.points,
-      scoringStrategy: parsed.scoringStrategy,
-      rubricMarkdown: '',
-      referenceMarkdown: '',
-    }
-    update((current) => ({
-      ...current,
-      sections: current.sections.map((s) =>
-        s.key === section.key ? { ...s, items: [...s.items, item] } : s,
-      ),
-    }))
-    const nextNumber = Math.max(0, ...section.items.map((i) => i.number), parsed.number) + 1
-    setItemForm({
-      number: String(nextNumber),
-      questionType: itemForm.questionType,
-      stem: '',
-      options: '',
-      answerKey: '',
-      points: '',
-      scoringStrategy: itemForm.scoringStrategy,
-    })
-    setFormError(null)
-  }
-
-  const startEditItem = (section: DraftSection, item: DraftItem) => {
-    setEditingItemKey(item.key)
-    setDeletingItemKey(null)
-    setItemSectionKey(section.key)
-    setItemForm({
-      number: String(item.number),
-      questionType: item.questionType,
-      stem: item.stem,
-      options: item.options,
-      answerKey: item.answerKey,
-      points: fmtNum(item.points),
-      scoringStrategy: item.scoringStrategy,
-    })
-    setFormError(null)
-  }
-
-  const cancelEditItem = () => {
-    setEditingItemKey(null)
-    setFormError(null)
-    const section = draft?.sections.find((s) => s.key === itemSectionKey) ?? null
-    const nextNumber = section ? Math.max(0, ...section.items.map((i) => i.number)) + 1 : 1
-    setItemForm({
-      number: String(nextNumber),
-      questionType: 'SINGLE_CHOICE',
-      stem: '',
-      options: '',
-      answerKey: '',
-      points: '',
-      scoringStrategy: 'ALL_OR_NOTHING',
-    })
-  }
-
-  /** 第 4 步写作题的字段修改（只改本地草稿，点保存才落库）。 */
-  const updateEssayField = (
-    sectionKey: string,
-    itemKey: string,
-    patch: Partial<Pick<DraftItem, 'rubricMarkdown' | 'referenceMarkdown'>>,
-  ) => {
-    update((current) => ({
-      ...current,
-      sections: current.sections.map((section) =>
-        section.key === sectionKey
-          ? {
-              ...section,
-              items: section.items.map((item) =>
-                item.key === itemKey ? { ...item, ...patch } : item,
-              ),
-            }
-          : section,
-      ),
-    }))
-    setEssaySavedKey(null)
-  }
-
-  /** 保存一道写作题的 rubric 与参考范文；只发这两个字段，不会碰题干/答案。 */
-  const saveEssayText = async (item: DraftItem) => {
-    if (!draft?.paperId || draft.locked) return
-    setEssayBusyKey(item.key)
-    setFormError(null)
-    try {
-      await api.put(`/api/papers/${draft.paperId}/items/${item.number}`, {
-        rubricMarkdown: item.rubricMarkdown.trim(),
-        referenceMarkdown: item.referenceMarkdown.trim(),
+    const summaryBefore = deleteSummary(detail)
+    if (needsReplaceConfirm(summaryBefore)) {
+      const ok = await confirmDialog({
+        title: t('teacher.wizard.replaceTitle'),
+        danger: true,
+        okText: t('teacher.wizard.replaceOk'),
+        cancelText: t('teacher.wizard.replaceCancel'),
+        content: (
+          <div>
+            <p style={{ marginTop: 0 }}>{t('teacher.wizard.replaceIntro', {
+              sections: summaryBefore.sections,
+              items: summaryBefore.items,
+            })}</p>
+            <ul style={{ paddingLeft: 20, margin: '6px 0' }}>
+              <li>{t('teacher.wizard.replaceRubrics', { n: summaryBefore.rubrics })}</li>
+              <li>{t('teacher.wizard.replaceExplanations', { n: summaryBefore.explanations })}</li>
+              <li>{t('teacher.wizard.replaceCriteria', {
+                n: summaryBefore.criteriaNames,
+                points: fmtNum(summaryBefore.legacyCriteriaPoints),
+              })}</li>
+            </ul>
+            <p className="hint" style={{ marginBottom: 0 }}>{t('teacher.wizard.replaceHint')}</p>
+          </div>
+        ),
       })
-      setEssaySavedKey(item.key)
-    } catch (e) {
-      setFormError((e as Error).message)
-    } finally {
-      setEssayBusyKey(null)
+      if (!ok) return
     }
-  }
 
-  const saveItemEdit = async () => {
-    if (!draft || draft.locked) return
-    const section = draft.sections.find((s) => s.key === itemSectionKey)
-    if (!section) {
-      setFormError(t('teacher.wizard.errors.needSection'))
-      return
-    }
-    const editing = section.items.find((item) => item.key === editingItemKey)
-    if (!editing) {
-      setEditingItemKey(null)
-      return
-    }
-    const parsed = readItemForm(section, editing.key)
-    if (!parsed) return
-    if (editing.serverId && editing.number !== parsed.number) {
-      setFormError(t('teacher.wizard.errors.itemNumberLocked'))
-      return
-    }
-    const pid = draft.paperId
-    const confirmQuery = draft.locked ? '?confirm=true' : ''
-    setRowBusy(`item:${editing.key}`)
+    setBusy('generate')
+    setFormError(null)
+    setNote(null)
+    const startedAt = Date.now()
     try {
-      if (editing.serverId && pid) {
-        // 题型先改，再改内容：后端会在题型变更时规范标准答案。
-        if (editing.questionType !== itemForm.questionType) {
-          await api.put(`/api/papers/${pid}/items/${parsed.number}/question-type${confirmQuery}`, {
-            questionType: itemForm.questionType,
-          })
-        }
-        await api.put(`/api/papers/${pid}/items/${parsed.number}${confirmQuery}`, {
-          stem: itemForm.stem.trim() || null,
-          options: itemForm.options.trim() || null,
-          answerKey: parsed.answerKey.trim() || null,
-          points: parsed.points,
-        })
-        if (
-          itemForm.questionType === 'MULTIPLE_CHOICE' &&
-          editing.scoringStrategy !== parsed.scoringStrategy
-        ) {
-          await api.put(
-            `/api/papers/${pid}/items/${parsed.number}/scoring-strategy${confirmQuery}`,
-            { scoringStrategy: parsed.scoringStrategy },
-          )
-        }
-        await refreshFromServer(pid)
+      const paperId = draft.paperId ?? (await persistMeta())
+      if (!paperId) return
+      let imported: PaperImportResult
+      if (pendingFile) {
+        const form = new FormData()
+        form.append('file', pendingFile)
+        imported = await api.postForm<PaperImportResult>(`/api/papers/${paperId}/import?replace=true`, form)
       } else {
-        update((current) => ({
-          ...current,
-          sections: current.sections.map((s) =>
-            s.key !== section.key
-              ? s
-              : {
-                  ...s,
-                  items: s.items.map((item) =>
-                    item.key === editing.key
-                      ? {
-                          ...item,
-                          number: parsed.number,
-                          questionType: itemForm.questionType,
-                          stem: itemForm.stem,
-                          options: itemForm.options,
-                          answerKey: parsed.answerKey,
-                          points: parsed.points,
-                          scoringStrategy: parsed.scoringStrategy,
-                        }
-                      : item,
-                  ),
-                },
-          ),
-        }))
+        imported = await api.post<PaperImportResult>(`/api/papers/${paperId}/import/text?replace=true`, {
+          text: draft.contentMarkdown,
+        })
       }
-      const nextNumber = Math.max(0, ...section.items.map((i) => i.number), parsed.number) + 1
-      setItemForm({
-        number: String(nextNumber),
-        questionType: itemForm.questionType,
-        stem: '',
-        options: '',
-        answerKey: '',
-        points: '',
-        scoringStrategy: itemForm.scoringStrategy,
+      await loadDetail(paperId, 2)
+      setDraft((current) =>
+        current
+          ? applyMetaHints(
+              {
+                ...current,
+                paperId,
+                contentMarkdown: imported.contentMarkdown ?? current.contentMarkdown,
+              },
+              imported.metaHints,
+            )
+          : current,
+      )
+      setPendingFile(null)
+      setRubricEdits({})
+      setNote({
+        tone: 'ok',
+        text: t('teacher.wizard.generateDone', {
+          n: imported.imported,
+          missing: imported.missingAnswers.length,
+        }),
       })
-      setEditingItemKey(null)
-      setFormError(null)
     } catch (err) {
-      setFormError(errorMessage(err))
+      setFormError(describeError(err))
     } finally {
-      setRowBusy(null)
+      // 不确定进度至少露一下脸：否则「生成考题」看起来像没反应。
+      const spent = Date.now() - startedAt
+      if (spent < MIN_PROGRESS_MS) await sleep(MIN_PROGRESS_MS - spent)
+      setBusy(null)
     }
   }
 
-  const removeItem = async (section: DraftSection, item: DraftItem) => {
-    if (!draft || draft.locked) return
-    const pid = draft.paperId
-    const confirmQuery = draft.locked ? '?confirm=true' : ''
-    setRowBusy(`item:${item.key}`)
+  const saveRubric = async () => {
+    if (!draft?.paperId || !activeTab || locked) return
+    const text = rubricEdits[activeTab.number] ?? activeTab.rubricMarkdown
+    setBusy('rubric')
     setFormError(null)
     try {
-      if (item.serverId && pid) {
-        await api.del(`/api/papers/${pid}/items/${item.number}${confirmQuery}`)
-        await refreshFromServer(pid)
-      } else {
-        update((current) => ({
-          ...current,
-          sections: current.sections.map((s) =>
-            s.key === section.key
-              ? { ...s, items: s.items.filter((i) => i.key !== item.key) }
-              : s,
-          ),
-        }))
-      }
-      setDeletingItemKey(null)
-      if (editingItemKey === item.key) setEditingItemKey(null)
+      await api.put(`/api/papers/${draft.paperId}/items/${activeTab.number}`, {
+        rubricMarkdown: text.trim(),
+      })
+      await loadDetail(draft.paperId, (draft.step ?? 3) as WizardStep)
+      setNote({ tone: 'ok', text: t('teacher.wizard.rubricSaved') })
+      toast.success(t('teacher.wizard.rubricSaved'))
     } catch (err) {
-      setFormError(errorMessage(err))
+      setFormError(describeError(err))
     } finally {
-      setRowBusy(null)
+      setBusy(null)
     }
   }
 
-  const addCriteria = () => {
-    if (!draft || draft.locked) return
-    const section = draft.sections.find((s) => s.key === criteriaSectionKey)
-    if (!section) {
-      setFormError(t('teacher.wizard.errors.needSection'))
-      return
-    }
-    const name = criteriaForm.name.trim()
-    const maxPoints = Number(criteriaForm.maxPoints)
-    if (!name) {
-      setFormError(t('teacher.wizard.errors.criteriaName'))
-      return
-    }
-    if (!Number.isFinite(maxPoints) || maxPoints <= 0) {
-      setFormError(t('teacher.wizard.errors.criteriaPoints'))
-      return
-    }
-    const criterion: DraftCriterion = {
-      key: uid(),
-      name,
-      maxPoints,
-      description: criteriaForm.description.trim(),
-    }
-    update((current) => ({
-      ...current,
-      sections: current.sections.map((s) =>
-        s.key === section.key ? { ...s, criteria: [...s.criteria, criterion] } : s,
-      ),
-    }))
-    setCriteriaForm({ name: '', maxPoints: '', description: '' })
+  const sync = async () => {
+    if (!draft?.paperId) return
+    setBusy('sync')
     setFormError(null)
-  }
-
-  /**
-   * 把本地草稿同步到服务端：只补建还缺的试卷/部分/题项/评分项。
-   * 编辑与删除在各自的行内操作里即时落库，不走这里，所以重复同步不会覆盖已保存内容。
-   * 每成功创建一条就落盘，失败重试时不会重复创建。
-   */
-  const syncDraft = async (base: Draft): Promise<Draft> => {
-    if (base.locked) return base
-    const problem = findProblem(base)
-    if (problem) throw new Error(t(`teacher.wizard.errors.${problem}`))
-    const missing = missingAnswerCount(base)
-    if (missing > 0) {
-      throw new Error(t('teacher.wizard.errors.missingAnswers', { n: missing }))
-    }
-
-    let current: Draft = {
-      ...base,
-      sections: cloneSections(base.sections),
-    }
-    const persist = (next: Draft) => {
-      current = next
-      setDraft(next)
-      return next
-    }
-
-    let paperId = current.paperId
-    if (!paperId) {
-      const created = await api.post<PaperView>('/api/papers', {
-        title: current.title.trim(),
-        defaultDurationMinutes:
-          current.defaultDurationMinutes.trim() === ''
-            ? null
-            : Number(current.defaultDurationMinutes),
-      })
-      paperId = created.id
-      persist({ ...current, paperId })
-    }
-
-    const pid = paperId
-    for (let index = 0; index < current.sections.length; index += 1) {
-      if (!current.sections[index].serverId) {
-        const created = await api.post<{ id: string }>(`/api/papers/${pid}/sections`, {
-          title: current.sections[index].title.trim(),
-          pointsPerItem: current.sections[index].pointsPerItem,
-        })
-        const sections = current.sections.map((section, i) =>
-          i === index ? { ...section, serverId: created.id } : section,
-        )
-        persist({ ...current, sections })
-      }
-      const sectionId = current.sections[index].serverId as string
-
-      let items = current.sections[index].items.map((item) => ({ ...item }))
-      for (let itemIndex = 0; itemIndex < items.length; itemIndex += 1) {
-        if (items[itemIndex].serverId) continue
-        const created = await api.post<PaperItem>(`/api/papers/${pid}/items`, {
-          number: items[itemIndex].number,
-          questionType: items[itemIndex].questionType,
-          stem: items[itemIndex].stem.trim() || null,
-          options: items[itemIndex].options.trim() || null,
-          answerKey: items[itemIndex].answerKey.trim() || null,
-          points: items[itemIndex].points,
-          sectionId,
-          scoringStrategy: items[itemIndex].scoringStrategy,
-          rubricMarkdown: items[itemIndex].questionType === 'ESSAY'
-            ? (items[itemIndex].rubricMarkdown.trim() || null) : null,
-          referenceMarkdown: items[itemIndex].questionType === 'ESSAY'
-            ? (items[itemIndex].referenceMarkdown.trim() || null) : null,
-        })
-        items = items.map((item, i) =>
-          i === itemIndex ? { ...item, serverId: created.id } : item,
-        )
-        const sections = current.sections.map((section, i) =>
-          i === index ? { ...section, items: [...items] } : section,
-        )
-        persist({ ...current, sections })
-      }
-
-      let criteria = current.sections[index].criteria.map((criterion) => ({ ...criterion }))
-      for (let criteriaIndex = 0; criteriaIndex < criteria.length; criteriaIndex += 1) {
-        if (criteria[criteriaIndex].serverId) continue
-        await api.post(`/api/papers/${pid}/criteria`, {
-          name: criteria[criteriaIndex].name.trim(),
-          maxPoints: criteria[criteriaIndex].maxPoints,
-          description: criteria[criteriaIndex].description.trim() || null,
-          sectionId,
-        })
-        criteria = criteria.map((criterion, i) =>
-          i === criteriaIndex ? { ...criterion, serverId: 'saved' } : criterion,
-        )
-        const sections = current.sections.map((section, i) =>
-          i === index ? { ...section, criteria: [...criteria] } : section,
-        )
-        persist({ ...current, sections })
-      }
-    }
-
-    if (current.rubricTouched) {
-      await api.put(`/api/papers/${pid}/rubric`, {
-        rubricMarkdown: current.rubricMarkdown,
-        gradingPromptTemplate: current.gradingPromptTemplate.trim() || null,
-      })
-    }
-
-    const detail = await api.get<PaperDetail>(`/api/papers/${pid}`)
-    const synced: Draft = {
-      ...current,
-      serverTotalPoints: Number(detail.paper.totalPoints),
-      locked: detail.paper.status === 'PUBLISHED',
-    }
-    persist(synced)
-    return synced
-  }
-
-  const runSync = async (): Promise<Draft | null> => {
-    if (!draft) return null
-    setSyncing(true)
-    setSyncError(null)
-    setSyncMessage(null)
+    setNote(null)
     try {
-      const synced = await syncDraft(draft)
-      const local = localTotalOf(synced)
-      const server = synced.serverTotalPoints ?? 0
-      if (Math.abs(local - server) > 0.001) {
-        setSyncError(
-          t('teacher.wizard.totalMismatch', { local: fmtNum(local), server: fmtNum(server) }),
-        )
-      } else {
-        setSyncMessage(t('teacher.wizard.synced', { total: fmtNum(server) }))
-      }
-      return synced
+      await loadDetail(draft.paperId, (draft.step ?? 4) as WizardStep)
+      const fresh = await api.get<PaperDetail>(`/api/papers/${draft.paperId}`)
+      const freshActual = Number(fresh.paper.totalPoints)
+      const freshItems = previewSummary(fresh)
+      const mismatch = compareTarget(target, freshActual) === 'mismatch'
+      setNote({
+        tone: mismatch ? 'err' : 'ok',
+        text: mismatch
+          ? t('teacher.wizard.totalMismatch', { local: fmtNum(target ?? 0), server: fmtNum(freshActual) })
+          : t('teacher.wizard.synced', { total: fmtNum(freshActual), n: freshItems.itemCount }),
+      })
     } catch (err) {
-      setSyncError(errorMessage(err))
-      return null
+      setFormError(describeError(err))
     } finally {
-      setSyncing(false)
+      setBusy(null)
     }
   }
 
   const publish = async () => {
-    if (!draft || draft.locked) return
-    setPublishing(true)
-    setSyncError(null)
-    setSyncMessage(null)
+    if (!draft?.paperId) return
+    setBusy('publish')
+    setFormError(null)
     try {
-      const synced = await syncDraft(draft)
-      const local = localTotalOf(synced)
-      const server = synced.serverTotalPoints ?? 0
-      if (Math.abs(local - server) > 0.001) {
-        setSyncError(
-          t('teacher.wizard.totalMismatch', { local: fmtNum(local), server: fmtNum(server) }),
-        )
-        return
-      }
-      if (synced.sections.length === 0 || server <= 0) {
-        setSyncError(t('teacher.wizard.errors.emptyPaper'))
-        return
-      }
-      await api.post(`/api/papers/${synced.paperId}/publish`)
-      setDraft({ ...synced, locked: true })
-      setPublishedNow(true)
+      await api.post(`/api/papers/${draft.paperId}/publish`)
+      await loadDetail(draft.paperId, 4)
       try {
-        localStorage.removeItem(STORAGE_KEY)
+        localStorage.removeItem(storageKey)
       } catch {
-        // 隐私模式禁用 localStorage 时草稿清理失败，不影响已完成的发布。
+        // 隐私模式禁用 localStorage 时清理失败，不影响已完成的发布。
       }
+      setNote({ tone: 'ok', text: t('teacher.wizard.publishSuccess') })
     } catch (err) {
-      setSyncError(errorMessage(err))
+      setFormError(describeError(err))
     } finally {
-      setPublishing(false)
+      setBusy(null)
     }
   }
 
@@ -1194,164 +441,39 @@ export default function PaperWizardPage() {
     return (
       <TeacherPage>
         <PageHeader title={t('teacher.wizard.title')} sub={t('teacher.wizard.sub')} />
-        <ErrorState error={loadError} onRetry={() => setReloadKey((n) => n + 1)} />
+        <ErrorState error={loadError} onRetry={() => window.location.reload()} />
       </TeacherPage>
     )
-  }
-
-  const applyBatchType = async () => {
-    // 已发布试卷内容锁定：连本地草稿也不改，避免界面看起来改成功但服务端没变。
-    if (!draft || draft.locked) return
-    const from = Number(batchForm.from)
-    const to = Number(batchForm.to)
-    setBatchMessage(null)
-    setBatchError(null)
-    if (!Number.isInteger(from) || !Number.isInteger(to) || from <= 0 || to < from) {
-      setBatchError(t('teacher.wizard.batchInvalid'))
-      return
-    }
-    const targets = draft?.sections.flatMap((s) => s.items).filter((i) => i.number >= from && i.number <= to) ?? []
-    if (targets.length === 0) {
-      setBatchError(t('teacher.wizard.batchEmpty'))
-      return
-    }
-    update((current) => ({
-      ...current,
-      sections: current.sections.map((section) => ({
-        ...section,
-        items: section.items.map((item) =>
-          item.number >= from && item.number <= to ? { ...item, questionType: batchForm.type } : item),
-      })),
-    }))
-    setBatchMessage(t('teacher.wizard.batchLocal', { n: targets.length }))
-    if (draft?.paperId && !draft.locked && targets.some((i) => i.serverId)) {
-      try {
-        const result = await api.post<{ updated: number }>(`/api/papers/${draft.paperId}/items/question-type/batch`, {
-          fromNumber: from, toNumber: to, questionType: batchForm.type,
-        })
-        setBatchMessage(t('teacher.wizard.batchApplied', { n: result.updated }))
-        // 用服务端结果刷新（题型变更会规范标准答案），不再整页重载，避免丢掉本地未同步草稿。
-        await refreshFromServer(draft.paperId)
-      } catch (err) {
-        setBatchError(errorMessage(err))
-      }
-    }
-  }
-
-  /**
-   * 第 2 步导入：新建态先 ensurePaper（建卷 + 建部分），再按目标部分导入；
-   * 导入成功后把服务端题项合并回本地草稿，第 3 步立刻可见。
-   */
-  const runImport = async () => {
-    if (!draft || draft.locked) return
-    setImporting(true)
-    setImportError(null)
-    setImportResult(null)
-    try {
-      // 文档里带「第X部分」时后端会自己建部分，先记下这次是不是临时补的默认部分
-      const hadNoSections = draft.sections.length === 0
-      const ensured = await ensurePaper()
-      const pid = ensured.paperId
-      if (!pid) throw new Error(t('teacher.wizard.errors.noDraft'))
-      const preferredKey = importSectionKey || itemSectionKey
-      const target =
-        ensured.sections.find((section) => section.key === preferredKey) ?? ensured.sections[0]
-      if (!target || !target.serverId) throw new Error(t('teacher.wizard.errors.needSection'))
-
-      let imported: PaperImportResult
-      if (importMode === 'file') {
-        if (!importFile) throw new Error(t('teacher.wizard.errors.importFile'))
-        const body = new FormData()
-        body.append('file', importFile)
-        const res = await fetch(`/api/papers/${pid}/import?sectionId=${target.serverId}`, {
-          method: 'POST',
-          credentials: 'include',
-          body,
-        })
-        if (!res.ok) {
-          const payload = await res.json().catch(() => null)
-          throw new Error(payload?.detail || payload?.message || `HTTP ${res.status}`)
-        }
-        imported = (await res.json()) as PaperImportResult
-      } else {
-        if (!importText.trim()) throw new Error(t('teacher.wizard.errors.importText'))
-        imported = await api.post<PaperImportResult>(`/api/papers/${pid}/import/text`, {
-          text: importText,
-          sectionId: target.serverId,
-        })
-      }
-
-      // 多部分文档：导入时按文档结构建了部分，临时补的默认部分若还空着就删掉，别留个空壳
-      if (hadNoSections && (imported.sections?.length ?? 0) > 1 && target.serverId) {
-        const detail = await api.get<PaperDetail>(`/api/papers/${pid}`)
-        const stillEmpty = detail.sections.find(
-          (section) => section.id === target.serverId && section.items.length === 0,
-        )
-        if (stillEmpty) {
-          await api.del(`/api/papers/${pid}/sections/${target.serverId}`).catch(() => undefined)
-        }
-      }
-      setImportResult(imported)
-      setImportFile(null)
-      setImportText('')
-      const detail = await api.get<PaperDetail>(`/api/papers/${pid}`)
-      mergeFromServer(detail)
-      setImportSectionKey(target.key)
-      setItemSectionKey(target.key)
-    } catch (err) {
-      setImportError(errorMessage(err))
-    } finally {
-      setImporting(false)
-    }
   }
 
   if (!draft) {
     return (
       <TeacherPage>
         <PageHeader title={t('teacher.wizard.title')} sub={t('teacher.wizard.sub')} />
-        <ErrorState
-          error={new Error(t('teacher.wizard.errors.noDraft'))}
-          onRetry={() => setReloadKey((n) => n + 1)}
-        />
+        <ErrorState error={new Error(t('teacher.wizard.errors.noDraft'))} onRetry={() => window.location.reload()} />
       </TeacherPage>
     )
   }
 
-  const localTotal = localTotalOf(draft)
-  const serverTotal = draft.serverTotalPoints
-  const mismatch = serverTotal !== null && Math.abs(localTotal - serverTotal) > 0.001
-  const missing = missingAnswerCount(draft)
-  const locked = draft.locked
-  const step = draft.step
-
-  const editingItem = editingItemKey
-    ? draft.sections.flatMap((section) => section.items).find((item) => item.key === editingItemKey) ??
-      null
-    : null
-  const selectedImportSectionKey =
-    importSectionKey && draft.sections.some((section) => section.key === importSectionKey)
-      ? importSectionKey
-      : itemSectionKey && draft.sections.some((section) => section.key === itemSectionKey)
-        ? itemSectionKey
-        : (draft.sections[0]?.key ?? '')
-
-  const stepLabels: Record<Step, string> = {
+  const stepLabels: Record<WizardStep, string> = {
     1: t('teacher.wizard.steps.basic'),
     2: t('teacher.wizard.steps.content'),
-    3: t('teacher.wizard.steps.answers'),
-    4: t('teacher.wizard.steps.criteria'),
-    5: t('teacher.wizard.steps.preview'),
+    3: t('teacher.wizard.steps.criteria'),
+    4: t('teacher.wizard.steps.preview'),
   }
+  const metaLocked = Boolean(draft.paperId)
+  const publishBlocked = !check.ok && check.reason !== null
+
+  const noteClass = note?.tone === 'ok' ? 'inline-note ok' : note?.tone === 'err' ? 'inline-note' : 'inline-note'
 
   return (
     <TeacherPage>
       <div className="breadcrumb">
-        <Link to="/papers">{t('teacher.papers.title')}</Link> /{' '}
-        <b>{editMode ? draft.title || t('teacher.wizard.title') : t('teacher.wizard.title')}</b>
+        <Link to="/papers">{t('teacher.papers.title')}</Link> / <b>{draft.title || t('teacher.wizard.title')}</b>
       </div>
 
       <PageHeader
-        title={editMode ? draft.title : t('teacher.wizard.title')}
+        title={draft.title || t('teacher.wizard.title')}
         sub={t('teacher.wizard.sub')}
         actions={
           <Link className="btn sm" to="/papers">
@@ -1360,1012 +482,447 @@ export default function PaperWizardPage() {
         }
       />
 
-      {resumed && (
-        <div className="inline-note">
-          {editMode ? t('teacher.wizard.resumedEdit') : t('teacher.wizard.resumed')}
-        </div>
-      )}
-
       <div className="stepper">
-        {STEP_IDS.map((id) => (
-          <div
-            key={id}
-            className={`st${step === id ? ' on' : ''}${step > id ? ' done' : ''}`}
-          >
-            <b>{step > id ? '✓' : id}</b>
+        {WIZARD_STEPS.map((id) => (
+          <div key={id} className={`st${step === id ? ' on' : ''}${step > id ? ' done' : ''}`}>
+            <b>{step > id ? <CheckOutlined /> : id}</b>
             {stepLabels[id]}
           </div>
         ))}
       </div>
 
-      {draft.locked && (
-        <div className="inline-note">{t('teacher.wizard.lockedNote')}</div>
+      {locked && <div className="inline-note">{t('teacher.wizard.lockedNote')}</div>}
+
+      {note && (
+        <div className={noteClass} style={note.tone === 'err' ? { borderLeftColor: 'var(--red)' } : undefined}>
+          {note.text}
+        </div>
+      )}
+      {formError && (
+        <div className="hint" style={{ color: 'var(--red)', marginBottom: 10 }}>
+          {formError}
+        </div>
       )}
 
       {step === 1 && (
         <div className="card">
           <h2>{t('teacher.wizard.step1Title')}</h2>
-          <label className="f">
-            <b>
-              {t('teacher.wizard.fieldTitle')} <i>*</i>
-            </b>
-            <input
-              type="text"
-              value={draft.title}
-              disabled={editMode}
-              placeholder={t('teacher.wizard.fieldTitlePlaceholder')}
-              onChange={(e) => update((current) => ({ ...current, title: e.target.value }))}
-            />
-            {editMode && <div className="hint">{t('teacher.wizard.titleReadOnly')}</div>}
-          </label>
-          <label className="f">
-            <b>{t('teacher.wizard.fieldDuration')}</b>
-            <input
-              type="number"
-              min={1}
-              value={draft.defaultDurationMinutes}
-              disabled={editMode}
-              placeholder={t('teacher.wizard.fieldDurationPlaceholder')}
-              onChange={(e) =>
-                update((current) => ({ ...current, defaultDurationMinutes: e.target.value }))
-              }
-            />
-            <div className="hint">{t('teacher.wizard.durationHint')}</div>
-            {editMode && <div className="hint">{t('teacher.wizard.titleReadOnly')}</div>}
-          </label>
+          <div className="form-grid">
+            <label className="f">
+              <b>{t('teacher.wizard.fieldTitle')}</b>
+              <input
+                type="text"
+                value={draft.title}
+                disabled={metaLocked}
+                placeholder={t('teacher.wizard.fieldTitlePlaceholder')}
+                onChange={(e) => update({ title: e.target.value })}
+              />
+              {metaLocked && <div className="hint">{t('teacher.wizard.titleReadOnly')}</div>}
+            </label>
+            <label className="f">
+              <b>{t('teacher.wizard.fieldDuration')}</b>
+              <input
+                type="number"
+                min={1}
+                value={draft.durationMinutes}
+                disabled={metaLocked}
+                placeholder={t('teacher.wizard.fieldDurationPlaceholder')}
+                onChange={(e) => update({ durationMinutes: e.target.value })}
+              />
+              <div className="hint">{t('teacher.wizard.durationHint')}</div>
+            </label>
+            <label className="f">
+              <b>{t('teacher.wizard.authorName')}</b>
+              <input
+                type="text"
+                value={draft.authorName}
+                placeholder={me?.displayName ?? ''}
+                onChange={(e) => update({ authorName: e.target.value })}
+              />
+              <div className="hint">{t('teacher.wizard.authorHint')}</div>
+            </label>
+            <label className="f">
+              <b>{t('teacher.wizard.reviewerName')}</b>
+              <input
+                type="text"
+                value={draft.reviewerName}
+                onChange={(e) => update({ reviewerName: e.target.value })}
+              />
+              <div className="hint">{t('teacher.wizard.reviewerHint')}</div>
+            </label>
+            <label className="f">
+              <b>{t('teacher.wizard.targetTotalPoints')}</b>
+              <input
+                type="number"
+                min={1}
+                step="0.5"
+                value={draft.targetTotalPoints}
+                placeholder={t('teacher.wizard.targetTotalPointsPlaceholder')}
+                onChange={(e) => update({ targetTotalPoints: e.target.value })}
+              />
+              <div className="hint">{t('teacher.wizard.targetTotalPointsHint')}</div>
+            </label>
+          </div>
           <div className="inline-note">{t('teacher.wizard.noClassNote')}</div>
-          {formError && (
-            <div className="hint" style={{ color: 'var(--red)' }}>
-              {formError}
-            </div>
-          )}
         </div>
       )}
 
       {step === 2 && (
         <>
           <div className="card">
-            <h2>{t('teacher.wizard.step2Title')}</h2>
-            <div className="hint" style={{ marginBottom: 12 }}>
-              {t('teacher.wizard.step2Hint')}
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <h2>{t('teacher.wizard.step2Title')}</h2>
+              <span className="small muted">{t('teacher.wizard.editorSourceHint')}</span>
             </div>
-            {!locked && (
-              <div className="inline-form">
-                <label className="f" style={{ flex: '1 1 240px' }}>
-                  <b>{t('teacher.wizard.sectionTitle')}</b>
-                  <input
-                    value={sectionForm.title}
-                    onChange={(e) => setSectionForm({ ...sectionForm, title: e.target.value })}
-                    placeholder={t('teacher.wizard.sectionTitlePlaceholder')}
-                  />
-                </label>
-                <label className="f" style={{ width: 150 }}>
-                  <b>{t('teacher.wizard.pointsPerItem')}</b>
-                  <input
-                    type="number"
-                    min={0}
-                    step="0.5"
-                    value={sectionForm.pointsPerItem}
-                    onChange={(e) =>
-                      setSectionForm({ ...sectionForm, pointsPerItem: e.target.value })
+            <div className="hint" style={{ marginBottom: 10 }}>{t('teacher.wizard.editorHint')}</div>
+            <Suspense fallback={<div className="md-editor md-editor-loading">{t('editor.loading')}</div>}>
+              <VditorMarkdown
+                id="paper-content"
+                rows={14}
+                value={draft.contentMarkdown}
+                onChange={(next) => update({ contentMarkdown: next })}
+                placeholder={t('teacher.wizard.editorPlaceholder')}
+                disabled={locked || busy === 'generate'}
+                expandable
+                heading={t('teacher.wizard.step2Title')}
+              />
+            </Suspense>
+
+            <div className="inline-form" style={{ alignItems: 'center', marginTop: 12 }}>
+              <label className="f" style={{ margin: 0, flex: '1 1 320px' }}>
+                <b>{t('teacher.wizard.fileLabel')}</b>
+                <input
+                  type="file"
+                  accept=".docx,.md,.markdown,.txt,.xlsx"
+                  disabled={locked || busy === 'generate'}
+                  onChange={(e) => {
+                    const file = e.target.files?.[0]
+                    e.target.value = ''
+                    if (!file) return
+                    setFormError(null)
+                    setNote(null)
+                    if (/\.(md|markdown|txt)$/i.test(file.name)) {
+                      void readFileIntoEditor(file)
+                    } else {
+                      setPendingFile(file)
+                      setNote({ tone: 'info', text: t('teacher.wizard.filePending', { name: file.name }) })
                     }
-                  />
-                </label>
-                <button type="button" className="btn pri" onClick={addSection}>
-                  {t('teacher.wizard.addSection')}
-                </button>
-              </div>
-            )}
-            {formError && (
-              <div className="hint" style={{ color: 'var(--red)', marginBottom: 10 }}>
-                {formError}
-              </div>
-            )}
-            {draft.sections.length === 0 ? (
-              <p className="muted">{t('teacher.wizard.noSections')}</p>
-            ) : (
-              <div className="wizard-list">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('teacher.wizard.colSection')}</th>
-                      <th>{t('teacher.wizard.colPointsPerItem')}</th>
-                      <th>{t('teacher.wizard.colItemCount')}</th>
-                      <th>{t('teacher.wizard.colCriteriaCount')}</th>
-                      <th>{t('teacher.wizard.colSyncState')}</th>
-                      <th>{t('teacher.common.actions')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {draft.sections.map((section) => (
-                      <tr key={section.key}>
-                        <td>
-                          {editingSectionKey === section.key ? (
-                            <input
-                              value={sectionEdit.title}
-                              onChange={(e) =>
-                                setSectionEdit({ ...sectionEdit, title: e.target.value })
-                              }
-                            />
-                          ) : (
-                            <b>{section.title}</b>
-                          )}
-                        </td>
-                        <td className="mono">
-                          {editingSectionKey === section.key ? (
-                            <input
-                              type="number"
-                              min={0}
-                              step="0.5"
-                              style={{ width: 92 }}
-                              value={sectionEdit.pointsPerItem}
-                              onChange={(e) =>
-                                setSectionEdit({ ...sectionEdit, pointsPerItem: e.target.value })
-                              }
-                            />
-                          ) : (
-                            fmtNum(section.pointsPerItem)
-                          )}
-                        </td>
-                        <td className="mono">{section.items.length}</td>
-                        <td className="mono">{section.criteria.length}</td>
-                        <td>
-                          {section.serverId ? (
-                            <Tag tone="green">{t('teacher.wizard.saved')}</Tag>
-                          ) : (
-                            <Tag tone="gray">{t('teacher.wizard.unsaved')}</Tag>
-                          )}
-                        </td>
-                        <td>
-                          {locked ? (
-                            <span className="muted">—</span>
-                          ) : editingSectionKey === section.key ? (
-                            <div className="row" style={{ gap: 6 }}>
-                              <button
-                                type="button"
-                                className="btn sm"
-                                disabled={rowBusy === `section:${section.key}`}
-                                onClick={() => void saveSectionEdit(section)}
-                              >
-                                {t('teacher.wizard.save')}
-                              </button>
-                              <button type="button" className="btn sm" onClick={cancelEditSection}>
-                                {t('teacher.common.cancel')}
-                              </button>
-                            </div>
-                          ) : deletingSectionKey === section.key ? (
-                            <div className="row" style={{ gap: 6 }}>
-                              <span className="small" style={{ color: 'var(--red)' }}>
-                                {t('teacher.wizard.deleteSectionConfirm', {
-                                  n: section.items.length,
-                                })}
-                              </span>
-                              <button
-                                type="button"
-                                className="btn sm"
-                                disabled={rowBusy === `section:${section.key}`}
-                                onClick={() => void removeSection(section)}
-                              >
-                                {t('teacher.wizard.deleteConfirm')}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn sm"
-                                onClick={() => setDeletingSectionKey(null)}
-                              >
-                                {t('teacher.common.cancel')}
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="row" style={{ gap: 6 }}>
-                              <button
-                                type="button"
-                                className="btn sm"
-                                onClick={() => startEditSection(section)}
-                              >
-                                {t('teacher.common.edit')}
-                              </button>
-                              <button
-                                type="button"
-                                className="btn sm"
-                                onClick={() => {
-                                  setDeletingSectionKey(section.key)
-                                  setEditingSectionKey(null)
-                                }}
-                              >
-                                {t('teacher.wizard.delete')}
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div className="hint">{t('teacher.wizard.editLimitation')}</div>
-          </div>
-
-          <div className="card">
-            <h2>{t('teacher.wizard.importTitle')}</h2>
-            <div className="hint" style={{ marginBottom: 12 }}>{t('teacher.wizard.importHint')}</div>
-            {locked ? (
-              <p className="muted">{t('teacher.wizard.importLocked')}</p>
-            ) : (
-              <>
-                <div className="row" style={{ marginBottom: 10, alignItems: 'flex-end' }}>
-                  <button
-                    type="button"
-                    className={`chip${importMode === 'file' ? ' on' : ''}`}
-                    onClick={() => setImportMode('file')}
-                  >
-                    {t('teacher.wizard.importModeFile')}
-                  </button>
-                  <button
-                    type="button"
-                    className={`chip${importMode === 'text' ? ' on' : ''}`}
-                    onClick={() => setImportMode('text')}
-                  >
-                    {t('teacher.wizard.importModeText')}
-                  </button>
-                  {draft.sections.length > 0 && (
-                    <label className="f" style={{ margin: 0, minWidth: 180, flex: '0 1 240px' }}>
-                      <b>{t('teacher.wizard.importTarget')}</b>
-                      <select
-                        value={selectedImportSectionKey}
-                        onChange={(e) => setImportSectionKey(e.target.value)}
-                      >
-                        {draft.sections.map((section) => (
-                          <option key={section.key} value={section.key}>
-                            {section.title}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  )}
-                </div>
-                <div className="hint" style={{ marginBottom: 8 }}>{t('teacher.wizard.importTargetOnlyFlat')}</div>
-                {importMode === 'file' ? (
-                  <div className="row">
-                    <input
-                      type="file"
-                      accept=".docx,.md,.txt,.xlsx"
-                      onChange={(e) => {
-                        setImportFile(e.target.files?.[0] ?? null)
-                        setImportResult(null)
-                        setImportError(null)
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="btn pri"
-                      disabled={!importFile || importing}
-                      onClick={() => void runImport()}
-                    >
-                      {importing ? t('teacher.common.loading') : t('teacher.wizard.importRun')}
-                    </button>
-                  </div>
-                ) : (
-                  <div>
-                    <textarea
-                      rows={6}
-                      style={{ width: '100%', fontFamily: 'monospace' }}
-                      placeholder={t('teacher.wizard.importPastePlaceholder')}
-                      value={importText}
-                      onChange={(e) => setImportText(e.target.value)}
-                    />
-                    <div className="row" style={{ marginTop: 8 }}>
-                      <button
-                        type="button"
-                        className="btn pri"
-                        disabled={!importText.trim() || importing}
-                        onClick={() => void runImport()}
-                      >
-                        {importing ? t('teacher.common.loading') : t('teacher.wizard.importRun')}
-                      </button>
-                    </div>
-                  </div>
-                )}
-                {!draft.paperId && (
-                  <div className="hint">{t('teacher.wizard.importNeedPaper')}</div>
-                )}
-                <div className="hint">{t('teacher.wizard.importRequirements')}</div>
-                {importError && <div className="hint" style={{ color: 'var(--red)' }}>{importError}</div>}
-                {importResult && (
-                  <div style={{ marginTop: 12 }}>
-                    <div className="row" style={{ gap: 8 }}>
-                      <Tag tone="green">{t('teacher.wizard.importImported', { n: importResult.imported })}</Tag>
-                      {importResult.missingAnswers.length > 0 && (
-                        <Tag tone="amber">{t('teacher.wizard.importMissing', { list: importResult.missingAnswers.join(', ') })}</Tag>
-                      )}
-                    </div>
-                    {(importResult.sections?.length ?? 0) > 1 && (
-                      <>
-                        <div className="hint" style={{ marginTop: 8 }}>{t('teacher.wizard.importSectionsNote')}</div>
-                        <div className="row" style={{ gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
-                          {importResult.sections?.map((section) => (
-                            <Tag key={section.title} tone="blue">
-                              {t('teacher.wizard.importSectionTag', {
-                                title: section.title,
-                                n: section.itemCount,
-                                points: section.pointsPerItem ?? '—',
-                              })}
-                            </Tag>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                    {importResult.warnings.length > 0 && (
-                      <ul className="small muted" style={{ marginTop: 8, paddingLeft: 20 }}>
-                        {importResult.warnings.map((w, i) => <li key={i}>{w}</li>)}
-                      </ul>
-                    )}
-                    {importResult.items.length > 0 && (
-                      <table style={{ marginTop: 10 }}>
-                        <thead>
-                          <tr>
-                            <th>{t('teacher.wizard.colNumber')}</th>
-                            <th>{t('teacher.wizard.colStem')}</th>
-                            <th>{t('teacher.wizard.colAnswer')}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {importResult.items.map((item) => (
-                            <tr key={item.number}>
-                              <td className="mono">{item.number}</td>
-                              <td className="small">{item.stem}</td>
-                              <td className={item.answerKey ? 'mono' : ''}>
-                                {item.answerKey ?? <Tag tone="amber">{t('teacher.wizard.importNoAnswer')}</Tag>}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                  </div>
-                )}
-              </>
-            )}
-          </div>
-
-          {!locked && (
-          <div className="card">
-            <h2>{t('teacher.wizard.batchTitle')}</h2>
-            <div className="hint" style={{ marginBottom: 10 }}>{t('teacher.wizard.batchHint')}</div>
-            <div
-              className="row"
-              style={{ alignItems: 'flex-end', flexWrap: 'wrap', rowGap: 10, columnGap: 10 }}
-            >
-              <label className="f" style={{ margin: 0, minWidth: 112, flex: '0 1 140px' }}>
-                <b>{t('teacher.wizard.batchFrom')}</b>
-                <input
-                  type="number"
-                  min={1}
-                  value={batchForm.from}
-                  onChange={(e) => setBatchForm({ ...batchForm, from: e.target.value })}
+                  }}
                 />
-              </label>
-              <label className="f" style={{ margin: 0, minWidth: 112, flex: '0 1 140px' }}>
-                <b>{t('teacher.wizard.batchTo')}</b>
-                <input
-                  type="number"
-                  min={1}
-                  value={batchForm.to}
-                  onChange={(e) => setBatchForm({ ...batchForm, to: e.target.value })}
-                />
-              </label>
-              <label className="f" style={{ margin: 0, minWidth: 170, flex: '1 1 190px' }}>
-                <b>{t('teacher.wizard.questionType')}</b>
-                <select
-                  value={batchForm.type}
-                  onChange={(e) => setBatchForm({ ...batchForm, type: e.target.value as QType })}
-                >
-                  {QUESTION_TYPES.map((type) => (
-                    <option key={type} value={type}>
-                      {t(`teacher.questionType.${type}`)}
-                    </option>
-                  ))}
-                </select>
+                <div className="hint">{t('teacher.wizard.fileHint')}</div>
               </label>
               <button
                 type="button"
-                className="btn"
+                className="btn pri"
                 style={{ marginBottom: 0 }}
-                onClick={() => void applyBatchType()}
+                disabled={locked || busy === 'generate'}
+                onClick={() => void generate()}
               >
-                {t('teacher.wizard.batchApply')}
+                {busy === 'generate' ? t('teacher.wizard.generating') : t('teacher.wizard.generate')}
               </button>
             </div>
-            {batchMessage && <div className="hint">{batchMessage}</div>}
-            {batchError && <div className="hint" style={{ color: 'var(--red)' }}>{batchError}</div>}
+            {pendingFile && (
+              <div className="hint">
+                {t('teacher.wizard.filePending', { name: pendingFile.name })}{' '}
+                <button type="button" className="btn sm" onClick={() => setPendingFile(null)}>
+                  {t('teacher.common.cancel')}
+                </button>
+              </div>
+            )}
           </div>
+
+          {busy === 'generate' && (
+            <div className="card">
+              <h2>{t('teacher.wizard.progressTitle')}</h2>
+              <div className="hint">{t('teacher.wizard.progressHint')}</div>
+              <div className="progress">
+                <i />
+              </div>
+              <div className="progress-stages">
+                {PROGRESS_STAGES.map((stage, index) => (
+                  <span key={stage} className={index < stageIndex(elapsed) ? 'done' : index === stageIndex(elapsed) ? 'on' : ''}>
+                    {index < stageIndex(elapsed) && <CheckOutlined />} {t(`teacher.wizard.stages.${stage}`)}
+                  </span>
+                ))}
+                <span className="mono">{t('teacher.wizard.progressElapsed', { seconds: (elapsed / 1000).toFixed(1) })}</span>
+              </div>
+            </div>
           )}
+
+          <div className="card">
+            <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
+              <h2>{t('teacher.wizard.previewTitle')}</h2>
+              {draft.paperId && (
+                <span className="small muted">{t('teacher.wizard.previewReadonly')}</span>
+              )}
+            </div>
+            {summary.itemCount === 0 ? (
+              <p className="muted">{t('teacher.wizard.previewEmpty')}</p>
+            ) : (
+              <>
+                <div className="row" style={{ marginBottom: 8 }}>
+                  <Tag tone="green">{t('teacher.wizard.previewCount', { n: summary.itemCount })}</Tag>
+                  <Tag tone={verdict === 'mismatch' ? 'amber' : 'green'}>
+                    {t('teacher.wizard.previewTotal', { total: fmtNum(summary.itemsTotal) })}
+                  </Tag>
+                  <Tag tone={summary.missingCount > 0 ? 'amber' : 'green'}>
+                    {t('teacher.wizard.previewMissing', { n: summary.missingCount })}
+                  </Tag>
+                </div>
+                <div className="hint" style={{ marginBottom: 8 }}>
+                  {summary.gaps.length === 0
+                    ? t('teacher.wizard.previewNoGap', { max: rows[rows.length - 1]?.number ?? 0 })
+                    : t('teacher.wizard.previewGap', { list: summary.gaps.join('、') })}
+                </div>
+                <div className="wizard-list" style={{ maxHeight: 420, overflow: 'auto' }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>{t('teacher.wizard.colSection')}</th>
+                        <th>{t('teacher.wizard.colNumber')}</th>
+                        <th>{t('teacher.wizard.colType')}</th>
+                        <th>{t('teacher.wizard.colPoints')}</th>
+                        <th>{t('teacher.wizard.colStem')}</th>
+                        <th>{t('teacher.wizard.colAnswer')}</th>
+                        <th>{t('teacher.wizard.colSyncState')}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((row) => (
+                        <tr key={row.number}>
+                          <td className="small">{row.sectionTitle}</td>
+                          <td className="mono">{row.number}</td>
+                          <td>{t(`teacher.questionType.${row.type}`)}</td>
+                          <td className="mono">{fmtNum(row.points)}</td>
+                          <td className="small">{row.stem.slice(0, 160)}</td>
+                          <td>
+                            {row.essay ? (
+                              <span className="muted">{t('teacher.wizard.essayNoKey')}</span>
+                            ) : row.missing ? (
+                              <Tag tone="amber">{t('teacher.wizard.importNoAnswer')}</Tag>
+                            ) : (
+                              <span className="mono">{row.answerKey}</span>
+                            )}
+                          </td>
+                          <td>
+                            {row.missing ? <Tag tone="amber">{t('teacher.wizard.statusMissing')}</Tag> : <Tag tone="green">{t('teacher.wizard.saved')}</Tag>}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="hint" style={{ marginTop: 8 }}>{t('teacher.wizard.previewHint')}</div>
+              </>
+            )}
+          </div>
         </>
       )}
 
       {step === 3 && (
-        <>
-          <div className="card">
-            <h2>{t('teacher.wizard.step3Title')}</h2>
-            <div className="hint" style={{ marginBottom: 12 }}>
-              {t('teacher.wizard.step3Hint')}
-            </div>
-            {editingItem && !locked && (
-              <div className="inline-note">
-                {t('teacher.wizard.itemEditing', { number: editingItem.number })}
+        <div className="card">
+          <h2>{t('teacher.wizard.step4Title')}</h2>
+          <div className="hint" style={{ marginBottom: 10 }}>{t('teacher.wizard.rubricHintShort')}</div>
+          {tabs.length === 0 ? (
+            <p className="muted">{t('teacher.wizard.noEssays')}</p>
+          ) : (
+            <>
+              <div className="tabs">
+                {tabs.map((entry, index) => (
+                  <button
+                    key={entry.number}
+                    type="button"
+                    className={index === tab ? 'on' : ''}
+                    onClick={() => setTab(index)}
+                  >
+                    {t('teacher.wizard.rubricTab', { number: entry.number, points: fmtNum(entry.points) })}
+                  </button>
+                ))}
               </div>
-            )}
-            {draft.sections.length === 0 ? (
-              <p className="muted">{t('teacher.wizard.needSectionFirst')}</p>
-            ) : (
-              !locked && (
-                <div className="inline-form">
-                  <label className="f" style={{ minWidth: 160 }}>
-                    <b>{t('teacher.wizard.section')}</b>
-                    <select
-                      value={itemSectionKey}
-                      onChange={(e) => {
-                        setItemSectionKey(e.target.value)
-                        const section = draft.sections.find((s) => s.key === e.target.value)
-                        const nextNumber =
-                          Math.max(0, ...(section?.items ?? []).map((item) => item.number)) + 1
-                        setItemForm({ ...itemForm, number: String(nextNumber) })
-                      }}
-                    >
-                      {draft.sections.map((section) => (
-                        <option key={section.key} value={section.key}>
-                          {section.title}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <label className="f" style={{ width: 110 }}>
-                    <b>{t('teacher.wizard.itemNumber')}</b>
-                    <input
-                      type="number"
-                      min={1}
-                      disabled={Boolean(editingItem?.serverId)}
-                      value={itemForm.number}
-                      onChange={(e) => setItemForm({ ...itemForm, number: e.target.value })}
-                    />
-                  </label>
-                  <label className="f" style={{ minWidth: 160 }}>
-                    <b>{t('teacher.wizard.questionType')}</b>
-                    <select
-                      value={itemForm.questionType}
-                      onChange={(e) =>
-                        setItemForm({ ...itemForm, questionType: e.target.value as QType })
+              {activeTab && (
+                <div className="tab-panel">
+                  <div className="hint" style={{ marginBottom: 8 }}>
+                    {t('teacher.wizard.essayItemHeading', { number: activeTab.number, points: fmtNum(activeTab.points) })}
+                    {activeTab.sectionTitle ? ` · ${activeTab.sectionTitle}` : ''}
+                  </div>
+                  <Suspense fallback={<div className="md-editor md-editor-loading">{t('editor.loading')}</div>}>
+                    <VditorMarkdown
+                      key={activeTab.number}
+                      id={`paper-rubric-${activeTab.number}`}
+                      rows={8}
+                      value={rubricEdits[activeTab.number] ?? activeTab.rubricMarkdown}
+                      onChange={(next) => setRubricEdits((current) => ({ ...current, [activeTab.number]: next }))}
+                      placeholder={t('teacher.wizard.essayItemRubricPlaceholder')}
+                      disabled={locked}
+                      expandable
+                      heading={t('teacher.wizard.essayItemRubric')}
+                      footer={
+                        <RubricPreview
+                          rubric={rubricEdits[activeTab.number] ?? activeTab.rubricMarkdown}
+                          totalPoints={activeTab.points}
+                          title={t('teacher.wizard.rubricPreview')}
+                        />
                       }
-                    >
-                      {QUESTION_TYPES.map((type) => (
-                        <option key={type} value={type}>
-                          {t(`teacher.questionType.${type}`)}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  {itemForm.questionType === 'MULTIPLE_CHOICE' && (
-                    <label className="f" style={{ minWidth: 170 }}>
-                      <b>{t('teacher.wizard.scoringStrategy')}</b>
-                      <select
-                        value={itemForm.scoringStrategy}
-                        onChange={(e) => setItemForm({ ...itemForm, scoringStrategy: e.target.value as ScoringStrategy })}
-                      >
-                        <option value="ALL_OR_NOTHING">{t('teacher.wizard.strategyAllOrNothing')}</option>
-                        <option value="PARTIAL">{t('teacher.wizard.strategyPartial')}</option>
-                      </select>
-                    </label>
-                  )}
-                  <label className="f" style={{ width: 96 }}>
-                    <b>{t('teacher.wizard.itemPoints')}</b>
-                    <input
-                      type="number"
-                      min={0.5}
-                      step="0.5"
-                      value={itemForm.points}
-                      onChange={(e) => setItemForm({ ...itemForm, points: e.target.value })}
                     />
-                  </label>
-                  <label className="f" style={{ flex: '1 1 180px' }}>
-                    <b>{t('teacher.wizard.answerKey')}</b>
-                    <input
-                      value={itemForm.answerKey}
-                      disabled={itemForm.questionType === 'ESSAY'}
-                      placeholder={t('teacher.wizard.answerKeyPlaceholder')}
-                      onChange={(e) => setItemForm({ ...itemForm, answerKey: e.target.value })}
-                    />
-                  </label>
-                  <label className="f" style={{ flex: '1 1 220px' }}>
-                    <b>{t('teacher.wizard.stem')}</b>
-                    <input
-                      value={itemForm.stem}
-                      placeholder={t('teacher.wizard.optional')}
-                      onChange={(e) => setItemForm({ ...itemForm, stem: e.target.value })}
-                    />
-                  </label>
-                  <label className="f" style={{ flex: '1 1 180px' }}>
-                    <b>{t('teacher.wizard.options')}</b>
-                    <input
-                      value={itemForm.options}
-                      placeholder={t('teacher.wizard.optionsPlaceholder')}
-                      onChange={(e) => setItemForm({ ...itemForm, options: e.target.value })}
-                    />
-                  </label>
-                  {editingItemKey ? (
-                    <>
-                      <button
-                        type="button"
-                        className="btn pri"
-                        disabled={rowBusy === `item:${editingItemKey}`}
-                        onClick={() => void saveItemEdit()}
-                      >
-                        {t('teacher.wizard.save')}
-                      </button>
-                      <button type="button" className="btn" onClick={cancelEditItem}>
-                        {t('teacher.common.cancel')}
-                      </button>
-                    </>
-                  ) : (
-                    <button type="button" className="btn pri" onClick={addItem}>
-                      {t('teacher.wizard.addItem')}
-                    </button>
-                  )}
+                  </Suspense>
+                  <div className="hint">
+                    {activeTab.rubricMarkdown.trim() === ''
+                      ? t('teacher.wizard.essayItemRubricDefault', {
+                          content: detail?.essayContentPercent ?? 80,
+                          language: 100 - (detail?.essayContentPercent ?? 80),
+                        })
+                      : t('teacher.wizard.essayItemRubricHint')}
+                  </div>
+                  <div className="row" style={{ marginTop: 8 }}>
+                    <Button busy={busy === 'rubric'} disabled={locked} onClick={() => void saveRubric()}>
+                      {t('teacher.wizard.saveEssay')}
+                    </Button>
+                  </div>
+                  <div className="inline-note" style={{ marginTop: 10 }}>{t('teacher.wizard.rubricRebuildNote')}</div>
                 </div>
-              )
-            )}
-            {formError && (
-              <div className="hint" style={{ color: 'var(--red)', marginBottom: 10 }}>
-                {formError}
-              </div>
-            )}
-            {draft.sections.length > 0 && (
-              <div className="wizard-list">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>{t('teacher.wizard.colSection')}</th>
-                      <th>{t('teacher.wizard.colNumber')}</th>
-                      <th>{t('teacher.wizard.colType')}</th>
-                      <th>{t('teacher.wizard.colPoints')}</th>
-                      <th>{t('teacher.wizard.colAnswer')}</th>
-                      <th>{t('teacher.wizard.colSyncState')}</th>
-                      <th>{t('teacher.common.actions')}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {draft.sections.flatMap((section) =>
-                      section.items.map((item) => (
-                        <tr key={item.key}>
-                          <td>{section.title}</td>
-                          <td className="mono">{item.number}</td>
-                          <td>{t(`teacher.questionType.${item.questionType}`)}</td>
-                          <td className="mono">{fmtNum(item.points)}</td>
-                          <td>
-                            {item.questionType === 'ESSAY' ? (
-                              <span className="muted">{t('teacher.wizard.essayNoKey')}</span>
-                            ) : item.answerKey.trim() ? (
-                              <span className="mono">{item.answerKey}</span>
-                            ) : (
-                              <Tag tone="red">{t('teacher.wizard.missingAnswer')}</Tag>
-                            )}
-                          </td>
-                          <td>
-                            {item.serverId ? (
-                              <Tag tone="green">{t('teacher.wizard.saved')}</Tag>
-                            ) : (
-                              <Tag tone="gray">{t('teacher.wizard.unsaved')}</Tag>
-                            )}
-                          </td>
-                          <td>
-                            {locked ? (
-                              <span className="muted">—</span>
-                            ) : deletingItemKey === item.key ? (
-                              <div className="row" style={{ gap: 6 }}>
-                                <span className="small" style={{ color: 'var(--red)' }}>
-                                  {t('teacher.wizard.deleteItemConfirm', { number: item.number })}
-                                </span>
-                                <button
-                                  type="button"
-                                  className="btn sm"
-                                  disabled={rowBusy === `item:${item.key}`}
-                                  onClick={() => void removeItem(section, item)}
-                                >
-                                  {t('teacher.wizard.deleteConfirm')}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn sm"
-                                  onClick={() => setDeletingItemKey(null)}
-                                >
-                                  {t('teacher.common.cancel')}
-                                </button>
-                              </div>
-                            ) : (
-                              <div className="row" style={{ gap: 6 }}>
-                                <button
-                                  type="button"
-                                  className="btn sm"
-                                  disabled={rowBusy === `item:${item.key}`}
-                                  onClick={() => startEditItem(section, item)}
-                                >
-                                  {t('teacher.common.edit')}
-                                </button>
-                                <button
-                                  type="button"
-                                  className="btn sm"
-                                  onClick={() => {
-                                    setDeletingItemKey(item.key)
-                                    setEditingItemKey(null)
-                                  }}
-                                >
-                                  {t('teacher.wizard.delete')}
-                                </button>
-                              </div>
-                            )}
-                          </td>
-                        </tr>
-                      )),
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            )}
-            <div className="hint">{t('teacher.wizard.editLimitation')}</div>
-          </div>
-        </>
+              )}
+            </>
+          )}
+        </div>
       )}
 
       {step === 4 && (
         <div className="card">
-          <h2>{t('teacher.wizard.step4Title')}</h2>
-          <div className="hint" style={{ marginBottom: 12 }}>
-            {t('teacher.wizard.step4Hint')}
+          <h2>{t('teacher.wizard.step5Title')}</h2>
+          <div className="stats" style={{ marginBottom: 12 }}>
+            <div className="stat flat">
+              <div className="n">{fmtNum(summary.itemCount)}</div>
+              <div className="l">{t('teacher.wizard.previewCountLabel')}</div>
+            </div>
+            <div className="stat flat">
+              <div className="n">{fmtNum(actual)}</div>
+              <div className="l">{t('teacher.wizard.actualTotal')}</div>
+            </div>
+            <div className="stat flat">
+              <div className="n">{target === null ? '—' : fmtNum(target)}</div>
+              <div className="l">{t('teacher.wizard.targetTotalPoints')}</div>
+            </div>
+            <div className="stat flat">
+              <div className="n">{summary.missingCount}</div>
+              <div className="l">{t('teacher.wizard.missingAnswersLabel')}</div>
+            </div>
           </div>
-          {draft.sections.length === 0 ? (
-            <p className="muted">{t('teacher.wizard.needSectionFirst')}</p>
-          ) : (
-            !locked && (
-              <div className="inline-form">
-                <label className="f" style={{ minWidth: 160 }}>
-                  <b>{t('teacher.wizard.section')}</b>
-                  <select
-                    value={criteriaSectionKey}
-                    onChange={(e) => setCriteriaSectionKey(e.target.value)}
-                  >
-                    {draft.sections.map((section) => (
-                      <option key={section.key} value={section.key}>
-                        {section.title}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="f" style={{ flex: '1 1 180px' }}>
-                  <b>{t('teacher.wizard.criteriaName')}</b>
-                  <input
-                    value={criteriaForm.name}
-                    onChange={(e) => setCriteriaForm({ ...criteriaForm, name: e.target.value })}
-                    placeholder={t('teacher.wizard.criteriaNamePlaceholder')}
-                  />
-                </label>
-                <label className="f" style={{ width: 110 }}>
-                  <b>{t('teacher.wizard.maxPoints')}</b>
-                  <input
-                    type="number"
-                    min={0.5}
-                    step="0.5"
-                    value={criteriaForm.maxPoints}
-                    onChange={(e) =>
-                      setCriteriaForm({ ...criteriaForm, maxPoints: e.target.value })
-                    }
-                  />
-                </label>
-                <label className="f" style={{ flex: '1 1 220px' }}>
-                  <b>{t('teacher.wizard.criteriaDescription')}</b>
-                  <input
-                    value={criteriaForm.description}
-                    placeholder={t('teacher.wizard.optional')}
-                    onChange={(e) =>
-                      setCriteriaForm({ ...criteriaForm, description: e.target.value })
-                    }
-                  />
-                </label>
-                <button type="button" className="btn pri" onClick={addCriteria}>
-                  {t('teacher.wizard.addCriteria')}
-                </button>
-              </div>
-            )
-          )}
-          {formError && (
-            <div className="hint" style={{ color: 'var(--red)', marginBottom: 10 }}>
-              {formError}
+          {legacyCriteria > 0 && (
+            <div className="hint">
+              {t('teacher.wizard.legacyCriteriaNote', { total: fmtNum(legacyCriteria) })}
             </div>
           )}
 
-          {draft.sections.some((s) => s.criteria.length > 0) && (
-            <div className="wizard-list" style={{ marginBottom: 12 }}>
-              <table>
-                <thead>
+          {verdict === 'mismatch' ? (
+            <div className="inline-note" style={{ borderLeftColor: 'var(--red)' }}>
+              {t('teacher.wizard.totalMismatch', { local: fmtNum(target ?? 0), server: fmtNum(actual) })}
+            </div>
+          ) : verdict === 'match' ? (
+            <div className="inline-note ok">{t('teacher.wizard.totalMatch', { total: fmtNum(actual) })}</div>
+          ) : (
+            <div className="hint">{t('teacher.wizard.noTarget')}</div>
+          )}
+          {summary.missingCount > 0 && (
+            <div className="inline-note" style={{ borderLeftColor: 'var(--red)' }}>
+              {t('teacher.wizard.missingAnswersNote', { n: summary.missingCount })}
+            </div>
+          )}
+
+          <div className="wizard-list" style={{ margin: '12px 0' }}>
+            <table>
+              <thead>
+                <tr>
+                  <th>{t('teacher.wizard.colSection')}</th>
+                  <th>{t('teacher.wizard.colNumbers')}</th>
+                  <th>{t('teacher.wizard.colSectionPoints')}</th>
+                  <th>{t('teacher.wizard.colCriteria')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(detail?.sections ?? []).length === 0 ? (
                   <tr>
-                    <th>{t('teacher.wizard.colSection')}</th>
-                    <th>{t('teacher.wizard.colCriteriaName')}</th>
-                    <th>{t('teacher.wizard.colMaxPoints')}</th>
-                    <th>{t('teacher.wizard.colDescription')}</th>
-                    <th>{t('teacher.wizard.colSyncState')}</th>
+                    <td colSpan={4} className="muted">
+                      {t('teacher.wizard.previewEmpty')}
+                    </td>
                   </tr>
-                </thead>
-                <tbody>
-                  {draft.sections.flatMap((section) =>
-                    section.criteria.map((criterion) => (
-                      <tr key={criterion.key}>
-                        <td>{section.title}</td>
+                ) : (
+                  (detail?.sections ?? []).map((section) => {
+                    const sectionPoints = section.items.reduce((sum, item) => sum + Number(item.points), 0)
+                    const numbers = section.items.map((item) => item.number)
+                    const sectionTabs = tabs.filter((entry) => numbers.includes(entry.number))
+                    const blocks = rubricBlocks(sectionTabs, t('teacher.wizard.criteriaNone'))
+                    return (
+                      <tr key={section.id}>
                         <td>
-                          <b>{criterion.name}</b>
+                          <b>{section.title}</b>
                         </td>
-                        <td className="mono">{fmtNum(criterion.maxPoints)}</td>
-                        <td className="small muted">{criterion.description || '—'}</td>
-                        <td>
-                          {criterion.serverId ? (
-                            <Tag tone="green">{t('teacher.wizard.saved')}</Tag>
-                          ) : (
-                            <Tag tone="gray">{t('teacher.wizard.unsaved')}</Tag>
-                          )}
+                        <td className="mono">
+                          {numbers.length === 0
+                            ? '—'
+                            : numbers.length === 1
+                              ? String(numbers[0])
+                              : `${numbers[0]}–${numbers[numbers.length - 1]}`}
+                        </td>
+                        <td className="mono">{fmtNum(sectionPoints)}</td>
+                        <td className="small">
+                          {blocks.map((block) => (
+                            <div key={block.number ?? 'none'} className="rubric-block">
+                              {block.number !== null && <b className="mono">{block.number} </b>}
+                              <span style={{ whiteSpace: 'pre-wrap' }}>{block.text}</span>
+                            </div>
+                          ))}
                         </td>
                       </tr>
-                    )),
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          <div className="hint">{t('teacher.wizard.previewRubricHint')}</div>
 
-          {draft.legacyCriteriaNames.length > 0 && (
-            <div className="card" style={{ background: 'var(--panel-2)', boxShadow: 'none' }}>
-              <h2>
-                {t('teacher.wizard.legacyCriteria')}{' '}
-                <small>{t('teacher.wizard.legacyCriteriaHint')}</small>
-              </h2>
-              <div className="chips" style={{ marginBottom: 0 }}>
-                {draft.legacyCriteriaNames.map((name, index) => (
-                  <span key={`${name}-${index}`} className="tag gray">
-                    {name}
-                  </span>
-                ))}
-              </div>
-              <div className="hint">
-                {t('teacher.wizard.legacyCriteriaTotal', {
-                  total: fmtNum(draft.existingCriteriaTotal),
-                })}
-              </div>
+          <div className="row" style={{ marginTop: 10 }}>
+            <button
+              type="button"
+              className="btn"
+              disabled={!draft.paperId || busy === 'sync' || busy === 'publish' || locked}
+              onClick={() => void sync()}
+            >
+              {busy === 'sync' ? t('teacher.common.loading') : t('teacher.wizard.sync')}
+            </button>
+            <button
+              type="button"
+              className="btn pri"
+              disabled={publishBlocked || busy === 'publish' || busy === 'sync'}
+              onClick={() => void publish()}
+            >
+              {busy === 'publish' ? t('teacher.common.saving') : t('teacher.wizard.publish')}
+            </button>
+            {locked && <Tag tone="green">{t('teacher.wizard.published')}</Tag>}
+            {check.reason === 'missingAnswers' && <span className="tag red">{t('teacher.wizard.publishBlockedAnswers')}</span>}
+            {check.reason === 'mismatch' && <span className="tag red">{t('teacher.wizard.publishBlocked')}</span>}
+            {check.reason === 'empty' && <span className="tag red">{t('teacher.wizard.errors.emptyPaper')}</span>}
+          </div>
+          <div className="hint" style={{ marginTop: 8 }}>{t('teacher.wizard.syncHint')}</div>
+          {locked && (
+            <div className="row" style={{ marginTop: 10 }}>
+              <Link className="btn pri" to={`/offerings/new?paperId=${draft.paperId ?? ''}`}>
+                {t('teacher.wizard.assignNow')}
+              </Link>
+              <Link className="btn" to="/papers">
+                {t('teacher.wizard.backToPapers')}
+              </Link>
             </div>
           )}
-          <div className="hint">{t('teacher.wizard.editLimitation')}</div>
         </div>
       )}
 
-      {step === 5 && (
-        <>
-          {publishedNow && (
-            <div className="inline-note ok">
-              <b>{t('teacher.wizard.publishSuccess')}</b>
-              <div className="row" style={{ marginTop: 8 }}>
-                <Link className="btn pri" to={`/offerings/new?paperId=${draft.paperId ?? ''}`}>
-                  {t('teacher.wizard.assignNow')}
-                </Link>
-                <Link className="btn" to="/papers">
-                  {t('teacher.wizard.backToPapers')}
-                </Link>
-              </div>
-            </div>
-          )}
-
-          <div className="card">
-            <h2>{t('teacher.wizard.step5Title')}</h2>
-            <div className="stats" style={{ marginBottom: 12 }}>
-              <div className="stat flat">
-                <div className="n">{fmtNum(itemsTotalOf(draft))}</div>
-                <div className="l">{t('teacher.wizard.itemsTotal')}</div>
-              </div>
-              <div className="stat flat">
-                <div className="n">{fmtNum(criteriaTotalOf(draft))}</div>
-                <div className="l">{t('teacher.wizard.criteriaTotal')}</div>
-              </div>
-              <div className="stat flat">
-                <div className="n">{fmtNum(localTotal)}</div>
-                <div className="l">{t('teacher.wizard.localTotal')}</div>
-              </div>
-              <div className="stat flat">
-                <div className="n">{serverTotal === null ? '—' : fmtNum(serverTotal)}</div>
-                <div className="l">{t('teacher.wizard.serverTotal')}</div>
-              </div>
-            </div>
-
-            {serverTotal === null ? (
-              <div className="hint">{t('teacher.wizard.notSynced')}</div>
-            ) : mismatch ? (
-              <div className="inline-note" style={{ borderLeftColor: 'var(--red)' }}>
-                {t('teacher.wizard.totalMismatch', {
-                  local: fmtNum(localTotal),
-                  server: fmtNum(serverTotal),
-                })}
-              </div>
-            ) : (
-              <div className="inline-note ok">
-                {t('teacher.wizard.totalMatch', { total: fmtNum(serverTotal) })}
-              </div>
-            )}
-
-            {missing > 0 && (
-              <div className="inline-note" style={{ borderLeftColor: 'var(--red)' }}>
-                {t('teacher.wizard.missingAnswersNote', { n: missing })}
-              </div>
-            )}
-            {syncError && (
-              <div className="inline-note" style={{ borderLeftColor: 'var(--red)' }}>
-                {syncError}
-              </div>
-            )}
-            {syncMessage && <div className="inline-note ok">{syncMessage}</div>}
-
-            <div className="wizard-list" style={{ margin: '12px 0' }}>
-              <table>
-                <thead>
-                  <tr>
-                    <th>{t('teacher.wizard.colSection')}</th>
-                    <th>{t('teacher.wizard.colNumbers')}</th>
-                    <th>{t('teacher.wizard.colSectionPoints')}</th>
-                    <th>{t('teacher.wizard.colCriteria')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {draft.sections.length === 0 ? (
-                    <tr>
-                      <td colSpan={4} className="muted">
-                        {t('teacher.wizard.noSections')}
-                      </td>
-                    </tr>
-                  ) : (
-                    draft.sections.map((section) => {
-                      const sectionPoints = section.items.reduce((sum, item) => sum + item.points, 0)
-                      return (
-                        <tr key={section.key}>
-                          <td>
-                            <b>{section.title}</b>
-                          </td>
-                          <td className="mono">
-                            {section.items.length === 0
-                              ? '—'
-                              : section.items.map((item) => item.number).join(', ')}
-                          </td>
-                          <td className="mono">{fmtNum(sectionPoints)}</td>
-                          <td className="small">
-                            {section.criteria.length === 0
-                              ? '—'
-                              : section.criteria
-                                  .map((c) => `${c.name} (${fmtNum(c.maxPoints)})`)
-                                  .join('、')}
-                          </td>
-                        </tr>
-                      )
-                    })
-                  )}
-                </tbody>
-              </table>
-            </div>
-
-            {draft.sections.some((section) => section.items.some((item) => item.questionType === 'ESSAY')) && (
-              <div style={{ margin: '16px 0' }}>
-                <h3 style={{ margin: '16px 0 8px' }}>
-                  {t('teacher.wizard.essayRubricTitle')}
-                </h3>
-                <div className="hint">{t('teacher.wizard.essayRubricHint')}</div>
-                {draft.sections.flatMap((section) =>
-                  section.items
-                    .filter((item) => item.questionType === 'ESSAY')
-                    .map((item) => (
-                      <div key={item.key} className="card" style={{ marginTop: 10 }}>
-                        <div className="row" style={{ justifyContent: 'space-between', alignItems: 'baseline' }}>
-                          <b>
-                            {t('teacher.wizard.essayItemHeading', {
-                              number: item.number,
-                              points: fmtNum(item.points),
-                            })}
-                          </b>
-                          <span className="small muted">{section.title}</span>
-                        </div>
-                        <div className="f">
-                          <b>{t('teacher.wizard.essayItemRubric')}</b>
-                          <Suspense fallback={<div className="md-editor md-editor-loading">{t('editor.loading')}</div>}>
-                            <VditorMarkdown
-                              rows={6}
-                              value={item.rubricMarkdown}
-                              onChange={(next) => updateEssayField(section.key, item.key, { rubricMarkdown: next })}
-                              placeholder={t('teacher.wizard.essayItemRubricPlaceholder')}
-                              disabled={locked}
-                              expandable
-                              heading={t('teacher.wizard.essayItemRubric')}
-                              footer={(
-                                <RubricPreview
-                                  rubric={item.rubricMarkdown}
-                                  totalPoints={item.points}
-                                  title={t('teacher.wizard.rubricPreview')}
-                                />
-                              )}
-                            />
-                          </Suspense>
-                          <div className="hint">
-                            {item.rubricMarkdown.trim()
-                              ? t('teacher.wizard.essayItemRubricHint')
-                              : t('teacher.wizard.essayItemRubricDefault', {
-                                  content: draft.essayContentPercent,
-                                  language: 100 - draft.essayContentPercent,
-                                })}
-                          </div>
-                        </div>
-                        <div className="f">
-                          <b>{t('teacher.wizard.essayItemReference')}</b>
-                          <textarea
-                            rows={6}
-                            value={item.referenceMarkdown}
-                            disabled={locked}
-                            placeholder={t('teacher.wizard.essayItemReferencePlaceholder')}
-                            onChange={(e) =>
-                              updateEssayField(section.key, item.key, { referenceMarkdown: e.target.value })
-                            }
-                          />
-                          <div className="hint">{t('teacher.wizard.essayItemReferenceHint')}</div>
-                        </div>
-                        <div className="row" style={{ marginTop: 8 }}>
-                          <Button
-                            busy={essayBusyKey === item.key}
-                            disabled={locked}
-                            onClick={() => void saveEssayText(item)}
-                          >
-                            {essayBusyKey === item.key
-                              ? t('teacher.common.saving')
-                              : t('teacher.wizard.saveEssay')}
-                          </Button>
-                          {essaySavedKey === item.key && (
-                            <span className="small muted">{t('teacher.wizard.essaySaved')}</span>
-                          )}
-                        </div>
-                      </div>
-                    )),
-                )}
-              </div>
-            )}
-
-            <div className="row" style={{ marginTop: 8 }}>
-              <button
-                type="button"
-                className="btn"
-                disabled={syncing || publishing || locked}
-                onClick={() => void runSync()}
-              >
-                {syncing ? t('teacher.common.loading') : t('teacher.wizard.sync')}
-              </button>
-              <button
-                type="button"
-                className="btn pri"
-                disabled={publishing || syncing || locked || mismatch || missing > 0}
-                onClick={() => void publish()}
-              >
-                {publishing ? t('teacher.common.saving') : t('teacher.wizard.publish')}
-              </button>
-              {locked && <Tag tone="green">{t('teacher.wizard.published')}</Tag>}
-              {mismatch && <span className="tag red">{t('teacher.wizard.publishBlocked')}</span>}
-              {missing > 0 && <span className="tag red">{t('teacher.wizard.publishBlockedAnswers')}</span>}
-            </div>
-          </div>
-        </>
-      )}
-
       <div className="row" style={{ justifyContent: 'space-between', marginTop: 4 }}>
-        <button type="button" className="btn" disabled={step <= 1} onClick={goPrev}>
+        <button type="button" className="btn" disabled={step <= 1 || busy === 'generate'} onClick={goPrev}>
           {t('teacher.common.prev')}
         </button>
-        <span className="small muted">{t('teacher.wizard.draftSavedAt', { key: STORAGE_KEY })}</span>
-        <button type="button" className="btn pri" disabled={step >= 5} onClick={goNext}>
+        <span className="small muted">{t('teacher.wizard.draftSavedAt', { key: storageKey })}</span>
+        <button type="button" className="btn pri" disabled={step >= 4 || busy === 'generate'} onClick={() => void goNext()}>
           {t('teacher.common.next')}
         </button>
       </div>

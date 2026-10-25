@@ -1,0 +1,666 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>试卷录入原型 · Markdown 单一内容源（2026-10-25）</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --panel:#fff; --panel-2:#f5f6f8; --ink:#1f2329; --muted:#6b7280;
+    --line:#e5e7eb; --line-2:#eef0f3; --accent:#2b6cf6; --accent-weak:#eaf1ff;
+    --ok:#0d9458; --ok-weak:#e8f6ef; --warn:#b57f00; --warn-weak:#fff7e0;
+    --red:#d92d20; --red-weak:#fdecec; --radius:10px; --shadow:0 1px 2px rgba(16,24,40,.06);
+    --mono:"SFMono-Regular",ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif}
+  a{color:var(--accent);text-decoration:none}
+  .topbar{position:sticky;top:0;z-index:9;display:flex;gap:14px;align-items:center;flex-wrap:wrap;
+    padding:10px 20px;background:var(--panel);border-bottom:1px solid var(--line)}
+  .topbar b{font-size:14px}
+  .topbar .badge{font:11px/1.6 var(--mono);color:var(--muted);background:var(--panel-2);
+    border:1px solid var(--line);border-radius:999px;padding:2px 8px}
+  .nav{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto}
+  .nav button{border:1px solid var(--line);background:var(--panel);color:var(--ink);
+    border-radius:8px;padding:5px 10px;font-size:12.5px;cursor:pointer}
+  .nav button.on{background:var(--accent-weak);border-color:#c7dbff;color:var(--accent);font-weight:600}
+  main{max-width:1180px;margin:0 auto;padding:20px}
+  .page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:14px}
+  .page-head h1{font-size:20px;margin:0 0 4px}
+  .page-head .sub{color:var(--muted);font-size:12.5px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);
+    padding:16px 18px;box-shadow:var(--shadow);margin-bottom:14px}
+  .card > h2{font-size:15px;margin:0 0 6px}
+  .hint{color:var(--muted);font-size:12.5px}
+  .small{font-size:12.5px}
+  .mono{font-family:var(--mono)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .row.between{justify-content:space-between}
+  .btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;
+    padding:7px 14px;font-size:13px;cursor:pointer}
+  .btn:hover{border-color:#cbd2dc}
+  .btn.pri{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+  .btn.pri:hover{background:#2259d0;border-color:#2259d0}
+  .btn.sm{padding:4px 9px;font-size:12.5px}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .tag{display:inline-block;border-radius:999px;padding:1px 8px;font-size:12px;border:1px solid var(--line);
+    background:var(--panel-2);color:var(--muted)}
+  .tag.ok{background:var(--ok-weak);border-color:#c9ead9;color:var(--ok)}
+  .tag.warn{background:var(--warn-weak);border-color:#f0dfae;color:var(--warn)}
+  .tag.red{background:var(--red-weak);border-color:#f6cdcb;color:var(--red)}
+  .tag.blue{background:var(--accent-weak);border-color:#cfe0ff;color:var(--accent)}
+  .chip{border:1px solid var(--line);background:var(--panel);border-radius:999px;padding:3px 10px;
+    font-size:12px;cursor:pointer;color:var(--muted)}
+  .chip.on{background:var(--accent-weak);border-color:#c7dbff;color:var(--accent);font-weight:600}
+  table{width:100%;border-collapse:collapse}
+  th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--line-2);vertical-align:top}
+  th{font-size:12px;color:var(--muted);font-weight:600;background:var(--panel-2);position:sticky;top:0;z-index:1}
+  td.small{font-size:12.5px}
+  .stepper{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap}
+  .st{display:flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;
+    border:1px solid var(--line);background:var(--panel);color:var(--muted);font-size:12.5px}
+  .st b{display:grid;place-items:center;width:18px;height:18px;border-radius:50%;
+    background:var(--panel-2);color:var(--muted);font-size:11px}
+  .st.on{border-color:#c7dbff;background:var(--accent-weak);color:var(--accent);font-weight:600}
+  .st.on b{background:var(--accent);color:#fff}
+  .st.done{color:var(--ok);border-color:#c9ead9}
+  .st.done b{background:var(--ok);color:#fff}
+  .f{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .f > b{font-size:12.5px}
+  .f input,.f select{padding:7px 10px;border:1px solid var(--line);border-radius:8px;font-size:13px;
+    background:var(--panel);color:var(--ink)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:12px}
+  .stat{border:1px solid var(--line);border-radius:var(--radius);padding:10px 12px;background:var(--panel-2)}
+  .stat .n{font-size:20px;font-weight:700;font-family:var(--mono)}
+  .stat .l{font-size:12px;color:var(--muted)}
+  .note{border-left:3px solid var(--line);background:var(--panel-2);border-radius:0 8px 8px 0;
+    padding:8px 12px;font-size:12.5px;margin:10px 0}
+  .note.ok{border-color:var(--ok);background:var(--ok-weak)}
+  .note.red{border-color:var(--red);background:var(--red-weak)}
+  .note.warn{border-color:var(--warn);background:var(--warn-weak)}
+  .md-editor{border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;background:var(--panel)}
+  .md-tool{display:flex;gap:4px;align-items:center;padding:6px 8px;border-bottom:1px solid var(--line);
+    background:var(--panel-2);flex-wrap:wrap}
+  .md-tool button{border:1px solid transparent;background:transparent;border-radius:6px;
+    padding:2px 6px;font-size:12px;color:var(--muted);cursor:pointer;font-family:var(--mono)}
+  .md-tool button:hover{background:var(--panel);border-color:var(--line)}
+  .md-tool .sep{width:1px;height:14px;background:var(--line);margin:0 3px}
+  .md-tool .right{margin-left:auto;display:flex;gap:6px}
+  .md-source{margin:0;padding:12px;font:12.5px/1.7 var(--mono);white-space:pre-wrap;max-height:260px;
+    overflow:auto;background:var(--panel)}
+  .md-rich{padding:12px;font-size:13px;max-height:260px;overflow:auto}
+  .md-rich h3{margin:10px 0 4px;font-size:13.5px}
+  .md-rich p{margin:4px 0}
+  .md-rich .ans{color:var(--muted)}
+  .file-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px}
+  input[type=file]{font-size:12.5px;color:var(--muted)}
+  .progress{height:8px;border-radius:999px;background:var(--panel-2);overflow:hidden;margin:10px 0 6px;
+    border:1px solid var(--line)}
+  .progress i{display:block;height:100%;width:35%;border-radius:999px;
+    background:linear-gradient(90deg,#bcd2ff,#2b6cf6,#bcd2ff);animation:slide 1.1s linear infinite}
+  @keyframes slide{from{transform:translateX(-100%)}to{transform:translateX(300%)}}
+  .stages{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--muted)}
+  .stages .on{color:var(--accent);font-weight:600}
+  .stages .done{color:var(--ok)}
+  .tbl-wrap{max-height:420px;overflow:auto;border:1px solid var(--line);border-radius:var(--radius);margin-top:12px}
+  .tbl-wrap table{font-size:12.5px}
+  .tbl-wrap td.stem{max-width:420px}
+  .tbl-wrap td.stem span{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .tabs{display:flex;gap:6px;border-bottom:1px solid var(--line);margin:12px 0 0;flex-wrap:wrap}
+  .tabs button{border:1px solid transparent;border-bottom:2px solid transparent;background:transparent;
+    padding:7px 12px;font-size:13px;cursor:pointer;color:var(--muted);border-radius:8px 8px 0 0}
+  .tabs button.on{color:var(--accent);border-bottom-color:var(--accent);background:var(--accent-weak);font-weight:600}
+  .criteria{display:flex;justify-content:space-between;gap:10px;padding:5px 0;
+    border-bottom:1px dashed var(--line);font-size:12.5px}
+  .criteria:last-child{border-bottom:0}
+  .rubric-block{white-space:pre-wrap;font-size:12.5px;line-height:1.7}
+  .rubric-block .num{font-family:var(--mono);font-weight:700;color:var(--ink)}
+  .statebar{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center}
+  .statebar .label{font-size:12px;color:var(--muted);margin-right:2px}
+  footer{max-width:1180px;margin:0 auto;padding:0 20px 40px;color:var(--muted);font-size:12px}
+  .kbd{font-family:var(--mono);font-size:11.5px;border:1px solid var(--line);border-radius:5px;
+    padding:0 4px;background:var(--panel-2)}
+  .cols{display:grid;grid-template-columns:1fr 320px;gap:14px;align-items:start}
+  @media (max-width:900px){.cols{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <b>TeachLoop · 试卷录入原型</b>
+  <span class="badge">D-34 · AC-4.9 / AC-4.24–4.29</span>
+  <div class="nav" id="nav"></div>
+</header>
+<main id="screen"></main>
+<footer>
+  原型数据：试卷原文与答案来自
+  <span class="mono">teachloop-paper/src/test/resources/exam/english-grade10-2026-with-answers.md</span>，
+  由同目录 <span class="mono">build-data.py</span> 抽取（77 题 / 合计 150 分 / 命题人 李璐 / 审题人 刘嘉伦）。
+  第 3 步的两份 rubric 是<b>示例内容</b>（老师自填），不是原文。列表页另外两行是示例数据。
+</footer>
+
+<script src="data.js"></script>
+<script>
+(function () {
+  const P = window.PAPER
+  const PAPER = P.paper
+  const SECTIONS = P.sections
+  const ESSAYS = SECTIONS.flatMap(s => s.items.filter(i => i.type === 'ESSAY'))
+  const TYPE_LABEL = { SINGLE_CHOICE: '单选', MULTIPLE_CHOICE: '多选', FILL_BLANK: '填空', ESSAY: '写作' }
+
+  // 第 4 步的示例 rubric（合计 = 本题满分 15）
+  const RUBRIC = {
+    76: '- 表达理解（3 分）\n- 给出两条以上具体建议（8 分）\n- 语言准确、格式符合书信（4 分）',
+    77: '- 开场问候与自我介绍（2 分）\n- 社团介绍与主要活动（7 分）\n- 邀请与结尾（3 分）\n- 语言表达与感染力（3 分）',
+  }
+
+  const SCREENS = [
+    { key: 'papers', label: '试卷库' },
+    { key: 'step1', label: '① 基本信息' },
+    { key: 'step2', label: '② 内容' },
+    { key: 'step3', label: '③ 评分项' },
+    { key: 'step4', label: '④ 预览发布' },
+  ]
+  const STEP_LABEL = { 1: '基本信息', 2: '内容', 3: '评分项', 4: '预览发布' }
+
+  // frozen：从「演示状态」切过去时冻结动画，方便截图核对；点主按钮才真的跑一遍
+  const state = { screen: 'step2', step2: 'done', step4: 'match', tab: 0, elapsed: 0, frozen: false }
+
+  const el = (tag, cls, html) => {
+    const node = document.createElement(tag)
+    if (cls) node.className = cls
+    if (html !== undefined) node.innerHTML = html
+    return node
+  }
+  const esc = (text) => String(text).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
+  const money = (value) => (Number.isInteger(value) ? String(value) : value.toFixed(1))
+
+  function stepper(current) {
+    const wrap = el('div', 'stepper')
+    for (let id = 1; id <= 4; id++) {
+      const cls = id === current ? 'st on' : id < current ? 'st done' : 'st'
+      wrap.appendChild(el('div', cls, `<b>${id < current ? '✓' : id}</b>${STEP_LABEL[id]}`))
+    }
+    return wrap
+  }
+
+  function head(title, sub, actions) {
+    const wrap = el('div', 'page-head')
+    wrap.appendChild(el('div', '', `<h1>${title}</h1><div class="sub">${sub}</div>`))
+    if (actions) wrap.appendChild(actions)
+    return wrap
+  }
+
+  // ---------- 试卷库：只剩「新建试卷」 ----------
+  function renderPapers() {
+    const screen = el('div')
+    const actions = el('div', 'row')
+    actions.appendChild(el('span', 'hint', '「导入考卷」按钮已移除 →'))
+    actions.appendChild(el('button', 'btn pri', '新建试卷'))
+    actions.lastChild.onclick = () => go('step1')
+    screen.appendChild(head('试卷库', '内容与班级解耦：试卷只录一次，布置到班级时才选班级', actions))
+
+    const card = el('div', 'card')
+    const rows = [
+      { title: PAPER.title, total: PAPER.targetTotalPoints, duration: PAPER.durationMinutes, version: 1, status: '草稿', count: 0 },
+      { title: '高一英语 11 月月考（示例数据）', total: 120, duration: 90, version: 2, status: '已发布', count: 3 },
+      { title: '2026 秋 期中模拟（示例数据）', total: 100, duration: 100, version: 1, status: '草稿', count: 0 },
+    ]
+    const table = el('table', '', `<thead><tr><th>标题</th><th>总分</th><th>时长</th><th>版本</th><th>状态</th><th>已布置</th><th>操作</th></tr></thead>`)
+    const tbody = el('tbody')
+    rows.forEach(row => {
+      const tr = el('tr')
+      tr.innerHTML = `<td><b>${esc(row.title)}</b></td><td class="mono">${money(row.total)}</td>` +
+        `<td>${row.duration} 分钟</td><td class="mono">v${row.version}</td>` +
+        `<td><span class="tag ${row.status === '已发布' ? 'ok' : ''}">${row.status}</span></td>` +
+        `<td class="mono">${row.count ? row.count + ' 次' : '—'}</td>` +
+        `<td class="row"><button class="btn sm">编辑</button><button class="btn sm">布置</button>` +
+        `<button class="btn sm">复制</button><button class="btn sm">归档</button></td>`
+      tbody.appendChild(tr)
+    })
+    table.appendChild(tbody)
+    card.appendChild(table)
+    screen.appendChild(card)
+
+    const note = el('div', 'note warn', '需求变更（2026-10-25）：列表页只保留「新建试卷」。原来的「导入考卷」入口与 <span class="mono">/papers/import</span> 页面删除——导入并入第 2 步的「生成考题」。')
+    screen.appendChild(note)
+    return screen
+  }
+
+  // ---------- 第 1 步：基本信息 ----------
+  function field(label, value, hint, type) {
+    const wrap = el('label', 'f')
+    wrap.appendChild(el('b', '', label))
+    const input = el('input')
+    input.type = type || 'text'
+    input.value = value
+    wrap.appendChild(input)
+    if (hint) wrap.appendChild(el('div', 'hint', hint))
+    return wrap
+  }
+
+  function renderStep1() {
+    const screen = el('div')
+    screen.appendChild(stepper(1))
+    const card = el('div', 'card')
+    card.appendChild(el('h2', '', '第 1 步 · 基本信息'))
+    const grid = el('div', 'grid')
+    grid.appendChild(field('标题', PAPER.title, '必填；创建后可改标题与时长（走 PUT /api/papers/{id}/meta 之外的旧行为，本次不改）'))
+    grid.appendChild(field('默认时长（分钟）', PAPER.durationMinutes, '空 = 不限时；布置成考试时可覆盖', 'number'))
+    grid.appendChild(field('命题人', PAPER.authorName, '默认当前登录教师；自由文本，不校验账号'))
+    grid.appendChild(field('审题人', PAPER.reviewerName, '可空；自由文本'))
+    grid.appendChild(field('目标总分', PAPER.targetTotalPoints, '手填期望值，发布时校验：题项 + 评分项合计必须等于它；不覆盖自动合计', 'number'))
+    card.appendChild(grid)
+    card.appendChild(el('div', 'hint', '预填值来自「生成考题」时解析出的原文头部（命题人 李璐 / 审题人 刘嘉伦 / 总分 150 分），只填空白字段，不覆盖手工输入。'))
+    screen.appendChild(card)
+
+    const nav = el('div', 'row between')
+    nav.appendChild(el('span', 'hint', '下一步时才创建草稿卷（POST /api/papers，meta 一起提交）'))
+    const next = el('button', 'btn pri', '下一步：内容')
+    next.onclick = () => go('step2')
+    nav.appendChild(next)
+    screen.appendChild(nav)
+    return screen
+  }
+
+  // ---------- 第 2 步：内容 ----------
+  function editorCard() {
+    const card = el('div', 'card')
+    const headRow = el('div', 'row between')
+    headRow.appendChild(el('h2', '', '第 2 步 · 内容（Markdown 原文）'))
+    const viewChips = el('div', 'row')
+    viewChips.appendChild(el('button', 'chip on', '富文本'))
+    viewChips.appendChild(el('button', 'chip', '源码'))
+    viewChips.appendChild(el('span', 'hint', '← 与新建作业页同一个 VditorMarkdown，源码/所见即所得互切'))
+    headRow.appendChild(viewChips)
+    card.appendChild(headRow)
+    card.appendChild(el('div', 'hint', '题干、选项、答案、分值、「第X部分」都写在原文里。系统按原文解析成题项——这里是唯一的内容源。'))
+
+    const editor = el('div', 'md-editor')
+    const tool = el('div', 'md-tool')
+    ;['H1', 'H2', 'B', 'I', '•', '1.', '"', '</>', '表', '↶', '↷'].forEach(item => {
+      tool.appendChild(el('button', '', item))
+    })
+    tool.appendChild(el('span', 'sep'))
+    const right = el('div', 'right')
+    const toggle = el('button', '', '源码')
+    right.appendChild(toggle)
+    right.appendChild(el('button', '', '放大'))
+    tool.appendChild(right)
+    editor.appendChild(tool)
+
+    const source = el('pre', 'md-source', esc(P.editorText))
+    editor.appendChild(source)
+    card.appendChild(editor)
+
+    const fileRow = el('div', 'file-row')
+    const file = el('input')
+    file.type = 'file'
+    file.accept = '.docx,.md,.txt,.xlsx'
+    fileRow.appendChild(file)
+    fileRow.appendChild(el('span', 'hint', '.md/.txt 直接读进编辑器；.docx/.xlsx 必须上传后由后端抽取，抽取结果回填编辑器；.doc 明确拒绝'))
+    card.appendChild(fileRow)
+
+    const actionRow = el('div', 'row')
+    const generate = el('button', 'btn pri', state.step2 === 'parsing' ? '生成中…' : '生成考题')
+    generate.disabled = state.step2 === 'parsing' || state.step2 === 'locked'
+    generate.onclick = () => { state.frozen = false; state.step2 = 'parsing'; state.elapsed = 0; render(); tickProgress() }
+    actionRow.appendChild(generate)
+    actionRow.appendChild(el('span', 'hint', '上传文件与编辑器文本走同一个按钮：这就是唯一的内容入口'))
+    card.appendChild(actionRow)
+    return card
+  }
+
+  function progressCard() {
+    const card = el('div', 'card')
+    card.appendChild(el('h2', '', '考题生成中…'))
+    card.appendChild(el('div', 'hint', '不确定进度：只表示「正在进行」，不显示伪造的百分比'))
+    const bar = el('div', 'progress', '<i></i>')
+    card.appendChild(bar)
+    const stages = ['读取文档', '切分题号', '绑定答案', '写入题项']
+    const order = Math.min(3, Math.floor(state.elapsed / 0.7))
+    const wrap = el('div', 'stages')
+    stages.forEach((label, index) => {
+      wrap.appendChild(el('span', index < order ? 'done' : index === order ? 'on' : '', (index < order ? '✓ ' : '') + label))
+    })
+    wrap.appendChild(el('span', 'mono', `已用 ${state.elapsed.toFixed(1)} 秒`))
+    card.appendChild(wrap)
+    card.appendChild(el('div', 'hint', '失败时进度条消失、按钮恢复、编辑器内容保留，并给出行号级错误。'))
+    return card
+  }
+
+  function tickProgress() {
+    const timer = setInterval(() => {
+      if (state.frozen) { clearInterval(timer); return }
+      state.elapsed = Math.round((state.elapsed + 0.2) * 10) / 10
+      if (state.screen !== 'step2') { clearInterval(timer); return }
+      if (state.elapsed >= 2.6) {
+        clearInterval(timer)
+        state.step2 = 'done'
+        render()
+        return
+      }
+      render()
+    }, 200)
+  }
+
+  function previewTable(missing) {
+    const wrap = el('div', 'tbl-wrap')
+    const table = el('table', '', '<thead><tr><th>部分</th><th>题号</th><th>题型</th><th>分值</th><th>题干</th><th>标准答案</th><th>状态</th></tr></thead>')
+    const tbody = el('tbody')
+    SECTIONS.forEach(section => {
+      section.items.forEach(item => {
+        const isMissing = missing.includes(item.number)
+        const tr = el('tr')
+        const answer = item.type === 'ESSAY'
+          ? '<span class="tag">由评分项判分</span>'
+          : isMissing
+            ? '<span class="tag warn">缺答案</span>'
+            : `<span class="mono">${esc(item.answer)}</span>`
+        tr.innerHTML = `<td class="small">${esc(section.title.replace(/（.*?）/g, ''))}</td>` +
+          `<td class="mono">${item.number}</td><td>${TYPE_LABEL[item.type]}</td>` +
+          `<td class="mono">${money(item.points)}</td>` +
+          `<td class="stem"><span title="${esc(item.stem)}">${esc(item.stem)}</span></td>` +
+          `<td>${answer}</td>` +
+          `<td>${isMissing ? '<span class="tag warn">待补</span>' : '<span class="tag ok">已识别</span>'}</td>`
+        tbody.appendChild(tr)
+      })
+    })
+    table.appendChild(tbody)
+    wrap.appendChild(table)
+    return wrap
+  }
+
+  function resultCard() {
+    const card = el('div', 'card')
+    const missing = state.step2 === 'missing' ? [12, 45] : PAPER.missingAnswers
+    card.appendChild(el('h2', '', '解析结果（只读预览）'))
+    const chips = el('div', 'row')
+    chips.appendChild(el('span', 'tag ok', `${PAPER.itemCount} 题`))
+    chips.appendChild(el('span', 'tag ok', `合计 ${money(PAPER.itemsTotal)} 分`))
+    chips.appendChild(el('span', 'tag' + (missing.length ? ' warn' : ' ok'), `缺答案 ${missing.length} 题`))
+    chips.appendChild(el('span', 'tag', `题型：单选 ${PAPER.typeCounts.SINGLE_CHOICE} / 填空 ${PAPER.typeCounts.FILL_BLANK} / 写作 ${PAPER.typeCounts.ESSAY}`))
+    card.appendChild(chips)
+    card.appendChild(el('div', 'note', `题号断档提醒：<b>没有发现</b>（1–${PAPER.itemCount} 连续）。有断档时这里只提醒、不阻断。`))
+    if (missing.length) {
+      card.appendChild(el('div', 'note warn', `缺答案的题：${missing.join('、')}。发布会被拦：回到编辑器把答案补进原文，再点一次「生成考题」。`))
+    }
+    card.appendChild(previewTable(missing))
+    card.appendChild(el('div', 'hint', '表格不可编辑：改内容只能回编辑器改原文再生成（AC-4.25③）。'))
+    const actions = el('div', 'row')
+    const regenerate = el('button', 'btn', '重新生成（替换重建）')
+    regenerate.onclick = () => { state.step2 = 'confirm'; render() }
+    actions.appendChild(regenerate)
+    const next = el('button', 'btn pri', '下一步：评分项')
+    next.onclick = () => go('step3')
+    actions.appendChild(next)
+    card.appendChild(actions)
+    return card
+  }
+
+  function confirmCard() {
+    const legacyCriteria = 0 // 本卷是新建的；旧卷如果有 section_criteria，这里显示真实条数
+    const card = el('div', 'card')
+    card.appendChild(el('h2', '', '确认替换重建'))
+    card.appendChild(el('div', 'note warn',
+      '再次生成会<b>先清空</b>这张草稿卷的部分 / 题项 / 评分项，再按原文重建。会被丢掉的界面内编辑：<br>' +
+      '· rubric 已填的题项：<b>2 道</b>（第 76、77 题）<br>' +
+      '· 错题解析状态不是 none 的题项：<b>0 道</b><br>' +
+      `· 旧数据里的评分项（section_criteria）：<b>${legacyCriteria} 条</b>`))
+    card.appendChild(el('div', 'note',
+      `将删除：部分 ${SECTIONS.length} 个 / 题项 ${PAPER.itemCount} 道。新建数量以这次解析为准（与写库共用同一次解析结果）。`))
+    card.appendChild(el('div', 'hint', '已发布试卷不显示这个按钮（内容锁定，服务端也会拒绝）。'))
+    const row = el('div', 'row')
+    const ok = el('button', 'btn pri', '确认重建')
+    ok.onclick = () => { state.frozen = false; state.step2 = 'parsing'; state.elapsed = 0; render(); tickProgress() }
+    const cancel = el('button', 'btn', '取消')
+    cancel.onclick = () => { state.step2 = 'done'; render() }
+    row.appendChild(ok); row.appendChild(cancel)
+    card.appendChild(row)
+    return card
+  }
+
+  function errorCard() {
+    const card = el('div', 'card')
+    card.appendChild(el('h2', '', '解析失败'))
+    card.appendChild(el('div', 'note red',
+      '第 191 行：无法解析的答案行「15. 应用文写作示范范文：」。<br>' +
+      '支持写法：<span class="mono">1. A</span> / <span class="mono">1 A</span> / ' +
+      '<span class="mono">1-5 ABCDA</span> / <span class="mono">1 A 2 B 3 C</span>。'))
+    card.appendChild(el('div', 'hint', '编辑器内容保留；改完再点「生成考题」。'))
+    const row = el('div', 'row')
+    const retry = el('button', 'btn pri', '重新生成')
+    retry.onclick = () => { state.frozen = false; state.step2 = 'parsing'; state.elapsed = 0; render(); tickProgress() }
+    row.appendChild(retry)
+    card.appendChild(row)
+    return card
+  }
+
+  function renderStep2() {
+    const screen = el('div')
+    screen.appendChild(stepper(2))
+    const bar = el('div', 'statebar')
+    bar.appendChild(el('span', 'label', '演示状态'))
+    ;[['empty', '空白'], ['parsing', '生成中'], ['done', '成功'], ['confirm', '确认重建'], ['missing', '缺答案'], ['error', '解析失败'], ['locked', '已发布锁定']].forEach(([key, label]) => {
+      const chip = el('button', `chip${state.step2 === key ? ' on' : ''}`, label)
+      chip.onclick = () => { state.step2 = key; state.frozen = true; state.elapsed = key === 'parsing' ? 1.4 : 0; render() }
+      bar.appendChild(chip)
+    })
+    screen.appendChild(bar)
+
+    screen.appendChild(editorCard())
+    if (state.step2 === 'empty') {
+      screen.appendChild(el('div', 'note', '编辑器为空：先粘贴整卷或选文件，再点「生成考题」。'))
+    }
+    if (state.step2 === 'parsing') screen.appendChild(progressCard())
+    if (state.step2 === 'done' || state.step2 === 'missing') screen.appendChild(resultCard())
+    if (state.step2 === 'confirm') screen.appendChild(confirmCard())
+    if (state.step2 === 'error') screen.appendChild(errorCard())
+    if (state.step2 === 'locked') {
+      screen.appendChild(el('div', 'note', '已发布：内容锁定，生成与编辑器全部禁用；命题人/审题人/目标总分仍可改（写审计）。'))
+      screen.appendChild(resultCard())
+    }
+    return screen
+  }
+
+  // ---------- 第 3 步：评分项（一题一 tab） ----------
+  function rubricPreview(markdown, points) {
+    const lines = markdown.split('\n').filter(line => line.trim())
+    const sum = lines.reduce((acc, line) => {
+      const match = line.match(/(\d+(?:\.\d+)?)\s*分/)
+      return acc + (match ? Number(match[1]) : 0)
+    }, 0)
+    const box = el('div', 'card', '')
+    box.style.marginBottom = '0'
+    const headRow = el('div', 'row between')
+    headRow.appendChild(el('b', 'small', 'AI 将看到'))
+    headRow.appendChild(el('span', 'small muted', `合计 ${money(sum)} / 满分 ${money(points)}`))
+    box.appendChild(headRow)
+    lines.forEach(line => {
+      const match = line.match(/^-?\s*(.*)（(\d+(?:\.\d+)?)\s*分）\s*$/)
+      const row = el('div', 'criteria')
+      row.appendChild(el('span', '', esc(match ? match[1] : line.replace(/^-\s*/, ''))))
+      row.appendChild(el('span', 'mono', match ? match[2] : '—'))
+      box.appendChild(row)
+    })
+    return box
+  }
+
+  function renderStep3() {
+    const screen = el('div')
+    screen.appendChild(stepper(3))
+    const card = el('div', 'card')
+    const headRow = el('div', 'row between')
+    headRow.appendChild(el('h2', '', '第 3 步 · 评分项（每道写作题一份）'))
+    headRow.appendChild(el('span', 'hint', '参考范文输入已移除 →'))
+    card.appendChild(headRow)
+    card.appendChild(el('div', 'hint', '评分项挂在题项上（D-24）：一个 tab 一道写作题，保存只发这一道的 rubricMarkdown。'))
+
+    if (ESSAYS.length === 0) {
+      card.appendChild(el('div', 'note', '本卷没有主观题：直接进第 4 步。'))
+      screen.appendChild(card)
+      return screen
+    }
+
+    const tabs = el('div', 'tabs')
+    ESSAYS.forEach((essay, index) => {
+      const tab = el('button', state.tab === index ? 'on' : '', `第 ${essay.number} 题 · ${money(essay.points)} 分`)
+      tab.onclick = () => { state.tab = index; render() }
+      tabs.appendChild(tab)
+    })
+    card.appendChild(tabs)
+
+    const essay = ESSAYS[state.tab]
+    const body = el('div', 'cols')
+    const left = el('div')
+    const editor = el('div', 'md-editor')
+    const tool = el('div', 'md-tool')
+    ;['H1', 'B', 'I', '•', '1.', '引用', '</>'].forEach(item => tool.appendChild(el('button', '', item)))
+    tool.appendChild(el('span', 'sep'))
+    const right = el('div', 'right')
+    right.appendChild(el('button', '', '源码'))
+    right.appendChild(el('button', '', '放大'))
+    tool.appendChild(right)
+    editor.appendChild(tool)
+    const area = el('textarea')
+    area.value = RUBRIC[essay.number] || ''
+    area.rows = 9
+    area.style.width = '100%'
+    area.style.border = '0'
+    area.style.padding = '12px'
+    area.style.font = '12.5px/1.7 var(--mono)'
+    area.style.resize = 'vertical'
+    editor.appendChild(area)
+    left.appendChild(editor)
+    left.appendChild(el('div', 'hint', '留空 = 判分时走系统默认（内容 80% + 语法与拼写 20%）；合计应等于本题满分。'))
+    const saveRow = el('div', 'row')
+    saveRow.appendChild(el('button', 'btn pri', '保存本题评分项'))
+    saveRow.appendChild(el('span', 'small muted', 'PUT /api/papers/{id}/items/' + essay.number + ' { rubricMarkdown }'))
+    left.appendChild(saveRow)
+    body.appendChild(left)
+    body.appendChild(rubricPreview(RUBRIC[essay.number] || '', essay.points))
+    card.appendChild(body)
+    card.appendChild(el('div', 'note', '重建会按原文重写本题 rubric：要长期保留就写进原文（写作任务里「带分值的要点行」会被解析器带回来）。'))
+    card.appendChild(el('div', 'note', '没有「参考范文」输入框：范文仍存在题项里、复核详情仍可读，只是向导不再写（AC-4.28③）。'))
+    screen.appendChild(card)
+
+    const nav = el('div', 'row between')
+    nav.appendChild(el('button', 'btn', '上一步：内容'))
+    const next = el('button', 'btn pri', '下一步：预览发布')
+    next.onclick = () => go('step4')
+    nav.appendChild(next)
+    screen.appendChild(nav)
+    return screen
+  }
+
+  // ---------- 第 4 步：预览与发布 ----------
+  function rubricCell(section) {
+    const essays = section.items.filter(item => item.type === 'ESSAY')
+    if (!essays.length) return '<span class="small muted">无</span>'
+    const blocks = essays.map(item => {
+      const text = (RUBRIC[item.number] || '').trim()
+      return `<div class="rubric-block"><span class="num">${item.number}</span> ${text ? esc(text) : '<span class="small muted">无</span>'}</div>`
+    })
+    return blocks.join('<div style="height:10px"></div>')
+  }
+
+  function renderStep4() {
+    const screen = el('div')
+    screen.appendChild(stepper(4))
+    const bar = el('div', 'statebar')
+    bar.appendChild(el('span', 'label', '演示状态'))
+    ;[['match', '合计=目标'], ['mismatch', '合计≠目标'], ['missing', '缺答案'], ['published', '已发布']].forEach(([key, label]) => {
+      const chip = el('button', `chip${state.step4 === key ? ' on' : ''}`, label)
+      chip.onclick = () => { state.step4 = key; render() }
+      bar.appendChild(chip)
+    })
+    screen.appendChild(bar)
+
+    const card = el('div', 'card')
+    card.appendChild(el('h2', '', '第 4 步 · 预览与发布'))
+
+    const itemsTotal = PAPER.itemsTotal
+    const actual = state.step4 === 'mismatch' ? 142 : itemsTotal
+    const target = PAPER.targetTotalPoints
+    const missing = state.step4 === 'missing' ? [12, 45] : []
+    const stats = el('div', 'stats')
+    ;[[money(itemsTotal), '题项合计'], [money(actual), '实际合计'], [money(target), '目标总分'], [String(missing.length), '缺答案']].forEach(([value, label]) => {
+      stats.appendChild(el('div', 'stat', `<div class="n">${value}</div><div class="l">${label}</div>`))
+    })
+    card.appendChild(stats)
+    card.appendChild(el('div', 'hint', '「评分项合计」只在存在旧卷遗留的 section_criteria 时显示（本卷没有）。'))
+
+    if (state.step4 === 'mismatch') {
+      card.appendChild(el('div', 'note red', `总分不一致：实际合计 ${money(actual)}，目标总分 ${money(target)}。发布按钮已置灰；回编辑器改原文后重新生成。`))
+    } else if (state.step4 === 'missing') {
+      card.appendChild(el('div', 'note red', `还有 ${missing.length} 道客观题缺标准答案（第 ${missing.join('、')} 题）：发布按钮已置灰。`))
+    } else if (state.step4 === 'published') {
+      card.appendChild(el('div', 'note ok', '已发布：内容锁定；已布置的考试使用布置时的快照。想再改就复制为新版本。'))
+    } else {
+      card.appendChild(el('div', 'note ok', `总分一致：${money(actual)} 分 = 目标 ${money(target)} 分。`))
+    }
+
+    const table = el('table', '', '<thead><tr><th>部分</th><th>题号</th><th>部分分值</th><th>评分项</th></tr></thead>')
+    const tbody = el('tbody')
+    SECTIONS.forEach(section => {
+      const points = section.items.reduce((acc, item) => acc + item.points, 0)
+      const tr = el('tr')
+      tr.innerHTML = `<td><b>${esc(section.title.replace(/（.*?）/g, ''))}</b></td>` +
+        `<td class="mono">${section.items[0].number}–${section.items[section.items.length - 1].number}</td>` +
+        `<td class="mono">${money(points)}</td>` +
+        `<td>${rubricCell(section)}</td>`
+      tbody.appendChild(tr)
+    })
+    table.appendChild(tbody)
+    card.appendChild(table)
+    card.appendChild(el('div', 'hint', '评分项列：没有 rubric 显示「无」（英文 N/A）；写作题按「题号 + 内容」分块，块间空一行。'))
+
+    const disabled = state.step4 !== 'match'
+    const actions = el('div', 'row')
+    const sync = el('button', 'btn', '同步并校验')
+    const publish = el('button', 'btn pri', '发布试卷')
+    publish.disabled = disabled
+    if (state.step4 === 'published') { sync.disabled = true; publish.disabled = true }
+    actions.appendChild(sync)
+    actions.appendChild(publish)
+    if (disabled && state.step4 !== 'published') {
+      actions.appendChild(el('span', 'tag red', state.step4 === 'mismatch' ? '总分不一致，禁止发布' : '有题项缺答案，禁止发布'))
+    }
+    if (state.step4 === 'published') actions.appendChild(el('span', 'tag ok', '已发布'))
+    card.appendChild(actions)
+    card.appendChild(el('div', 'hint', '「同步并校验」只做取详情 + 比合计 + 给消息，不再补建内容（内容只由「生成考题」落库）。服务端在 POST /publish 复校验同样三条。'))
+    screen.appendChild(card)
+    return screen
+  }
+
+  // ---------- shell ----------
+  function go(screen) { state.screen = screen; render() }
+
+  function render() {
+    const nav = document.getElementById('nav')
+    nav.innerHTML = ''
+    SCREENS.forEach(item => {
+      const button = el('button', state.screen === item.key ? 'on' : '', item.label)
+      button.onclick = () => go(item.key)
+      nav.appendChild(button)
+    })
+    const main = document.getElementById('screen')
+    main.innerHTML = ''
+    const screen = state.screen === 'papers' ? renderPapers()
+      : state.screen === 'step1' ? renderStep1()
+      : state.screen === 'step2' ? renderStep2()
+      : state.screen === 'step3' ? renderStep3()
+      : renderStep4()
+    main.appendChild(screen)
+    const hint = el('div', 'hint')
+    hint.style.marginTop = '10px'
+    hint.innerHTML = '原型不是实现：这里只定需求与流程。所有数字、题干与答案来自真实试卷抽取；两份 rubric 与列表页两行是示例数据。'
+    main.appendChild(hint)
+  }
+
+  render()
+})()
+</script>
+</body>
+</html>

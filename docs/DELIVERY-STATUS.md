@@ -133,3 +133,16 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 第三轮实测反馈（T252）新增阶段 23，**已完成**（见第 20 条）。
 第四轮实测反馈（T253）新增阶段 24，**已完成**（见第 21 条）。
 阶段 18 仍不在「已完成」范围内。
+
+## 六、2026-10-25 交付（试卷录入重构，D-34）
+
+- **已完成，含浏览器验收**：四步向导（基本信息 / 内容 / 评分项 / 预览发布）、Markdown 单一内容源、
+  「生成考题」替换重建（同事务快照 → 删 → 重建 → 存原文）、目标总分发布闸门、命题人/审题人、
+  评分项一题一 tab、预览发布「无 / N/A」+ 写作题按题号分块；删除「导入考卷」按钮与 `/papers/import`。
+- **验证**：`make test` EXIT=0（Maven 513 测试 / 111 类，0 失败 0 错误 1 跳过；四个守卫通过；前端 80/80）；
+  V065 在 Postgres 16 上按版本序全量跑通；浏览器（dev 5173 + 8010，真实卷）走完四步并发布，
+  目标不一致时 400（detail `total=150,target=140`）、已发布卷生成 409、编辑器只读。
+- **文档**：决策 `docs/decisions/021-paper-single-source-authoring.md`、调研
+  `docs/research/2026-10-25-paper-authoring-single-source.md`、报告
+  `docs/reports/paper-authoring-2026-10-25/README.md`、对等性 `docs/reports/mockup-parity/03-paper-flow.md`。
+- **已知缺口**：标题与时长创建后不可改（既有后端能力缺口）；重建会按原文重写第 3 步手填的 rubric（确认框已明示、有快照）。

@@ -6,6 +6,7 @@ import com.teachloop.paper.domain.*;
 import com.teachloop.paper.importing.AnswerTableParser;
 import com.teachloop.paper.importing.DocumentTextExtractor;
 import com.teachloop.paper.importing.ImportException;
+import com.teachloop.paper.importing.PaperHeaderMeta;
 import com.teachloop.paper.importing.PaperTextParser;
 import com.teachloop.shared.audit.AuditEvent;
 import com.teachloop.shared.audit.AuditPort;
@@ -15,6 +16,7 @@ import com.teachloop.shared.error.ErrorCode;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Clock;
@@ -25,13 +27,18 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.StringJoiner;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.MessageSource;
+import org.springframework.context.i18n.LocaleContextHolder;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.ObjectMapper;
 
 @RestController
 @RequestMapping("/api/papers")
@@ -41,11 +48,27 @@ public class PaperEndpoint {
     private final PaperSectionRepository sections;
     private final ObjectiveItemRepository items;
     private final SectionCriteriaRepository criteria;
+    private final PaperContentSnapshotRepository snapshots;
     private final Clock clock;
     private final Ports.PaperUsage usage;
     private final Ports.ObjectiveRecompute recompute;
 
     private final AuditPort audit;
+
+    /** 消息 key → 文案（D-34 起的错误一律走 key）。单测里可以传 null，此时直接返回 key。 */
+    private final MessageSource messages;
+
+    /** 快照 payload 的序列化器：只写我们自己定义的小 record，不涉及实体代理。 */
+    private static final ObjectMapper JSON = new ObjectMapper();
+
+    /** 目标总分比较容差（AC-4.26②）：0.001，避免 148.5 vs 148.50 这种小数位差异误拦。 */
+    private static final BigDecimal TOTAL_TOLERANCE = new BigDecimal("0.001");
+
+    /** 单部分文档替换重建后新建的部分标题；与解析器「没写部分标题」的兜底同名。 */
+    private static final String DEFAULT_SECTION_TITLE = "综合";
+
+    /** 每卷保留的快照条数（AC-4.24⑥）。 */
+    private static final int SNAPSHOT_KEEP = 3;
 
     /** D-28：作文默认内容占比；判分侧读同一配置，这里只用于向导回显当前比例。 */
     @Value("${teachloop.grading.essay-default-rubric.content-percent:80}")
@@ -55,25 +78,54 @@ public class PaperEndpoint {
     public PaperEndpoint(PaperRepository papers, PaperSectionRepository sections,
                          ObjectiveItemRepository items, SectionCriteriaRepository criteria,
                          AuditPort audit, Clock clock) {
-        this(papers, sections, items, criteria, audit, clock, id -> 0, (paperId, keys) -> 0);
+        this(papers, sections, items, criteria, audit, clock, id -> 0, (paperId, keys) -> 0, null, null);
+    }
+
+    /** 兼容旧调用：没有快照仓储与文案资源（replace=true 需要前者，发消息给前端需要后者）。 */
+    public PaperEndpoint(PaperRepository papers, PaperSectionRepository sections,
+                         ObjectiveItemRepository items, SectionCriteriaRepository criteria,
+                         AuditPort audit, Clock clock, Ports.PaperUsage usage,
+                         Ports.ObjectiveRecompute recompute) {
+        this(papers, sections, items, criteria, audit, clock, usage, recompute, null, null);
     }
 
     @org.springframework.beans.factory.annotation.Autowired
     public PaperEndpoint(PaperRepository papers, PaperSectionRepository sections,
                          ObjectiveItemRepository items, SectionCriteriaRepository criteria,
                          AuditPort audit, Clock clock, Ports.PaperUsage usage,
-                         Ports.ObjectiveRecompute recompute) {
+                         Ports.ObjectiveRecompute recompute, PaperContentSnapshotRepository snapshots,
+                         MessageSource messages) {
         this.papers = papers;
         this.sections = sections;
         this.items = items;
         this.criteria = criteria;
         this.audit = audit;
+        this.snapshots = snapshots;
+        this.messages = messages;
         this.clock = clock;
         this.usage = usage;
         this.recompute = recompute;
     }
 
-    public record CreatePaper(@NotBlank String title, Integer defaultDurationMinutes) {
+    /**
+     * 新建试卷（D-34：基本信息里多了目标总分 / 命题人 / 审题人）。
+     *
+     * <p>三个字段都可空；{@code authorName} 空则写当前登录教师的显示名（AC-4.27②）。
+     * {@code targetTotalPoints} 只做发布闸门，不参与 {@code totalPoints} 的计算。</p>
+     */
+    public record CreatePaper(@NotBlank String title, Integer defaultDurationMinutes,
+                              @Size(max = 80) String authorName, @Size(max = 80) String reviewerName,
+                              BigDecimal targetTotalPoints) {
+    }
+
+    /**
+     * {@code PUT /api/papers/{id}/meta} 的请求体（D-34 / AC-4.26④、AC-4.27③）。
+     *
+     * <p><b>全量替换</b>：字段为 null 即清空，不是「不改」。只改这三列，
+     * 不动 title / duration，也不重算 {@code total_points}。</p>
+     */
+    public record UpdateMeta(@Size(max = 80) String authorName, @Size(max = 80) String reviewerName,
+                             BigDecimal targetTotalPoints) {
     }
 
     public record CreateSection(@NotBlank String title, BigDecimal pointsPerItem) {
@@ -106,8 +158,16 @@ public class PaperEndpoint {
     public record Rubric(String rubricMarkdown, String gradingPromptTemplate) {
     }
 
+    /**
+     * 列表与详情共用的试卷视图。字段顺序即 JSON 顺序，前端按此契约消费：
+     * {@code id,title,totalPoints,version,rubricVersion,status,defaultDurationMinutes,assignmentCount,
+     * authorName,reviewerName,targetTotalPoints}。
+     *
+     * <p>列表接口不带正文（{@code contentMarkdown} 只在详情里），避免 {@code /api/papers} 变重。</p>
+     */
     public record PaperView(String id, String title, BigDecimal totalPoints, int version, int rubricVersion,
-                            String status, Integer defaultDurationMinutes, int assignmentCount) {
+                            String status, Integer defaultDurationMinutes, int assignmentCount,
+                            String authorName, String reviewerName, BigDecimal targetTotalPoints) {
     }
 
     public record ItemView(String id, int number, String questionType, String stem, String options,
@@ -118,8 +178,10 @@ public class PaperEndpoint {
     public record SectionView(String id, String title, int position, BigDecimal pointsPerItem, List<ItemView> items) {
     }
 
+    /** 详情：比 {@link PaperView} 多一份原文（{@code contentMarkdown}），用于回填编辑器。 */
     public record PaperDetail(PaperView paper, List<SectionView> sections, List<String> criteriaNames,
-                              String rubricMarkdown, String gradingPromptTemplate, int essayContentPercent) {
+                              String rubricMarkdown, String gradingPromptTemplate, int essayContentPercent,
+                              String contentMarkdown) {
     }
 
     public record ImportedItem(int number, String stem, String options, String answerKey,
@@ -143,14 +205,50 @@ public class PaperEndpoint {
     public record ImportTextRequest(String text, UUID sectionId) {
     }
 
+    /**
+     * 「生成考题」的结果（D-34 / FR-149）。
+     *
+     * <p>{@code contentMarkdown} 是本次提交的原文（前端回填编辑器、判定能不能再次生成）；
+     * {@code metaHints} 是从原文头部读到的命题人 / 审题人 / 总分，前端**只回填空着的字段**。</p>
+     */
     public record ImportResult(int imported, List<Integer> missingAnswers, List<ImportedItem> items,
-                               List<ImportSection> sections, List<String> warnings) {
+                               List<ImportSection> sections, List<String> warnings,
+                               String contentMarkdown, PaperHeaderMeta.Hints metaHints) {
+    }
+
+    /** 内部用的落库结果，外层再包 {@link ImportResult}（原文与提示只有端点知道）。 */
+    private record ImportRows(int imported, List<Integer> missingAnswers, List<ImportedItem> items,
+                              List<ImportSection> sections, List<String> warnings) {
+    }
+
+    /** 快照 payload 的四个小 record：只序列化我们关心的列，不把实体直接丢给 Jackson。 */
+    private record SnapshotSection(String id, String title, int position, BigDecimal pointsPerItem) {
+    }
+
+    private record SnapshotItem(String id, int number, int position, String questionType, String stem,
+                                String options, String answerKey, BigDecimal points, String scoringStrategy,
+                                String rubricMarkdown, String referenceMarkdown, String sectionId) {
+    }
+
+    private record SnapshotCriteria(String id, String name, BigDecimal maxPoints, String description,
+                                    int position, String sectionId) {
+    }
+
+    private record SnapshotPayload(List<SnapshotSection> sections, List<SnapshotItem> items,
+                                   List<SnapshotCriteria> criteria) {
     }
 
     @PostMapping
     @Transactional
     public PaperView create(@RequestBody @Valid CreatePaper body, @RequestAttribute("currentUser") CurrentUser me) {
         var p = new Paper(UUID.randomUUID(), body.title().trim(), body.defaultDurationMinutes(), me.id(), Instant.now(clock));
+        // AC-4.27②：命题人默认当前登录教师的显示名；显式传了就用传的（自由文本，不校验账号）。
+        p.setAuthorName(body.authorName() == null || body.authorName().isBlank()
+                ? me.displayName() : body.authorName().trim());
+        p.setReviewerName(trimToNull(body.reviewerName()));
+        if (body.targetTotalPoints() != null) {
+            p.setTargetTotalPoints(requireNonNegativeTarget(body.targetTotalPoints()));
+        }
         papers.save(p);
         return view(p);
     }
@@ -158,6 +256,28 @@ public class PaperEndpoint {
     @GetMapping
     public List<PaperView> mine(@RequestAttribute("currentUser") CurrentUser me) {
         return papers.findByAuthorIdOrderByCreatedAtDesc(me.id()).stream().map(this::view).toList();
+    }
+
+    /**
+     * D-34 / AC-4.26④、AC-4.27③：改目标总分与命题人 / 审题人。
+     *
+     * <p>三个字段**全量替换**（null 即清空）；不动 title / duration，也不重算 {@code total_points}
+     * （目标总分只是发布闸门）。已发布卷也允许改，写审计 {@code paper:meta_updated}。</p>
+     */
+    @PutMapping("/{id}/meta")
+    @Transactional
+    public PaperView updateMeta(@PathVariable UUID id, @RequestBody @Valid UpdateMeta body,
+                                @RequestAttribute("currentUser") CurrentUser me) {
+        Paper p = load(id);
+        requireAuthor(p, me);
+        p.setAuthorName(trimToNull(body.authorName()));
+        p.setReviewerName(trimToNull(body.reviewerName()));
+        p.setTargetTotalPoints(body.targetTotalPoints() == null
+                ? null : requireNonNegativeTarget(body.targetTotalPoints()));
+        papers.save(p);
+        audit.record(new AuditEvent(me.id(), "paper:meta_updated", "paper", id.toString(),
+                Map.of("status", p.getStatus().name())));
+        return view(p);
     }
 
     /** T206：复制为新卷（互不影响，新卷为 DRAFT）。 */
@@ -170,6 +290,12 @@ public class PaperEndpoint {
         copy.setRubricMarkdown(source.getRubricMarkdown());
         copy.setGradingPromptTemplate(source.getGradingPromptTemplate());
         copy.setTotalPoints(source.getTotalPoints());
+        // D-34：原文与目标总分跟着复制（否则复制出来的卷子没法再生成、也丢了发布闸门）；
+        // 命题人 = 当前教师，审题人不继承（新卷的审题人要自己填）。
+        copy.setContentMarkdown(source.getContentMarkdown());
+        copy.setTargetTotalPoints(source.getTargetTotalPoints());
+        copy.setAuthorName(me.displayName());
+        copy.setReviewerName(null);
         papers.save(copy);
         java.util.Map<UUID, UUID> sectionMap = new java.util.HashMap<>();
         for (PaperSection section : sections.findByPaperIdOrderByPosition(id)) {
@@ -217,7 +343,7 @@ public class PaperEndpoint {
                 .toList();
         List<String> crit = criteria.findByPaperIdOrderByPosition(id).stream().map(SectionCriteria::getName).toList();
         return new PaperDetail(view(p), secs, crit, p.getRubricMarkdown(), p.getGradingPromptTemplate(),
-                essayContentPercent);
+                essayContentPercent, p.getContentMarkdown());
     }
 
     @PostMapping("/{id}/sections")
@@ -407,28 +533,38 @@ public class PaperEndpoint {
 
     /** 兼容旧测试/内部调用的重载（不注册为端点）。 */
     public ResponseEntity<?> importFile(UUID id, MultipartFile file, UUID sectionId, CurrentUser me) {
-        return importFile(id, file, sectionId, false, me);
+        return importFile(id, file, sectionId, false, false, me);
     }
 
+    /**
+     * 「生成考题」的文件入口（D-34，AC-4.24②）：上传文件与编辑器文本走同一个解析与落库流程。
+     *
+     * <p>{@code replace=true} 表示替换重建：同一事务里先写快照、再删本卷的评分项 / 题项 / 部分，
+     * 然后按原文重建（AC-4.24③⑥）。已发布的卷内容锁定，**任何 confirm 都拒绝**（409），
+     * 要重建请先复制为新卷（plan §20.2 状态机）。</p>
+     *
+     * <p>两个入口都会把本次提交的原文写进 {@code papers.content_markdown}（AC-4.24④）。</p>
+     */
     @PostMapping(path = "/{id}/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Transactional
     public ResponseEntity<?> importFile(@PathVariable UUID id,
                                        @RequestPart("file") MultipartFile file,
                                        @RequestParam(name = "sectionId", required = false) UUID sectionId,
                                        @RequestParam(defaultValue = "false") boolean confirm,
+                                       @RequestParam(defaultValue = "false") boolean replace,
                                        @RequestAttribute("currentUser") CurrentUser me) {
         if (me != null && me.is("STUDENT")) {
             throw ApiException.forbidden("学生不能导入试卷");
         }
-        Paper p = editable(id, confirm, me, "import");
+        Paper p = importable(id, me);
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("请选择要导入的文件");
         }
 
+        DocumentTextExtractor.ExtractedDocument document;
         PaperTextParser.Result parsed;
         try {
-            DocumentTextExtractor.ExtractedDocument document =
-                    DocumentTextExtractor.extract(file.getOriginalFilename(), file.getBytes());
+            document = DocumentTextExtractor.extract(file.getOriginalFilename(), file.getBytes());
             parsed = PaperTextParser.parse(document.lines());
         } catch (ImportException ex) {
             return ResponseEntity.badRequest()
@@ -439,33 +575,91 @@ public class PaperEndpoint {
                             "读取上传文件失败：" + ex.getMessage()));
         }
 
-        return ResponseEntity.ok(createItems(id, sectionId, parsed));
+        return ResponseEntity.ok(importInto(p, me, new ImportCommand(sectionId, parsed, replace, confirm,
+                textOf(document), PaperHeaderMeta.parse(document.lines()), "import")));
     }
 
-    /** 粘贴整卷文本导入（与文件导入同一解析器与创建逻辑）。 */
+    /** 粘贴整卷文本导入（与文件导入同一解析器与创建逻辑）；文本入口是「生成考题」的主路径。 */
     @PostMapping("/{id}/import/text")
     @Transactional
     public ResponseEntity<?> importText(@PathVariable UUID id, @RequestBody ImportTextRequest body,
+                                        @RequestParam(defaultValue = "false") boolean confirm,
+                                        @RequestParam(defaultValue = "false") boolean replace,
                                         @RequestAttribute("currentUser") CurrentUser me) {
         if (me != null && me.is("STUDENT")) {
             throw ApiException.forbidden("学生不能导入试卷");
         }
-        Paper p = editable(id, false, me, "import_text");
+        Paper p = importable(id, me);
         if (body.text() == null || body.text().isBlank()) {
             throw ApiException.badRequest("请粘贴试卷文字");
         }
         // 与文件导入走同一套预处理：老师经常把整卷 .md 直接粘进来，不剥掉标题/加粗/表格记号，
         // 「第X节」这类分节认不出来，题号就会串（2026-10-22 真实卷踩过）。
         PaperTextParser.Result parsed;
+        DocumentTextExtractor.ExtractedDocument document;
         try {
-            DocumentTextExtractor.ExtractedDocument document = DocumentTextExtractor.extract(
+            document = DocumentTextExtractor.extract(
                     "pasted.md", body.text().getBytes(java.nio.charset.StandardCharsets.UTF_8));
             parsed = PaperTextParser.parse(document.lines());
         } catch (ImportException ex) {
             return ResponseEntity.badRequest()
                     .body(new ApiError(ErrorCode.BAD_REQUEST.name(), "导入失败", ex.getMessage()));
         }
-        return ResponseEntity.ok(createItems(id, body.sectionId(), parsed));
+        // 文本入口存「粘贴的原文」而不是清洗后的行：老师再打开编辑器看到的就是自己粘进来的样子
+        // （重新提交时 extract 会再清一遍，解析结果不变）。
+        return ResponseEntity.ok(importInto(p, me, new ImportCommand(body.sectionId(), parsed, replace, confirm,
+                body.text(), PaperHeaderMeta.parse(document.lines()), "import_text")));
+    }
+
+    /** 「生成考题」的一次提交：两个入口解析完各自组装，落库流程只写一份。 */
+    private record ImportCommand(UUID targetSectionId, PaperTextParser.Result parsed, boolean replace,
+                                 boolean confirm, String contentMarkdown, PaperHeaderMeta.Hints hints,
+                                 String source) {
+    }
+
+    /**
+     * 「生成考题」的公共落库流程（文件与文本两个入口共用，AC-4.24②）。
+     *
+     * <p>顺序与 plan §20.4③ 一致：解析（调用方做）→ replace 时写快照（同事务）→
+     * 删 {@code section_criteria} → 删 {@code objective_items} → 删 {@code paper_sections}
+     * → 重建 → {@code content_markdown = 原文} → {@code recalcTotal}。</p>
+     *
+     * <p>已发布的卷在上游 {@link #importable(UUID)} 就被拦下（409），
+     * 所以这里的 {@code confirm} 不再承担「解锁已发布卷」的职责，只作为审计事实记下来
+     * （AC-4.24③：已发布卷禁止生成，服务端也拒绝；plan §20.2 状态机）。</p>
+     *
+     * <p>重建会清空本卷所有部分，单部分文档此时没有可供「导入到选中部分」的容器，
+     * 所以 replace 且只有一个部分时先建一个「综合」部分当容器（否则 {@code resolveSection}
+     * 会抛「请先创建部分」）。多部分文档按文档结构新建，不受影响。</p>
+     */
+    private ImportResult importInto(Paper p, CurrentUser me, ImportCommand cmd) {
+        UUID paperId = p.getId();
+        UUID targetSectionId = cmd.targetSectionId();
+        if (cmd.replace()) {
+            writeSnapshot(p, cmd.source());
+            criteria.deleteAll(criteria.findByPaperIdOrderByPosition(paperId));
+            items.deleteAll(items.findByPaperIdOrderByNumber(paperId));
+            sections.deleteAll(sections.findByPaperIdOrderByPosition(paperId));
+            // 选中的部分已被删掉（前端 replace 时不传 sectionId），重建一律按原文结构走。
+            targetSectionId = null;
+            if (cmd.parsed().sections().size() <= 1) {
+                BigDecimal hint = cmd.parsed().sections().stream().findFirst()
+                        .map(PaperTextParser.ParsedSection::pointsPerItem)
+                        .filter(java.util.Objects::nonNull)
+                        .orElse(BigDecimal.ONE);
+                sections.save(new PaperSection(UUID.randomUUID(), paperId, DEFAULT_SECTION_TITLE, 1, hint));
+            }
+            audit.record(new AuditEvent(me.id(), "paper:content_replaced", "paper", paperId.toString(),
+                    Map.of("source", cmd.source(), "confirm", cmd.confirm())));
+        }
+        // replace 的「先删后建」在上面已经做完，所以这里读到的是空表：不会再有题号跳过的分支。
+        ImportRows rows = createItems(paperId, targetSectionId, cmd.parsed());
+        // 总分仍由题项 + 评分项算（目标总分不覆盖它，决策 021）。
+        recalcTotal(p);
+        p.setContentMarkdown(cmd.contentMarkdown());
+        papers.save(p);
+        return new ImportResult(rows.imported(), rows.missingAnswers(), rows.items(), rows.sections(),
+                rows.warnings(), cmd.contentMarkdown(), cmd.hints());
     }
 
     /**
@@ -474,8 +668,11 @@ public class PaperEndpoint {
      * <p>文档里识别出多个「第X部分」时，按文档结构新建部分、逐题分值跟着走，
      * 此时 {@code targetSectionId} 不再使用；只有一个部分（或没写部分）时，
      * 仍然导入到选中的目标部分，与旧行为一致。</p>
+     *
+     * <p>放进来的「库里已有的题号」只用于增量导入的跳过逻辑；替换重建会先清空本卷，
+     * 所以这里读不到旧题项，等价于「全部重建」（AC-4.24③）。</p>
      */
-    private ImportResult createItems(UUID paperId, UUID targetSectionId, PaperTextParser.Result parsed) {
+    private ImportRows createItems(UUID paperId, UUID targetSectionId, PaperTextParser.Result parsed) {
         Set<Integer> existingNumbers = new HashSet<>();
         for (ObjectiveItem existing : items.findByPaperIdOrderByNumber(paperId)) {
             existingNumbers.add(existing.getNumber());
@@ -503,7 +700,7 @@ public class PaperEndpoint {
                 existingByTitle.putIfAbsent(section.getTitle(), section);
             }
             for (PaperTextParser.ParsedSection parsedSection : parsedSections) {
-                String title = parsedSection.title().isBlank() ? "综合" : parsedSection.title();
+                String title = parsedSection.title().isBlank() ? DEFAULT_SECTION_TITLE : parsedSection.title();
                 BigDecimal hint = parsedSection.pointsPerItem() == null
                         ? BigDecimal.ONE : parsedSection.pointsPerItem();
                 PaperSection section = existingByTitle.get(title);
@@ -517,8 +714,7 @@ public class PaperEndpoint {
                 summary.add(new ImportSection(title, parsedSection.items().size(), section.getPointsPerItem()));
             }
         }
-        recalcTotal(load(paperId));
-        return new ImportResult(imported.size(), missingAnswers, imported, summary, warnings);
+        return new ImportRows(imported.size(), missingAnswers, imported, summary, warnings);
     }
 
     private void fillSection(UUID paperId, PaperSection section, List<PaperTextParser.ParsedItem> parsedItems,
@@ -598,17 +794,47 @@ public class PaperEndpoint {
         return view(p);
     }
 
+    /**
+     * 发布试卷（D-34 / AC-4.26③、FR-148）：服务端三条复校验，API 直调同样被拦。
+     *
+     * <p>① {@code total_points > 0}；② 非 {@code ESSAY} 题项没有空的标准答案；
+     * ③ {@code target_total_points} 非空时合计必须等于目标（容差 0.001，目标为空则跳过）。
+     * 失败一律用消息 key，缺答案的题号放进 {@link ApiError#detail()}，前端展示 message + detail。</p>
+     *
+     * <p>方法返回 {@code ResponseEntity} 是因为错误要带 detail（共享的
+     * {@code GlobalExceptionHandler} 按 {@code ApiException} 只能给出 message）；
+     * 成功仍是 200 + 原样的 {@link PaperView}。</p>
+     */
     @PostMapping("/{id}/publish")
     @Transactional
-    public PaperView publish(@PathVariable UUID id,
-                             @RequestAttribute("currentUser") CurrentUser me) {
+    public ResponseEntity<?> publish(@PathVariable UUID id,
+                                     @RequestAttribute("currentUser") CurrentUser me) {
         Paper p = load(id);
-        if (p.getTotalPoints().signum() <= 0) {
-            throw ApiException.badRequest("总分为 0，不能发布");
+        requireAuthor(p, me);
+        if (p.getTotalPoints() == null || p.getTotalPoints().signum() <= 0) {
+            return publishFailure("error.paper.emptyTotal", null);
+        }
+        List<Integer> missing = new ArrayList<>();
+        for (ObjectiveItem item : items.findByPaperIdOrderByNumber(id)) {
+            if (item.getQuestionType() == QuestionType.ESSAY) {
+                continue;
+            }
+            if (item.getAnswerKey() == null || item.getAnswerKey().isBlank()) {
+                missing.add(item.getNumber());
+            }
+        }
+        if (!missing.isEmpty()) {
+            return publishFailure("error.paper.missingAnswers", numbers(missing));
+        }
+        BigDecimal target = p.getTargetTotalPoints();
+        if (target != null && p.getTotalPoints().subtract(target).abs().compareTo(TOTAL_TOLERANCE) > 0) {
+            return publishFailure("error.paper.targetTotalMismatch",
+                    "total=" + p.getTotalPoints().stripTrailingZeros().toPlainString()
+                            + ",target=" + target.stripTrailingZeros().toPlainString());
         }
         p.publish();
         audit.record(AuditEvent.of(me.id(), "paper:publish", "paper", id.toString()));
-        return view(p);
+        return ResponseEntity.ok(view(p));
     }
 
     /** T196：逐题改题型。单选 ↔ 多选互转只规范标准答案，不触碰已存在的学生作答。 */
@@ -677,6 +903,119 @@ public class PaperEndpoint {
                     java.util.Map.of("action", action, "rubricVersion", p.getRubricVersion())));
         }
         return p;
+    }
+
+    /**
+     * 「生成考题」的入口闸门（D-34 / AC-4.24③）：已发布卷内容锁定，**一律 409**，
+     * 带不带 {@code confirm} 都一样——要重建请先复制为新卷（plan §20.2 状态机）。
+     *
+     * <p>与其它写操作的 {@link #editable} 刻意分开：那条路径允许
+     * {@code confirm=true} 改已发布卷，而重建会整体替换题项，不能沿用。</p>
+     */
+    private Paper importable(UUID id, CurrentUser me) {
+        Paper p = load(id);
+        requireAuthor(p, me);
+        if (p.getStatus() == PaperStatus.PUBLISHED) {
+            throw ApiException.conflict("error.paper.publishedLocked");
+        }
+        return p;
+    }
+
+    /**
+     * 替换重建前把「将被删除的部分 / 题项 / 评分项」序列化成一条快照（AC-4.24⑥）。
+     *
+     * <p>与删除在同一事务里：事务回滚则快照也不留。写完后按 {@code created_at desc}
+     * 裁到最近 {@value #SNAPSHOT_KEEP} 条，旧的不留（只用于误删恢复，不是历史版本）。</p>
+     *
+     * <p>没有注入快照仓储只可能是旧构造重载（测试/内部调用）：这种情况下宁可报错，
+     * 也不能悄悄删掉老师的内容而不留恢复路径。</p>
+     */
+    private void writeSnapshot(Paper p, String reason) {
+        if (snapshots == null) {
+            throw new IllegalStateException("replace requires a PaperContentSnapshotRepository");
+        }
+        UUID paperId = p.getId();
+        List<SnapshotSection> sectionList = sections.findByPaperIdOrderByPosition(paperId).stream()
+                .map(s -> new SnapshotSection(s.getId().toString(), s.getTitle(), s.getPosition(),
+                        s.getPointsPerItem()))
+                .toList();
+        List<SnapshotItem> itemList = items.findByPaperIdOrderByNumber(paperId).stream()
+                .map(i -> new SnapshotItem(i.getId().toString(), i.getNumber(), i.getPosition(),
+                        i.getQuestionType().name(), i.getStem(), i.getOptions(), i.getAnswerKey(),
+                        i.getPoints(), i.getScoringStrategy().name(), i.getRubricMarkdown(),
+                        i.getReferenceMarkdown(), i.getPaperSectionId().toString()))
+                .toList();
+        List<SnapshotCriteria> criteriaList = criteria.findByPaperIdOrderByPosition(paperId).stream()
+                .map(c -> new SnapshotCriteria(c.getId().toString(), c.getName(), c.getMaxPoints(),
+                        c.getDescription(), c.getPosition(), c.getPaperSectionId().toString()))
+                .toList();
+        String payload;
+        try {
+            payload = JSON.writeValueAsString(new SnapshotPayload(sectionList, itemList, criteriaList));
+        } catch (JacksonException ex) {
+            // 只序列化自己的小 record，真失败说明代码有问题：500 比「静默删内容」安全。
+            throw new IllegalStateException("snapshot payload serialization failed", ex);
+        }
+        snapshots.save(new PaperContentSnapshot(UUID.randomUUID(), paperId, Instant.now(clock), reason, payload));
+        List<PaperContentSnapshot> all = snapshots.findByPaperIdOrderByCreatedAtDesc(paperId);
+        if (all.size() > SNAPSHOT_KEEP) {
+            snapshots.deleteAll(all.subList(SNAPSHOT_KEEP, all.size()));
+        }
+    }
+
+    /**
+     * 抽取结果里的文本（按行拼回）：文件导入时它就是「提交的原文」。
+     *
+     * <p>.md 在这里已被 {@code MarkdownSyntax} 剥掉排版记号、docx / xlsx 本来就只有抽出来的段落，
+     * 所以存的是**实际送进解析器的那份文本**——保证「回填编辑器 → 再生成」得到同样的题项。</p>
+     */
+    private static String textOf(DocumentTextExtractor.ExtractedDocument document) {
+        StringJoiner joiner = new StringJoiner("\n");
+        for (DocumentTextExtractor.SourceLine line : document.lines()) {
+            joiner.add(line.text() == null ? "" : line.text());
+        }
+        return joiner.toString();
+    }
+
+    /**
+     * 发布校验失败的统一出口：message 走消息 key（与 {@code ApiException} 同一条本地化链路），
+     * detail 给前端做定位（缺答案的题号 / 合计与目标）。
+     */
+    private ResponseEntity<ApiError> publishFailure(String key, String detail) {
+        return ResponseEntity.badRequest()
+                .body(new ApiError(ErrorCode.BAD_REQUEST.name(), text(key), detail));
+    }
+
+    /** 消息 key → 当前请求语言的文案；单测没注入 MessageSource 时原样返回 key。 */
+    private String text(String key) {
+        if (messages == null) {
+            return key;
+        }
+        return messages.getMessage(key, null, key, LocaleContextHolder.getLocale());
+    }
+
+    /** 题号列表的稳定文案（"3, 7, 12"）；用 ASCII 分隔符，免得进 i18n 检查。 */
+    private static String numbers(List<Integer> numbers) {
+        StringJoiner joiner = new StringJoiner(", ");
+        for (Integer number : numbers) {
+            joiner.add(String.valueOf(number));
+        }
+        return joiner.toString();
+    }
+
+    private static String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
+    /** 目标总分不允许负数：负数会让「合计 == 目标」这条闸门永远不可能通过。 */
+    private static BigDecimal requireNonNegativeTarget(BigDecimal target) {
+        if (target.signum() < 0) {
+            throw ApiException.badRequest("error.paper.targetNegative");
+        }
+        return target;
     }
 
     private void applyType(ObjectiveItem item, QuestionType type) {
@@ -771,6 +1110,7 @@ public class PaperEndpoint {
     private PaperView view(Paper p) {
         return new PaperView(p.getId().toString(), p.getTitle(), p.getTotalPoints(),
                 p.getVersion(), p.getRubricVersion(), p.getStatus().name(), p.getDefaultDurationMinutes(),
-                usage.assignmentCount(p.getId()));
+                usage.assignmentCount(p.getId()), p.getAuthorName(), p.getReviewerName(),
+                p.getTargetTotalPoints());
     }
 }

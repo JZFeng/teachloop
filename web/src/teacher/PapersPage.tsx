@@ -111,7 +111,6 @@ export default function PapersPage() {
         sub={t('teacher.papers.sub')}
         actions={
           <div className="row">
-            <Button onClick={() => navigate('/papers/import')}>{t('teacher.import.importCta')}</Button>
             <Button variant="primary" onClick={() => navigate('/papers/new')}>
               {t('teacher.papers.new')}
             </Button>

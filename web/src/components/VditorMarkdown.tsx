@@ -148,6 +148,8 @@ export function VditorMarkdown({
   const [expanded, setExpanded] = useState(false)
   const [fullscreen, setFullscreen] = useState(false)
   const [ready, setReady] = useState(false)
+  /** 外部改值计数：每变一次就重建编辑器（见下方「外部改值」注释）。 */
+  const [externalRevision, setExternalRevision] = useState(0)
   const [dark, setDark] = useState(() => document.documentElement.dataset.theme === 'dark')
 
   const hostRef = useRef<HTMLDivElement | null>(null)
@@ -161,6 +163,8 @@ export function VditorMarkdown({
   const emittedRef = useRef(value)
   const valueRef = useRef(value)
   const onChangeRef = useRef(onChange)
+  /** 只读态也要在 after 那一刻生效：只挂 effect 时，首次挂载的 disabled 会被 ready 的时序吞掉。 */
+  const disabledRef = useRef(disabled)
 
   const lang = i18n.language.startsWith('zh') ? 'zh_CN' : 'en_US'
   const inlineHeight = Math.max(240, rows * 26 + 96)
@@ -172,6 +176,10 @@ export function VditorMarkdown({
   useEffect(() => {
     onChangeRef.current = onChange
   }, [onChange])
+
+  useEffect(() => {
+    disabledRef.current = disabled
+  }, [disabled])
 
   // 跟随全站主题（ThemeProvider 写在 html[data-theme] 上）。
   useEffect(() => {
@@ -221,6 +229,7 @@ export function VditorMarkdown({
       },
       after: () => {
         readyRef.current = true
+        if (disabledRef.current) editor.disabled()
         setReady(true)
       },
     })
@@ -235,9 +244,10 @@ export function VditorMarkdown({
         /* Vditor 在 after 之前卸载时可能抛错，忽略即可 */
       }
     }
-    // value / onChange 走 ref，不参与重建：否则每个按键都会销毁重建编辑器。
+    // value / onChange 走 ref，不参与重建：否则每个按键都会销毁重建编辑器；
+    // externalRevision 例外——外部改值时就是要重建（见上面的 setValue 说明）。
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view, expanded, lang, inlineHeight])
+  }, [view, expanded, lang, inlineHeight, externalRevision])
 
   // 主题切换不重建编辑器，只换 Vditor 的暗色皮肤。
   // 必须等 after 回调（内部 vditor 实例建好）再切：初始化前调 setTheme 会读 undefined.options。
@@ -255,14 +265,21 @@ export function VditorMarkdown({
     else editor.enable()
   }, [disabled, ready])
 
-  // 外部改值（导入 .md、清空表单）回灌；自己输入触发的重渲染不会被覆盖。
+  /**
+   * 外部改值（导入 .md、清空表单）：把编辑器**整个重建**，而不是 `editor.setValue()`。
+   *
+   * 为什么不用 setValue：2026-10-25 在试卷页实测，Vditor IR 模式下 setValue 有时不更新 DOM
+   * （state 已经是新原文，编辑器还显示旧内容，只有刷新才恢复）。
+   * 重建走的是与首次挂载同一条路径（value 直接进构造参数），不会出现这种不一致；
+   * 外部改值只发生在导入文件/清空表单，代价可以接受。
+   *
+   * 自己输入触发的重渲染不会重建：input 回调已经先把 emittedRef 更新成同一个值。
+   */
   useEffect(() => {
-    const editor = vditorRef.current
-    if (!editor || !ready) return
     if (value === emittedRef.current) return
     emittedRef.current = value
-    editor.setValue(value)
-  }, [value, ready])
+    setExternalRevision((current) => current + 1)
+  }, [value])
 
   // 放大期间锁页面滚动、Esc 收起；原生全屏由浏览器管，这里只管遮罩。
   // T354：Esc 走组件层的弹层栈；焦点在 Vditor 自己的面板里或浏览器全屏时，这层只拦截不关闭。

@@ -295,3 +295,94 @@
 .teacher-page .rubric-preview-note {
   margin-top: 2px;
 }
+
+/* ---------------------------------------------------------------- 试卷向导（D-34）
+ * 第 2 步的不确定进度、第 3 步的一题一 tab、第 4 步的评分项分块。
+ * 颜色只走令牌（check-ui 第 1 条），不写死。
+ */
+
+.teacher-page .progress {
+  height: 8px;
+  margin: 10px 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  overflow: hidden;
+}
+
+.teacher-page .progress i {
+  display: block;
+  width: 35%;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-weak);
+  border-right: 2px solid var(--accent);
+  animation: teacher-progress 1.1s linear infinite;
+}
+
+@keyframes teacher-progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(300%); }
+}
+
+.teacher-page .progress-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+.teacher-page .progress-stages .on {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.teacher-page .progress-stages .done {
+  color: var(--green);
+}
+
+.teacher-page .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  margin: 12px 0 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.teacher-page .tabs button {
+  padding: 7px 12px;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 8px 8px 0 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.teacher-page .tabs button:hover {
+  background: var(--panel-2);
+  color: var(--text);
+}
+
+.teacher-page .tabs button.on {
+  background: var(--accent-weak);
+  border-bottom-color: var(--accent);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.teacher-page .tab-panel {
+  padding-top: 12px;
+}
+
+.teacher-page .rubric-block {
+  margin: 0 0 10px;
+  line-height: 1.7;
+}
+
+.teacher-page .rubric-block:last-child {
+  margin-bottom: 0;
+}

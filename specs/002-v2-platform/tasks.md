@@ -261,15 +261,16 @@ T001 → T006 → T010 → T011 → T013 → T014 → T015 → T210 → T016
 
 ## 需求追踪矩阵
 
-`spec.md` 的 35 个用户故事、86 条功能需求都有对应任务（FR-043/044 由 2026-10-20 的未编号增量实现）。296 条验收标准在各自用户故事的
-任务里被覆盖（验收标准与任务是一对多的关系，因此不逐条列出以免矩阵变成噪音）。
+`spec.md` 的 30 个用户故事、82 条功能需求都有对应任务（FR-043/044 由 2026-10-20 的未编号增量实现；2026-10-25 新增 FR-146–150 随
+T456–T466 覆盖）。287 条验收标准在各自用户故事的任务里被覆盖（验收标准与任务是一对多的关系，因此不逐条列出以免矩阵变成噪音）。
+全仓口径（2026-10-25 实测）：60 个用户故事 / 477 条验收标准 / 150 条功能需求 / 333 条任务定义。
 
 ### 用户故事 → 任务
 
 | 用户故事 | 覆盖任务 | 用户故事 | 覆盖任务 |
 | :--- | :--- | :--- | :--- |
 | US-1 | T030–T034 | US-2 | T040–T043、T213 |
-| US-3 | T036 | US-4 | T050、T051、T054、T056、T185、T186、T206、T217 |
+| US-3 | T036 | US-4 | T050、T051、T054、T056、T185、T186、T206、T217、T456–T466 |
 | US-5 | T052、T053、T055、T196 | US-6 | T060–T063、T066、T067 |
 | US-7 | T064 | US-8 | T065、T202 |
 | US-9 | T092、T093 | US-10 | T070、T071、T080–T085、T094 |
@@ -568,6 +569,35 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 
 ---
 
+## 阶段 31 — 2026-10-25 试卷录入重构：Markdown 单一内容源（D-34，T456–T466）
+
+上游：决策 021（`docs/decisions/021-paper-single-source-authoring.md`）、调研
+（`docs/research/2026-10-25-paper-authoring-single-source.md`）、原型
+（`docs/mock/paper-flow-2026-10-25/index.html`）、spec AC-4.3 / AC-4.9 / AC-4.10 / AC-4.17④ /
+AC-4.23④ / AC-4.24–4.29、FR-146–150、plan §20。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T456 | **需求文档**：调研 + 决策 021 + spec 改写（AC-4.9 重写、AC-4.3/4.10/4.17④/4.23④ 修订、新增 AC-4.24–4.29 与 FR-146–150、D-34） | — | 调研文档 4 个问题都有结论、引用清单每条是实际打开的 URL（未查到的单列）；`decisions/021` 与 spec 的编号互相引用正确；`grep -ho '^- \[[ x]\] AC-[0-9]*\.[0-9]*' specs/*/spec.md \| sort \| uniq -d` 不新增重号；plan 头部的 287 AC / 82 FR 与 spec 实际计数一致 |
+| T457 | **可点击原型**：四屏 + 七种状态 + 真实卷数据 | T456 | `docs/mock/paper-flow-2026-10-25/index.html` 双击可开（file:// 无依赖）；`python3 build-data.py` 输出「77 题 / 合计 150 分」且自带一致性校验；README 写明哪两处是示例数据；`shots/` 至少 13 张由浏览器逐屏点击生成 |
+| T458 | **plan §20 + 6 条清单** | T456 | §20 含数据模型、接口契约、生成流程、失败恢复、迁移兼容、测试策略；6 条清单逐条有结论；附录 A 的 US-4 行指向 §20 |
+| T459 | **迁移 V065**：`papers` 四列 + `paper_content_snapshots`（V064 已被并行的 vocab lists 占用） | T458 | 迁移只动 `papers` 与新建 `paper_content_snapshots`；空库与已有库都能迁移；`make test` 的迁移校验通过 |
+| T460 | **实体 + 视图 + copy + meta 接口**：`Paper` 四字段；`PaperView` 增 authorName/reviewerName/targetTotalPoints；`PaperDetail` 增 contentMarkdown；`PUT /api/papers/{id}/meta` | T459 | meta 全量替换（null 清空）、PUBLISHED 允许改并写审计 `paper:meta_updated`、不重算 total_points；`GET /papers/{id}` 返回原文、`GET /papers` 不返回；copy 复制原文与目标总分、author=当前教师、reviewer 清空；Mockito 测试覆盖 |
+| T461 | **生成考题**：`import`/`import/text` 增 `replace`，快照 → 删 criteria/items/sections → 重建；落 `content_markdown`；新增 `PaperHeaderMeta` | T460 | replace=true 全在同一事务，中途失败不留半张卷；快照写成功且每卷只留 3 条；`content_markdown` 落库；`PaperHeaderMeta` 用真实 fixture 头部断言（李璐/刘嘉伦/150）；PUBLISHED 卷生成返回 409 且库里数量不变；重建真实卷得到 77 题 / 150 分 |
+| T462 | **发布复校验**：三条校验 + 消息 key | T461 | 总分 0 / 有缺答案 / 目标不一致 三种各有一条测试；错误消息用 key 且 `messages.properties` 与 `messages_zh_CN.properties` 都有；目标为空时只校验总分 >0 |
+| T463 | **向导重写（4 步）**：`PaperWizardPage.tsx` 删三张卡、第 3 步、批量改题型、参考范文与 `syncDraft` 补建；第 4 步 tabs；第 5 步评分项列「无 / N/A」+ 题号分块 | T462, T457 | 页面上搜不到「内容（部分）」「上传整卷导入」「批量改题型」「开始导入」；只有一个「生成考题」；进度为不确定型；预览表只读且与写库同一次解析；第 4 步一题一 tab；第 5 步没有 `—`；`pnpm run build`（tsc）与 `check-i18n` 通过 |
+| T464 | **`paperFlow.ts` 纯函数 + 单测** | T463 | `web/tests/paper-flow.test.mjs` 覆盖：`无/N/A`、双作文块间空行、题号断档、目标不一致、v2 草稿迁移、删除摘要；`pnpm test` 全绿 |
+| T465 | **入口清理**：试卷库去按钮、删 `/papers/import` 路由与 `ImportPaperPage.tsx`、删无引用文案键 | T463 | `/papers` 只剩「新建试卷」；`/papers/import` 落到 404；`teacher.import.*` 无引用的键在两个 locale 同时删除且键集合相等；`check-i18n` 通过 |
+| T466 | **守卫 + 三档验收 + 状态文档** | T463, T464, T465 | `make test`（含 check-deps/boundaries/i18n/ui + web-test + mvn）全绿；接口 curl 记录（meta/generate/publish 三条拦截）；dev 5173 走完四步并截图；发布后 `/papers` 可见并能进布置页；`PROGRESS` / `DELIVERY-STATUS` 补条目；`docs/reports/mockup-parity/03-paper-flow.md` 写明与原型的一致/偏差（含未做到档位） |
+
+### 编号取号记录（2026-10-25）
+
+- 落笔前实测：`US` 最大 69 → 本阶段不新增 US；`AC` 新增 6 条，挂在 US-4 下取 `AC-4.24–4.29`（`AC-4.23` 之后连续，且全局无同名）；`FR` 最大 145 → `FR-146–150`；`T` 最大 455（T455 已被「中文数字分值」占用）→ 本阶段 `T456–T466`。
+- 写完复查 `uniq -d`：AC 只余已知的 `AC-27.1–27.6` / `AC-28.1–28.3`（002 与 003 各定义一次），FR 只余已知的 `FR-052–061`，任务号无重复。
+
+
+---
+
 ## 未实现声明（v2 不做）
 
 - **阅读理解文章分栏（sticky 左文章 / 右题目）**：托福 2023 改版采用此布局，但会与「单一滚动区 + 目录树滚动联动」冲突，V1 保持纵向排列；见 `.docs/research/2026-10-19-toefl-ibt-interface.md`。
@@ -777,3 +807,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | 2026-10-25 | T454 试卷分值写法放宽 + 标题行自检（AC-4.22②④⑤） | 完成（接口层） | 用户实测四种卷面写法并要求「解析整行、用 5 × 1.5 == 7.5 验证，只 inner warning msg、不 block 作者」。`POINTS_PER_ITEM` 从 2 个分支扩到 4 个：新增斜杠式（`1.5/题`、`1.5 分/题`、`1.5 / quiz /question`）与英文式（`each （question）1.5`、`each 1.5 points`）；新增 `ITEM_COUNT_IN_TITLE`（`共 5 小题` / `共5题` / `total 5 questions` / `total 5 quizs`）与 `TOTAL_SCORE_IN_TITLE`（`满分 7.5 分` / `total score： 7.5` / `total： 7.5`，英文要求 `total score` 或冒号，避免把 `total 5 questions` 的 5 读成满分）；`checkScoreArithmetic` 在 `group()` 的四类标题行上校验三数，缺一个就跳过，对不上只写 warnings、不改分值。验证：`ScoreArithmeticWarningTest` 4/4（原文写法无提醒、四种容忍写法各得 5 题各 1.5 分、满分写 8 分时 1 条提醒且 5 题照导入、只有满分时 points 为 null 不猜）；`teachloop-paper` 整模块 **84/0/0/0**；真实整卷 fixture 77 题、0 reminder、总分 150 不回归。提醒文案走既有 `ImportResult.warnings`，向导第 2 步（`PaperWizardPage.tsx:1699`）与导入页（`ImportPaperPage.tsx:208`）都已有渲染位；**未验证**：浏览器里这份提醒的实际呈现（仅结构校验） |
 | 2026-10-25 | T455 中文数字分值等价 + 正文行分值不阻断 | 完成（接口层） | 用户确认「只有正文行写每小题 1.5 分不生效没关系，千万不要 block，继续导入」，并要求「每小题一分」与「每小题 1 分」等价。抽出 `NUMBER`（阿拉伯或中文数字：一/两/十五/二十五/一百零五/一点五）与 `SCORE_UNIT`（`分(?!钟)|points?|pts?`）两个常量，让 `POINTS_PER_ITEM`、`ITEM_COUNT_IN_TITLE`、`TOTAL_SCORE_IN_TITLE`、`TASK_SCORE`、`ANY_POINTS`、`SUB_QUESTION_COUNT` 全部复用；新增 `numberOf` / `chineseDecimal` / `chineseInteger`（十位百位与「点」小数），`countOf` 改走 `numberOf`。验证：`ScoreArithmeticWarningTest` 9/9（新增中文数字 4 题 + 正文行不阻断 1 题）；`RealExamImportTest` 新增「真实卷 0 warning」断言；`teachloop-paper` 整模块 **90/0/0/0**。**未验证**：浏览器端提醒呈现（提醒仍走既有 `ImportResult.warnings` 渲染位） |
 | 2026-10-25 | T467 纯分值说明行不进题干 | 完成（接口层） | 用户拍板「把纯分值说明行从题干里剔掉」。`SCORE_LINE` 用词表白名单判定（分值/题数词 + 连接标点），`isScoreOnlyLine` 额外要求能读到分值或题数数字，避免「分」「题」孤立单字被删、也避免英文材料句（`They like each other.`）被误删；`interpret` 与 `writingStem` 两处过滤。验证：`ScoreArithmeticWarningTest` 11/11（新增题干剔除 1 题 + 英文材料保留 1 题）；`teachloop-paper` 整模块 **92/0/0/0**；真实整卷 77 题 0 warning 总分 150。**未验证**：浏览器端题干呈现 |
+| 2026-10-25 | T456–T458 试卷录入重构：调研 / 决策 / spec / 原型 / plan | 完成（文档） | 调研 `docs/research/2026-10-25-paper-authoring-single-source.md`（7 个对象、10 条实际打开的引用；结论：单源文本成熟但都是受限 DSL，重导主流是追加，「整卷替换重建」在题库类产品里没有先例）；决策 `docs/decisions/021-paper-single-source-authoring.md`（D-34）；spec 重写 AC-4.9、修订 AC-4.3/4.10/4.17④/4.23④、新增 AC-4.24–4.29 与 FR-146–150（002 现 30 US / 287 AC / 82 FR）；原型 `docs/mock/paper-flow-2026-10-25/`（`build-data.py` 从真实卷抽出 77 题 / 150 分 / 命题人李璐 / 审题人刘嘉伦，14 张截图）；plan §20（含 6 条清单自评）。取号实测：T455 已被占用 → 本阶段 T456–T466；V064 已被并行 vocab-lists 占用 → 迁移用 V065 |
+| 2026-10-25 | T459–T462 后端：迁移 V065 + meta + 生成考题（replace/快照/原文）+ 发布复校验 | 完成（接口层） | `V065__paper_meta_and_content.sql`（papers 四列 + `paper_content_snapshots`）；`PUT /api/papers/{id}/meta`（全量替换、PUBLISHED 允许改 + 审计）；`import`/`import/text` 增 `replace`/`confirm`，同事务内快照 → 删 criteria/items/sections → 重建 → `content_markdown` → `recalcTotal`（单部分文档先建「综合」）；`PaperHeaderMeta` 从原文头部取命题人/审题人/总分；publish 三条复校验（400 + detail）；copy 复制原文与目标、命题人=当前教师；生成与发布补 `requireAuthor`。测试：`PaperGenerateEndpointTest` 8、`PaperMetaAndPublishEndpointTest` 18、`PaperHeaderMetaTest` 5，paper 模块 **123 用例** 0 失败（`./mvnw -pl teachloop-paper -am test`）；V065 在 Postgres 16 上按版本序全量跑通（58 个迁移） |
+| 2026-10-25 | T463–T465 前端：四步向导 + 纯函数 + 入口清理 | 完成（界面入口） | `PaperWizardPage.tsx` 重写（2374 → 约 800 行；删三张卡/第 3 步/批量改题型/参考范文/补建逻辑）；`paperFlow.ts` 纯函数 + `web/tests/paper-flow.test.mjs`；试卷库去「导入考卷」、删 `/papers/import` 与 `ImportPaperPage.tsx`、删 `teacher.import.*` 文案；i18n zh/en 各 1663 键对齐。E2E 期间修掉 `VditorMarkdown` 两个既有缺陷（外部改值改用重建、只读态在 `after` 里补 `disabled()`），作业页同样受益 |
+| 2026-10-25 | T466 验证与收尾：全量回归 + 浏览器端到端 + 状态文档 | 完成（含浏览器验收） | `make test` **EXIT=0**（Maven 513 测试 / 111 类，0 失败 0 错误 1 跳过；四个守卫通过；前端 80/80）；`pnpm typecheck` 通过；浏览器（dev 5173 + 8010，真实卷）走完四步并发布：预览 77 题/150 分/缺答案 0、两 tab 各存一份 rubric、目标改 140 时发布置灰且 API 400（detail `total=150,target=140`）、发布后生成被 409 拦、已发布卷编辑器只读；12 张截图 + 报告 `docs/reports/paper-authoring-2026-10-25/README.md`；对等性审计 `docs/reports/mockup-parity/03-paper-flow.md` |

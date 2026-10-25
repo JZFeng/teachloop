@@ -40,6 +40,7 @@ TABLE_OWNER: dict[str, str] = {
     "paper_sections": "paper",
     "objective_items": "paper",
     "section_criteria": "paper",
+    "paper_content_snapshots": "paper",
 
     "offerings": "sitting",
     "offering_classes": "sitting",
@@ -92,6 +93,7 @@ ALLOWED_CROSS_FKS: set[tuple[str, str]] = {
     ("classes", "users"),
     ("class_members", "users"),
     ("papers", "users"),
+    ("paper_content_snapshots", "papers"),
     ("offerings", "papers"),
     ("offering_classes", "classes"),
     ("submissions", "users"),
