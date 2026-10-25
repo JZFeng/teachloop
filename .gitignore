@@ -79,6 +79,8 @@ teachloop-app/logs/
 # DSH 问卷草稿与输入（作者侧临时产物；已定稿的记录在 .dsh/surveys/ 里入库）
 .dsh/survey-drafts/
 .dsh/survey-input/
+# 一次性临时问卷记录（2026-10-24 22:42 会话），不入库
+.dsh/surveys/20261024-2242-*.json
 web/public/vditor/
 
 # 品牌样张截图用的 headless Chrome profile（docsmock 脚本生成）
