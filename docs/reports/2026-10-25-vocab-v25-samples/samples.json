@@ -1,0 +1,1720 @@
+{
+  "struggle": {
+    "schemaVersion": 2,
+    "word": "struggle",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/ˈstrʌɡl/",
+        "us": "/ˈstrʌɡəl/"
+      },
+      "partOfSpeech": [
+        "verb",
+        "noun"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "v. 努力，挣扎；艰难地行进；争夺；n. 斗争，挣扎；难事",
+      "en": "v. to try hard or fight to do something difficult; to move with difficulty; to compete for something; n. a hard fight or effort; something difficult"
+    },
+    "coreSemantics": {
+      "core": "困难+努力，在阻力中持续用力",
+      "notThis": "不是泛指'努力'，而是'努力应对具体阻力'",
+      "mentalImage": "一个人使劲推一扇卡住的门，门几乎纹丝不动"
+    },
+    "examples": [
+      {
+        "text": "She struggled to open the jar.",
+        "translations": {
+          "zh": "她费力地打开罐子。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "struggle to do something",
+        "popularity": 1
+      },
+      {
+        "text": "He struggled with the heavy box.",
+        "translations": {
+          "zh": "他费力地搬着那个重箱子。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "struggle with something",
+        "popularity": 2
+      },
+      {
+        "text": "The fish struggled in the net.",
+        "translations": {
+          "zh": "鱼在网里挣扎。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "struggle in something",
+        "popularity": 3
+      },
+      {
+        "text": "They struggled for freedom.",
+        "translations": {
+          "zh": "他们为自由而斗争。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "struggle for something",
+        "popularity": 4
+      },
+      {
+        "text": "It was a struggle to finish the race.",
+        "translations": {
+          "zh": "完成比赛是件难事。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "a struggle to do something",
+        "popularity": 5
+      },
+      {
+        "text": "The struggle against poverty continues.",
+        "translations": {
+          "zh": "与贫困的斗争仍在继续。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "the struggle against something",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "struggle 由中古英语 strug-（可能源自法语 estrugier，最终与拉丁语 ludere '玩耍' 有关，但不确定）加频繁后缀 -le 构成，表示反复、持续的动作。",
+      "parts": [
+        {
+          "text": "strug-",
+          "type": "root",
+          "meaning": "挣扎（来源不确定）",
+          "origin": "uncertain"
+        },
+        {
+          "text": "-le",
+          "type": "suffix",
+          "meaning": "反复、持续动作",
+          "origin": "Old English"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "strug-",
+            "-le"
+          ],
+          "to": "struggle",
+          "partOfSpeech": "verb",
+          "meaning": "挣扎，努力"
+        }
+      ],
+      "confidence": "medium"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "strive",
+          "partOfSpeech": "verb",
+          "nuance": "更正式，强调为达成目标而付出巨大努力，不一定有阻力"
+        },
+        {
+          "word": "fight",
+          "partOfSpeech": "verb",
+          "nuance": "强调对抗性的斗争，可能涉及武力"
+        },
+        {
+          "word": "labor",
+          "partOfSpeech": "verb",
+          "nuance": "强调劳动时的辛苦，常与 over 连用"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "succeed",
+          "partOfSpeech": "verb",
+          "nuance": "成功，与 struggle 的艰难形成对比"
+        },
+        {
+          "word": "surrender",
+          "partOfSpeech": "verb",
+          "nuance": "放弃抵抗，与 struggle 的坚持相反"
+        }
+      ],
+      "mnemonic": "",
+      "supplement": "struggle 常与 to do、with、for、against 搭配；名词常用 a struggle。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "struggles",
+          "partOfSpeech": [
+            "verb",
+            "noun"
+          ],
+          "meanings": {
+            "zh": "挣扎（第三人称单数或复数）",
+            "en": "third-person singular or plural of struggle"
+          }
+        },
+        {
+          "word": "struggled",
+          "partOfSpeech": [
+            "verb"
+          ],
+          "meanings": {
+            "zh": "挣扎了（过去式）",
+            "en": "past tense of struggle"
+          }
+        },
+        {
+          "word": "struggling",
+          "partOfSpeech": [
+            "verb",
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "挣扎的；奋斗的",
+            "en": "present participle of struggle; making great efforts"
+          }
+        }
+      ]
+    }
+  },
+  "apple": {
+    "schemaVersion": 2,
+    "word": "apple",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/ˈæp.əl/",
+        "us": "/ˈæp.əl/"
+      },
+      "partOfSpeech": [
+        "noun"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "苹果；苹果树；苹果公司（品牌）",
+      "en": "A round fruit with firm, white flesh and a green, red, or yellow skin; the tree that bears this fruit; (Apple) the technology company."
+    },
+    "coreSemantics": {
+      "core": "圆形水果，果皮红/绿/黄，果肉白脆",
+      "notThis": "不是泛指所有水果，而是特指苹果",
+      "mentalImage": "一个红苹果放在桌上，旁边有绿叶"
+    },
+    "examples": [
+      {
+        "text": "She ate an apple for breakfast.",
+        "translations": {
+          "zh": "她早餐吃了一个苹果。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "eat an apple",
+        "popularity": 1
+      },
+      {
+        "text": "The apple tree in the garden is full of fruit.",
+        "translations": {
+          "zh": "花园里的苹果树结满了果实。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "apple tree",
+        "popularity": 2
+      },
+      {
+        "text": "Apple pie is a classic American dessert.",
+        "translations": {
+          "zh": "苹果派是经典的美式甜点。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "apple pie",
+        "popularity": 3
+      },
+      {
+        "text": "He works for Apple in California.",
+        "translations": {
+          "zh": "他在加利福尼亚的苹果公司工作。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "work for Apple",
+        "popularity": 4
+      },
+      {
+        "text": "The apple of his eye is his youngest daughter.",
+        "translations": {
+          "zh": "他的掌上明珠是他最小的女儿。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "the apple of one's eye",
+        "popularity": 5
+      },
+      {
+        "text": "An apple a day keeps the doctor away.",
+        "translations": {
+          "zh": "一天一苹果，医生远离我。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "an apple a day",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "From Old English æppel, from Proto-Germanic *aplaz, from Proto-Indo-European *h₂ébōl. Monomorphemic in modern English.",
+      "parts": [
+        {
+          "text": "apple",
+          "type": "root",
+          "meaning": "苹果",
+          "origin": "Old English æppel"
+        }
+      ],
+      "chain": [],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [],
+      "antonyms": [],
+      "mnemonic": "“阿婆”爱吃苹果",
+      "supplement": ""
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "apples",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "苹果（复数）",
+            "en": "plural of apple"
+          }
+        }
+      ]
+    }
+  },
+  "quixotic": {
+    "schemaVersion": 2,
+    "word": "quixotic",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/kwɪkˈsɒtɪk/",
+        "us": "/kwɪkˈsɑːtɪk/"
+      },
+      "partOfSpeech": [
+        "adjective"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "不切实际的，空想的；常指像堂吉诃德那样脱离现实、理想主义到荒唐程度的",
+      "en": "Exceedingly idealistic; unrealistic and impractical, often in a way that is noble but foolish."
+    },
+    "coreSemantics": {
+      "core": "脱离现实的理想主义",
+      "notThis": "不是单纯的‘勇敢’或‘有理想’，而是‘理想得荒唐、不切实际’",
+      "mentalImage": "一个人骑着瘦马，举着长矛冲向风车"
+    },
+    "examples": [
+      {
+        "text": "His quixotic plan to end world hunger with a single app was doomed to fail.",
+        "translations": {
+          "zh": "他想用一个应用解决世界饥饿问题的空想计划注定要失败。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "quixotic plan",
+        "popularity": 1
+      },
+      {
+        "text": "She had a quixotic belief that she could change the company from within.",
+        "translations": {
+          "zh": "她有一种不切实际的信念，认为自己能从内部改变公司。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "quixotic belief",
+        "popularity": 2
+      },
+      {
+        "text": "The quixotic quest to build a perfect society often ends in disappointment.",
+        "translations": {
+          "zh": "建立完美社会的空想追求常常以失望告终。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "quixotic quest",
+        "popularity": 3
+      },
+      {
+        "text": "His quixotic idealism made him a beloved but ineffective leader.",
+        "translations": {
+          "zh": "他不切实际的理想主义使他成为一位受人爱戴但无能的领袖。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "quixotic idealism",
+        "popularity": 4
+      },
+      {
+        "text": "Don't be so quixotic; we need a practical solution, not a dream.",
+        "translations": {
+          "zh": "别那么不切实际；我们需要的是实际的解决方案，而不是梦想。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "be quixotic",
+        "popularity": 5
+      },
+      {
+        "text": "The novel's hero is a quixotic figure who fights for lost causes.",
+        "translations": {
+          "zh": "小说的主人公是一个为失败的事业而战的堂吉诃德式人物。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "quixotic figure",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "源自西班牙小说家塞万提斯笔下的人物 Don Quixote（堂吉诃德），加上形容词后缀 -ic。Quixote 本身是专有名词，无更早的词根可拆分。",
+      "parts": [
+        {
+          "text": "Quixote",
+          "type": "root",
+          "meaning": "堂吉诃德（人名）",
+          "origin": "Spanish"
+        },
+        {
+          "text": "-ic",
+          "type": "suffix",
+          "meaning": "……的，与……有关的",
+          "origin": "Greek/Latin"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "Quixote",
+            "-ic"
+          ],
+          "to": "quixotic",
+          "partOfSpeech": "adjective",
+          "meaning": "堂吉诃德式的；不切实际的"
+        }
+      ],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "idealistic",
+          "partOfSpeech": "adjective",
+          "nuance": "比 quixotic 更中性，仅强调理想主义，不强调荒唐"
+        },
+        {
+          "word": "impractical",
+          "partOfSpeech": "adjective",
+          "nuance": "强调不实用，但缺少 quixotic 的理想主义色彩"
+        },
+        {
+          "word": "romantic",
+          "partOfSpeech": "adjective",
+          "nuance": "可表示浪漫或空想，但不如 quixotic 那样强调脱离现实"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "practical",
+          "partOfSpeech": "adjective",
+          "nuance": "强调实际可行，与 quixotic 的空想相对"
+        },
+        {
+          "word": "realistic",
+          "partOfSpeech": "adjective",
+          "nuance": "强调现实，与 quixotic 的理想化相对"
+        }
+      ],
+      "mnemonic": "",
+      "supplement": "源自堂吉诃德，常带轻微贬义，但也可含同情。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "quixotically",
+          "partOfSpeech": [
+            "adverb"
+          ],
+          "meanings": {
+            "zh": "不切实际地，空想地",
+            "en": "In a quixotic manner; unrealistically."
+          }
+        },
+        {
+          "word": "quixotism",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "不切实际的理想主义，空想行为",
+            "en": "Quixotic idealism or behavior."
+          }
+        },
+        {
+          "word": "quixotry",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "堂吉诃德式的行为或思想",
+            "en": "Quixotic action or thought."
+          }
+        }
+      ]
+    }
+  },
+  "serendipity": {
+    "schemaVersion": 2,
+    "word": "serendipity",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/ˌserənˈdɪpəti/",
+        "us": "/ˌserənˈdɪpəti/"
+      },
+      "partOfSpeech": [
+        "noun"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "意外发现美好事物的运气；机缘巧合",
+      "en": "The occurrence and development of events by chance in a happy or beneficial way."
+    },
+    "coreSemantics": {
+      "core": "意外发现美好事物的运气",
+      "notThis": "不是泛指'运气'，而是'意外发现美好事物的运气'",
+      "mentalImage": "一个人在旧书店随手翻书，意外发现一本寻找已久的珍本"
+    },
+    "examples": [
+      {
+        "text": "Meeting her was pure serendipity.",
+        "translations": {
+          "zh": "遇见她纯属机缘巧合。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "pure serendipity",
+        "popularity": 1
+      },
+      {
+        "text": "The discovery was a happy serendipity.",
+        "translations": {
+          "zh": "这个发现是一个令人愉快的意外。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "a happy serendipity",
+        "popularity": 2
+      },
+      {
+        "text": "Serendipity brought them together.",
+        "translations": {
+          "zh": "机缘巧合让他们走到了一起。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "serendipity brought someone together",
+        "popularity": 3
+      },
+      {
+        "text": "It was serendipity that led me to that job.",
+        "translations": {
+          "zh": "是机缘巧合让我得到了那份工作。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "it was serendipity that ...",
+        "popularity": 4
+      },
+      {
+        "text": "The whole trip was full of serendipity.",
+        "translations": {
+          "zh": "整个旅行充满了意外之喜。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "full of serendipity",
+        "popularity": 5
+      },
+      {
+        "text": "By serendipity, I found the perfect gift.",
+        "translations": {
+          "zh": "碰巧，我找到了完美的礼物。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "by serendipity",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "serendipity 由 serendip 和 -ity 构成。serendip 源自英国作家 Horace Walpole 1754 年创造的词，取自波斯童话《The Three Princes of Serendip》（Serendip 是斯里兰卡的古称），故事中王子们总是意外发现宝物。因此 serendip 是专有名词词根，-ity 是名词后缀。",
+      "parts": [
+        {
+          "text": "serendip",
+          "type": "root",
+          "meaning": "斯里兰卡的古称（源自童话《The Three Princes of Serendip》）",
+          "origin": "Persian/Arabic (Sarandib)"
+        },
+        {
+          "text": "-ity",
+          "type": "suffix",
+          "meaning": "表示状态、性质的名词后缀",
+          "origin": "Latin"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "serendip",
+            "-ity"
+          ],
+          "to": "serendipity",
+          "partOfSpeech": "noun",
+          "meaning": "意外发现美好事物的运气"
+        }
+      ],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "chance",
+          "partOfSpeech": "noun",
+          "nuance": "泛指偶然性，不含'美好'意味"
+        },
+        {
+          "word": "luck",
+          "partOfSpeech": "noun",
+          "nuance": "泛指好运，不强调'意外发现'"
+        },
+        {
+          "word": "fortune",
+          "partOfSpeech": "noun",
+          "nuance": "可指命运或财富，较正式"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "misfortune",
+          "partOfSpeech": "noun",
+          "nuance": "指厄运、不幸"
+        },
+        {
+          "word": "design",
+          "partOfSpeech": "noun",
+          "nuance": "指有意安排，与偶然相对"
+        }
+      ],
+      "mnemonic": "",
+      "supplement": "serendipity 常与 pure, happy, by, full of 等搭配。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "serendipitous",
+          "partOfSpeech": [
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "意外发现美好事物的；机缘巧合的",
+            "en": "Occurring by chance in a happy or beneficial way."
+          }
+        },
+        {
+          "word": "serendipitously",
+          "partOfSpeech": [
+            "adverb"
+          ],
+          "meanings": {
+            "zh": "意外地；机缘巧合地",
+            "en": "By chance in a happy or beneficial way."
+          }
+        }
+      ]
+    }
+  },
+  "acquire": {
+    "schemaVersion": 2,
+    "word": "acquire",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/əˈkwaɪə/",
+        "us": "/əˈkwaɪər/"
+      },
+      "partOfSpeech": [
+        "verb"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "获得，取得（技能、知识、财产等）；购得；养成（习惯）",
+      "en": "to gain or obtain something, especially through effort, purchase, or experience; to develop a skill, habit, or quality"
+    },
+    "coreSemantics": {
+      "core": "通过努力或购买而获得",
+      "notThis": "不是瞬间得到，而是经过过程后拥有",
+      "mentalImage": "一个人反复练习后终于学会骑自行车"
+    },
+    "examples": [
+      {
+        "text": "She acquired a good knowledge of French while living in Paris.",
+        "translations": {
+          "zh": "她在巴黎生活期间学到了丰富的法语知识。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "acquire a knowledge of something",
+        "popularity": 1
+      },
+      {
+        "text": "He acquired the habit of reading before bed.",
+        "translations": {
+          "zh": "他养成了睡前阅读的习惯。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "acquire the habit of doing something",
+        "popularity": 2
+      },
+      {
+        "text": "The company acquired a smaller rival last year.",
+        "translations": {
+          "zh": "这家公司去年收购了一个较小的竞争对手。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "acquire a company",
+        "popularity": 3
+      },
+      {
+        "text": "It takes time to acquire new skills.",
+        "translations": {
+          "zh": "掌握新技能需要时间。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "acquire skills",
+        "popularity": 4
+      },
+      {
+        "text": "She acquired a reputation for honesty.",
+        "translations": {
+          "zh": "她赢得了诚实的名声。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "acquire a reputation",
+        "popularity": 5
+      },
+      {
+        "text": "The museum acquired the painting for a record price.",
+        "translations": {
+          "zh": "博物馆以创纪录的价格购得了这幅画。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "acquire something for a price",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "来自拉丁语 acquirere，由前缀 ac-（ad- 的变体，表示“朝向”）和词根 quir-（意为“寻求”）构成。",
+      "parts": [
+        {
+          "text": "ac-",
+          "type": "prefix",
+          "meaning": "朝向，向",
+          "origin": "Latin"
+        },
+        {
+          "text": "quir",
+          "type": "root",
+          "meaning": "寻求，寻找",
+          "origin": "Latin"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "ac-",
+            "quir"
+          ],
+          "to": "acquire",
+          "partOfSpeech": "verb",
+          "meaning": "获得，取得"
+        }
+      ],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "obtain",
+          "partOfSpeech": "verb",
+          "nuance": "更正式，强调通过努力得到具体东西"
+        },
+        {
+          "word": "gain",
+          "partOfSpeech": "verb",
+          "nuance": "强调逐渐获得，常接经验、利益等抽象名词"
+        },
+        {
+          "word": "get",
+          "partOfSpeech": "verb",
+          "nuance": "最口语化，最通用，不强调过程"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "lose",
+          "partOfSpeech": "verb",
+          "nuance": "失去，与获得相对"
+        },
+        {
+          "word": "forfeit",
+          "partOfSpeech": "verb",
+          "nuance": "因违规或错误而丧失，较正式"
+        }
+      ],
+      "mnemonic": "",
+      "supplement": "acquire 常与 knowledge, skill, habit, reputation, property 等搭配。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "acquisition",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "获得；收购；获得物",
+            "en": "the act of acquiring or something acquired"
+          }
+        },
+        {
+          "word": "acquisitive",
+          "partOfSpeech": [
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "渴望获得的；贪婪的",
+            "en": "eager to acquire things"
+          }
+        },
+        {
+          "word": "acquired",
+          "partOfSpeech": [
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "后天获得的",
+            "en": "gained through experience or purchase, not innate"
+          }
+        }
+      ]
+    }
+  },
+  "ambiguous": {
+    "schemaVersion": 2,
+    "word": "ambiguous",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/æmˈbɪɡjuəs/",
+        "us": "/æmˈbɪɡjuəs/"
+      },
+      "partOfSpeech": [
+        "adjective"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "模棱两可的；含糊不清的；有多种解释的",
+      "en": "open to more than one interpretation; not having a clear meaning or intention"
+    },
+    "coreSemantics": {
+      "core": "多种解释，不明确",
+      "notThis": "不是简单的'不清楚'，而是'可作多种理解'",
+      "mentalImage": "一个路标同时指向两个相反方向，让人不知该走哪条"
+    },
+    "examples": [
+      {
+        "text": "The wording of the contract is ambiguous.",
+        "translations": {
+          "zh": "合同的措辞模棱两可。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "the wording is ambiguous",
+        "popularity": 1
+      },
+      {
+        "text": "His answer was deliberately ambiguous.",
+        "translations": {
+          "zh": "他的回答故意含糊其辞。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "deliberately ambiguous",
+        "popularity": 2
+      },
+      {
+        "text": "She gave an ambiguous smile.",
+        "translations": {
+          "zh": "她露出一个含义不明的微笑。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "an ambiguous smile",
+        "popularity": 3
+      },
+      {
+        "text": "The results of the study are ambiguous.",
+        "translations": {
+          "zh": "研究结果不明确。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "results are ambiguous",
+        "popularity": 4
+      },
+      {
+        "text": "He remained ambiguous about his future plans.",
+        "translations": {
+          "zh": "他对未来的计划仍然含糊其辞。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "ambiguous about something",
+        "popularity": 5
+      },
+      {
+        "text": "The law is ambiguous on this point.",
+        "translations": {
+          "zh": "法律在这一点上模棱两可。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "ambiguous on a point",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "来自拉丁语 ambiguus（游移不定的），由 amb-（周围）和 agere（驱动）构成；-ous 为形容词后缀。",
+      "parts": [
+        {
+          "text": "amb-",
+          "type": "prefix",
+          "meaning": "周围，两边",
+          "origin": "Latin"
+        },
+        {
+          "text": "ig",
+          "type": "root",
+          "meaning": "驱动，做（agere 的变体）",
+          "origin": "Latin"
+        },
+        {
+          "text": "-ous",
+          "type": "suffix",
+          "meaning": "充满……的，有……性质的",
+          "origin": "Latin"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "amb-",
+            "ig",
+            "-ous"
+          ],
+          "to": "ambiguous",
+          "partOfSpeech": "adjective",
+          "meaning": "模棱两可的"
+        }
+      ],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "vague",
+          "partOfSpeech": "adjective",
+          "nuance": "更强调不具体、模糊，不一定有多种解释"
+        },
+        {
+          "word": "equivocal",
+          "partOfSpeech": "adjective",
+          "nuance": "更正式，常指故意含糊以误导"
+        },
+        {
+          "word": "unclear",
+          "partOfSpeech": "adjective",
+          "nuance": "最通用，仅表示不清楚，不强调多义"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "clear",
+          "partOfSpeech": "adjective",
+          "nuance": "清楚明确，无歧义"
+        },
+        {
+          "word": "unambiguous",
+          "partOfSpeech": "adjective",
+          "nuance": "只有一种解释，毫不含糊"
+        },
+        {
+          "word": "explicit",
+          "partOfSpeech": "adjective",
+          "nuance": "明确表达，不含蓄"
+        }
+      ],
+      "supplement": "常与 deliberately, highly, somewhat 等副词连用；注意与 ambivalent（矛盾心理）区分。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "ambiguity",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "模棱两可；歧义",
+            "en": "the quality of being open to more than one interpretation"
+          }
+        },
+        {
+          "word": "unambiguous",
+          "partOfSpeech": [
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "明确的；无歧义的",
+            "en": "not open to more than one interpretation"
+          }
+        },
+        {
+          "word": "ambiguously",
+          "partOfSpeech": [
+            "adverb"
+          ],
+          "meanings": {
+            "zh": "模棱两可地",
+            "en": "in a way that is open to more than one interpretation"
+          }
+        },
+        {
+          "word": "unambiguously",
+          "partOfSpeech": [
+            "adverb"
+          ],
+          "meanings": {
+            "zh": "明确地；无歧义地",
+            "en": "in a way that is not open to more than one interpretation"
+          }
+        }
+      ]
+    }
+  },
+  "hierarchy": {
+    "schemaVersion": 2,
+    "word": "hierarchy",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/ˈhaɪərɑːki/",
+        "us": "/ˈhaɪərɑːrki/"
+      },
+      "partOfSpeech": [
+        "noun"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "等级制度；层级体系；统治集团",
+      "en": "A system in which people or things are ranked one above another; the group of people at the top of such a system."
+    },
+    "coreSemantics": {
+      "core": "按等级排列的体系",
+      "notThis": "不是简单的'顺序'，而是有上下级、权力或重要性差异的层级结构",
+      "mentalImage": "一座金字塔，每一层都比下一层窄，顶端只有一个人"
+    },
+    "examples": [
+      {
+        "text": "She quickly rose through the corporate hierarchy.",
+        "translations": {
+          "zh": "她迅速在公司等级体系中晋升。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "rise through the hierarchy",
+        "popularity": 1
+      },
+      {
+        "text": "The church has a strict hierarchy of authority.",
+        "translations": {
+          "zh": "教会有严格的权力等级制度。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "a hierarchy of authority",
+        "popularity": 2
+      },
+      {
+        "text": "The hierarchy of needs places food and shelter at the bottom.",
+        "translations": {
+          "zh": "需求层次把食物和住所放在最底层。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "hierarchy of needs",
+        "popularity": 3
+      },
+      {
+        "text": "He refused to accept the existing social hierarchy.",
+        "translations": {
+          "zh": "他拒绝接受现有的社会等级制度。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "social hierarchy",
+        "popularity": 4
+      },
+      {
+        "text": "The company's hierarchy is very flat, with few managers.",
+        "translations": {
+          "zh": "这家公司的层级很扁平，管理人员很少。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "flat hierarchy",
+        "popularity": 5
+      },
+      {
+        "text": "Information flows up and down the hierarchy.",
+        "translations": {
+          "zh": "信息在层级中上下流动。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "up and down the hierarchy",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "From Greek hieros 'sacred' + arkhein 'to rule', via Latin hierarchia and Old French jerarchie. The -y is a noun-forming suffix from Latin -ia.",
+      "parts": [
+        {
+          "text": "hier-",
+          "type": "combining form",
+          "meaning": "sacred, holy",
+          "origin": "Greek"
+        },
+        {
+          "text": "-archy",
+          "type": "combining form",
+          "meaning": "rule, government",
+          "origin": "Greek"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "hier-",
+            "-archy"
+          ],
+          "to": "hierarchy",
+          "partOfSpeech": "noun",
+          "meaning": "等级制度"
+        }
+      ],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "ranking",
+          "partOfSpeech": "noun",
+          "nuance": "更强调排列顺序，不一定有权力上下级"
+        },
+        {
+          "word": "pecking order",
+          "partOfSpeech": "noun",
+          "nuance": "更口语化，常指群体中的实际地位高低"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "equality",
+          "partOfSpeech": "noun",
+          "nuance": "强调地位平等，无上下级之分"
+        }
+      ],
+      "supplement": "常见搭配：corporate hierarchy, social hierarchy, hierarchy of needs, flat hierarchy."
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "hierarchical",
+          "partOfSpeech": [
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "等级制度的；按等级划分的",
+            "en": "relating to a hierarchy; arranged in ranks"
+          }
+        },
+        {
+          "word": "hierarchically",
+          "partOfSpeech": [
+            "adverb"
+          ],
+          "meanings": {
+            "zh": "按等级地",
+            "en": "in a hierarchical way"
+          }
+        },
+        {
+          "word": "hierarch",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "教主；高级教士；等级体系中的高层",
+            "en": "a chief priest; a person high in a hierarchy"
+          }
+        }
+      ]
+    }
+  },
+  "trivial": {
+    "schemaVersion": 2,
+    "word": "trivial",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/ˈtrɪviəl/",
+        "us": "/ˈtrɪviəl/"
+      },
+      "partOfSpeech": [
+        "adjective"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "琐碎的，不重要的；微不足道的；平凡的",
+      "en": "Of little value or importance; ordinary; insignificant."
+    },
+    "coreSemantics": {
+      "core": "琐碎、不重要、平凡",
+      "notThis": "不是指复杂或困难，而是指价值低、无足轻重",
+      "mentalImage": "地上一粒灰尘，没人会注意"
+    },
+    "examples": [
+      {
+        "text": "Don't waste time on trivial details.",
+        "translations": {
+          "zh": "不要把时间浪费在琐碎的细节上。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "trivial details",
+        "popularity": 1
+      },
+      {
+        "text": "It was a trivial mistake, easily fixed.",
+        "translations": {
+          "zh": "那是个小错误，很容易修正。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "a trivial mistake",
+        "popularity": 2
+      },
+      {
+        "text": "The difference between the two is trivial.",
+        "translations": {
+          "zh": "两者之间的差别微不足道。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "the difference is trivial",
+        "popularity": 3
+      },
+      {
+        "text": "She dismissed the question as trivial.",
+        "translations": {
+          "zh": "她认为这个问题无关紧要，不予理会。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "dismiss something as trivial",
+        "popularity": 4
+      },
+      {
+        "text": "He made a few trivial changes to the report.",
+        "translations": {
+          "zh": "他对报告做了几处微小的改动。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "trivial changes",
+        "popularity": 5
+      },
+      {
+        "text": "This is not a trivial problem; it requires careful thought.",
+        "translations": {
+          "zh": "这不是个小问题，需要仔细思考。"
+        },
+        "partOfSpeech": "adjective",
+        "usagePattern": "not a trivial problem",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "来自拉丁语 trivium（三岔路口），由 tri-（三）和 via（路）组成，-al 为形容词后缀。字面意思是“三岔路口的”，引申为“人人都知道的、普通的、琐碎的”。",
+      "parts": [
+        {
+          "text": "tri-",
+          "type": "prefix",
+          "meaning": "三",
+          "origin": "Latin"
+        },
+        {
+          "text": "via",
+          "type": "root",
+          "meaning": "路",
+          "origin": "Latin"
+        },
+        {
+          "text": "-al",
+          "type": "suffix",
+          "meaning": "……的",
+          "origin": "Latin"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "tri-",
+            "via"
+          ],
+          "to": "trivium",
+          "partOfSpeech": "noun",
+          "meaning": "三岔路口"
+        },
+        {
+          "from": [
+            "trivium",
+            "-al"
+          ],
+          "to": "trivial",
+          "partOfSpeech": "adjective",
+          "meaning": "琐碎的，不重要的"
+        }
+      ],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "insignificant",
+          "partOfSpeech": "adjective",
+          "nuance": "更正式，强调无足轻重"
+        },
+        {
+          "word": "unimportant",
+          "partOfSpeech": "adjective",
+          "nuance": "更通用，直接表示不重要"
+        },
+        {
+          "word": "petty",
+          "partOfSpeech": "adjective",
+          "nuance": "常指小心眼、琐碎且令人不快"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "important",
+          "partOfSpeech": "adjective",
+          "nuance": "重要的"
+        },
+        {
+          "word": "significant",
+          "partOfSpeech": "adjective",
+          "nuance": "有重大意义的"
+        },
+        {
+          "word": "crucial",
+          "partOfSpeech": "adjective",
+          "nuance": "至关重要的"
+        }
+      ],
+      "mnemonic": "",
+      "supplement": "注意 trivial 常含贬义，指不值得重视。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "trivially",
+          "partOfSpeech": [
+            "adverb"
+          ],
+          "meanings": {
+            "zh": "琐碎地；微不足道地",
+            "en": "In a trivial manner; insignificantly."
+          }
+        },
+        {
+          "word": "triviality",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "琐事；平凡",
+            "en": "Something that is trivial; the quality of being trivial."
+          }
+        },
+        {
+          "word": "trivialize",
+          "partOfSpeech": [
+            "verb"
+          ],
+          "meanings": {
+            "zh": "使显得琐碎；轻视",
+            "en": "To make something seem less important or serious than it is."
+          }
+        },
+        {
+          "word": "trivialization",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "轻视化；琐碎化",
+            "en": "The act of making something seem trivial."
+          }
+        }
+      ]
+    }
+  },
+  "bolster": {
+    "schemaVersion": 2,
+    "word": "bolster",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/ˈbəʊlstə/",
+        "us": "/ˈboʊlstər/"
+      },
+      "partOfSpeech": [
+        "verb",
+        "noun"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "v. 支持，增强（信心、士气等）；改善，加强；n. 长枕，垫枕",
+      "en": "v. to support or strengthen (confidence, morale, etc.); to improve or reinforce; n. a long pillow or cushion"
+    },
+    "coreSemantics": {
+      "core": "支撑加固，使更稳固",
+      "notThis": "不是直接替代或完全改变，而是提供额外支撑",
+      "mentalImage": "一个人把长枕头塞到背后，让靠坐更稳更舒服"
+    },
+    "examples": [
+      {
+        "text": "The new evidence bolsters the case for reform.",
+        "translations": {
+          "zh": "新证据支持了改革的理由。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "bolster the case for something",
+        "popularity": 1
+      },
+      {
+        "text": "We need to bolster her confidence before the exam.",
+        "translations": {
+          "zh": "考试前我们需要增强她的信心。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "bolster someone's confidence",
+        "popularity": 2
+      },
+      {
+        "text": "The government announced measures to bolster the economy.",
+        "translations": {
+          "zh": "政府宣布了提振经济的措施。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "bolster the economy",
+        "popularity": 3
+      },
+      {
+        "text": "He used a bolster to prop himself up in bed.",
+        "translations": {
+          "zh": "他用一个长枕把自己撑起来靠在床上。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "use a bolster",
+        "popularity": 4
+      },
+      {
+        "text": "The team's morale was bolstered by the early goal.",
+        "translations": {
+          "zh": "早早的进球提振了球队的士气。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "be bolstered by something",
+        "popularity": 5
+      }
+    ],
+    "wordFormation": {
+      "analysis": "bolster 源自古英语 bolster，与古诺尔斯语 bolstr 同源，可能由表示“隆起、垫子”的词根加工具后缀构成，但现代英语中已不可分解，视为单语素词。",
+      "parts": [
+        {
+          "text": "bolster",
+          "type": "root",
+          "meaning": "垫枕；支撑",
+          "origin": "Old English"
+        }
+      ],
+      "chain": [],
+      "confidence": "medium"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "strengthen",
+          "partOfSpeech": "verb",
+          "nuance": "更通用，强调使更强壮或更牢固，不特指提供额外支持"
+        },
+        {
+          "word": "reinforce",
+          "partOfSpeech": "verb",
+          "nuance": "强调通过增加材料或力量来加固，比 bolster 更具体"
+        },
+        {
+          "word": "boost",
+          "partOfSpeech": "verb",
+          "nuance": "强调提升、增加，常用于抽象事物如信心、销量，比 bolster 更口语化"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "undermine",
+          "partOfSpeech": "verb",
+          "nuance": "逐渐削弱，暗中破坏，与 bolster 的支持增强相反"
+        },
+        {
+          "word": "weaken",
+          "partOfSpeech": "verb",
+          "nuance": "使变弱，直接减弱力量或效果"
+        }
+      ],
+      "mnemonic": "bolster 像“抱枕”，抱枕撑腰更稳。",
+      "supplement": "bolster 作动词常与 confidence, economy, case, morale 等搭配；作名词指长圆形垫枕。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "bolstered",
+          "partOfSpeech": [
+            "verb"
+          ],
+          "meanings": {
+            "zh": "支持了；增强了（过去式/过去分词）",
+            "en": "supported or strengthened (past tense/past participle)"
+          }
+        },
+        {
+          "word": "bolstering",
+          "partOfSpeech": [
+            "verb",
+            "noun"
+          ],
+          "meanings": {
+            "zh": "支持；增强（现在分词/动名词）",
+            "en": "supporting or strengthening (present participle/gerund)"
+          }
+        },
+        {
+          "word": "bolsters",
+          "partOfSpeech": [
+            "verb",
+            "noun"
+          ],
+          "meanings": {
+            "zh": "支持；增强（第三人称单数）；长枕（复数）",
+            "en": "supports or strengthens (third-person singular); long pillows (plural)"
+          }
+        }
+      ]
+    }
+  },
+  "refute": {
+    "schemaVersion": 2,
+    "word": "refute",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/rɪˈfjuːt/",
+        "us": "/rɪˈfjuːt/"
+      },
+      "partOfSpeech": [
+        "verb"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "反驳，驳斥；证明……错误",
+      "en": "to prove that something is wrong or false; to deny the truth of a statement"
+    },
+    "coreSemantics": {
+      "core": "用证据或论证证明某说法错误",
+      "notThis": "不是单纯否认，而是用理由或证据驳倒",
+      "mentalImage": "一个人拿出证据，把对方的论点当场推翻"
+    },
+    "examples": [
+      {
+        "text": "She refuted the claim that the vaccine was unsafe.",
+        "translations": {
+          "zh": "她驳斥了疫苗不安全的说法。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "refute the claim that",
+        "popularity": 1
+      },
+      {
+        "text": "The scientist refuted the theory with new data.",
+        "translations": {
+          "zh": "科学家用新数据驳斥了该理论。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "refute something with something",
+        "popularity": 2
+      },
+      {
+        "text": "He refuted the allegations against him.",
+        "translations": {
+          "zh": "他驳斥了针对他的指控。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "refute the allegations",
+        "popularity": 3
+      },
+      {
+        "text": "It is hard to refute her argument.",
+        "translations": {
+          "zh": "很难反驳她的论点。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "refute an argument",
+        "popularity": 4
+      },
+      {
+        "text": "The evidence refutes the idea that the earth is flat.",
+        "translations": {
+          "zh": "证据驳斥了地球是平的这一想法。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "refute the idea that",
+        "popularity": 5
+      },
+      {
+        "text": "He refuted the accusation of cheating.",
+        "translations": {
+          "zh": "他驳斥了作弊的指控。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "refute the accusation",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "来自拉丁语 refutare（击退、驳斥），由前缀 re-（回、反）和词根 fut-（击打，与 confute 同源）构成。",
+      "parts": [
+        {
+          "text": "re-",
+          "type": "prefix",
+          "meaning": "回，反",
+          "origin": "Latin"
+        },
+        {
+          "text": "fut",
+          "type": "root",
+          "meaning": "击打",
+          "origin": "Latin"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "re-",
+            "fut"
+          ],
+          "to": "refute",
+          "partOfSpeech": "verb",
+          "meaning": "反驳，驳斥"
+        }
+      ],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "disprove",
+          "partOfSpeech": "verb",
+          "nuance": "强调用证据证明错误，比 refute 更正式"
+        },
+        {
+          "word": "rebut",
+          "partOfSpeech": "verb",
+          "nuance": "正式，特指对指控或论点的逐一反驳"
+        },
+        {
+          "word": "deny",
+          "partOfSpeech": "verb",
+          "nuance": "仅表示否认，不强调提供证据"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "confirm",
+          "partOfSpeech": "verb",
+          "nuance": "证实，确认"
+        },
+        {
+          "word": "prove",
+          "partOfSpeech": "verb",
+          "nuance": "证明为真"
+        }
+      ],
+      "mnemonic": "",
+      "supplement": "refute 常与 claim, argument, allegation, theory 等搭配，强调用证据驳倒。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "refutation",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "反驳，驳斥；反驳的言论",
+            "en": "the act of refuting or something that refutes"
+          }
+        },
+        {
+          "word": "refutable",
+          "partOfSpeech": [
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "可反驳的",
+            "en": "able to be refuted"
+          }
+        },
+        {
+          "word": "refuted",
+          "partOfSpeech": [
+            "verb"
+          ],
+          "meanings": {
+            "zh": "反驳了（过去式/过去分词）",
+            "en": "past tense and past participle of refute"
+          }
+        },
+        {
+          "word": "refuting",
+          "partOfSpeech": [
+            "verb"
+          ],
+          "meanings": {
+            "zh": "正在反驳（现在分词）",
+            "en": "present participle of refute"
+          }
+        }
+      ]
+    }
+  }
+}

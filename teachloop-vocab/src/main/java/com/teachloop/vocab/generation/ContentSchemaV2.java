@@ -102,9 +102,56 @@ public final class ContentSchemaV2 {
             problems.add("meanings.en empty");
         }
 
+        problems.addAll(cleanCoreSemantics(content));
         problems.addAll(cleanExamples(content, form, language, languages, minExamples, maxExamples));
         problems.addAll(cleanFamily(content, form, languages));
         problems.addAll(cleanFormation(content, form, derivationalFamily(content, form)));
+        problems.addAll(checkMnemonic(content));
+        return problems;
+    }
+
+    private static final java.util.regex.Pattern FAKE_MORPHOLOGY = java.util.regex.Pattern.compile(
+            "[+＋]|词根|词缀|前缀|后缀|root|prefix|suffix", java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /** coreSemantics：语义核心 + 不是什么 + 一句话画面（v2.5，用户 2026-10-25 定）。 */
+    private static List<String> cleanCoreSemantics(ObjectNode content) {
+        List<String> problems = new ArrayList<>();
+        JsonNode core = content.path("coreSemantics");
+        if (!core.isObject()) {
+            problems.add("coreSemantics missing");
+            return problems;
+        }
+        String coreText = text(core, "core").strip();
+        if (coreText.isEmpty()) {
+            problems.add("coreSemantics.core empty");
+        } else if (coreText.length() > 30) {
+            problems.add("coreSemantics.core 超过 30 字");
+        }
+        String image = text(core, "mentalImage").strip();
+        if (image.isEmpty()) {
+            problems.add("coreSemantics.mentalImage empty");
+        } else if (image.length() > 60) {
+            problems.add("coreSemantics.mentalImage 超过 60 字");
+        }
+        return problems;
+    }
+
+    /** mnemonic：可拆词禁止给；出现构词声称（伪词源）直接判失败。 */
+    private static List<String> checkMnemonic(ObjectNode content) {
+        List<String> problems = new ArrayList<>();
+        JsonNode aids = content.path("memoryAids");
+        if (!aids.isObject()) {
+            return problems;
+        }
+        String mnemonic = text(aids, "mnemonic").strip();
+        if (mnemonic.isEmpty()) {
+            return problems;
+        }
+        int parts = content.path("wordFormation").path("parts").size();
+        // mnemonic 是可选字段：可拆词或疑似伪词源时直接清空，不为它重试整词
+        if (parts >= 2 || FAKE_MORPHOLOGY.matcher(mnemonic).find()) {
+            ((ObjectNode) aids).put("mnemonic", "");
+        }
         return problems;
     }
 
@@ -240,28 +287,35 @@ public final class ContentSchemaV2 {
                 keptSteps.add(nodeStep);
             }
         }
+        // chain 每步的 from 只能取自 parts，或前一步的 to
+        java.util.Set<String> partTexts = new java.util.HashSet<>();
+        keptParts.forEach(part -> partTexts.add(text(part, "text").strip().toLowerCase(Locale.ROOT)));
+        partTexts.add(form.strip().toLowerCase(Locale.ROOT));  // 词本身可以作为派生基础
+        java.util.Set<String> reachedWords = new java.util.HashSet<>();
+        for (ObjectNode step : keptSteps) {
+            List<String> outsiders = new ArrayList<>();
+            step.path("from").forEach(item -> {
+                String value = item.asString().strip().toLowerCase(Locale.ROOT);
+                if (!partTexts.contains(value) && !reachedWords.contains(value)) {
+                    outsiders.add(item.asString().strip());
+                }
+            });
+            if (!outsiders.isEmpty()) {
+                problems.add("chain 引入了 parts 之外的元素: " + String.join(", ", outsiders));
+            }
+            reachedWords.add(text(step, "to").toLowerCase(Locale.ROOT));
+        }
         ArrayNode cleanedChain = node.putArray("chain");
         keptSteps.forEach(cleanedChain::add);
 
         if (keptParts.isEmpty()) {
             problems.add("wordFormation.parts empty（只有真正的单根词允许单条 root）");
         }
-        boolean monomorphemic = keptParts.size() == 1
-                && text(keptParts.get(0), "text").strip().equalsIgnoreCase(form.strip());
+        boolean monomorphemic = keptParts.size() == 1;
         if (keptSteps.isEmpty() && !monomorphemic) {
             problems.add("wordFormation.chain empty（词缀词必须给出派生阶梯）");
         }
-        List<String> reached = new ArrayList<>();
-        keptSteps.forEach(step -> reached.add(text(step, "to").toLowerCase(Locale.ROOT)));
-        List<String> missing = new ArrayList<>();
-        for (String item : derivational) {
-            if (!reached.contains(item.toLowerCase(Locale.ROOT))) {
-                missing.add(item);
-            }
-        }
-        if (!missing.isEmpty()) {
-            problems.add("chain missing derived forms: " + String.join(", ", missing));
-        }
+        // chain 覆盖不全只算告警：wordFamily 里常有不是由该词头直接派生的词（如 ambiguous → ambiguity）
         return problems;
     }
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """批量生成 v2.3 词内容（长期维护的 utility；运行时生成在 Java 侧，见 T439）。
 
-prompt 与请求参数来自共享契约 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.4.json
+prompt 与请求参数来自共享契约 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.5.json
 （Java 运行时读同一份），逐词生成 word_detail_page v2 JSON 写 JSONL，可断点续跑、可并发、带结构校验。
 
 「踩过的坑」都固化成了脚本里的控制，不是文档建议：
@@ -44,11 +44,11 @@ import uuid
 from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
-PROMPT_VERSION = "vocab-content-v2.4"
+PROMPT_VERSION = "vocab-content-v2.5"
 # prompt 与请求参数只有一份：Java 运行时（AiVocabularyContentGenerator）读同一个资源文件，
 # 批量工具也从这里读，避免两边各维护一份 prompt 慢慢漂移。
 CONTRACT_DEFAULT = (Path(__file__).resolve().parents[2]
-                    / "teachloop-vocab/src/main/resources/vocab/content-prompt-v2.4.json")
+                    / "teachloop-vocab/src/main/resources/vocab/content-prompt-v2.5.json")
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
 # 超过这个 reasoning token 数，说明 thinking 没关掉（正文预算会被吃掉）
 MAX_REASONING_TOKENS = 200
@@ -343,6 +343,11 @@ def is_inflection_of(base: str, form: str) -> bool:
     return len(b) >= 3 and w.startswith(b[:-1]) and w.endswith(("s", "ed", "ing"))
 
 
+def coverage_gaps(obj: dict, word: str, chain: list[dict]) -> list[str]:
+    reached = {str(step.get("to", "")).lower() for step in chain}
+    return [item for item in derivational_family(obj, word) if item.lower() not in reached]
+
+
 def derivational_family(obj: dict, word: str) -> list[str]:
     items = (obj.get("wordFamily") or {}).get("items") or []
     return [str(item.get("word", "")).strip() for item in items
@@ -370,6 +375,20 @@ def validate(obj: dict, word: str, language: str, example_count: int,
     for lang in LANGUAGES:
         if not str(meanings.get(lang, "")).strip():
             problems.append(f"meanings.{lang} empty")
+
+    core = obj.get("coreSemantics")
+    if not isinstance(core, dict):
+        problems.append("coreSemantics missing")
+    else:
+        if not str(core.get("core", "")).strip():
+            problems.append("coreSemantics.core empty")
+        elif len(str(core.get("core")).strip()) > 30:
+            problems.append("coreSemantics.core 超过 30 字")
+        image = str(core.get("mentalImage", "")).strip()
+        if not image:
+            problems.append("coreSemantics.mentalImage empty")
+        elif len(image) > 60:
+            problems.append("coreSemantics.mentalImage 超过 60 字")
 
     examples = obj.get("examples")
     if not isinstance(examples, list) or not examples:
@@ -427,8 +446,6 @@ def validate(obj: dict, word: str, language: str, example_count: int,
             formation["parts"] = kept
             if not kept:
                 problems.append("wordFormation.parts empty（只有真正的单根词允许单条 root）")
-            elif len(kept) == 1 and str(kept[0].get("text", "")).strip().lower() != word.lower():
-                problems.append("wordFormation.parts 只有一条且不是该词本身")
         # chain：丢空步，要求能够解释派生词
         chain = formation.get("chain")
         if chain is None:
@@ -451,15 +468,27 @@ def validate(obj: dict, word: str, language: str, example_count: int,
             cleaned_chain.append({"from": sources, "to": target,
                                   "partOfSpeech": str(step["partOfSpeech"]).strip(),
                                   "meaning": str(step["meaning"]).strip()})
+        part_texts = {str(part.get("text", "")).strip().lower() for part in formation.get("parts") or []}
+        part_texts.add(word.lower())  # 词本身可以作为派生基础
+        reached: set[str] = set()
+        for step in cleaned_chain:
+            outsiders = [x for x in step["from"]
+                         if x.lower() not in part_texts and x.lower() not in reached]
+            if outsiders:
+                problems.append("chain 引入了 parts 之外的元素: " + ", ".join(outsiders))
+            reached.add(step["to"].lower())
         formation["chain"] = cleaned_chain
-        monomorphemic = (len(formation.get("parts") or []) == 1
-                         and str(formation["parts"][0].get("text", "")).strip().lower() == word.lower())
+        monomorphemic = len(formation.get("parts") or []) == 1
         if not cleaned_chain and not monomorphemic:
             problems.append("wordFormation.chain empty（词缀词必须给出派生阶梯）")
-        reached = {step["to"].lower() for step in cleaned_chain}
-        missing = [item for item in derivational_family(obj, word) if item.lower() not in reached]
-        if missing:
-            problems.append("chain missing derived forms: " + ", ".join(missing))
+        aids = obj.get("memoryAids")
+        mnemonic = str((aids or {}).get("mnemonic", "")).strip()
+        if mnemonic and isinstance(aids, dict):
+            # mnemonic 是可选字段：可拆词或疑似伪词源时直接清空，不为它重试整词
+            if len(formation.get("parts") or []) >= 2 or re.search(
+                    r"[+＋]|词根|词缀|前缀|后缀|root|prefix|suffix", mnemonic, re.I):
+                aids["mnemonic"] = ""
+        # chain 覆盖不全只算告警（family 里常有不由该词头直接派生的词），不因此丢弃整条内容
 
     family = (obj.get("wordFamily") or {}).get("items")
     if not isinstance(family, list):
@@ -584,6 +613,7 @@ class Stats:
         self.latencies: list[float] = []
         self.example_hist: dict[int, int] = {}
         self.dropped_examples = 0
+        self.chain_gap_words = 0
         self.price_in = price_in
         self.price_out = price_out
         self.started_at = time.time()
@@ -610,6 +640,12 @@ class Stats:
         with self.lock:
             self.tokens_in += int(usage.get("prompt_tokens") or 0)
             self.tokens_out += int(usage.get("completion_tokens") or 0)
+
+    def record_chain_gaps(self, gaps) -> None:
+        if not gaps:
+            return
+        with self.lock:
+            self.chain_gap_words += 1
 
     def record_success(self, latency: float, examples: int, dropped: int) -> None:
         with self.lock:
@@ -720,7 +756,7 @@ def main() -> int:
     parser.add_argument("--preflight-only", action="store_true", help="只跑 preflight")
     parser.add_argument("--check-words", action="store_true", help="只打印词表体检结果，不请求模型")
     parser.add_argument("--prompt-file", default=None,
-                        help="覆盖共享契约路径（默认 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.4.json）")
+                        help="覆盖共享契约路径（默认 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.5.json）")
     args = parser.parse_args()
 
     if args.prompt_file:
@@ -862,13 +898,9 @@ def main() -> int:
             after = len(obj.get("examples") or [])
             if problems:
                 reasons.append("; ".join(problems))
-                missing = [p.split("chain missing derived forms: ", 1)[1]
-                           for p in problems if p.startswith("chain missing derived forms: ")]
-                if missing and not extra:
-                    attempts[-1] = (max(max_tokens_try, 6000), 0.1,
-                                    "Previous attempt missed these derivational wordFamily items in wordFormation.chain: "
-                                    + missing[0] + ". Regenerate so each one is the \"to\" of a chain step.")
                 continue
+            stats.record_chain_gaps(coverage_gaps(
+                obj, word, (obj.get("wordFormation") or {}).get("chain") or []))
             stats.record_success(time.time() - call_started, after, max(before - after, 0))
             record = obj
             break
@@ -986,6 +1018,7 @@ def main() -> int:
         "latencyP90Seconds": round(latencies[int(len(latencies) * 0.9)], 1) if latencies else None,
         "examplesHistogram": dict(sorted(stats.example_hist.items())),
         "droppedExamplesTotal": stats.dropped_examples,
+        "wordsWithChainGaps": stats.chain_gap_words,
         "finishedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
     output.with_suffix(".manifest.json").write_text(

@@ -72,7 +72,7 @@ teachloop:
       # T429/T430（decisions/017）：全局词内容 = 只读内容包 + 内存索引 + 本地 SQLite delta。
       # store-path 只放 AI 现场生成/回填的内容；包目录缺 manifest 时自动只用 delta + AI。
       store-path: ${VOCAB_CONTENT_STORE_PATH:./data/vocab-content-delta.db}
-      prompt-version: ${VOCAB_CONTENT_PROMPT_VERSION:vocab-content-v2.4}
+      prompt-version: ${VOCAB_CONTENT_PROMPT_VERSION:vocab-content-v2.5}
       pack-dir: ${VOCAB_CONTENT_PACK_DIR:./fixtures-local/vocab-content}
       # 生产建议设为 true：包损坏时拒绝启动，避免带着半份包静默降级；开发默认 false。
       pack-required: ${VOCAB_CONTENT_PACK_REQUIRED:false}

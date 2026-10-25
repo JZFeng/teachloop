@@ -1729,7 +1729,8 @@
       "feedbackPlaceholder": "What is wrong? For example the meaning, an example or the phonetic.",
       "feedbackSubmit": "Submit",
       "feedbackThanks": "Thanks, your feedback was recorded",
-      "noContent": "Content is being generated; this page refreshes shortly"
+      "noContent": "Content is being generated; this page refreshes shortly",
+      "derivation": "Word formation"
     },
     "freeReview": {
       "title": "Free review",

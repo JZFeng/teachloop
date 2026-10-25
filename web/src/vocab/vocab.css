@@ -292,3 +292,19 @@
 }
 
 .vocab-preview-panel { background: var(--panel-2); }
+
+/* v2.4 构词与派生（parts + chain） */
+.derivation { margin-top: 14px; border-top: 1px dashed var(--line); padding-top: 10px; }
+.derivation-title { font-size: 12px; letter-spacing: .04em; text-transform: uppercase; opacity: .6; margin-bottom: 6px; }
+.derivation-parts { display: flex; flex-wrap: wrap; gap: 6px 10px; margin-bottom: 8px; }
+.derivation-part { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 8px; border: 1px solid var(--line); border-radius: 999px; font-size: 13px; }
+.derivation-part em { font-style: normal; font-size: 11px; opacity: .6; }
+.derivation-chain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.derivation-chain em { font-style: normal; font-size: 11px; opacity: .6; margin-left: 4px; }
+.derivation-arrow { margin: 0 6px; opacity: .5; }
+
+/* v2.5 语义核心 + 一句话画面 */
+.core-semantics { margin: 10px 0 14px; padding: 10px 12px; border-left: 3px solid var(--accent); background: var(--panel-2); border-radius: 6px; }
+.core-semantics-core { margin: 0 0 4px; font-weight: 600; }
+.core-semantics-not { margin: 0 0 6px; font-size: 13px; }
+.core-semantics-image { margin: 0; font-size: 13px; font-style: italic; }

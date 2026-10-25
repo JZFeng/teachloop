@@ -15,11 +15,13 @@ class ContentPromptContractTest {
 
     @Test
     void loadsPromptAndRequestDefaultsFromClasspath() {
-        assertThat(contract.promptVersion()).isEqualTo("vocab-content-v2.4");
+        assertThat(contract.promptVersion()).isEqualTo("vocab-content-v2.5");
         assertThat(contract.promptSha256()).hasSize(16);
         assertThat(contract.systemPrompt()).contains("Return ONLY one JSON object");
         assertThat(contract.systemPrompt()).contains("\"chain\"");
         assertThat(contract.systemPrompt()).contains("bound root");
+        assertThat(contract.systemPrompt()).contains("coreSemantics");
+        assertThat(contract.systemPrompt()).contains("mentalImage");
         assertThat(contract.languages()).containsExactly("zh", "en");
         assertThat(contract.exampleMax()).isEqualTo(6);
         assertThat(contract.exampleMin()).isEqualTo(1);

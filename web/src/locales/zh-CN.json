@@ -1729,7 +1729,8 @@
       "feedbackPlaceholder": "哪里不对？例如释义、例句或音标。",
       "feedbackSubmit": "提交",
       "feedbackThanks": "已收到反馈，谢谢",
-      "noContent": "内容生成中，稍后自动刷新"
+      "noContent": "内容生成中，稍后自动刷新",
+      "derivation": "构词与派生"
     },
     "freeReview": {
       "title": "自由复习",

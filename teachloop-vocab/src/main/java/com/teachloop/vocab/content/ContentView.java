@@ -58,6 +58,8 @@ public final class ContentView {
         putSenses(view, raw);
         putExamples(view, raw);
         putAnalysis(view, raw);
+        putCoreSemantics(view, raw);
+        putDerivation(view, raw);
         putFamily(view, raw);
         putPhonetic(view, raw);
         return view;
@@ -187,6 +189,92 @@ public final class ContentView {
         }
         if (target.isEmpty()) {
             view.remove("examples");
+        }
+    }
+
+    /** v2.5 的语义核心 / 不是什么 / 一句话画面；没有就跳过。 */
+    private static void putCoreSemantics(ObjectNode view, JsonNode raw) {
+        JsonNode core = raw.path("coreSemantics");
+        if (!core.isObject()) {
+            return;
+        }
+        String text = text(core, "core");
+        String notThis = text(core, "notThis");
+        String image = text(core, "mentalImage");
+        if (text == null && notThis == null && image == null) {
+            return;
+        }
+        ObjectNode out = view.putObject("coreSemantics");
+        if (text != null) {
+            out.put("core", text);
+        }
+        if (notThis != null) {
+            out.put("notThis", notThis);
+        }
+        if (image != null) {
+            out.put("mentalImage", image);
+        }
+    }
+
+    /** v2 的 parts / chain 原样带出，供前端渲染「构词与派生」；v2.3 之前没有这两个字段就跳过。 */
+    private static void putDerivation(ObjectNode view, JsonNode raw) {
+        JsonNode formation = raw.path("wordFormation");
+        JsonNode parts = formation.path("parts");
+        JsonNode chain = formation.path("chain");
+        boolean hasParts = parts.isArray() && !parts.isEmpty();
+        boolean hasChain = chain.isArray() && !chain.isEmpty();
+        if (!hasParts && !hasChain) {
+            return;
+        }
+        ObjectNode derivation = view.putObject("derivation");
+        if (hasParts) {
+            ArrayNode out = derivation.putArray("parts");
+            for (JsonNode part : parts) {
+                ObjectNode item = out.addObject();
+                String text = text(part, "text");
+                String type = text(part, "type");
+                String meaning = text(part, "meaning");
+                String origin = text(part, "origin");
+                if (text != null) {
+                    item.put("text", text);
+                }
+                if (type != null) {
+                    item.put("type", type);
+                }
+                if (meaning != null) {
+                    item.put("meaning", meaning);
+                }
+                if (origin != null) {
+                    item.put("origin", origin);
+                }
+            }
+        }
+        if (hasChain) {
+            ArrayNode out = derivation.putArray("chain");
+            for (JsonNode step : chain) {
+                ObjectNode item = out.addObject();
+                ArrayNode from = item.putArray("from");
+                JsonNode sources = step.path("from");
+                if (sources.isArray()) {
+                    for (JsonNode source : sources) {
+                        if (source.isString() && !source.asString().isBlank()) {
+                            from.add(source.asString().strip());
+                        }
+                    }
+                }
+                String to = text(step, "to");
+                String pos = text(step, "partOfSpeech");
+                String meaning = text(step, "meaning");
+                if (to != null) {
+                    item.put("to", to);
+                }
+                if (pos != null) {
+                    item.put("partOfSpeech", pos);
+                }
+                if (meaning != null) {
+                    item.put("meaning", meaning);
+                }
+            }
         }
     }
 

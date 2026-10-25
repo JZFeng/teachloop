@@ -169,3 +169,15 @@
 - 生成脚本与 prompt 升到 v2.3：`scripts/vocab/generate_content.py`、`docs/prompts/vocab-content-v2.md`；
 - 2026-10-24 用 v2.2 生成的 46 条三语言记录**作废**，按 v2.3 重新生成；
 - 同步：AC-60.9/AC-60.10、`plan.md` §4.2.2/§4.2.4、T432。
+
+## 9. 修订（2026-10-25）：v2.5 语义核心与构词链
+
+用户要求「词根 + 前后缀必须要有，这是记忆的关键」，并给了 Gemini 式样例。落地：
+
+- 新增 `coreSemantics{core, notThis, mentalImage}`：语义核心（≤30 字，用来和近义词区分）、「不是什么」、一句话画面（≤60 字）。
+- `wordFormation.parts[].origin`：每个词素写来源（Latin/Greek/Old Norse/Old English/uncertain）。
+- `wordFormation.chain`：派生阶梯（`from[] → to`），**每步 from 的元素只能是 parts 里的文本或前一步的 to**，第一步只列构成第一个词所需的词素（inductively: `in- + duc → induce → inductive → inductively`）。
+- `memoryAids.mnemonic`：只允许不透明词；出现 `+`、词根/词缀/前缀/后缀、root/prefix/suffix 视为伪词源，**直接清空字段**（不因可选字段丢弃整词）。
+- `synonyms/antonyms[].nuance`：中文侧重说明。
+- 读路径 `ContentView` 带出 `coreSemantics` 与 `derivation`；`review-back` / `word-details` 渲染「语义核心/画面」与「构词与派生」两块，**不渲染 mnemonic**（用户 2026-10-25 定）。
+- 契约：`teachloop-vocab/src/main/resources/vocab/content-prompt-v2.5.json`；delta/包 `prompt_version=vocab-content-v2.5`。

@@ -1,0 +1,181 @@
+{
+  "schemaVersion": 2,
+  "word": "inductively",
+  "language": "en",
+  "basicInfo": {
+    "pronunciation": {
+      "uk": "/ɪnˈdʌktɪvli/",
+      "us": "/ɪnˈdʌktɪvli/"
+    },
+    "partOfSpeech": [
+      "adverb"
+    ],
+    "image": null
+  },
+  "meanings": {
+    "zh": "归纳地；以归纳方式",
+    "en": "In an inductive manner; by reasoning from particular facts to general principles."
+  },
+  "coreSemantics": {
+    "core": "从具体事实推出一般结论",
+    "notThis": "不是演绎地（从一般到具体）",
+    "mentalImage": "科学家收集许多数据点，然后总结出规律"
+  },
+  "examples": [
+    {
+      "text": "She reasoned inductively from the data.",
+      "translations": {
+        "zh": "她从数据中归纳推理。"
+      },
+      "partOfSpeech": "adverb",
+      "usagePattern": "reason inductively",
+      "popularity": 1
+    },
+    {
+      "text": "The argument proceeds inductively.",
+      "translations": {
+        "zh": "这个论证以归纳方式进行。"
+      },
+      "partOfSpeech": "adverb",
+      "usagePattern": "proceed inductively",
+      "popularity": 2
+    },
+    {
+      "text": "He approached the problem inductively.",
+      "translations": {
+        "zh": "他归纳地处理这个问题。"
+      },
+      "partOfSpeech": "adverb",
+      "usagePattern": "approach something inductively",
+      "popularity": 3
+    },
+    {
+      "text": "The theory was developed inductively.",
+      "translations": {
+        "zh": "这个理论是归纳发展出来的。"
+      },
+      "partOfSpeech": "adverb",
+      "usagePattern": "develop inductively",
+      "popularity": 4
+    },
+    {
+      "text": "We learn inductively from experience.",
+      "translations": {
+        "zh": "我们从经验中归纳学习。"
+      },
+      "partOfSpeech": "adverb",
+      "usagePattern": "learn inductively",
+      "popularity": 5
+    }
+  ],
+  "wordFormation": {
+    "analysis": "From Latin in- (into) + ducere (to lead) + -tive (adjective suffix) + -ly (adverb suffix).",
+    "parts": [
+      {
+        "text": "in-",
+        "type": "prefix",
+        "meaning": "向内",
+        "origin": "Latin"
+      },
+      {
+        "text": "duc",
+        "type": "root",
+        "meaning": "引导",
+        "origin": "Latin"
+      },
+      {
+        "text": "-tive",
+        "type": "suffix",
+        "meaning": "有……性质的",
+        "origin": "Latin"
+      },
+      {
+        "text": "-ly",
+        "type": "suffix",
+        "meaning": "以……方式",
+        "origin": "Old English"
+      }
+    ],
+    "chain": [
+      {
+        "from": [
+          "in-",
+          "duc"
+        ],
+        "to": "induce",
+        "partOfSpeech": "verb",
+        "meaning": "引导；诱导"
+      },
+      {
+        "from": [
+          "induce",
+          "-tive"
+        ],
+        "to": "inductive",
+        "partOfSpeech": "adjective",
+        "meaning": "归纳的"
+      },
+      {
+        "from": [
+          "inductive",
+          "-ly"
+        ],
+        "to": "inductively",
+        "partOfSpeech": "adverb",
+        "meaning": "归纳地"
+      }
+    ],
+    "confidence": "high"
+  },
+  "memoryAids": {
+    "synonyms": [
+      {
+        "word": "empirically",
+        "partOfSpeech": "adverb",
+        "nuance": "强调基于经验或观察，而非逻辑推理"
+      }
+    ],
+    "antonyms": [
+      {
+        "word": "deductively",
+        "partOfSpeech": "adverb",
+        "nuance": "从一般原理推出具体结论"
+      }
+    ],
+    "supplement": "Inductively is often used in academic and scientific contexts to describe reasoning from specific observations to general theories."
+  },
+  "wordFamily": {
+    "items": [
+      {
+        "word": "induce",
+        "partOfSpeech": [
+          "verb"
+        ],
+        "meanings": {
+          "zh": "诱导；引起",
+          "en": "To persuade or bring about"
+        }
+      },
+      {
+        "word": "inductive",
+        "partOfSpeech": [
+          "adjective"
+        ],
+        "meanings": {
+          "zh": "归纳的",
+          "en": "Based on induction"
+        }
+      },
+      {
+        "word": "induction",
+        "partOfSpeech": [
+          "noun"
+        ],
+        "meanings": {
+          "zh": "归纳；诱导",
+          "en": "The process of inducing or being induced"
+        }
+      }
+    ]
+  }
+}

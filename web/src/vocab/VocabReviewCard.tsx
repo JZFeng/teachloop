@@ -24,11 +24,38 @@ export interface ReviewCardExample {
   zh?: string
 }
 
+export interface ReviewCardDerivationPart {
+  text?: string
+  type?: string
+  meaning?: string
+  origin?: string
+}
+
+export interface ReviewCardDerivationStep {
+  from?: string[]
+  to?: string
+  partOfSpeech?: string
+  meaning?: string
+}
+
+export interface ReviewCardDerivation {
+  parts?: ReviewCardDerivationPart[]
+  chain?: ReviewCardDerivationStep[]
+}
+
+export interface ReviewCardCoreSemantics {
+  core?: string
+  notThis?: string
+  mentalImage?: string
+}
+
 export interface ReviewCardContent {
   phonetic?: { uk?: string; us?: string }
+  coreSemantics?: ReviewCardCoreSemantics
   senses?: ReviewCardSense[]
   examples?: ReviewCardExample[]
   analysis?: string
+  derivation?: ReviewCardDerivation
 }
 
 export interface ReviewCardWord {
@@ -230,6 +257,36 @@ export function VocabReviewCard({
               </div>
             )}
             {content?.analysis && <p className="muted">{content.analysis}</p>}
+            {content?.derivation && (
+              <div className="derivation">
+                <div className="derivation-title">{t('vocab.detail.derivation')}</div>
+                {content.derivation.parts && content.derivation.parts.length > 0 && (
+                  <div className="derivation-parts">
+                    {content.derivation.parts.map((part, index) => (
+                      <span className="derivation-part" key={`${part.text}-${index}`}>
+                        <b className="mono">{part.text}</b>
+                        {part.type && <em>{part.type}</em>}
+                        {part.meaning && <span>{part.meaning}</span>}
+                        {part.origin && <span className="muted">{part.origin}</span>}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {content.derivation.chain && content.derivation.chain.length > 0 && (
+                  <ol className="derivation-chain">
+                    {content.derivation.chain.map((step, index) => (
+                      <li key={`${step.to}-${index}`}>
+                        <span className="mono">{(step.from ?? []).join(' + ')}</span>
+                        <span className="derivation-arrow">→</span>
+                        <b className="mono">{step.to}</b>
+                        {step.partOfSpeech && <em>{step.partOfSpeech}</em>}
+                        {step.meaning && <span className="muted">{step.meaning}</span>}
+                      </li>
+                    ))}
+                  </ol>
+                )}
+              </div>
+            )}
           </div>
         )}
         {!flipped && <div className="review-hint muted">{notice ?? t('vocab.review.showAnswer')}</div>}

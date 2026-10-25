@@ -24,7 +24,7 @@ import tools.jackson.databind.ObjectMapper;
 @Component
 public class ContentPromptContract {
 
-    static final String DEFAULT_RESOURCE = "/vocab/content-prompt-v2.4.json";
+    static final String DEFAULT_RESOURCE = "/vocab/content-prompt-v2.5.json";
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final JsonNode root;

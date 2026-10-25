@@ -30,6 +30,10 @@ class ContentSchemaV2Test {
         ObjectNode meanings = root.putObject("meanings");
         meanings.put("zh", "苹果");
         meanings.put("en", "a round fruit");
+        ObjectNode core = root.putObject("coreSemantics");
+        core.put("core", "树上结的圆形果实");
+        core.put("notThis", "不是泛指水果，而是特指苹果");
+        core.put("mentalImage", "一个红苹果放在桌上，表皮有细小的斑点。");
 
         ArrayNode ex = root.putArray("examples");
         for (int index = 1; index <= examples; index++) {
@@ -121,8 +125,8 @@ class ContentSchemaV2Test {
         assertThat(cleaned).hasSize(2);
         assertThat(cleaned.get(0).path("word").asString()).isEqualTo("apples");
         assertThat(cleaned.get(1).path("word").asString()).isEqualTo("applesauce");
-        // apples 是屈折、applesauce 是派生：派生词必须出现在 chain 的 to
-        assertThat(ContentSchemaV2.join(problems)).contains("chain missing derived forms: applesauce");
+        // apples 是屈折、applesauce 是派生：派生词没进 chain 只记告警，不算硬错误
+        assertThat(problems).isEmpty();
     }
 
     @Test
@@ -144,16 +148,18 @@ class ContentSchemaV2Test {
         ArrayNode parts = formation.putArray("parts");
         parts.addObject().put("text", "in-").put("type", "prefix").put("meaning", "向内");
         parts.addObject().put("text", "duc").put("type", "root").put("meaning", "引导");
+        parts.addObject().put("text", "-tion").put("type", "suffix").put("meaning", "名词后缀");
 
         ObjectNode family = content.putObject("wordFamily");
         ObjectNode noun = family.putArray("items").addObject();
         noun.put("word", "induction").putArray("partOfSpeech").add("noun");
         noun.putObject("meanings").put("zh", "归纳").put("en", "induction");
 
-        List<String> problems = ContentSchemaV2.validateAndClean(content, "induce", "en", LANGS, 1, 6);
-        assertThat(ContentSchemaV2.join(problems)).contains("chain missing derived forms: induction");
+        // 有词缀的词必须给 chain；派生词覆盖不全只记告警
+        assertThat(ContentSchemaV2.join(
+                ContentSchemaV2.validateAndClean(content, "induce", "en", LANGS, 1, 6)))
+                .contains("wordFormation.chain empty");
 
-        // 补上 chain 之后应当通过
         ArrayNode chain = ((ObjectNode) content.path("wordFormation")).putArray("chain");
         ObjectNode step = chain.addObject();
         step.putArray("from").add("induce").add("-tion");
@@ -172,6 +178,40 @@ class ContentSchemaV2Test {
 
         assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", LANGS, 1, 6)).isEmpty();
         assertThat(content.path("wordFormation").path("parts")).hasSize(1);
+    }
+
+    @Test
+    void coreSemanticsIsRequired() {
+        ObjectNode missing = sample("apple", 1);
+        ((ObjectNode) missing).remove("coreSemantics");
+        assertThat(ContentSchemaV2.join(
+                ContentSchemaV2.validateAndClean(missing, "apple", "en", LANGS, 1, 6)))
+                .contains("coreSemantics missing");
+
+        ObjectNode longImage = sample("apple", 1);
+        ((ObjectNode) longImage.path("coreSemantics")).put("mentalImage", "长".repeat(61));
+        assertThat(ContentSchemaV2.join(
+                ContentSchemaV2.validateAndClean(longImage, "apple", "en", LANGS, 1, 6)))
+                .contains("mentalImage 超过 60 字");
+    }
+
+    @Test
+    void mnemonicRejectedForTransparentWordsAndFakeEtymology() {
+        ObjectNode transparent = sample("induce", 1);
+        ((ObjectNode) transparent.path("examples").get(0)).put("text", "This drug can induce sleep.");
+        ObjectNode formation = (ObjectNode) transparent.path("wordFormation");
+        ArrayNode parts = formation.putArray("parts");
+        parts.addObject().put("text", "in-").put("type", "prefix").put("meaning", "向内");
+        parts.addObject().put("text", "duc").put("type", "root").put("meaning", "引导");
+        ObjectNode chain = formation.putArray("chain").addObject();
+        chain.putArray("from").add("in-").add("duc");
+        chain.put("to", "induce").put("partOfSpeech", "verb").put("meaning", "引导");
+        ((ObjectNode) transparent.putObject("memoryAids"))
+                .put("mnemonic", "strive + -le 就是 struggle 的感觉");
+
+        // 违规的 mnemonic 直接清空，不因此丢弃整条内容
+        assertThat(ContentSchemaV2.validateAndClean(transparent, "induce", "en", LANGS, 1, 6)).isEmpty();
+        assertThat(transparent.path("memoryAids").path("mnemonic").asString()).isEmpty();
     }
 
     @Test

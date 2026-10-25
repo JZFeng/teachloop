@@ -261,6 +261,10 @@ class AiVocabularyContentGeneratorTest {
         pronunciation.put("us", "/ˈæp.əl/");
         basic.putArray("partOfSpeech").add("noun");
         root.putObject("meanings").put("zh", "苹果").put("en", "a round fruit");
+        ObjectNode core = root.putObject("coreSemantics");
+        core.put("core", "树上结的圆形果实");
+        core.put("notThis", "不是泛指水果，而是特指苹果");
+        core.put("mentalImage", "一个红苹果放在桌上。");
         ArrayNode ex = root.putArray("examples");
         for (int index = 1; index <= examples; index++) {
             ObjectNode example = ex.addObject();

@@ -48,6 +48,11 @@ def make_record(word: str = "apple", examples: list[dict] | None = None) -> dict
             "image": None,
         },
         "meanings": {"zh": "苹果", "en": "a round fruit"},
+        "coreSemantics": {
+            "core": "树上结的圆形果实",
+            "notThis": "不是泛指水果，而是特指苹果",
+            "mentalImage": "一个红苹果放在桌上，表皮有细小的斑点。",
+        },
         "examples": examples or [make_example("She ate an apple.")],
         "wordFormation": {
             "analysis": "From Old English æppel.",
@@ -132,8 +137,9 @@ class ValidateSanitizeTest(unittest.TestCase):
         ]
         problems = g.validate(record, "apple", "en", 6)
         self.assertEqual([i["word"] for i in record["wordFamily"]["items"]], ["apples", "applesauce"])
-        # apples 是屈折、applesauce 是派生：派生词必须出现在 chain 的 to
-        self.assertIn("chain missing derived forms: applesauce", "; ".join(problems))
+        # apples 是屈折、applesauce 是派生：派生词没进 chain 只记告警，不算硬错误
+        self.assertEqual(problems, [])
+        self.assertEqual(g.coverage_gaps(record, "apple", []), ["applesauce"])
 
     def test_incomplete_formation_part_is_dropped(self):
         record = make_record()
@@ -155,21 +161,57 @@ class ValidateSanitizeTest(unittest.TestCase):
     def test_derivation_chain_must_cover_derived_family_members(self):
         record = make_record("induce")
         record["examples"] = [make_example("This drug can induce sleep.")]
+        record["memoryAids"]["mnemonic"] = ""
         record["wordFormation"]["parts"] = [
             {"text": "in-", "type": "prefix", "meaning": "向内"},
             {"text": "duc", "type": "root", "meaning": "引导"},
+            {"text": "-tion", "type": "suffix", "meaning": "名词后缀"},
         ]
         record["wordFamily"]["items"] = [
             {"word": "induction", "partOfSpeech": ["noun"],
              "meanings": {"zh": "归纳", "en": "induction"}},
         ]
         problems = g.validate(record, "induce", "en", 6)
-        self.assertIn("chain missing derived forms: induction", "; ".join(problems))
+        # 有词缀的词必须给 chain；派生词覆盖不全只记告警
+        self.assertIn("wordFormation.chain empty", "; ".join(problems))
+        self.assertEqual(g.coverage_gaps(record, "induce", []), ["induction"])
 
         record["wordFormation"]["chain"] = [
             {"from": ["induce", "-tion"], "to": "induction", "partOfSpeech": "noun", "meaning": "归纳"},
         ]
         self.assertEqual(g.validate(record, "induce", "en", 6), [])
+
+    def test_core_semantics_is_required(self):
+        record = make_record()
+        del record["coreSemantics"]
+        self.assertIn("coreSemantics missing", "; ".join(g.validate(record, "apple", "en", 6)))
+
+        record = make_record()
+        record["coreSemantics"]["mentalImage"] = ""
+        self.assertIn("coreSemantics.mentalImage empty", "; ".join(g.validate(record, "apple", "en", 6)))
+
+        record = make_record()
+        record["coreSemantics"]["mentalImage"] = "长" * 61
+        self.assertIn("coreSemantics.mentalImage 超过 60 字", "; ".join(g.validate(record, "apple", "en", 6)))
+
+    def test_mnemonic_rejected_for_transparent_words_and_fake_etymology(self):
+        record = make_record()  # parts 只有一条 root，属单根词
+        record["memoryAids"]["mnemonic"] = "a pple 像苹果滚动"
+        self.assertEqual(g.validate(record, "apple", "en", 6), [])
+
+        transparent = make_record("induce")
+        transparent["examples"] = [make_example("This drug can induce sleep.")]
+        transparent["wordFormation"]["parts"] = [
+            {"text": "in-", "type": "prefix", "meaning": "向内"},
+            {"text": "duc", "type": "root", "meaning": "引导"},
+        ]
+        transparent["wordFormation"]["chain"] = [
+            {"from": ["in-", "duc"], "to": "induce", "partOfSpeech": "verb", "meaning": "引导"},
+        ]
+        transparent["memoryAids"]["mnemonic"] = "strive + -le 就是 struggle 的感觉"
+        # 违规的 mnemonic 直接清空，不因此丢弃整条内容
+        self.assertEqual(g.validate(transparent, "induce", "en", 6), [])
+        self.assertEqual(transparent["memoryAids"]["mnemonic"], "")
 
     def test_hard_errors_still_fail(self):
         record = make_record()
