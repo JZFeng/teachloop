@@ -40,6 +40,24 @@
       "ignored": ["内容与结构"]
     },
     {
+      "name": "ordered-list-without-dot-vditor",
+      "rubric": "1 表达理解（5 分）\n2 给出建议（5 分）\n3 语法与拼写（5 分）\n",
+      "totalPoints": 15,
+      "valid": true,
+      "issues": [],
+      "parsed": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 }
+      ],
+      "allocated": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 }
+      ],
+      "ignored": []
+    },
+    {
       "name": "no-points-even-split",
       "rubric": "# 评分标准\n\n- 内容\n- 结构\n",
       "totalPoints": 10,

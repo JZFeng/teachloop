@@ -102,7 +102,12 @@ const DECISION_PREFIXES = [
 
 const HEADING = /^\s{0,3}#{1,4}\s+(.+?)\s*$/
 const BULLET = /^\s{0,3}[-*+]\s+(.+?)\s*$/
-const NUMBERED = /^\s{0,3}\d+[.)、]\s+(.+?)\s*$/
+/**
+ * 有序列表行：「1. 内容」与「1 内容」都算。
+ * 第二种没有点是 Vditor 即时渲染视图的真实输出（敲「1. 」会被编辑器接成有序列表，
+ * 回写 Markdown 时丢点），与 Java 的 NUMBERED 同步（T470）。
+ */
+const NUMBERED = /^\s{0,3}\d+(?:[.)、]\s+|\s+)(.+?)\s*$/
 const LEADING_NUMBER = /^\d+[.)、]\s*/
 
 /** 名称首尾要剥掉的标点（含全角括号、顿号、中英文冒号）。 */

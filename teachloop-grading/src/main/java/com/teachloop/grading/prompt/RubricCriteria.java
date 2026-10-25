@@ -27,7 +27,14 @@ final class RubricCriteria {
 
     private static final Pattern HEADING = Pattern.compile("^\\s{0,3}#{1,4}\\s+(.+?)\\s*$");
     private static final Pattern BULLET = Pattern.compile("^\\s{0,3}[-*+]\\s+(.+?)\\s*$");
-    private static final Pattern NUMBERED = Pattern.compile("^\\s{0,3}\\d+[.)、]\\s+(.+?)\\s*$");
+    /**
+     * 有序列表行：「1. 内容」与「1 内容」都算。
+     *
+     * <p>第二种没有点是 Vditor 即时渲染视图的真实输出：老师敲「1. 」会被编辑器接成有序列表，
+     * 回写的 Markdown 是「1 内容」（实测 2026-10-25，试卷向导评分项）。只认带点的写法会让
+     * 老师刚写的分值在预览与判分里都看不见（T470）。
+     */
+    private static final Pattern NUMBERED = Pattern.compile("^\\s{0,3}\\d+(?:[.)、]\\s+|\\s+)(.+?)\\s*$");
     private static final Pattern MAX_POINTS =
             Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*(?:分|points?|pts?)", Pattern.CASE_INSENSITIVE);
     private static final Pattern LEADING_NUMBER = Pattern.compile("^\\d+[.)、]\\s*");

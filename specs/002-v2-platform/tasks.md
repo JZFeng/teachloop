@@ -568,6 +568,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | T467 | **纯分值说明行不进题干**（AC-4.22⑧）：新增 `SCORE_SEP` / `SCORE_LINE` 与 `isScoreOnlyLine`，整行只由分值/题数词与连接标点组成、且真能读到分值或题数数字时，在 `interpret` 与 `writingStem` 两处跳过；普通英文句子里的 `each` / `total score` 因含其它词不匹配白名单，不会被误删 | T455 | 正文行 `每小题 1.5 分` 不再出现在第 1 题题干、5 题照导入且 `points` 为 null；`They like each other.` 仍在第 1 题题干；真实整卷 77 题 / 0 warning / 总分 150 不回归 |
 | T468 | **评分项自动保存**（2026-10-25 用户改主意，AC-4.28⑤）：删掉「保存本题评分标准」按钮与 `saveRubric`；`PaperWizardPage` 改 800ms 防抖自动 `PUT`（只发该题 `rubricMarkdown`），换 tab / 上一步 / 卸载立即冲刷；失败条目放回 pending 重试并显示原因 | T463 | 输入后 2 秒内数据库可见（`objective_items.rubric_markdown`）；状态行三态「正在自动保存…/已自动保存 HH:MM/自动保存失败」；页面文字搜不到「保存本题评分标准」；断网时重试不丢字 |
 | T469 | **第 3 步评分项闸门**（AC-4.28⑥⑦⑧）：`paperFlow.essayRubricCheck` / `rubricGate` + 单测；空评分项拦「下一步」并切 tab，合计不一致只提醒；`RubricPreview` 增 `scope="paper"`，合计不一致文案改为「只提醒，不拦下一步」 | T468 | 77 题空 rubric 时停在 step 3 且提示「第 77 题还没填」；10/15 时进 step 4 且给提醒；`web/tests/paper-flow.test.mjs` 覆盖 empty/matched/mismatch/noPoints；`pnpm test` 84/84、`check-i18n` 通过 |
+| T470 | **有序列表行接受无点形式**（决策 005 追记）：`NUMBERED` 放宽为 `^\s{0,3}\d+(?:[.)、]\s+|\s+)(.+?)\s*$`，`RubricValidator` / `RubricCriteria` / `web/src/components/rubric.ts` 三处同步；夹具新增 `ordered-list-without-dot-vditor` | T469 | 同一段「1 要点（5 分）×3」在三处都解析成 3 项、合计 15；`RubricValidatorCasesTest` 8/8、`RubricCriteriaTest` 6/6、`web/tests/rubric-summary.test.mjs` 85/85 全绿；浏览器里手打「1. 要点」也能看到合计 15/15 |
 
 ---
 
