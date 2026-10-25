@@ -76,8 +76,10 @@ export default function VocabSetsPage() {
     refresh()
   }
 
+  /** 复制的是一条「学生链接」：学生自己打开进预习页，老师打开会被后端拒绝（403）。 */
   const copyLink = async (id: string) => {
     try {
+      if (!navigator.clipboard) throw new Error('clipboard unavailable')
       await navigator.clipboard.writeText(`${window.location.origin}/vocab/assignments/${id}`)
       toast.success(t('vocab.sets.copyDone'))
     } catch {
@@ -203,7 +205,8 @@ export default function VocabSetsPage() {
                       : t('vocab.sets.noDue')}</td>
                     <td>{record.claimedCount} / {record.recipientCount}</td>
                     <td>
-                      <Button size="small" onClick={() => void copyLink(record.id)}>
+                      <Button size="small" title={t('vocab.sets.copyHint')}
+                        onClick={() => void copyLink(record.id)}>
                         {t('vocab.sets.copyLink')}
                       </Button>
                     </td>

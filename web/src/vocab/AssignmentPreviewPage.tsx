@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { api } from '../api/client'
+import { api, ApiError } from '../api/client'
 import { Button, Empty, ErrorState, Loading, PageHeader, useToast } from '../ui'
 import './vocab.css'
 
@@ -48,7 +48,8 @@ export default function VocabAssignmentPreviewPage() {
       toast.success(t('vocab.assignment.claimedDone', {
         added: result.added, duplicated: result.duplicated,
       }))
-      await load()
+      // 加入后直接去词库，并按「加入时间倒序」看：刚加入的排最上面，已在库的词保持原位不动。
+      navigate('/vocab/library?sort=createdAt&dir=desc')
     } catch (claimError) {
       toast.error((claimError as Error).message)
     } finally {
@@ -56,6 +57,18 @@ export default function VocabAssignmentPreviewPage() {
     }
   }
 
+  // 老师点开自己复制出去的学生链接：后端给 403，这里给一句人话，而不是裸的 404 报错。
+  if (error instanceof ApiError && error.status === 403) {
+    return (
+      <>
+        <PageHeader title={t('vocab.assignment.teacherLinkTitle')} />
+        <div className="card">
+          <p>{t('vocab.assignment.teacherLinkBody')}</p>
+          <Button onClick={() => navigate('/vocab/sets')}>{t('vocab.assignment.backToSets')}</Button>
+        </div>
+      </>
+    )
+  }
   if (error) return <ErrorState error={error} onRetry={() => void load()} />
   if (!detail) return <Loading label={t('common.loading')} />
 

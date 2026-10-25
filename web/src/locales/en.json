@@ -1548,9 +1548,10 @@
       "recordDue": "Due",
       "recordClaimed": "Claimed / recipients",
       "noDue": "No due date",
-      "copyLink": "Copy link",
-      "copyDone": "Assignment link copied",
-      "copyFailed": "Copy failed; copy the address bar manually",
+      "copyLink": "Copy student link",
+      "copyHint": "Students open this link to preview this assignment. Only recipients in the class can open it; teachers see a notice instead.",
+      "copyDone": "Copied. Send it to the class; only recipient students can open it.",
+      "copyFailed": "Copy failed. Check whether the browser allows clipboard access.",
       "bulkPlaceholder": "Paste or type words (one per line or comma/space separated; parsed and added when you press Save)",
       "noWordsParsed": "No words parsed; check the content",
       "addResult": "Added ({{added}}/{{total}})",
@@ -1664,7 +1665,10 @@
       "word": "Word",
       "band": "Frequency",
       "back": "Back to library",
-      "empty": "This assignment has no words."
+      "empty": "This assignment has no words.",
+      "teacherLinkTitle": "This is a student link",
+      "teacherLinkBody": "Teacher accounts cannot open the student preview page. Send the link to students in the class; they can open it and add the words to their library.",
+      "backToSets": "Back to word sets"
     }
   }
 }

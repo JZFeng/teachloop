@@ -207,4 +207,15 @@ public class VocabularyAssignmentRepository {
         return recipientOf(assignmentId, studentId)
                 .orElseThrow(() -> ApiException.notFound("assignment not found"));
     }
+
+    /**
+     * 这次布置属于哪位教师。
+     *
+     * <p>只用于「老师点开自己复制出去的学生链接」时给一句人话：不返回收件人信息，
+     * 也不让调用方拿到别人的布置。
+     */
+    public Optional<UUID> teacherOf(UUID assignmentId) {
+        return jdbc.query("select teacher_id from vocab_assignments where id = ?",
+                (rs, rowNumber) -> rs.getObject(1, UUID.class), assignmentId).stream().findFirst();
+    }
 }

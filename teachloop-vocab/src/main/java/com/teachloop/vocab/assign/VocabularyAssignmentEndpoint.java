@@ -150,11 +150,25 @@ public class VocabularyAssignmentEndpoint {
     /** T413 补：学生预习页（逐词预览；过期仍可加入，界面标「已过期」）。 */
     @GetMapping("/{id}")
     public StudentDetail detail(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
-        VocabularyAssignmentRepository.RecipientView row = assignments.requireRecipient(id, me.id());
+        VocabularyAssignmentRepository.RecipientView row = assignments.recipientOf(id, me.id())
+                .orElseThrow(() -> notRecipient(id, me));
         Instant dueAt = row.dueAt();
         return new StudentDetail(id, row.setName(), dueAt, row.note(),
                 dueAt != null && dueAt.isBefore(clock.instant()),
                 row.claimed(), assignments.previewWords(id));
+    }
+
+    /**
+     * 不是收件人时的口径：属主教师点开自己复制出去的学生链接，给 403 让他知道「这是学生链接」；
+     * 其他人一律 404，不泄漏布置是否存在。
+     */
+    private ApiException notRecipient(UUID assignmentId, CurrentUser me) {
+        boolean owner = assignments.teacherOf(assignmentId)
+                .filter(teacherId -> teacherId.equals(me.id()))
+                .isPresent();
+        return owner
+                ? ApiException.forbidden("teacher cannot preview a student link")
+                : ApiException.notFound("assignment not found");
     }
 
     @PostMapping("/{id}/claim")

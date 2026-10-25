@@ -19,6 +19,7 @@ import VocabFreeReviewPage from './vocab/FreeReviewPage'
 import VocabAddWordsPage from './vocab/AddWordsPage'
 import VocabAssignmentPreviewPage from './vocab/AssignmentPreviewPage'
 import LoginPage from './app/LoginPage'
+import { loginNextFrom, loginPath, safeNextPath } from './app/redirect'
 import NotificationsPage from './app/NotificationsPage'
 import ProfilePage from './app/ProfilePage'
 import SetupPage from './app/SetupPage'
@@ -45,8 +46,19 @@ import AssignmentPage from './exam/AssignmentPage'
 
 function RequireAuth() {
   const { me, loading } = useAuth()
+  const location = useLocation()
   if (loading) return <div style={{ padding: 40 }}><Loading /></div>
-  return me ? <Outlet /> : <Navigate to="/login" replace />
+  if (me) return <Outlet />
+  // 带上原地址：学生从班群点开预习链接但没登录时，登录后要回到那次布置，而不是首页。
+  return <Navigate to={loginPath(loginNextFrom(location.pathname, location.search, location.hash))} replace />
+}
+
+/** `/login` 的入口：已登录的人带着 next 来（例如刷新登录页），直接回跳，不要再登一次。 */
+function LoginRoute() {
+  const { me } = useAuth()
+  const location = useLocation()
+  const next = safeNextPath(new URLSearchParams(location.search).get('next'))
+  return me ? <Navigate to={next ?? '/'} replace /> : <LoginPage />
 }
 
 /** 根路由按角色分流：教师看跨班首页，学生看自己的考试/作业。 */
@@ -80,7 +92,6 @@ function ShellLayout() {
 }
 
 export default function App() {
-  const { me } = useAuth()
   const { features, loaded } = useFeatures()
   const location = useLocation()
 
@@ -94,7 +105,7 @@ export default function App() {
 
   return (
     <Routes>
-      <Route path="/login" element={me ? <Navigate to="/" replace /> : <LoginPage />} />
+      <Route path="/login" element={<LoginRoute />} />
       <Route path="/setup" element={<SetupPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<ShellLayout />}>

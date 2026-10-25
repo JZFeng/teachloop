@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { ApiError } from '../api/client'
+import { safeNextPath } from './redirect'
 import {
   Alert,
   BarChartOutlined,
@@ -31,6 +32,9 @@ export default function LoginPage() {
   const { t } = useTranslation('translation')
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  // 学生从班群点开预习链接但没登录：登录后回到那次布置（只接受站内路径）。
+  const next = safeNextPath(params.get('next'))
   const [email, setEmail] = useState('teacher@teachloop.local')
   const [password, setPassword] = useState('teachloop123')
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +46,7 @@ export default function LoginPage() {
     setError(null)
     try {
       await login(email.trim(), password)
-      navigate('/', { replace: true })
+      navigate(next ?? '/', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err))
     } finally {

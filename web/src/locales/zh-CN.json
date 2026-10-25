@@ -1548,9 +1548,10 @@
       "recordDue": "截止",
       "recordClaimed": "已领 / 收件",
       "noDue": "无截止",
-      "copyLink": "复制链接",
-      "copyDone": "已复制布置链接",
-      "copyFailed": "复制失败，请手动复制地址栏链接",
+      "copyLink": "复制给学生",
+      "copyHint": "学生打开后进入这次的预习页；只有本班收件学生能打开，老师自己点开会看到提示",
+      "copyDone": "已复制，发给本班学生即可（只有本班收件学生能打开）",
+      "copyFailed": "复制失败，请检查浏览器是否允许访问剪贴板",
       "bulkPlaceholder": "粘贴或输入单词（每行一个，支持逗号/空格分隔；点“保存”时自动解析并加入）",
       "noWordsParsed": "没有解析出单词，请检查内容",
       "addResult": "添加完成（{{added}}/{{total}}）",
@@ -1664,7 +1665,10 @@
       "word": "单词",
       "band": "常用度",
       "back": "返回词库",
-      "empty": "这次布置没有词。"
+      "empty": "这次布置没有词。",
+      "teacherLinkTitle": "这是给学生的链接",
+      "teacherLinkBody": "老师账号打不开学生预习页。把链接发给本班学生即可，他们点开就能加入词库。",
+      "backToSets": "返回词集"
     }
   }
 }

@@ -102,6 +102,13 @@ class VocabAssignmentTest {
         assertThat(detail.get("claimed").asBoolean()).isFalse();
         assertThat(detail.get("expired").asBoolean()).isFalse();
 
+        // 老师点开自己复制出去的学生链接：403（前端显示「这是给学生的链接」），不是裸 404；
+        // 与这次布置无关的人仍然 404，不泄漏存在性。
+        assertThat(send(base, teacher, "GET", "/api/vocab/assignments/" + assignmentId, null).statusCode())
+                .as("老师点学生链接给 403").isEqualTo(403);
+        assertThat(send(base, teacher, "GET", "/api/vocab/assignments/" + UUID.randomUUID(), null).statusCode())
+                .as("不存在的布置仍是 404").isEqualTo(404);
+
         JsonNode pending = get(base, student, "/api/vocab/assignments/pending");
         assertThat(pending).hasSize(1);
         assertThat(pending.get(0).get("setName").asString()).isEqualTo("发词测试词集");
