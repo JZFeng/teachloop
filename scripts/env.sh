@@ -157,6 +157,8 @@ cmd_up() {
   DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" \
   DB_USER=teachloop DB_PASSWORD=teachloop \
   STORAGE_LOCAL_DIR="$UPLOADS" \
+  VOCAB_CONTENT_STORE_PATH="$ENV_DIR/content-delta.db" \
+  VOCAB_CONTENT_PACK_DIR="$ROOT/fixtures-local/vocab-content" \
   PORT="$PORT" TEACHLOOP_GRADING_ENGINE="$engine" \
     "$JAVA" -jar "$JAR" > "$ENV_DIR/backend.log" 2>&1 &
   echo $! > "$BACK_PID_FILE"
