@@ -40,6 +40,7 @@ export function VocabReviewCard({
   onFlip,
   onToggleFavorite,
   onDelete,
+  onPause,
   onRate,
   ratingDisabled = false,
   emptyHint,
@@ -49,6 +50,8 @@ export function VocabReviewCard({
   onFlip: () => void
   onToggleFavorite?: () => void
   onDelete?: () => void
+  /** 自由复习的「暂停这个词」——与收藏同一行的图标按钮 */
+  onPause?: () => void
   onRate?: (rating: 'KNOWN' | 'DONT_KNOW') => void
   ratingDisabled?: boolean
   /** 明细为空时显示的一行提示（查词/未入库/生成中） */
@@ -69,48 +72,60 @@ export function VocabReviewCard({
         if (event.key === 'Enter') onFlip()
       }}
     >
-      {!flipped && onDelete && (
-        <div className="review-card-tools">
-          <button
-            type="button"
-            className="review-icon-action is-danger"
-            aria-label={t('vocab.library.delete')}
-            title={`${t('vocab.library.delete')} · Delete`}
-            onClick={(event) => { event.stopPropagation(); onDelete() }}
-          >
-            <DeleteOutlined />
-          </button>
-        </div>
-      )}
-
       <div className="review-card-body">
         <div className="review-card-head">
-          <div className="review-word">{word.form}</div>
-          <div
-            className="review-phonetic-row muted"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <span className="review-phonetic">
-              {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
-              <SpeakerButton form={word.form} accent="uk" shortcut="u" compact variant="text" />
-            </span>
-            <span className="review-phonetic">
-              {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
-              <SpeakerButton form={word.form} accent="us" shortcut="a" compact variant="text" />
-            </span>
-            {onToggleFavorite && (
-              <button
-                type="button"
-                className={`review-icon-action${word.favorite ? ' is-on' : ''}`}
-                aria-label={word.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
-                aria-pressed={!!word.favorite}
-                title={`${word.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')} · F`}
-                onClick={(event) => { event.stopPropagation(); onToggleFavorite() }}
-              >
-                {word.favorite ? <StarFilled /> : <StarOutlined />}
-              </button>
-            )}
+          {/* T437：单词与英美音标左对齐，收藏/删除（或暂停）右对齐 */}
+          <div className="review-card-head-main">
+            <div className="review-word">{word.form}</div>
+            <div className="review-phonetic-row muted" onClick={(event) => event.stopPropagation()}>
+              <span className="review-phonetic">
+                {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
+                <SpeakerButton form={word.form} accent="uk" shortcut="u" compact variant="text" />
+              </span>
+              <span className="review-phonetic">
+                {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
+                <SpeakerButton form={word.form} accent="us" shortcut="a" compact variant="text" />
+              </span>
+            </div>
           </div>
+          {(onToggleFavorite || (!flipped && (onDelete || onPause))) && (
+            <div className="review-card-head-actions" onClick={(event) => event.stopPropagation()}>
+              {onToggleFavorite && (
+                <button
+                  type="button"
+                  className={`review-icon-action${word.favorite ? ' is-on' : ''}`}
+                  aria-label={word.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
+                  aria-pressed={!!word.favorite}
+                  title={`${word.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')} · F`}
+                  onClick={onToggleFavorite}
+                >
+                  {word.favorite ? <StarFilled /> : <StarOutlined />}
+                </button>
+              )}
+              {!flipped && onDelete && (
+                <button
+                  type="button"
+                  className="review-icon-action is-danger"
+                  aria-label={t('vocab.library.delete')}
+                  title={`${t('vocab.library.delete')} · Delete`}
+                  onClick={onDelete}
+                >
+                  <DeleteOutlined />
+                </button>
+              )}
+              {!flipped && onPause && (
+                <button
+                  type="button"
+                  className="review-icon-action is-danger"
+                  aria-label={t('vocab.freeReview.pause')}
+                  title={`${t('vocab.freeReview.pause')} · S`}
+                  onClick={onPause}
+                >
+                  <DeleteOutlined />
+                </button>
+              )}
+            </div>
+          )}
         </div>
 
         {flipped && (

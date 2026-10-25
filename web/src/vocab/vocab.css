@@ -76,15 +76,15 @@
   gap: 18px;
 }
 .review-card-column { flex: 1; max-width: 720px; }
-/* T427：今日复习卡固定为内容区的 5/16；T435：用户要求至少占右侧区域一半（留出「下一个」按钮后仍超过一半） */
-.review-stage--today .review-card-column { flex: 0 0 55%; max-width: 55%; min-width: 0; }
+/* T427：今日复习卡固定为内容区的 5/16；T435：至少占右侧区域一半；T437：参照扇贝，卡片占满大部分宽度 */
+.review-stage--today .review-card-column { flex: 0 0 78%; max-width: 78%; min-width: 0; }
 .review-card {
   position: relative;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  min-height: 420px;
-  padding: 32px;
+  min-height: 480px;
+  padding: 36px 40px;
   text-align: center;
   cursor: pointer;
   background: var(--panel);
@@ -92,6 +92,7 @@
   border-radius: 14px;
 }
 .review-card.is-flipped { text-align: left; }
+.review-card.is-flipped .review-card-body { justify-content: flex-start; }
 .review-card-body {
   flex: 1;
   min-height: 0;
@@ -101,13 +102,27 @@
   gap: 10px;
 }
 .review-word { font-size: 34px; font-weight: 750; }
-/* T435：单词、英美音标（各带喇叭）与收藏星标收在同一行 */
+/* T437：单词与英美音标左对齐，收藏/删除（暂停）右对齐 */
 .review-card-head {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  gap: 10px 18px;
+  text-align: left;
+}
+.review-card-head-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: 8px 18px;
+  min-width: 0;
+}
+.review-card-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
 }
 .review-back { margin-top: 12px; }
 .review-examples { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
@@ -119,13 +134,14 @@
 }
 .review-actions .ant-btn { min-width: 120px; }
 .review-keys { text-align: center; margin-top: 6px; }
-/* T435：下一个按钮之前几乎看不见（0.55 透明度 + 默认尺寸），加大加显眼 */
+/* T435/T437：下一个按钮加大加宽、垂直居中在卡片右侧 */
 .review-next.ant-btn {
-  margin-top: 150px;
-  min-width: 128px;
-  height: 46px;
-  padding: 0 26px;
-  font-size: 16px;
+  margin-top: 0;
+  align-self: center;
+  min-width: 168px;
+  height: 58px;
+  padding: 0 32px;
+  font-size: 18px;
   font-weight: 650;
   opacity: 0.92;
   border-color: var(--accent);
@@ -148,15 +164,7 @@
 }
 .review-session-foot .review-keys { margin-top: 0; }
 
-/* T427：卡片右上角收藏/删除、音标旁喇叭、卡片底部两档评分 */
-.review-card-tools {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1;
-  display: flex;
-  gap: 2px;
-}
+/* T427：卡片工具按钮（收藏/删除/暂停）——T437 起放进卡片头部的右侧 */
 .review-icon-action {
   display: inline-flex;
   align-items: center;

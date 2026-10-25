@@ -353,13 +353,11 @@ export default function VocabFreeReviewPage() {
             flipped={flipped}
             onFlip={() => setFlipped((value) => !value)}
             onToggleFavorite={() => void toggleFavorite()}
+            onPause={() => void advance('PAUSE')}
             onRate={(rating) => void advance(rating)}
             ratingDisabled={busy}
           />
           <div className="review-session-foot">
-            <Button size="small" disabled={busy} onClick={() => void advance('PAUSE')}>
-              {t('vocab.freeReview.pause')}
-            </Button>
             <span className="review-keys muted">{t('vocab.freeReview.keys')}</span>
           </div>
         </div>
