@@ -10,6 +10,18 @@
 - `JZ` —— 这是用户对**上一条信息**的回答或确认：按确认执行，不重复确认、不重述问题。
 - `Bug：` —— 直接修，修完跑对应测试，并说明验证到哪一档（接口 / 界面入口 / 端到端）。
 
+## 界面叫法（改布局前先对齐，全表见 `docs/process/glossary.md`）
+
+用户 2026-10-25 定的五个叫法，回复 / spec / tasks / 验收里**只用这套词**：
+
+- `review-front` = 卡片**正面**（未翻面，单词 + 英/美音标）——**不是页面**
+- `review-back` = 卡片**反面**（翻面后的释义/例句/构词）
+- `word-details` = 查词页（`/vocab/words/by-form/:form`，版式与 `review-front` 分开维护）
+- `today-review` = 今日复习页（`/vocab/review`）
+- `free-review` = 自由复习**页/会话**（`/vocab/review/session/:id`）——**不要用它指卡片正面**；这个页面同样有正、反两面
+
+写需求请用「`review-front`：…；`review-back` 和 `word-details` 不动」这种句式，不要写「那个复习卡」。
+
 本项目的推进顺序**不可跳步**。完整手册见 `.dsh/skills/spec-first-delivery/SKILL.md`。
 
 1. **Research** — 先看同行怎么做，写进 `docs/research/`。
