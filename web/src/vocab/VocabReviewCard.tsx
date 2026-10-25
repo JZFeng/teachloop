@@ -59,6 +59,7 @@ export function VocabReviewCard({
   ratingDisabled = false,
   emptyHint,
   notice,
+  centered = false,
 }: {
   word: ReviewCardWord
   flipped: boolean
@@ -76,6 +77,11 @@ export function VocabReviewCard({
   emptyHint?: string
   /** 覆盖正面提示行（例如「已暂停」） */
   notice?: string
+  /**
+   * T440：复习页版式（今日复习 / 自由复习）——单词居中、英美音标另起一行居中；
+   * 查词明细页（WordDetailPage）保持 T437 的左对齐版式，不传此属性。
+   */
+  centered?: boolean
 }) {
   const { t } = useTranslation()
   // 决策 019 / AC-57.6：服务端关掉例句朗读时整卡不渲染例句喇叭。
@@ -88,7 +94,7 @@ export function VocabReviewCard({
 
   return (
     <div
-      className={`review-card${flipped ? ' is-flipped' : ''}`}
+      className={`review-card${flipped ? ' is-flipped' : ''}${centered ? ' is-centered' : ''}`}
       role="button"
       tabIndex={0}
       aria-label={flipped ? t('vocab.review.back') : t('vocab.review.front')}
@@ -99,7 +105,7 @@ export function VocabReviewCard({
     >
       <div className="review-card-body">
         <div className="review-card-head">
-          {/* T437：单词与英美音标左对齐，收藏/删除（或暂停）右对齐 */}
+          {/* T437 查词页：单词与英美音标左对齐；T440 复习页（centered）：单词居中、音标另起一行居中。收藏/删除（或暂停）始终在右上角 */}
           <div className="review-card-head-main">
             <div className="review-word">{word.form}</div>
             <div className="review-phonetic-row muted" onClick={(event) => event.stopPropagation()}>

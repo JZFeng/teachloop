@@ -361,6 +361,7 @@ export default function VocabFreeReviewPage() {
             onRate={(rating) => void advance(rating)}
             ratingDisabled={busy || !!word.paused}
             notice={word.paused ? t('vocab.freeReview.pausedHint') : undefined}
+            centered
           />
           <div className="review-session-foot">
             <span className="review-keys muted">{t('vocab.freeReview.keys')}</span>

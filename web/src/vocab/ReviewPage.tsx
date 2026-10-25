@@ -460,6 +460,7 @@ export default function VocabReviewPage() {
             onDelete={() => void removeCurrent()}
             onRate={(rating) => void submit(rating)}
             ratingDisabled={disabled}
+            centered
           />
         </div>
 
