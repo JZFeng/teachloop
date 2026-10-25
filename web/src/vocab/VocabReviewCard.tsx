@@ -9,6 +9,7 @@ import {
   StarOutlined,
 } from '../ui'
 import { SpeakerButton } from './SpeakerButton'
+import { useVocabAudioConfig } from './audioConfig'
 
 export interface ReviewCardSense {
   pos?: string
@@ -74,6 +75,8 @@ export function VocabReviewCard({
   notice?: string
 }) {
   const { t } = useTranslation()
+  // 决策 019 / AC-57.6：服务端关掉例句朗读时整卡不渲染例句喇叭。
+  const { sentenceAudio } = useVocabAudioConfig()
   const content = word.content
   const phonetic = content?.phonetic
 
@@ -174,9 +177,26 @@ export function VocabReviewCard({
             {(content?.examples?.length ?? 0) > 0 && (
               <div className="review-examples">
                 {content!.examples!.map((example, exampleIndex) => (
-                  <div key={exampleIndex}>
-                    <div>{example.en}</div>
-                    {example.zh && <div className="muted">{example.zh}</div>}
+                  // 决策 019 / AC-57.6：每条例句右侧一个小喇叭；句子与翻译竖排，
+                  // 喇叭与文本行 flex 同行，长句在文本列里换行、不挤压喇叭。
+                  <div
+                    key={exampleIndex}
+                    style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}
+                  >
+                    <div style={{ flex: '1 1 auto', minWidth: 0, overflowWrap: 'anywhere' }}>
+                      {example.en && <div>{example.en}</div>}
+                      {example.zh && <div className="muted">{example.zh}</div>}
+                    </div>
+                    {sentenceAudio && example.en && (
+                      // 卡片整体是「点击翻面」，喇叭上的点击/回车必须留在本地。
+                      <span
+                        style={{ flex: '0 0 auto' }}
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        <SpeakerButton text={example.en} lang="en" compact variant="text" />
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
