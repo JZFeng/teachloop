@@ -260,7 +260,7 @@ P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` �
 - 表 `vocab_language_profile(user_id uuid pk, main_language, target_language, display_order jsonb, updated_at)`，
   默认 `zh` / `en` / `["zh","en"]`；个人资料页提供设置入口（调 vocab 的
   `GET/PUT /api/vocab/language-profile`）。
-- 内容生成覆盖 `meanings`/`translations` 的 zh/en/es 三种语言；缓存键仍是 `(target 语言, 词形)`，与主语言无关。
+- 内容生成覆盖 `meanings`/`translations` 的 zh/en 两种语言（V1；`es` 留扩展位，见 decisions/018 §8）；缓存键仍是 `(target 语言, 词形)`，与主语言无关。
 
 ### 4.2.3 页面模板与例句参数
 
@@ -274,7 +274,7 @@ P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` �
 ### 4.2.4 生成 prompt 与校验
 
 - 系统提示与用户提示按 decisions/018 §7；prompt 版本进 `prompt_version`（包、delta、配置一致才命中）。
-- 写库前校验：JSON 结构、例句数量（6）、`popularity` 唯一、`text` 含目标词、`translations` 覆盖 zh/en/es；
+- 写库前校验：JSON 结构、例句数量 1..配置上限、`popularity` 1..N 唯一、`text` 含目标词、`translations` 覆盖 zh/en（目标语言自身不重复翻译）；
   不合格重试一次，再失败 → job FAILED，不写半成品。
 
 ### 4.2.5 任务
