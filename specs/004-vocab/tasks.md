@@ -55,6 +55,7 @@
 | T407 | **词集前端**：表格视图 + 批量条 + 编辑页（单栏、导入/加词、取消/保存） | T406 | 表格列与 spec §23 一致；取消返回列表；空态文案正确 |
 | T408 | **发词**：词集快照、班级快照（收件人）、截止时间、通知（失败不回滚发词）、只能发自己带的班（越权 404） | T406, T389 | 改词集不影响已发；重复发不重复入库；非本人班级 404 |
 | T409 | **发词记录**：词集页第二 tab，按时间倒序，含领取情况与复制链接 | T408 | 列表与实发一致；复制链接可用 |
+| T425 | **发词通知标题与老师称谓（待改，用户 2026-10-24 拍板先记录）**：`notification.vocab_assignment.detail.title` / `.detail_nodue.title` 缺键导致通知标题为空，补「新的词集」（英文 New word set）；中文正文在老师名后补「老师」，`teacher` 传 `display_name` 去掉尾部「老师」后的名字，避免出现「老师老师」；英文模板不加中文称谓；同步改 AC-50.6 与 `docs/decisions/015` | T408 | QA 学生端标题显示「新的词集」，正文「演示班的JZ老师发来一组生词…」；`display_name` 已是「周杰伦老师」时不重复；英文界面标题 "New word set" 且正文不出现中文「老师」；`NotificationTest` 覆盖三种情况 |
 
 ## 阶段 F — 发音
 
@@ -80,7 +81,7 @@
 | US-47 卡组 | 47.1–47.5 | T387, T396, T397 |
 | US-48 导入 | 48.1–48.12 | T390–T395, T424 |
 | US-49 词集 | 49.1–49.10 | T387, T406, T407, T409 |
-| US-50 发词 | 50.1–50.5 | T408, T389 |
+| US-50 发词 | 50.1–50.6 | T408, T425, T389 |
 | US-51 领取 | 51.1–51.4 | T408, T395 |
 | US-52 队列 | 52.1–52.6 | T402 |
 | US-53 评分 | 53.1–53.8 | T401, T403, T405 |
@@ -152,3 +153,4 @@
 | 2026-10-24 | 反馈跟进：启停合并为切换按钮（T407） | 按教师反馈「启用和停用合并一个按钮」：词集列表批量操作条改为**一个启停切换按钮**（选中项全部启用 → 显示「停用」，否则显示「启用」），可逆动作不再二次确认；删除仍独立且二次确认。后端 `POST /api/vocab/sets/batch` 不变（ACTIVATE / DEACTIVATE 仍在） | `pnpm typecheck` 通过；spec AC-49.2 已同步。**残余**：浏览器视觉未复验（本轮仅类型检查 + 结构校验） |
 | 2026-10-24 | 反馈跟进：发词通知写明班级/老师/词集/截止（T408） | 按学生反馈：`Ports.ClassMembership` 新增 `classNames`（classroom 实现）；发词时 payload 追加 `teacher`（`users.display_name` 原文）、`className`（学生所在班，多个班用「、」连接）、`setName`、`dueAt`（ISO-8601）；`NotificationEndpoint` 参数表追加 {4}–{7} 并按 `teachloop.notification.due-zone`（默认 Asia/Shanghai）渲染截止时间；新增模板 `notification.vocab_assignment.detail[.nodue]`，老的空 payload 行仍走泛化文案 | `NotificationTest` 新增用例（中文整句断言 / 英文关键字）；`VocabAssignmentTest` 断言 payload.teacher 与通知正文含班级、老师、词集、`2026/11/30 15:00`。spec AC-50.6 已加；`docs/decisions/015` 已更新 payload 契约 |
 | 2026-10-24 | T424 复习卡内容生成中态（**记录待办，未实现**） | 用户要求先记录、与后续需求一起改，本轮**无代码改动**。QA 实测结论：AI 内容链路本身正常（student01 的 10 个词全部 READY，复习卡背面与详情页浏览器可见完整释义/例句/构词/音标）；但生成窗口内队列项 `content:null`、`contentStatus:PENDING`，复习卡背面全白且无「内容生成中」提示，复习页只在挂载时取一次队列不轮询，详情页写「稍后自动刷新」却不刷新——违反 AC-48.4，用户看到空白会以为 AI 没跑通 | 另实测到真实故障：新词 `kettle` 三次 60s 超时后 FAILED（同时段 `/v1/models` 秒回、AI ping 20s 超时，槽空后 0.34s 恢复；lantern/meadow/pencil/rabbit 均 12–20s 成功），说明本地单槽 qwen 会被长生成占住；生成器未设 `max_tokens`、vocab 生成不写 `ai_calls`。顺带发现 `GradingWorker` 对被教师锁定的提交每 2s 重复打 `grading skipped` 日志。测试词已删，QA 词库恢复 10 词全 READY |
+| 2026-10-24 | T425 发词通知标题与老师称谓（**记录待办，未实现**） | 用户要求「title 改为新的词集，正文 JZ 后加老师」。QA 库取证：`notifications` 行的 `title` 与 `body` 为空、payload 为 `{setName:不不不, teacher:JZ, className:演示班, dueAt:…}`；根因是 `NotificationEndpoint.templateKey` 对 detail 变体查 `notification.vocab_assignment.detail.title`，该键不存在 → 回退到空 title；老师称谓沿用 AC-50.6 的「display_name 原文，不补老师」 | 本轮无代码改动；实现要点已写进 T425：补两个 title 键、中文模板补「老师」、payload 传去掉尾部「老师」的姓名、英文不加中文称谓，并同步 AC-50.6 与 `docs/decisions/015` |
