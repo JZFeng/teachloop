@@ -49,7 +49,7 @@ export function SpeakerButton({ form, compact = false }: { form: string; compact
     }
     setPlaying(true)
     try {
-      const response = await fetch(`/api/vocab/audio?form=${encodeURIComponent(form)}`, {
+      const response = await fetch(`/api/vocab/audio?form=${encodeURIComponent(form)}&v=2`, {
         credentials: 'include',
       })
       if (!response.ok) throw new Error('tts unavailable')
