@@ -147,6 +147,9 @@ lookup(form):
 - 重试：失败指数退避（1min / 5min / 30min），3 次后 `FAILED`；24h 仍失败标「内容缺失」，从队列移除并提醒（AC-48.9）。
 - 成本：`teachloop.vocab.generation.{enabled,daily-budget,concurrency,timeout-ms,model}`；超预算暂停入队并告警。
 - 单条超时 60s，超时按失败计；**成功才写库**，不写半成品。
+- 内容全局共享（decisions/017）：只读内容包 `.pack/.idx/manifest` + 内存索引为主；AI 新内容写
+  本地 SQLite delta；`vocab_words.content_id` 引用全局内容，读路径由 `ContentStore` 解析；
+  同一 `(language, normalized_form)` 只生成一次。P1 先落 SQLite delta 与 `content_id`，P2 再接预生成包。
 
 ## 5. TTS 缓存
 
