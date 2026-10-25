@@ -7,6 +7,8 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,8 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Repository
 public class GenerationJobStore {
+
+    private static final Logger log = LoggerFactory.getLogger(GenerationJobStore.class);
 
     private final JdbcTemplate jdbc;
 
@@ -102,9 +106,19 @@ public class GenerationJobStore {
         return rows.stream().findFirst();
     }
 
+    /**
+     * 生成成功：job 标 SUCCEEDED，词条只写 {@code content_id} + READY（T431 / decisions/017 P3）。
+     *
+     * <p>内容本身已在 {@code ContentStore}（worker 先写 delta）；这里不再写用户行副本。
+     * {@code contentId} 为 null（delta 写失败）时记 warn，状态仍置 READY——读路径按未准备显示，
+     * 不阻塞复习。
+     */
     @Transactional
-    public void succeed(long jobId, UUID wordId, String contentJson, Instant now) {
+    public void succeed(long jobId, UUID wordId, Long contentId, Instant now) {
         Timestamp timestamp = Timestamp.from(now);
+        if (contentId == null) {
+            log.warn("内容生成成功但全局 content_id 为空 word={}（词条仍 READY，读路径显示未准备）", wordId);
+        }
         jdbc.update("""
                 update vocab_generation_jobs
                    set state = 'SUCCEEDED', locked_by = null, locked_at = null,
@@ -113,9 +127,9 @@ public class GenerationJobStore {
                 """, timestamp, jobId);
         jdbc.update("""
                 update vocab_words
-                   set content = cast(? as jsonb), content_status = 'READY', updated_at = ?
+                   set content_id = ?, content_status = 'READY', updated_at = ?
                  where id = ?
-                """, contentJson, timestamp, wordId);
+                """, contentId, timestamp, wordId);
     }
 
     /** 记录一次失败：未到上限回 QUEUED 并退避；到上限标 FAILED 且词条标「生成失败」。 */

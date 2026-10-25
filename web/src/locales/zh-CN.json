@@ -1654,7 +1654,8 @@
       "play": "发音",
       "playUk": "英音发音",
       "playUs": "美音发音",
-      "stop": "停止"
+      "stop": "停止",
+      "playExample": "朗读例句"
     },
     "add": {
       "title": "加词与导入",

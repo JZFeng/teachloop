@@ -2,6 +2,7 @@ package com.teachloop;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import com.teachloop.vocab.content.ContentStore;
 import com.teachloop.vocab.generation.VocabularyGenerationWorker;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -64,6 +65,9 @@ class VocabGenerationTest {
     @Autowired
     VocabularyGenerationWorker worker;
 
+    @Autowired
+    ContentStore contentStore;
+
     private final HttpClient client = HttpClient.newHttpClient();
 
     @Test
@@ -75,8 +79,7 @@ class VocabGenerationTest {
         importWord(base, cookie, "apple");
         assertThat(jobCount(wordId)).isEqualTo(1);
         assertThat(wordStatus(wordId)).isEqualTo("PENDING");
-        assertThat(jdbc.queryForObject("select content::text from vocab_words where id = ?",
-                String.class, wordId)).isNull();
+        assertThat(contentId(wordId)).isNull();
 
         worker.poll();
 
@@ -84,8 +87,11 @@ class VocabGenerationTest {
         assertThat(jdbc.queryForObject("select state from vocab_generation_jobs where subject_id = ?",
                 String.class, wordId)).isEqualTo("SUCCEEDED");
         assertThat(wordStatus(wordId)).isEqualTo("READY");
-        assertThat(jdbc.queryForObject("select content::text from vocab_words where id = ?",
-                String.class, wordId)).contains("senses");
+        Long contentId = contentId(wordId);
+        assertThat(contentId).as("T429：AI 成功内容写入全局 delta，用户行只存引用").isNotNull();
+        assertThat(contentStore.getById(contentId)).get()
+                .extracting(com.teachloop.vocab.content.StoredContent::json)
+                .asString().contains("senses");
     }
 
     @Test
@@ -195,6 +201,11 @@ class VocabGenerationTest {
                 "select count(*) from vocab_generation_jobs where subject_type = 'WORD' and subject_id = ?",
                 Integer.class, wordId);
         return count == null ? 0 : count;
+    }
+
+    private Long contentId(UUID wordId) {
+        return jdbc.queryForObject("select content_id from vocab_words where id = ?",
+                Long.class, wordId);
     }
 
     private String wordStatus(UUID wordId) {

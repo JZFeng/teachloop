@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
-"""批量生成 v2.3 词内容（一次性工具，不属于业务代码）。
+"""批量生成 v2.3 词内容（长期维护的 utility；运行时生成在 Java 侧，见 T439）。
 
-配合 docs/prompts/vocab-content-v2.md：逐词生成 word_detail_page v2 JSON，写 JSONL（一行一条词），
-可断点续跑、可并发、自带结构校验与失败记录。
+prompt 与请求参数来自共享契约 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json
+（Java 运行时读同一份），逐词生成 word_detail_page v2 JSON 写 JSONL，可断点续跑、可并发、带结构校验。
 
-两种后端：
-- local：本地 OpenAI 兼容端点（单槽，串行），用 chat_template_kwargs.enable_thinking=false 关思考；
-- opencode：OpenCode Go 网关（可并发），用 "thinking": {"type": "disabled"} 关思考，
-  每个请求带随机 x-opencode-session（网关路由头，不是对话上下文），必须带非默认 User-Agent。
+「踩过的坑」都固化成了脚本里的控制，不是文档建议：
+
+| 坑 | 脚本里的控制 |
+| :--- | :--- |
+| Cloudflare 403 error 1010（默认 urllib UA） | 固定 DEFAULT_USER_AGENT；preflight 遇到 403 直接给结论 |
+| 400 MissingSessionID | 每个请求随机 x-opencode-session（网关路由头，非对话上下文） |
+| thinking 吃掉 max_tokens 导致正文截断 | thinking:disabled / enable_thinking:false；check 检 finish_reason=length 与 reasoning tokens，命中即重试；preflight 断言 |
+| 词表屈折不全（will→willed、leave→left、leaf→leaves） | 规则屈折 + 内置不规则表（动词/名词/形容词），usagePattern 作旁证 |
+| 模型噪音（同族词重复、parts 缺字段、例句不含目标词） | 就地清洗并重排 popularity，不整词重试 |
+| 中途被杀留下半行 JSON | 启动时截断末尾残行；读到坏行跳过并计数 |
+| 无人值守跑飞成本 | --max-cost-usd 达到上限即停止提交新词，已完成保留，退出码 3 |
+| 批次边界不可见 | 每轮追加 .runs.jsonl、.status.json 心跳、manifest 带 prompt sha256 |
 
 用法：
   LLM_API_KEY=... python3 scripts/vocab/generate_content.py \
-      --words fixtures-local/vocab-content/words-top3000.txt --language en \
+      --words fixtures-local/vocab-content/words-top10k.txt --language en \
       --output fixtures-local/vocab-content/vocab-content-en-v2.3.jsonl \
-      --provider opencode --model deepseek-v4.1-flash --workers 4
+      --provider opencode --model deepseek-v4.1-flash --workers 6 --max-cost-usd 8
 
 注意：
 - 输出是 JSONL，可重复执行；已成功的词（word+language）自动跳过。
@@ -23,6 +31,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -32,76 +41,182 @@ import time
 import urllib.error
 import urllib.request
 import uuid
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, wait
 from pathlib import Path
 
 PROMPT_VERSION = "vocab-content-v2.3"
-LANGUAGES = ("zh", "en")
-
-OPENCODE_BASE_URL = "https://opencode.ai/inference/go/openai/v1"
-DEFAULT_USER_AGENT = "python-requests/2.31"
+# prompt 与请求参数只有一份：Java 运行时（AiVocabularyContentGenerator）读同一个资源文件，
+# 批量工具也从这里读，避免两边各维护一份 prompt 慢慢漂移。
+CONTRACT_DEFAULT = (Path(__file__).resolve().parents[2]
+                    / "teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json")
 RETRYABLE_STATUS = {408, 409, 425, 429, 500, 502, 503, 504}
+# 超过这个 reasoning token 数，说明 thinking 没关掉（正文预算会被吃掉）
+MAX_REASONING_TOKENS = 200
 
-SYSTEM = """You write vocabulary learning content as strict JSON.
-Return ONLY one JSON object. No markdown, no comments, no extra keys.
-
-Schema:
-{
-  "schemaVersion": 2,
-  "word": string,
-  "language": string,
-  "basicInfo": {
-    "pronunciation": {"uk": string, "us": string},
-    "partOfSpeech": [string],
-    "image": null
-  },
-  "meanings": {"zh": string, "en": string},
-  "examples": [
-    {
-      "text": string,
-      "translations": {"zh": string},
-      "partOfSpeech": string,
-      "usagePattern": string,
-      "popularity": integer
-    }
-  ],
-  "wordFormation": {
-    "analysis": string,
-    "parts": [{"text": string, "type": string, "meaning": string}],
-    "confidence": "high"
-  },
-  "memoryAids": {
-    "synonyms": [{"word": string, "partOfSpeech": string}],
-    "antonyms": [{"word": string, "partOfSpeech": string}],
-    "mnemonic": string,
-    "supplement": string
-  },
-  "wordFamily": {
-    "items": [{"word": string, "partOfSpeech": [string], "meanings": {"zh": string, "en": string}}]
-  }
+# 词表（basewords 成员表）不全：不规则屈折这里兜底
+IRREGULAR_VERBS: dict[str, list[str]] = {
+    "be": ["am", "is", "are", "was", "were", "been", "being"],
+    "have": ["has", "had", "having"],
+    "do": ["does", "did", "done", "doing"],
+    "say": ["says", "said", "saying"],
+    "go": ["goes", "went", "gone", "going"],
+    "get": ["gets", "got", "gotten", "getting"],
+    "make": ["makes", "made", "making"],
+    "know": ["knows", "knew", "known", "knowing"],
+    "think": ["thinks", "thought", "thinking"],
+    "take": ["takes", "took", "taken", "taking"],
+    "see": ["sees", "saw", "seen", "seeing"],
+    "come": ["comes", "came", "coming"],
+    "find": ["finds", "found", "finding"],
+    "give": ["gives", "gave", "given", "giving"],
+    "tell": ["tells", "told", "telling"],
+    "become": ["becomes", "became", "becoming"],
+    "leave": ["leaves", "left", "leaving"],
+    "feel": ["feels", "felt", "feeling"],
+    "put": ["puts", "putting"],
+    "bring": ["brings", "brought", "bringing"],
+    "begin": ["begins", "began", "begun", "beginning"],
+    "keep": ["keeps", "kept", "keeping"],
+    "hold": ["holds", "held", "holding"],
+    "write": ["writes", "wrote", "written", "writing"],
+    "stand": ["stands", "stood", "standing"],
+    "hear": ["hears", "heard", "hearing"],
+    "mean": ["means", "meant", "meaning"],
+    "meet": ["meets", "met", "meeting"],
+    "run": ["runs", "ran", "running"],
+    "pay": ["pays", "paid", "paying"],
+    "sit": ["sits", "sat", "sitting"],
+    "speak": ["speaks", "spoke", "spoken", "speaking"],
+    "lead": ["leads", "led", "leading"],
+    "read": ["reads", "reading"],
+    "grow": ["grows", "grew", "grown", "growing"],
+    "lose": ["loses", "lost", "losing"],
+    "fall": ["falls", "fell", "fallen", "falling"],
+    "send": ["sends", "sent", "sending"],
+    "build": ["builds", "built", "building"],
+    "understand": ["understands", "understood", "understanding"],
+    "draw": ["draws", "drew", "drawn", "drawing"],
+    "break": ["breaks", "broke", "broken", "breaking"],
+    "spend": ["spends", "spent", "spending"],
+    "rise": ["rises", "rose", "risen", "rising"],
+    "drive": ["drives", "drove", "driven", "driving"],
+    "buy": ["buys", "bought", "buying"],
+    "wear": ["wears", "wore", "worn", "wearing"],
+    "choose": ["chooses", "chose", "chosen", "choosing"],
+    "seek": ["seeks", "sought", "seeking"],
+    "throw": ["throws", "threw", "thrown", "throwing"],
+    "catch": ["catches", "caught", "catching"],
+    "deal": ["deals", "dealt", "dealing"],
+    "win": ["wins", "won", "winning"],
+    "forget": ["forgets", "forgot", "forgotten", "forgetting"],
+    "eat": ["eats", "ate", "eaten", "eating"],
+    "drink": ["drinks", "drank", "drunk", "drinking"],
+    "sing": ["sings", "sang", "sung", "singing"],
+    "swim": ["swims", "swam", "swum", "swimming"],
+    "fly": ["flies", "flew", "flown", "flying"],
+    "ride": ["rides", "rode", "ridden", "riding"],
+    "hide": ["hides", "hid", "hidden", "hiding"],
+    "bite": ["bites", "bit", "bitten", "biting"],
+    "wind": ["winds", "wound", "winding"],
+    "bear": ["bears", "bore", "borne", "bearing"],
+    "beat": ["beats", "beaten", "beating"],
+    "bend": ["bends", "bent", "bending"],
+    "bind": ["binds", "bound", "binding"],
+    "blow": ["blows", "blew", "blown", "blowing"],
+    "burn": ["burns", "burnt", "burning"],
+    "dig": ["digs", "dug", "digging"],
+    "feed": ["feeds", "fed", "feeding"],
+    "fight": ["fights", "fought", "fighting"],
+    "flee": ["flees", "fled", "fleeing"],
+    "freeze": ["freezes", "froze", "frozen", "freezing"],
+    "hang": ["hangs", "hung", "hanging"],
+    "hurt": ["hurts", "hurting"],
+    "lend": ["lends", "lent", "lending"],
+    "light": ["lights", "lit", "lighting"],
+    "shake": ["shakes", "shook", "shaken", "shaking"],
+    "shine": ["shines", "shone", "shining"],
+    "shoot": ["shoots", "shot", "shooting"],
+    "sleep": ["sleeps", "slept", "sleeping"],
+    "slide": ["slides", "slid", "sliding"],
+    "smell": ["smells", "smelt", "smelling"],
+    "spill": ["spills", "spilt", "spilling"],
+    "split": ["splits", "splitting"],
+    "spread": ["spreads", "spreading"],
+    "steal": ["steals", "stole", "stolen", "stealing"],
+    "stick": ["sticks", "stuck", "sticking"],
+    "sting": ["stings", "stung", "stinging"],
+    "strike": ["strikes", "struck", "striking"],
+    "sweep": ["sweeps", "swept", "sweeping"],
+    "swing": ["swings", "swung", "swinging"],
+    "teach": ["teaches", "taught", "teaching"],
+    "tear": ["tears", "tore", "torn", "tearing"],
+    "wake": ["wakes", "woke", "woken", "waking"],
+    "weep": ["weeps", "wept", "weeping"],
+    "sell": ["sells", "sold", "selling"],
+    "shut": ["shuts", "shutting"],
+    "lie": ["lies", "lay", "lain", "lying"],
+    "lay": ["lays", "laid", "laying"],
 }
 
-Rules:
-1. examples: 1 to 6 entries. Give 6 when the word naturally supports it; 1 to 3 is acceptable for function words, rare words or concrete nouns with few collocations. Never pad with unnatural sentences. Each sentence must be natural, idiomatic and short, the kind a native speaker actually says, and must contain the word or a standard inflection. Cover every major part of speech at least once when you give more than one example. usagePattern is the real phrase the sentence uses, starting with the word or its article: "struggle to do something", "the apple of one's eye". usagePattern may repeat when the word has few patterns, but the sentences must be distinct. popularity is a unique integer starting at 1, ordered by part-of-speech frequency and usage commonness, common verb patterns first, noun uses after.
-2. translations: only the explanation languages that differ from the target language (for an English word: zh only, never en). The target-language sentence is already in text.
-3. meanings: concise learner-facing definitions in Simplified Chinese (zh) and English (en), covering the main senses and their order.
-4. wordFormation: real morphology only (root, prefix, suffix, derivation, origin). Use "parts" only when you are sure of the segmentation; set confidence high/medium/low. Omit the whole wordFormation object when you are not confident; never invent etymology.
-5. synonyms and antonyms: only real words with the same part of speech as the target; arrays may be empty; never invent.
-6. wordFamily: at most 6 real derived forms or inflections, no duplicates and no invented compounds, each with part of speech and meanings in zh and en.
-7. pronunciation: IPA in slashes (UK and US).
-"""
+IRREGULAR_NOUNS: dict[str, list[str]] = {
+    "man": ["men"], "woman": ["women"], "child": ["children"],
+    "foot": ["feet"], "tooth": ["teeth"], "mouse": ["mice"], "goose": ["geese"],
+    "person": ["people"], "ox": ["oxen"], "life": ["lives"], "wife": ["wives"],
+    "knife": ["knives"], "half": ["halves"], "shelf": ["shelves"], "wolf": ["wolves"],
+    "thief": ["thieves"], "crisis": ["crises"], "analysis": ["analyses"],
+    "basis": ["bases"], "thesis": ["theses"], "phenomenon": ["phenomena"],
+    "criterion": ["criteria"], "datum": ["data"], "medium": ["media"],
+    "index": ["indices", "indexes"], "appendix": ["appendices"],
+}
 
+IRREGULAR_ADJECTIVES: dict[str, list[str]] = {
+    "good": ["better", "best"], "bad": ["worse", "worst"],
+    "far": ["farther", "further", "farthest", "furthest"],
+    "little": ["less", "least"], "many": ["more", "most"], "much": ["more", "most"],
+}
+
+SUFFIXES = ("", "s", "es", "ed", "d", "ing", "ly", "er", "est", "n", "en",
+            "ies", "ied", "ier", "iest", "ings", "ers")
+
+# --------------------------------------------------------------------------- #
+# 共享契约（prompt + 请求参数）
+# --------------------------------------------------------------------------- #
+
+CONTRACT: dict = {}
+SYSTEM: str = ""
+LANGUAGES: tuple[str, ...] = ()
+REQUEST: dict = {}
+DEFAULT_USER_AGENT: str = ""
+OPENCODE_BASE_URL: str = ""
+
+
+def apply_contract(path: Path) -> None:
+    """加载 Java/Python 共用的 prompt 契约；版本不一致直接拒绝启动。"""
+    global CONTRACT, SYSTEM, LANGUAGES, REQUEST, DEFAULT_USER_AGENT, OPENCODE_BASE_URL
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    version = str(data.get("promptVersion", ""))
+    if version != PROMPT_VERSION:
+        raise SystemExit(f"prompt 契约版本不一致：{path} 是 {version}，脚本是 {PROMPT_VERSION}")
+    CONTRACT = data
+    SYSTEM = data["system"]
+    LANGUAGES = tuple(data["languages"])
+    REQUEST = data["request"]
+    DEFAULT_USER_AGENT = REQUEST.get("userAgent") or "teachloop-vocab-content/1.0"
+    OPENCODE_BASE_URL = data["providers"]["opencode"]["baseUrl"]
+
+
+apply_contract(Path(os.environ.get("VOCAB_PROMPT_FILE", CONTRACT_DEFAULT)))
+
+
+# --------------------------------------------------------------------------- #
+# 请求
+# --------------------------------------------------------------------------- #
 
 def user_prompt(word: str, language: str, example_count: int) -> str:
-    others = [lang for lang in LANGUAGES if lang != language]
-    return (
-        f"Word: {word}\n"
-        f"Target language: {language}\n"
-        f"Explanation languages: zh, en (translations exclude {language}; use {', '.join(others)})\n"
-        f"Example count: up to {example_count} (fewer is fine when the word has few natural patterns)\n"
-        "Sort rule: order examples by part-of-speech frequency and usage commonness; "
-        "the most common verb patterns first, noun uses after."
-    )
+    """用户提示词模板来自契约，Java 运行时用同一份，保证批量与实时措辞一致。"""
+    others = ", ".join(lang for lang in LANGUAGES if lang != language)
+    return CONTRACT["userPrompt"].format(
+        word=word, language=language, otherLanguages=others, exampleCount=example_count)
 
 
 def request_payload(provider: str, word: str, language: str, model: str,
@@ -109,18 +224,19 @@ def request_payload(provider: str, word: str, language: str, model: str,
     payload = {
         "model": model,
         "temperature": temperature,
-        "response_format": {"type": "json_object"},
+        "response_format": REQUEST.get("responseFormat", {"type": "json_object"}),
         "max_tokens": max_tokens,
         "messages": [
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": user_prompt(word, language, example_count)},
         ],
     }
-    if provider == "local":
-        payload["chat_template_kwargs"] = {"enable_thinking": False}
-    else:
-        # 关掉 thinking：默认会先吐 9k–24k reasoning tokens，把 max_tokens 吃光导致正文截断
+    # 关思考：默认会先吐 9k–24k reasoning tokens，把 max_tokens 吃光导致正文截断
+    style = CONTRACT["providers"][provider].get("disableThinking")
+    if style == "thinking":
         payload["thinking"] = {"type": "disabled"}
+    elif style == "chat_template_kwargs":
+        payload["chat_template_kwargs"] = {"enable_thinking": False}
     return payload
 
 
@@ -133,17 +249,43 @@ def call_model(url: str, key: str, payload: dict, timeout: int, provider: str) -
     }
     if provider == "opencode":
         # 网关要求该头；只是路由，不是对话上下文，每个请求随机即可
-        headers["x-opencode-session"] = str(uuid.uuid4())
+        headers[REQUEST.get("sessionHeader", "x-opencode-session")] = str(uuid.uuid4())
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     with urllib.request.urlopen(request, timeout=timeout) as response:
         return json.loads(response.read().decode("utf-8"))
 
 
-SUFFIXES = ("", "s", "es", "ed", "d", "ing", "ly", "er", "est", "n", "en", "ies", "ied", "ier", "iest", "ings", "ers")
+def response_problems(response: dict, max_tokens: int) -> tuple[list[str], dict]:
+    """返回（问题列表, usage）。finish_reason=length / reasoning tokens 都算失败。"""
+    problems: list[str] = []
+    usage = response.get("usage") or {}
+    choices = response.get("choices") or []
+    if not choices:
+        return ["no choices in response"], usage
+    choice = choices[0]
+    finish = choice.get("finish_reason")
+    content = (choice.get("message") or {}).get("content") or ""
+    if finish == "length":
+        problems.append(f"finish_reason=length (max_tokens={max_tokens} 不够)")
+    elif finish not in (None, "stop"):
+        problems.append(f"finish_reason={finish}")
+    if not content.strip():
+        problems.append("empty content")
+    if int(usage.get("completion_tokens") or 0) >= max_tokens:
+        problems.append("completion_tokens hit the max_tokens budget")
+    details = usage.get("completion_tokens_details") or {}
+    reasoning = int(details.get("reasoning_tokens") or 0)
+    if reasoning > MAX_REASONING_TOKENS:
+        problems.append(f"thinking not disabled (reasoning_tokens={reasoning})")
+    return problems, usage
 
+
+# --------------------------------------------------------------------------- #
+# 词形匹配
+# --------------------------------------------------------------------------- #
 
 def derived_forms(word: str) -> set[str]:
-    """词表里没收录规则屈折（willed / outed / owns）时，按常规词形变化补一遍。"""
+    """词表里没收录的屈折：先规则变化，再查内置不规则表。"""
     w = word.lower().strip()
     if not w:
         return set()
@@ -152,19 +294,24 @@ def derived_forms(word: str) -> set[str]:
         forms.add(w + suffix)
     if w.endswith("e"):
         forms.update({w + "d", w + "s", w[:-1] + "ing"})
+    if w.endswith("f"):
+        forms.update({w[:-1] + "ves", w + "s"})
+    if w.endswith("fe"):
+        forms.add(w[:-2] + "ves")
     if w.endswith("y") and len(w) > 2:
         forms.update({w[:-1] + "ies", w[:-1] + "ied", w[:-1] + "ier", w[:-1] + "iest"})
     if len(w) > 2 and w[-1] not in "aeiou" and w[-2] in "aeiou":
         # stop → stopped / stopping
         forms.update({w + w[-1] + "ed", w + w[-1] + "ing", w + w[-1] + "er", w + w[-1] + "est"})
+    for table in (IRREGULAR_VERBS, IRREGULAR_NOUNS, IRREGULAR_ADJECTIVES):
+        forms.update(form.lower() for form in table.get(w, ()))
     return forms
 
 
 def looks_like_word(text: str, word: str, forms: list[str] | None = None) -> bool:
     """目标词或它的标准屈折形式出现在句子里。
 
-    forms 来自词表（basewords 的成员表，如 be → am/is/are/was/were），但词表并不全
-    （will → willed、out → outed、own → owns 都缺），所以再补一层规则屈折。
+    forms 来自词表（basewords 的成员表），但词表并不全，所以再补一层规则屈折与不规则表。
     """
     lowered = text.lower()
     candidates = {c.lower().strip() for c in (forms or []) if c and c.strip()}
@@ -175,6 +322,10 @@ def looks_like_word(text: str, word: str, forms: list[str] | None = None) -> boo
             return True
     return False
 
+
+# --------------------------------------------------------------------------- #
+# 结构校验（含清洗）
+# --------------------------------------------------------------------------- #
 
 def validate(obj: dict, word: str, language: str, example_count: int,
              forms: list[str] | None = None) -> list[str]:
@@ -199,39 +350,42 @@ def validate(obj: dict, word: str, language: str, example_count: int,
             problems.append(f"meanings.{lang} empty")
 
     examples = obj.get("examples")
-    if not isinstance(examples, list) or not (1 <= len(examples) <= example_count):
+    if not isinstance(examples, list) or not examples:
         problems.append(f"examples count must be 1..{example_count}")
     else:
-        popularity = []
-        sentences = []
-        for index, example in enumerate(examples):
-            text = str(example.get("text", ""))
-            if not text.strip():
-                problems.append(f"examples[{index}].text empty")
-            elif not looks_like_word(text, word, forms) and not looks_like_word(
+        # 模型偶尔塞一条不含目标词的例句（leaf → "leaves turn red"、yard → "backyard" 这类边界），
+        # 丢掉这一条比整词重试划算；保留下来的句子重新编号 popularity = 1..N
+        kept: list[dict] = []
+        seen_sentences: set[str] = set()
+        for example in examples:
+            if not isinstance(example, dict):
+                continue
+            text = str(example.get("text", "")).strip()
+            if not text or text.lower() in seen_sentences:
+                continue
+            if not looks_like_word(text, word, forms) and not looks_like_word(
                     str(example.get("usagePattern", "")), word, forms):
-                # 不规则屈折（leave → left）词表里没有；usagePattern 以词头开头，可作为旁证
-                problems.append(f"examples[{index}].text missing word")
-            if not str(example.get("partOfSpeech", "")).strip():
-                problems.append(f"examples[{index}].partOfSpeech empty")
-            if not str(example.get("usagePattern", "")).strip():
-                problems.append(f"examples[{index}].usagePattern empty")
-            if text.strip().lower() in sentences:
-                problems.append(f"examples[{index}].text duplicated")
-            sentences.append(text.strip().lower())
-            translations = example.get("translations") or {}
-            for lang in LANGUAGES:
-                if lang == language:
-                    continue
-                if not str(translations.get(lang, "")).strip():
-                    problems.append(f"examples[{index}].translations.{lang} empty")
-            value = example.get("popularity")
-            if not isinstance(value, int):
-                problems.append(f"examples[{index}].popularity is not integer")
-            else:
-                popularity.append(value)
-        if sorted(popularity) != list(range(1, len(examples) + 1)):
-            problems.append("popularity must be unique 1..N")
+                continue
+            seen_sentences.add(text.lower())
+            kept.append(example)
+        kept = kept[:example_count]
+        if not kept:
+            problems.append("examples: no sentence contains the target word")
+        else:
+            for order, example in enumerate(kept, start=1):
+                example["popularity"] = order
+            obj["examples"] = kept
+            for index, example in enumerate(kept):
+                if not str(example.get("partOfSpeech", "")).strip():
+                    problems.append(f"examples[{index}].partOfSpeech empty")
+                if not str(example.get("usagePattern", "")).strip():
+                    problems.append(f"examples[{index}].usagePattern empty")
+                translations = example.get("translations") or {}
+                for lang in LANGUAGES:
+                    if lang == language:
+                        continue
+                    if not str(translations.get(lang, "")).strip():
+                        problems.append(f"examples[{index}].translations.{lang} empty")
 
     formation = obj.get("wordFormation")
     if formation is not None:
@@ -247,10 +401,11 @@ def validate(obj: dict, word: str, language: str, example_count: int,
                 problems.append("wordFormation.parts must be a list")
             else:
                 # 字段不全的切分项直接丢掉（保留 analysis 整体描述），不因此整条重试
-                kept = [part for part in parts
-                        if isinstance(part, dict)
-                        and all(str(part.get(key, "")).strip() for key in ("text", "type", "meaning"))]
-                formation["parts"] = kept
+                formation["parts"] = [
+                    part for part in parts
+                    if isinstance(part, dict)
+                    and all(str(part.get(key, "")).strip() for key in ("text", "type", "meaning"))
+                ]
 
     family = (obj.get("wordFamily") or {}).get("items")
     if not isinstance(family, list):
@@ -272,9 +427,7 @@ def validate(obj: dict, word: str, language: str, example_count: int,
             seen.add(form)
             cleaned.append(item)
         obj["wordFamily"] = {"items": cleaned[:6]}
-        family = cleaned[:6]
-        for index, item in enumerate(family):
-            form = str(item.get("word", "")).strip().lower()
+        for index, item in enumerate(cleaned[:6]):
             if not item.get("partOfSpeech"):
                 problems.append(f"wordFamily[{index}].partOfSpeech empty")
             for lang in LANGUAGES:
@@ -283,6 +436,10 @@ def validate(obj: dict, word: str, language: str, example_count: int,
 
     return problems
 
+
+# --------------------------------------------------------------------------- #
+# 词表 / 文件
+# --------------------------------------------------------------------------- #
 
 def load_words(path: Path) -> list[str]:
     words: list[str] = []
@@ -311,39 +468,175 @@ def load_words(path: Path) -> list[str]:
     return unique
 
 
+def word_list_report(unique: list[str]) -> list[str]:
+    """词表体检：只告警、不阻断（词表噪音不该让它跑不起来）。
+
+    - 噪声：含非字母字符（数字、标点、空格），多半是解析残留，必须人看一眼；
+    - 短词：长度 ≤2，既有 a/i/of 这类真词，也有 et 这类拉丁残留，只做提示。
+    """
+    noise = [w for w in unique if not re.fullmatch(r"[A-Za-z][A-Za-z'\-]*", w)]
+    short = [w for w in unique if len(w) <= 2]
+    lines = [f"词表：去重后 {len(unique)} 个，短词 {len(short)}，非字母噪声 {len(noise)}"]
+    if noise:
+        lines.append(f"  非字母噪声（前 15）：{', '.join(noise[:15])}")
+    if short:
+        lines.append(f"  短词（前 15，可能是虚词）：{', '.join(short[:15])}")
+    return lines
+
+
+def repair_partial_jsonl(path: Path) -> int:
+    """上次被 kill 时可能留下半行 JSON：截到最后一个换行，避免污染续跑与校验。"""
+    if not path.exists():
+        return 0
+    data = path.read_bytes()
+    if not data or data.endswith(b"\n"):
+        return 0
+    cut = data.rfind(b"\n")
+    path.write_bytes(data[: cut + 1] if cut >= 0 else b"")
+    return 1
+
+
+def load_done(path: Path) -> tuple[set[tuple[str, str]], int]:
+    done: set[tuple[str, str]] = set()
+    corrupt = 0
+    if not path.exists():
+        return done, corrupt
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            record = json.loads(line)
+            done.add((str(record.get("word", "")).lower(), str(record.get("language", ""))))
+        except Exception:
+            corrupt += 1
+    return done, corrupt
+
+
+# --------------------------------------------------------------------------- #
+# 统计
+# --------------------------------------------------------------------------- #
+
 class Stats:
-    def __init__(self) -> None:
+    def __init__(self, price_in: float, price_out: float) -> None:
         self.lock = threading.Lock()
         self.completed = 0
         self.failed = 0
+        self.aborted = 0
         self.tokens_in = 0
         self.tokens_out = 0
         self.attempts = 0
-        self.retries = 0
         self.http_errors: dict[str, int] = {}
+        self.finish_reasons: dict[str, int] = {}
         self.latencies: list[float] = []
         self.example_hist: dict[int, int] = {}
+        self.dropped_examples = 0
+        self.price_in = price_in
+        self.price_out = price_out
         self.started_at = time.time()
 
-    def record_attempt(self, error: str | None = None, status: int | None = None) -> None:
+    def cost(self) -> float:
+        with self.lock:
+            return (self.tokens_in / 1_000_000 * self.price_in
+                    + self.tokens_out / 1_000_000 * self.price_out)
+
+    def record_attempt(self, status: int | None = None) -> None:
         with self.lock:
             self.attempts += 1
             if status is not None:
                 key = f"HTTP {status}"
                 self.http_errors[key] = self.http_errors.get(key, 0) + 1
 
-    def record_success(self, usage: dict, latency: float, examples: int) -> None:
+    def record_finish(self, finish: str | None) -> None:
+        if finish is None:
+            return
         with self.lock:
-            self.completed += 1
+            self.finish_reasons[finish] = self.finish_reasons.get(finish, 0) + 1
+
+    def record_usage(self, usage: dict) -> None:
+        with self.lock:
             self.tokens_in += int(usage.get("prompt_tokens") or 0)
             self.tokens_out += int(usage.get("completion_tokens") or 0)
+
+    def record_success(self, latency: float, examples: int, dropped: int) -> None:
+        with self.lock:
+            self.completed += 1
             self.latencies.append(latency)
             self.example_hist[examples] = self.example_hist.get(examples, 0) + 1
+            self.dropped_examples += dropped
 
     def record_failure(self) -> None:
         with self.lock:
             self.failed += 1
 
+
+# --------------------------------------------------------------------------- #
+# preflight
+# --------------------------------------------------------------------------- #
+
+def preflight(url: str, key: str, args, model: str) -> bool:
+    """花一次请求把「环境类坑」全查一遍，避免跑 3 分钟才发现 key/UA/参数不对。"""
+    print("preflight: 发 1 次探测请求（约 $0.001）", flush=True)
+    payload = request_payload(args.provider, "test", args.language, model, 2, 2000, 0.2)
+    started = time.time()
+    try:
+        response = call_model(url, key, payload, args.timeout, args.provider)
+    except urllib.error.HTTPError as error:
+        detail = ""
+        try:
+            detail = error.read().decode("utf-8", "ignore")[:200]
+        except Exception:
+            pass
+        hint = {
+            401: "key 无效或过期",
+            403: "多半是 User-Agent 被 Cloudflare 拦（error 1010）或 key 无权限",
+            400: "检查 x-opencode-session（MissingSessionID）、thinking 参数是否被网关拒",
+            404: "模型名或 base-url 不对",
+            429: "限流：降低 --workers",
+        }.get(error.code, "见 detail")
+        print(f"  ✗ HTTP {error.code}: {detail}", flush=True)
+        print(f"  → {hint}", flush=True)
+        print("preflight: FAIL", flush=True)
+        return False
+    except Exception as error:
+        print(f"  ✗ 请求失败：{error}", flush=True)
+        print("preflight: FAIL", flush=True)
+        return False
+    elapsed = time.time() - started
+
+    problems, usage = response_problems(response, 2000)
+    content = ""
+    obj = {}
+    parse_error = ""
+    try:
+        content = response["choices"][0]["message"]["content"]
+        obj = json.loads(content)
+    except Exception as error:
+        parse_error = str(error)
+    checks: list[tuple[str, bool, str]] = [
+        ("HTTP 200", True, ""),
+        ("finish_reason=stop", not any("finish_reason" in p for p in problems),
+         "; ".join(p for p in problems if "finish_reason" in p)),
+        ("thinking 已关闭", not any("reasoning" in p for p in problems),
+         "; ".join(p for p in problems if "reasoning" in p)),
+        ("输出是合法 JSON", bool(obj), parse_error),
+        ("语言指令生效（zh+en 都有）",
+         bool(str((obj.get("meanings") or {}).get("zh", "")).strip())
+         and bool(str((obj.get("meanings") or {}).get("en", "")).strip()),
+         "meanings 缺 zh 或 en"),
+    ]
+    ok = all(passed for _, passed, _ in checks)
+    completion = int(usage.get("completion_tokens") or 0)
+    print(f"  耗时 {elapsed:.1f}s，completion_tokens={completion}", flush=True)
+    for name, passed, detail in checks:
+        print(f"  {'✓' if passed else '✗'} {name}" + (f" —— {detail}" if detail and not passed else ""),
+              flush=True)
+    print(f"preflight: {'PASS' if ok else 'FAIL'}", flush=True)
+    return ok
+
+
+# --------------------------------------------------------------------------- #
+# main
+# --------------------------------------------------------------------------- #
 
 def main() -> int:
     parser = argparse.ArgumentParser()
@@ -353,64 +646,122 @@ def main() -> int:
     parser.add_argument("--provider", choices=("local", "opencode"), default="local")
     parser.add_argument("--base-url", default=None)
     parser.add_argument("--model", default=None)
-    parser.add_argument("--example-count", type=int, default=6)
-    parser.add_argument("--max-tokens", type=int, default=4000)
-    parser.add_argument("--timeout", type=int, default=150)
-    parser.add_argument("--workers", type=int, default=1, help="parallel requests (opencode: 4)")
+    parser.add_argument("--example-count", type=int, default=None,
+                        help="每词例句上限（默认取契约 examples.maxPerWord）")
+    parser.add_argument("--max-tokens", type=int, default=None,
+                        help="输出 token 预算（默认取契约 request.maxTokens）")
+    parser.add_argument("--timeout", type=int, default=None,
+                        help="单请求超时秒数（默认取契约 request.timeoutSeconds）")
+    parser.add_argument("--workers", type=int, default=1, help="parallel requests (opencode: 4-6)")
     parser.add_argument("--limit", type=int, default=0, help="only run the first N pending words (0 = all)")
     parser.add_argument("--forms-map", default=None,
                         help="JSON map head word -> accepted inflected forms (from basewords)")
     parser.add_argument("--price-in", type=float, default=0.15, help="USD per 1M input tokens (estimate)")
     parser.add_argument("--price-out", type=float, default=0.60, help="USD per 1M output tokens (estimate)")
+    parser.add_argument("--max-cost-usd", type=float, default=None,
+                        help="成本上限（估算）：超过后不再提交新词，已完成保留，退出码 3")
+    parser.add_argument("--retry-failures", action="store_true",
+                        help="把 <output>.failures.jsonl 里的词排到最前面重试")
+    parser.add_argument("--skip-preflight", action="store_true", help="跳过 1 次探测请求")
+    parser.add_argument("--preflight-only", action="store_true", help="只跑 preflight")
+    parser.add_argument("--check-words", action="store_true", help="只打印词表体检结果，不请求模型")
+    parser.add_argument("--prompt-file", default=None,
+                        help="覆盖共享契约路径（默认 teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json）")
     args = parser.parse_args()
 
-    if args.provider == "opencode":
-        base_url = args.base_url or OPENCODE_BASE_URL
-        model = args.model or "deepseek-v4.1-flash"
+    if args.prompt_file:
+        apply_contract(Path(args.prompt_file))
+    args.example_count = args.example_count or int(CONTRACT["examples"]["maxPerWord"])
+    args.timeout = args.timeout or int(REQUEST.get("timeoutSeconds", 150))
+
+    if not 1 <= args.example_count <= 6:
+        print("--example-count 必须在 1..6", file=sys.stderr)
+        return 2
+
+    # 优先级：命令行 > 环境变量 > 共享契约
+    provider_defaults = CONTRACT["providers"][args.provider]
+    base_url = (args.base_url
+                or os.environ.get("LLM_BASE_URL")
+                or provider_defaults["baseUrl"])
+    model = (args.model
+             or os.environ.get("LLM_MODEL")
+             or provider_defaults["model"])
+    if args.max_tokens is not None:
+        max_tokens = args.max_tokens
+    elif args.provider == "opencode":
+        max_tokens = max(int(REQUEST.get("maxTokens", 4000)), 6000)
     else:
-        base_url = args.base_url or os.environ.get("LLM_BASE_URL", "http://192.168.68.101:8080/v1")
-        model = args.model or os.environ.get("LLM_MODEL", "qwen3.8-flash-next-iq2_xs")
-    max_tokens = max(args.max_tokens, 6000) if args.provider == "opencode" else args.max_tokens
+        max_tokens = int(REQUEST.get("maxTokensLocal", REQUEST.get("maxTokens", 4000)))
+
+    forms_map: dict[str, list[str]] = {}
+    if args.forms_map:
+        forms_map = json.loads(Path(args.forms_map).read_text(encoding="utf-8"))
+
+    words = load_words(Path(args.words))
+    for line in word_list_report(words):
+        print(line, flush=True)
+    if args.check_words:
+        return 0
+
+    output = Path(args.output)
+    output.parent.mkdir(parents=True, exist_ok=True)
+    failures = output.with_suffix(".failures.jsonl")
+    repaired = repair_partial_jsonl(output)
+    done, corrupt = load_done(output)
+    if repaired:
+        print("修复：截掉上次中断留下的半行 JSON（1 行）", flush=True)
+    if corrupt:
+        print(f"警告：{corrupt} 行无法解析，已跳过（不参与去重）", flush=True)
+
+    retry_words: list[str] = []
+    if args.retry_failures and failures.exists():
+        for line in failures.read_text(encoding="utf-8").splitlines():
+            if not line.strip():
+                continue
+            try:
+                retry_words.append(str(json.loads(line).get("word", "")).strip())
+            except Exception:
+                continue
+    pending = [w for w in retry_words if w and (w.lower(), args.language) not in done]
+    seen_pending = {w.lower() for w in pending}
+    pending += [w for w in words
+                if (w.lower(), args.language) not in done and w.lower() not in seen_pending]
+    if args.limit > 0:
+        pending = pending[: args.limit]
+
+    print(f"provider={args.provider} model={model} workers={args.workers} "
+          f"max_cost={'$' + str(args.max_cost_usd) if args.max_cost_usd else 'off'} "
+          f"done={len(done)} pending={len(pending)}", flush=True)
+
+    if not pending:
+        print("没有待生成的词（已全部完成）", flush=True)
+        return 0
 
     key = os.environ.get("LLM_API_KEY")
     if not key:
         print("缺少 LLM_API_KEY 环境变量", file=sys.stderr)
         return 2
-
-    forms_map: dict[str, list[str]] = {}
-    if args.forms_map:
-        forms_map = json.loads(Path(args.forms_map).read_text(encoding="utf-8"))
-    words = load_words(Path(args.words))
-    output = Path(args.output)
-    output.parent.mkdir(parents=True, exist_ok=True)
-    failures = output.with_suffix(".failures.jsonl")
-
-    done: set[tuple[str, str]] = set()
-    if output.exists():
-        for line in output.read_text(encoding="utf-8").splitlines():
-            try:
-                record = json.loads(line)
-                done.add((str(record.get("word", "")).lower(), str(record.get("language", ""))))
-            except Exception:
-                continue
-
-    pending = [w for w in words if (w.lower(), args.language) not in done]
-    if args.limit > 0:
-        pending = pending[: args.limit]
-    print(f"provider={args.provider} model={model} workers={args.workers} "
-          f"total={len(words)} done={len(done)} pending={len(pending)}", flush=True)
-    if not pending:
-        return 0
-
     url = base_url.rstrip("/") + "/chat/completions"
-    stats = Stats()
 
-    def work(word: str) -> None:
-        # 第一次正常温度；结构不合格时降温度、加预算再试一次
+    if not args.skip_preflight or args.preflight_only:
+        if not preflight(url, key, args, model):
+            return 2
+        if args.preflight_only:
+            return 0
+
+    stats = Stats(args.price_in, args.price_out)
+    prompt_sha = hashlib.sha256(SYSTEM.encode("utf-8")).hexdigest()[:16]
+    out_lock = threading.Lock()
+    failures_lock = threading.Lock()
+    abort = threading.Event()
+
+    def work(word: str) -> bool:
         attempts = [(max_tokens, 0.2), (max(max_tokens, 6000), 0.1)]
         record = None
         reasons: list[str] = []
         for max_tokens_try, temperature in attempts:
+            if abort.is_set():
+                return False
             payload = request_payload(args.provider, word, args.language, model,
                                       args.example_count, max_tokens_try, temperature)
             response = None
@@ -440,24 +791,25 @@ def main() -> int:
             if "error" in response:
                 reasons.append(str(response["error"].get("message", response["error"])))
                 continue
-            usage = response.get("usage") or {}
+            problems, usage = response_problems(response, max_tokens_try)
+            stats.record_usage(usage)
+            stats.record_finish(str(response["choices"][0].get("finish_reason")))
+            if problems:
+                reasons.extend(problems)
+                continue
             try:
                 obj = json.loads(response["choices"][0]["message"]["content"])
             except Exception as error:
                 reasons.append(f"not json: {error}")
-                with stats.lock:
-                    stats.tokens_in += int(usage.get("prompt_tokens") or 0)
-                    stats.tokens_out += int(usage.get("completion_tokens") or 0)
                 continue
+            before = len(obj.get("examples") or [])
             problems = validate(obj, word, args.language, args.example_count,
                                 forms_map.get(word.lower()))
+            after = len(obj.get("examples") or [])
             if problems:
                 reasons.append("; ".join(problems))
-                with stats.lock:
-                    stats.tokens_in += int(usage.get("prompt_tokens") or 0)
-                    stats.tokens_out += int(usage.get("completion_tokens") or 0)
                 continue
-            stats.record_success(usage, time.time() - call_started, len(obj.get("examples") or []))
+            stats.record_success(time.time() - call_started, after, max(before - after, 0))
             record = obj
             break
 
@@ -467,39 +819,92 @@ def main() -> int:
                 fail_out.write(json.dumps({"word": word, "language": args.language,
                                            "reasons": reasons}, ensure_ascii=False) + "\n")
                 fail_out.flush()
-        elif record is not None:
-            with out_lock:
-                out.write(json.dumps(record, ensure_ascii=False) + "\n")
-                out.flush()
+            return False
+        with out_lock:
+            out.write(json.dumps(record, ensure_ascii=False) + "\n")
+            out.flush()
+        return True
 
-    out_lock = threading.Lock()
-    failures_lock = threading.Lock()
-
-    def report(index: int) -> None:
+    def write_status() -> None:
         with stats.lock:
             elapsed = time.time() - stats.started_at
             done_n = stats.completed + stats.failed
             rate = elapsed / max(done_n, 1)
-            remaining = rate * (len(pending) - done_n)
+            payload = {
+                "updatedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+                "completed": stats.completed, "failed": stats.failed,
+                "pending": len(pending), "aborted": stats.aborted,
+                "wordsPerMinute": round(done_n / max(elapsed, 1) * 60, 1),
+                "etaMinutes": round(rate * (len(pending) - done_n) / 60, 1),
+                "tokensIn": stats.tokens_in, "tokensOut": stats.tokens_out,
+                "estimatedCostUsd": round(
+                    stats.tokens_in / 1e6 * stats.price_in
+                    + stats.tokens_out / 1e6 * stats.price_out, 4),
+                "finishReasons": stats.finish_reasons,
+                "httpErrors": stats.http_errors,
+            }
+        output.with_suffix(".status.json").write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    def report(done_n: int) -> None:
+        with stats.lock:
+            elapsed = time.time() - stats.started_at
+            rate = elapsed / max(done_n, 1)
             print(f"[{done_n}/{len(pending)}] ok={stats.completed} failed={stats.failed} "
-                  f"avg={rate:.1f}s eta={remaining/60:.1f}min "
+                  f"avg={rate:.1f}s eta={rate * (len(pending) - done_n) / 60:.1f}min "
                   f"tok_in={stats.tokens_in} tok_out={stats.tokens_out}", flush=True)
 
     with output.open("a", encoding="utf-8") as out, failures.open("a", encoding="utf-8") as fail_out:
+        in_flight = {}
+        submitted = 0
+        finished = 0
+        cap_warned = False
         with ThreadPoolExecutor(max_workers=max(args.workers, 1)) as pool:
-            futures = {}
-            for index, word in enumerate(pending, start=1):
-                futures[pool.submit(work, word)] = index
-            for count, future in enumerate(futures, start=1):
-                future.result()
-                if count % 10 == 0 or count == len(pending):
-                    report(count)
+            while submitted < len(pending) or in_flight:
+                while (submitted < len(pending) and len(in_flight) < max(args.workers, 1) * 2
+                       and not abort.is_set()):
+                    future = pool.submit(work, pending[submitted])
+                    in_flight[future] = pending[submitted]
+                    submitted += 1
+                if not in_flight:
+                    break
+                done_futures, _ = wait(list(in_flight), timeout=30, return_when=FIRST_COMPLETED)
+                if not done_futures:
+                    write_status()
+                    continue
+                for future in done_futures:
+                    word = in_flight.pop(future, None)
+                    try:
+                        future.result()
+                    except Exception as error:  # 单条炸了不能拖垮整批
+                        stats.record_failure()
+                        with failures_lock:
+                            fail_out.write(json.dumps(
+                                {"word": word, "language": args.language,
+                                 "reasons": [f"worker crashed: {error}"]},
+                                ensure_ascii=False) + "\n")
+                            fail_out.flush()
+                    finished += 1
+                if finished % 10 == 0 or finished == len(pending):
+                    report(finished)
+                    write_status()
+                if (args.max_cost_usd is not None and not abort.is_set()
+                        and stats.cost() > args.max_cost_usd):
+                    abort.set()
+                    cap_warned = True
+                    print(f"成本上限 ${args.max_cost_usd} 已达（估算 ${stats.cost():.3f}），停止提交新词"
+                          f"（在途请求仍会完成，可能超出约 {max(args.workers, 1) * 2} 个词的量）",
+                          flush=True)
+
+    stats.aborted = len(pending) - stats.completed - stats.failed
+    write_status()
 
     elapsed = time.time() - stats.started_at
-    cost = stats.tokens_in / 1_000_000 * args.price_in + stats.tokens_out / 1_000_000 * args.price_out
+    cost = stats.cost()
     latencies = sorted(stats.latencies)
     manifest = {
         "promptVersion": PROMPT_VERSION,
+        "promptSha256": prompt_sha,
         "provider": args.provider,
         "model": model,
         "baseUrl": base_url,
@@ -508,8 +913,10 @@ def main() -> int:
         "exampleCount": args.example_count,
         "completed": stats.completed,
         "failed": stats.failed,
+        "aborted": stats.aborted,
         "attempts": stats.attempts,
         "httpErrors": stats.http_errors,
+        "finishReasons": stats.finish_reasons,
         "completionTokens": stats.tokens_out,
         "promptTokens": stats.tokens_in,
         "estimatedCostUsd": round(cost, 4),
@@ -518,11 +925,16 @@ def main() -> int:
         "latencyP50Seconds": round(latencies[len(latencies) // 2], 1) if latencies else None,
         "latencyP90Seconds": round(latencies[int(len(latencies) * 0.9)], 1) if latencies else None,
         "examplesHistogram": dict(sorted(stats.example_hist.items())),
+        "droppedExamplesTotal": stats.dropped_examples,
         "finishedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
     output.with_suffix(".manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+    with output.with_suffix(".runs.jsonl").open("a", encoding="utf-8") as ledger:
+        ledger.write(json.dumps(manifest, ensure_ascii=False) + "\n")
     print(json.dumps(manifest, ensure_ascii=False), flush=True)
+    if abort.is_set():
+        return 3
     return 0 if stats.failed == 0 else 1
 
 

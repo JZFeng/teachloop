@@ -2,13 +2,17 @@ package com.teachloop.vocab.review;
 
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.security.CurrentUser;
+import com.teachloop.vocab.content.ContentStore;
+import com.teachloop.vocab.content.StoredContent;
 import com.teachloop.vocab.generation.VocabularyGenerationService;
 import com.teachloop.vocab.review.ReviewSessionRepository.SessionRow;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -39,6 +43,7 @@ public class ReviewPreparationEndpoint {
     private final JdbcTemplate jdbc;
     private final ReviewSessionRepository sessions;
     private final VocabularyGenerationService generation;
+    private final ContentStore contentStore;
     private final Clock clock;
     private final int defaultWindow;
     private final int maxWindow;
@@ -48,12 +53,14 @@ public class ReviewPreparationEndpoint {
             JdbcTemplate jdbc,
             ReviewSessionRepository sessions,
             VocabularyGenerationService generation,
+            ContentStore contentStore,
             Clock clock,
             @Value("${teachloop.vocab.review.prepare-first:20}") int defaultWindow,
             @Value("${teachloop.vocab.review.prepare-window-max:1000}") int maxWindow) {
         this.jdbc = jdbc;
         this.sessions = sessions;
         this.generation = generation;
+        this.contentStore = contentStore;
         this.clock = clock;
         this.defaultWindow = Math.max(1, defaultWindow);
         this.maxWindow = Math.max(this.defaultWindow, maxWindow);
@@ -66,7 +73,9 @@ public class ReviewPreparationEndpoint {
     public record PrepareResult(String scope, int requested, int ready, int pending, int failed) {
     }
 
-    private record WordStatus(UUID id, String status) {
+    /** 一个窗口词的状态；content_id 为 null 表示还没解析过全局内容。 */
+    private record WordStatus(UUID id, String status, String language, String normalizedForm,
+                              Long contentId) {
     }
 
     @PostMapping("/prepare")
@@ -88,11 +97,22 @@ public class ReviewPreparationEndpoint {
         for (WordStatus row : rows) {
             if ("READY".equals(row.status())) {
                 ready++;
+                // 存量行可能还没有 content_id（P1/P2 过渡期）：能解析就补上引用。
+                if (row.contentId() == null) {
+                    resolve(row).ifPresent(content -> markReady(row, content));
+                }
             } else if ("FAILED".equals(row.status())) {
                 failed++;
             } else {
-                pending++;
-                missing.add(row.id());
+                // T429：学生 A 生成过的词，学生 B 进入复习时先查全局内容，命中就不再入队。
+                var hit = resolve(row);
+                if (hit.isPresent()) {
+                    markReady(row, hit.get());
+                    ready++;
+                } else {
+                    pending++;
+                    missing.add(row.id());
+                }
             }
         }
         generation.prepareOnDemand(missing);
@@ -110,7 +130,7 @@ public class ReviewPreparationEndpoint {
     private List<WordStatus> dueWords(UUID userId, String language, int window) {
         String lang = language == null || language.isBlank() ? "en" : language;
         return jdbc.query("""
-                select w.id, w.content_status
+                select w.id, w.content_status, w.language, w.normalized_form, w.content_id
                   from vocab_words w
                   join vocab_progress p on p.word_id = w.id
                  where w.user_id = ? and w.language = ? and w.deleted = false and w.removed = false
@@ -118,7 +138,8 @@ public class ReviewPreparationEndpoint {
                  order by p.due_at asc, w.id asc
                  limit ?
                 """, (rs, rowNumber) -> new WordStatus(
-                        rs.getObject(1, UUID.class), rs.getString(2)),
+                        rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                        rs.getString(4), rs.getObject(5, Long.class)),
                 userId, lang, Timestamp.from(clock.instant()), window);
     }
 
@@ -136,18 +157,20 @@ public class ReviewPreparationEndpoint {
         if (slice.isEmpty()) {
             return List.of();
         }
-        Map<UUID, String> statusById = new java.util.HashMap<>();
+        Map<UUID, WordStatus> statusById = new java.util.HashMap<>();
         jdbc.query("""
-                select id, content_status from vocab_words
+                select id, content_status, language, normalized_form, content_id from vocab_words
                  where user_id = ? and deleted = false and id = any (?)
                 """, rs -> {
-                    statusById.put(rs.getObject(1, UUID.class), rs.getString(2));
+                    UUID id = rs.getObject(1, UUID.class);
+                    statusById.put(id, new WordStatus(id, rs.getString(2), rs.getString(3),
+                            rs.getString(4), rs.getObject(5, Long.class)));
                 }, userId, slice.toArray(new UUID[0]));
         List<WordStatus> rows = new ArrayList<>(slice.size());
         for (UUID id : slice) {
-            String status = statusById.get(id);
-            if (status != null) {
-                rows.add(new WordStatus(id, status));
+            WordStatus row = statusById.get(id);
+            if (row != null) {
+                rows.add(row);
             }
         }
         return rows;
@@ -158,11 +181,25 @@ public class ReviewPreparationEndpoint {
             throw ApiException.badRequest("wordId is required for WORD scope");
         }
         return jdbc.query("""
-                select id, content_status from vocab_words
+                select id, content_status, language, normalized_form, content_id from vocab_words
                  where id = ? and user_id = ? and deleted = false
                 """, (rs, rowNumber) -> new WordStatus(
-                        rs.getObject(1, UUID.class), rs.getString(2)),
+                        rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3),
+                        rs.getString(4), rs.getObject(5, Long.class)),
                 wordId, userId);
+    }
+
+    private Optional<StoredContent> resolve(WordStatus row) {
+        return contentStore.get(row.language(), row.normalizedForm());
+    }
+
+    /** T431：命中全局内容后只写引用 + 状态；用户行不再保存内容副本（V063 已删列）。 */
+    private void markReady(WordStatus row, StoredContent content) {
+        jdbc.update("""
+                update vocab_words
+                   set content_id = ?, content_status = 'READY', updated_at = ?
+                 where id = ?
+                """, content.id(), Timestamp.from(Instant.now(clock)), row.id());
     }
 
     private List<UUID> wordIdsOf(String scopeJson) {

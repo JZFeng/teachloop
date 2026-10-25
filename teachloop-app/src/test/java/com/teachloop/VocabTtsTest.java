@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teachloop.vocab.tts.StubTtsEngine;
 import java.net.URI;
+import java.net.URLEncoder;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -19,9 +21,15 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
-/** T410 验收：首播调引擎并缓存、二次播放不调引擎、长期缓存头、只读单词、未知 key 404。 */
+/**
+ * T410 验收：首播调引擎并缓存、二次播放不调引擎、长期缓存头、只读单词、未知 key 404。
+ *
+ * <p>019 / AC-57.6/57.8/57.9 追加：例句按需合成与缓存、lang 区分键、文本上限 400、form/text 互斥、
+ * {@code /api/vocab/config} 默认 {@code sentenceAudio=true}。
+ */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
         properties = {
                 "teachloop.vocab.enabled=true",
@@ -114,8 +122,118 @@ class VocabTtsTest {
         assertThat(engine.calls()).isEqualTo(before + 2);
     }
 
+    @Test
+    @DisplayName("019/AC-57.6/57.9：例句首播调引擎并缓存，二次同文本命中不调，键与单词不同")
+    void sentenceFirstPlayThenCache() throws Exception {
+        String base = base();
+        String cookie = login(base);
+        // ./uploads 跨测试运行保留：用 UUID 文本，避免首播被上次的缓存命中
+        String text = "sentprobe" + UUID.randomUUID().toString().replace("-", "");
+        String path = audioText(text, "en");
+        int before = engine.calls();
+
+        HttpResponse<byte[]> first = send(base, cookie, path);
+        assertThat(first.statusCode()).isEqualTo(200);
+        assertThat(first.body()).isNotEmpty();
+        assertThat(new String(first.body(), 0, 4, StandardCharsets.US_ASCII)).isEqualTo("RIFF");
+        assertThat(first.headers().firstValue("Content-Type").orElseThrow()).contains("audio/wav");
+        assertThat(first.headers().firstValue("Cache-Control").orElseThrow()).contains("immutable");
+        // 首次点击才合成：只调一次引擎，且读的是整句（不是规范化后的单词）
+        assertThat(engine.calls()).isEqualTo(before + 1);
+        assertThat(engine.lastText()).isEqualTo(text);
+        assertThat(engine.lastVoice()).isEqualTo("en_US-amy-medium");
+
+        String etag = first.headers().firstValue("ETag").orElseThrow();
+        HttpResponse<byte[]> second = send(base, cookie, path);
+        assertThat(second.statusCode()).isEqualTo(200);
+        assertThat(second.headers().firstValue("ETag").orElseThrow()).isEqualTo(etag);
+        assertThat(second.body()).isEqualTo(first.body());
+        assertThat(engine.calls()).isEqualTo(before + 1);
+
+        // AC-57.9：同一字符串走 form（单词）必须另算一个键，句子与单词不撞键
+        HttpResponse<byte[]> asWord = send(base, cookie, "/api/vocab/audio?form=" + text);
+        assertThat(asWord.statusCode()).isEqualTo(200);
+        assertThat(asWord.headers().firstValue("ETag").orElseThrow()).isNotEqualTo(etag);
+        assertThat(engine.calls()).isEqualTo(before + 2);
+    }
+
+    @Test
+    @DisplayName("019/AC-57.9：同一文本不同 lang 缓存键不同，音色按语言切换")
+    void sentenceLangChangesKeyAndVoice() throws Exception {
+        String base = base();
+        String cookie = login(base);
+        String text = "langprobe" + UUID.randomUUID().toString().replace("-", "");
+        int before = engine.calls();
+
+        HttpResponse<byte[]> en = send(base, cookie, audioText(text, "en"));
+        assertThat(en.statusCode()).isEqualTo(200);
+        assertThat(engine.lastVoice()).isEqualTo("en_US-amy-medium");
+
+        HttpResponse<byte[]> zh = send(base, cookie, audioText(text, "zh"));
+        assertThat(zh.statusCode()).isEqualTo(200);
+        assertThat(engine.lastVoice()).isEqualTo("zh_CN-huayan-medium");
+        assertThat(zh.headers().firstValue("ETag").orElseThrow())
+                .isNotEqualTo(en.headers().firstValue("ETag").orElseThrow());
+        assertThat(engine.calls()).isEqualTo(before + 2);
+
+        // 同一语言再播命中缓存，不再调引擎
+        send(base, cookie, audioText(text, "zh"));
+        assertThat(engine.calls()).isEqualTo(before + 2);
+
+        HttpResponse<byte[]> es = send(base, cookie, audioText(text, "es"));
+        assertThat(es.statusCode()).isEqualTo(200);
+        assertThat(engine.lastVoice()).isEqualTo("es_ES-davefx-medium");
+        assertThat(engine.calls()).isEqualTo(before + 3);
+    }
+
+    @Test
+    @DisplayName("019/AC-57.9：空文本、超长文本、form+text 互斥、未知 lang 都是 400 且不合成")
+    void sentenceRejectsBadInput() throws Exception {
+        String base = base();
+        String cookie = login(base);
+        int before = engine.calls();
+
+        assertThat(send(base, cookie, "/api/vocab/audio?text=").statusCode()).isEqualTo(400);
+        assertThat(send(base, cookie, "/api/vocab/audio?text=%20%20").statusCode()).isEqualTo(400);
+        // 201 个 code point：超长返回 400，不静默截断
+        assertThat(send(base, cookie, audioText("a".repeat(201), "en")).statusCode()).isEqualTo(400);
+        // 非法请求在合成之前就被拒绝
+        assertThat(engine.calls()).isEqualTo(before);
+
+        // 边界：正好 200 字符允许（超过才 400）
+        assertThat(send(base, cookie, audioText("b".repeat(200), "en")).statusCode()).isEqualTo(200);
+
+        assertThat(send(base, cookie, "/api/vocab/audio?form=hello&text=hello").statusCode())
+                .isEqualTo(400);
+        assertThat(send(base, cookie, audioText("hola amigo", "fr")).statusCode()).isEqualTo(400);
+    }
+
+    @Test
+    @DisplayName("019/AC-57.8：/api/vocab/config 默认返回 sentenceAudio=true")
+    void configDefaultsToSentenceAudioEnabled() throws Exception {
+        String base = base();
+        String cookie = login(base);
+        HttpResponse<String> response = sendText(base, cookie, "/api/vocab/config");
+        assertThat(response.statusCode()).isEqualTo(200);
+        JsonNode body = MAPPER.readTree(response.body());
+        assertThat(body.get("sentenceAudio").asBoolean()).isTrue();
+    }
+
+    private String audioText(String text, String lang) {
+        return "/api/vocab/audio?text="
+                + URLEncoder.encode(text, StandardCharsets.UTF_8)
+                + (lang == null ? "" : "&lang=" + lang);
+    }
+
     private String base() {
         return "http://127.0.0.1:" + env.getProperty("local.server.port");
+    }
+
+    private HttpResponse<String> sendText(String base, String cookie, String path) throws Exception {
+        HttpRequest.Builder builder = HttpRequest.newBuilder(URI.create(base + path))
+                .header("Accept-Language", "zh-CN").GET();
+        if (cookie != null) builder.header("Cookie", cookie);
+        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
     }
 
     private HttpResponse<byte[]> send(String base, String cookie, String path) throws Exception {

@@ -1,5 +1,7 @@
 package com.teachloop.vocab.generation;
 
+import com.teachloop.vocab.content.ContentStore;
+import com.teachloop.vocab.word.WordNormalizer;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -16,7 +18,8 @@ import org.springframework.stereotype.Component;
  * 内容生成轮询器（T394 / plan §4）：与 grading worker 同思路，不引入 MQ。
  *
  * <p>每轮：先把超过 24 小时仍未完成的 job 标「内容缺失」并移出可领取状态；
- * 再用 {@code FOR UPDATE SKIP LOCKED} 领一批 QUEUED job；成功写 content 并置 READY，
+ * 再用 {@code FOR UPDATE SKIP LOCKED} 领一批 QUEUED job；成功后把内容写全局
+ * {@code ContentStore}（delta）并把用户行置 READY + {@code content_id}，
  * 失败按 1 分钟 / 5 分钟退避，第 3 次失败标 FAILED。
  */
 @Component
@@ -27,6 +30,7 @@ public class VocabularyGenerationWorker {
 
     private final GenerationJobStore store;
     private final VocabularyContentGenerator generator;
+    private final ContentStore contentStore;
     private final boolean enabled;
     private final int batchSize;
     private final int maxAttempts;
@@ -36,12 +40,14 @@ public class VocabularyGenerationWorker {
     public VocabularyGenerationWorker(
             GenerationJobStore store,
             VocabularyContentGenerator generator,
+            ContentStore contentStore,
             @Value("${teachloop.vocab.generation.enabled:true}") boolean enabled,
             @Value("${teachloop.vocab.generation.batch-size:5}") int batchSize,
             @Value("${teachloop.vocab.generation.max-attempts:3}") int maxAttempts,
             Clock clock) {
         this.store = store;
         this.generator = generator;
+        this.contentStore = contentStore;
         this.enabled = enabled;
         this.batchSize = Math.max(1, batchSize);
         this.maxAttempts = Math.max(1, maxAttempts);
@@ -78,7 +84,17 @@ public class VocabularyGenerationWorker {
         }
         try {
             String content = generator.generate(word.get().form(), word.get().language());
-            store.succeed(job.id(), word.get().id(), content, clock.instant());
+            // T429 / decisions/017：AI 成功的内容先写全局 delta，学生行只引用 content_id。
+            // delta 写失败不阻塞复习：用户行仍 READY，读路径按词形再查一次；记 warn 即可。
+            Long contentId = null;
+            try {
+                contentId = contentStore.put(word.get().language(),
+                        WordNormalizer.normalized(word.get().form()), content, "AI");
+            } catch (RuntimeException ex) {
+                log.warn("内容写入全局 delta 失败 word={}（用户行仍 READY）：{}",
+                        word.get().form(), ex.getMessage());
+            }
+            store.succeed(job.id(), word.get().id(), contentId, clock.instant());
         } catch (RuntimeException ex) {
             int attempts = job.attempts() + 1;
             boolean finalFailure = attempts >= maxAttempts;

@@ -1,6 +1,8 @@
 package com.teachloop.vocab.query;
 
 import com.teachloop.shared.error.ApiException;
+import com.teachloop.vocab.content.ContentStore;
+import com.teachloop.vocab.content.ContentView;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -31,10 +33,12 @@ public class VocabularyQueryRepository {
     private static final int MAX_PAGE_SIZE = 100;
 
     private final JdbcTemplate jdbc;
+    private final ContentStore contentStore;
     private final ObjectMapper mapper = new ObjectMapper();
 
-    public VocabularyQueryRepository(JdbcTemplate jdbc) {
+    public VocabularyQueryRepository(JdbcTemplate jdbc, ContentStore contentStore) {
         this.jdbc = jdbc;
+        this.contentStore = contentStore;
     }
 
     public record WordQuery(UUID userId, String language, String search, List<String> states,
@@ -45,7 +49,7 @@ public class VocabularyQueryRepository {
     public record SourceItem(String kind, UUID batchId, UUID assignmentId, String label) {
     }
 
-    public record WordItem(UUID id, String form, String language, JsonNode content,
+    public record WordItem(UUID id, String form, String language, Long contentId, JsonNode content,
                            String contentStatus, boolean favorite, List<String> tags, boolean paused,
                            String state, Instant dueAt, BigDecimal intervalDays, BigDecimal ease,
                            Instant createdAt, Instant updatedAt, boolean generating,
@@ -109,8 +113,9 @@ public class VocabularyQueryRepository {
         }
         if (query.search() != null && !query.search().isBlank()) {
             String pattern = "%" + escapeLike(query.search().strip()) + "%";
-            where.add("(w.form ilike ? escape '\\' or cast(w.content as text) ilike ? escape '\\')");
-            arguments.add(pattern);
+            // T431：V063 删除 vocab_words.content 后，按释义搜索降级为只按正面词形搜索
+            // （释义现在存在全局内容包/delta，无法在 PG 里 join；见 T431 报告）。
+            where.add("w.form ilike ? escape '\\'");
             arguments.add(pattern);
         }
         if (!sources.isEmpty()) {
@@ -142,7 +147,7 @@ public class VocabularyQueryRepository {
         pageArguments.add(query.size());
         pageArguments.add((long) (page - 1) * query.size());
         List<WordItem> items = jdbc.query("""
-                        select w.id, w.form, w.language, cast(w.content as text), w.content_status,
+                        select w.id, w.form, w.language, w.content_id, w.content_status,
                                w.favorite, cast(w.tags as text), w.removed, p.state, p.due_at,
                                p.interval_days, p.ease, w.created_at, w.updated_at,
                                exists (select 1 from vocab_generation_jobs j
@@ -158,7 +163,8 @@ public class VocabularyQueryRepository {
                         rs.getObject(1, UUID.class),
                         rs.getString(2),
                         rs.getString(3),
-                        parseJson(rs.getString(4)),
+                        rs.getObject(4, Long.class),
+                        null,
                         rs.getString(5),
                         rs.getBoolean(6),
                         parseTags(rs.getString(7)),
@@ -175,7 +181,8 @@ public class VocabularyQueryRepository {
 
         Map<UUID, List<SourceItem>> sourcesByWord = sourcesFor(items.stream().map(WordItem::id).toList());
         List<WordItem> enriched = items.stream()
-                .map(item -> new WordItem(item.id(), item.form(), item.language(), item.content(),
+                .map(item -> new WordItem(item.id(), item.form(), item.language(), item.contentId(),
+                        ContentView.resolve(contentStore, item.contentId(), item.language(), item.form()),
                         item.contentStatus(), item.favorite(), item.tags(), item.paused(), item.state(),
                         item.dueAt(), item.intervalDays(), item.ease(), item.createdAt(),
                         item.updatedAt(), item.generating(),

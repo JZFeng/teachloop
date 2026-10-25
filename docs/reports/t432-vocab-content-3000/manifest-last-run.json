@@ -1,0 +1,25 @@
+{
+  "promptVersion": "vocab-content-v2.3",
+  "provider": "opencode",
+  "model": "deepseek-v4.1-flash",
+  "baseUrl": "https://opencode.ai/inference/go/openai/v1",
+  "language": "en",
+  "workers": 3,
+  "exampleCount": 6,
+  "completed": 3,
+  "failed": 0,
+  "attempts": 3,
+  "httpErrors": {},
+  "completionTokens": 3165,
+  "promptTokens": 2310,
+  "estimatedCostUsd": 0.0022,
+  "elapsedSeconds": 6.2,
+  "wordsPerMinute": 29.07,
+  "latencyP50Seconds": 5.7,
+  "latencyP90Seconds": 6.2,
+  "examplesHistogram": {
+    "5": 2,
+    "6": 1
+  },
+  "finishedAt": "2026-10-25T02:08:55-0700"
+}

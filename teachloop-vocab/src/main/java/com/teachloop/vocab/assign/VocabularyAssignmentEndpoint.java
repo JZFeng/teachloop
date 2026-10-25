@@ -6,6 +6,7 @@ import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.vocab.assign.VocabularyAssignmentRepository.AssignmentView;
 import com.teachloop.vocab.assign.VocabularyAssignmentRepository.PendingView;
 import com.teachloop.vocab.assign.VocabularyAssignmentRepository.PreviewWord;
+import com.teachloop.vocab.content.ContentStore;
 import com.teachloop.vocab.generation.VocabularyGenerationService;
 import com.teachloop.vocab.word.VocabWordRepository;
 import com.teachloop.vocab.word.WordNormalizer;
@@ -52,18 +53,21 @@ public class VocabularyAssignmentEndpoint {
     private final Ports.NotificationPort notifications;
     private final VocabWordRepository words;
     private final VocabularyGenerationService generation;
+    private final ContentStore contentStore;
     private final Clock clock;
 
     public VocabularyAssignmentEndpoint(VocabularyAssignmentRepository assignments,
                                         Ports.ClassMembership classes,
                                         Ports.NotificationPort notifications,
                                         VocabWordRepository words,
-                                        VocabularyGenerationService generation, Clock clock) {
+                                        VocabularyGenerationService generation,
+                                        ContentStore contentStore, Clock clock) {
         this.assignments = assignments;
         this.classes = classes;
         this.notifications = notifications;
         this.words = words;
         this.generation = generation;
+        this.contentStore = contentStore;
         this.clock = clock;
     }
 
@@ -195,7 +199,17 @@ public class VocabularyAssignmentEndpoint {
                 wordId = words.insert(me.id(), source.language(), form, normalized,
                         word.familyId(), word.band());
                 if (word.contentJson() != null) {
-                    words.setContent(wordId, word.contentJson(), "READY");
+                    Long contentId = null;
+                    try {
+                        contentId = contentStore.put(source.language(), normalized,
+                                word.contentJson(), "ASSIGNMENT");
+                    } catch (RuntimeException ex) {
+                        // T431：用户行不再存内容副本；delta 写失败时词条没有 content_id，
+                        // 页面显示「未准备」，下次 prepare 会按词形重新查全局内容。
+                        log.warn("发词快照写入全局 delta 失败 word={}（词条无 content_id，显示未准备）：{}",
+                                form, ex.getMessage());
+                    }
+                    words.setContent(wordId, contentId, "READY");
                 } else {
                     createdIds.add(wordId);
                 }

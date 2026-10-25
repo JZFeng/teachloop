@@ -250,3 +250,13 @@
 - **未验证/已知偏差**：① T403/T404/T407/预习页浏览器视觉（仅有 T389 导航、T399 详情截图）；② T411 容器内 sidecar `/health`（Piper 模型需网络）；
   ③ AC-48.9 峰值内存（导入非流式，仅测前后堆差）；④ AC 未逐条勾选；⑤ T400 暂缓。
   详见 `specs/004-vocab/tasks.md` 执行记录。
+
+## 背单词全局内容与例句朗读（2026-10-25 凌晨）
+
+- **已完成（feature branch `feat/vocab-global-content-sentence-tts`）**：
+  ① **T429 全局内容 P1**：`vocab_words.content_id` + `ContentStore` 端口 + 本地 SQLite delta（WAL、单写者、id ≥ 1e9、prompt 版本过滤）；prepare 命中全局内容直接 READY、不再入队；AI 生成与发词快照写 delta。
+  ② **T430 全局内容 P2**：只读内容包读取器（manifest/sha256/28B idx，unsigned hash 二分 + `FileChannel` pread，10 万词装载 12ms / 索引 3.9MB）+ `scripts/vocab/build_content_pack.py` 导入器（JSONL → pack/idx/manifest，可复现）。
+  ③ **T431 全局内容 P3**：V063 把存量内容搬进 legacy 表后删列，启动回填 22/22 写 delta + content_id 并 drop legacy；词库/详情/队列/自由复习/发词领取全部按 content_id 解析；`ContentView` 把 v2 包内容适配为前端当前 v1 形状。
+  ④ **决策 019 例句朗读**：`/api/vocab/audio?text=&lang=`（≤200、4xx 契约、缓存键含语言与文本）、`/api/vocab/config` 开关、zh/es 音色；前端每条例句喇叭 + 按词条语言选音色 + 关闭开关不渲染。
+- **验证**：全量 `make test` **434/0/0/0**（432s，101 类）；前端 typecheck/build + 52/52；四守卫全过（49 表/13 外键/1559 键/44 组对比度）；pack 脚本 9/9；QA 5174/8011 浏览器实测：清单页/复习卡例句喇叭、点击 `?text=…&lang=en` 返回 200 audio/wav、`VOCAB_TTS_SENTENCES_ENABLED=false` 时喇叭 0 个且 text=404；`struggle` 命中内容包（content_id=1411、0 个 AI job）。
+- **已知取舍/未验证**：① 删列后「按释义搜索词库」降级为只按词形（恢复需另立搜索索引）；② 真实 Piper 未试听（测试用 stub），zh/es 模型未实机合成；③ 内容包已按最终 3000 条 JSONL 重建（pack 8.73MB / idx 84KB；产物 gitignored，部署时重建或挂卷）；④ T432（v2 生成/校验）、T433（语言档案）、T434（页面模板）未做，`ContentView` 是过渡适配层。

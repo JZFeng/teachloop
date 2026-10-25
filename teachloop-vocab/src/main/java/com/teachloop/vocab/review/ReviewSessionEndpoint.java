@@ -2,6 +2,8 @@ package com.teachloop.vocab.review;
 
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.security.CurrentUser;
+import com.teachloop.vocab.content.ContentStore;
+import com.teachloop.vocab.content.ContentView;
 import com.teachloop.vocab.review.ReviewSessionRepository.SessionRow;
 import com.teachloop.vocab.word.VocabWordRepository;
 import java.nio.charset.StandardCharsets;
@@ -46,14 +48,16 @@ public class ReviewSessionEndpoint {
     private final ReviewSessionRepository sessions;
     private final ReviewSubmitEndpoint submit;
     private final VocabWordRepository words;
+    private final ContentStore contentStore;
     private final Clock clock;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ReviewSessionEndpoint(ReviewSessionRepository sessions, ReviewSubmitEndpoint submit,
-                                 VocabWordRepository words, Clock clock) {
+                                 VocabWordRepository words, ContentStore contentStore, Clock clock) {
         this.sessions = sessions;
         this.submit = submit;
         this.words = words;
+        this.contentStore = contentStore;
         this.clock = clock;
     }
 
@@ -63,8 +67,10 @@ public class ReviewSessionEndpoint {
     public record SessionView(UUID id, int total, int cursor, int lastCursor, String scopeKey) {
     }
 
-    public record CurrentWord(UUID id, String form, JsonNode content, String contentStatus,
-                              boolean favorite, boolean paused, int cursor, int total) {
+    /** language 供前端按词条语言选例句音色（en/zh/es）。 */
+    public record CurrentWord(UUID id, String form, String language, JsonNode content,
+                              String contentStatus, boolean favorite, boolean paused, int cursor,
+                              int total) {
     }
 
     public record AdvanceRequest(String action, Integer elapsedMs) {
@@ -113,8 +119,8 @@ public class ReviewSessionEndpoint {
         }
         UUID wordId = ids.get(session.cursor());
         return sessions.currentWord(wordId, me.id())
-                .map(row -> new CurrentWord(row.id(), row.form(),
-                        row.contentJson() == null ? null : mapper.readTree(row.contentJson()),
+                .map(row -> new CurrentWord(row.id(), row.form(), row.language(),
+                        ContentView.resolve(contentStore, row.contentId(), row.language(), row.form()),
                         row.contentStatus(), row.favorite(), row.paused(), session.cursor(), session.total()))
                 .orElse(null);
     }

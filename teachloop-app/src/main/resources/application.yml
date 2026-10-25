@@ -68,6 +68,17 @@ teachloop:
       # T426：进入复习时先准备前 N 个词；之后按窗口懒加载（前端 cadence 20/100/200/400/…）
       prepare-first: ${VOCAB_REVIEW_PREPARE_FIRST:20}
       prepare-window-max: ${VOCAB_REVIEW_PREPARE_WINDOW_MAX:1000}
+    content:
+      # T429/T430（decisions/017）：全局词内容 = 只读内容包 + 内存索引 + 本地 SQLite delta。
+      # store-path 只放 AI 现场生成/回填的内容；包目录缺 manifest 时自动只用 delta + AI。
+      store-path: ${VOCAB_CONTENT_STORE_PATH:./data/vocab-content-delta.db}
+      prompt-version: ${VOCAB_CONTENT_PROMPT_VERSION:vocab-content-v2.3}
+      pack-dir: ${VOCAB_CONTENT_PACK_DIR:./fixtures-local/vocab-content}
+      # 生产建议设为 true：包损坏时拒绝启动，避免带着半份包静默降级；开发默认 false。
+      pack-required: ${VOCAB_CONTENT_PACK_REQUIRED:false}
+      verify-sha256: ${VOCAB_CONTENT_VERIFY_SHA256:true}
+      # T431：V063 删除用户行 content 前，把存量 READY 内容回填进 delta；失败则启动失败并保留 legacy 表。
+      backfill-on-startup: ${VOCAB_CONTENT_BACKFILL_ON_STARTUP:true}
     word-family:
       # spec §14.4：详情页最多显示 N 个同族词（默认 8）
       max-members: ${VOCAB_WORD_FAMILY_MAX_MEMBERS:8}
@@ -89,15 +100,22 @@ teachloop:
       # 想恢复旧的「导入即全量生成」设为 true。
       on-import: ${VOCAB_GENERATION_ON_IMPORT:false}
     tts:
-      # T410/T411：缓存 → 本地 Piper → 浏览器；只读单词本身
+      # T410/T411：缓存 → 本地 Piper → 浏览器；单词与例句都读，释义不读（019/AC-57.6）
       provider: ${VOCAB_TTS_PROVIDER:local}
       engine: ${VOCAB_TTS_ENGINE:piper}
       engine-url: ${VOCAB_TTS_ENGINE_URL:http://127.0.0.1:5002}
       voice: ${VOCAB_TTS_VOICE:en_US-amy-medium}
       # T427：复习卡英/美两个喇叭各用各的音色；本地 Piper 按 voice 找模型文件
+      # 019：例句按学习语言选音色（中文/西语音色；缺对应模型时前端回落浏览器语音）
       voices:
         uk: ${VOCAB_TTS_VOICE_UK:en_GB-alan-medium}
         us: ${VOCAB_TTS_VOICE_US:en_US-amy-medium}
+        zh: ${VOCAB_TTS_VOICE_ZH:zh_CN-huayan-medium}
+        es: ${VOCAB_TTS_VOICE_ES:es_ES-davefx-medium}
+      # 019/AC-57.8：例句朗读总开关。关掉后前端不渲染例句喇叭（GET /api/vocab/config
+      # 返回 sentenceAudio=false），端点对 ?text= 返回 404；单词发音不受影响。
+      sentences:
+        enabled: ${VOCAB_TTS_SENTENCES_ENABLED:true}
       # T438：默认略微放慢（1.0 偏快）；rate 会进缓存键，改值会重新合成
       rate: ${VOCAB_TTS_RATE:0.9}
       timeout-ms: ${VOCAB_TTS_TIMEOUT_MS:2000}

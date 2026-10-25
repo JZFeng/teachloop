@@ -67,7 +67,7 @@
 - [ ] AC-48.3 **导入/加词只负责入库，内容按需生成**：提交后立刻能看到这些词（词形、来源、语言）；释义/例句/构词/词族在**学生开始复习或打开词详情时**按窗口生成（2026-10-24 起，见 AC-48.13），导入不再全量预生成；**已存在的词不重复生成**；未准备、生成中、生成成功、生成失败四种状态在列表可见；失败可单条或批量重试。
 - [ ] AC-48.4 进入复习时只为**前 N 个词**准备内容（默认 N=20，`teachloop.vocab.review.prepare-first`）：这批准好之前页面显示「数据准备中…（已准备 x/N）」，**等满 N 个词才出卡**（2026-10-24 用户要求；常见词通常已提前生成，现场请求很少）；生成失败或等待超过 60 秒时给出可见状态、重试与「先开始」兜底。准备任务排在后台任务之前；超过 24 小时仍未完成的任务标「内容缺失」。
 - [ ] AC-48.13 **懒加载窗口**：复习内容按 20 → 100 → 200 → 400 → 800… 逐级放大，学生背到窗口末尾前再准备下一段；窗口上限 `teachloop.vocab.review.prepare-window-max`（默认 1000）。自由复习会话按 cursor 位置套用同一套窗口。导入仍可用 `teachloop.vocab.generation.on-import=true` 恢复「导入即全量生成」的旧行为。
-- [ ] AC-48.14 **词内容全局共享**：同一 `(language, normalized_form)` 的内容只生成一次，不同学生命中同一份；只读预生成包（pack + 内存索引 + manifest）命中不调 AI，AI 现场生成的内容写入本地 SQLite delta 并写回内存索引；用户词条只存 `content_id`，不保存内容副本。Bloom filter 在词条量级到百万级前不引入（见 decisions/017）。
+- [x] AC-48.14 **词内容全局共享**：同一 `(language, normalized_form)` 的内容只生成一次，不同学生命中同一份；只读预生成包（pack + 内存索引 + manifest）命中不调 AI，AI 现场生成的内容写入本地 SQLite delta 并写回内存索引；用户词条只存 `content_id`，不保存内容副本。Bloom filter 在词条量级到百万级前不引入（见 decisions/017）。
 - [ ] AC-48.5 **格式清洗自动执行且可追溯**：去首尾/连续空格、全角逗号分号、BOM、引号、行首序号与项目符号、混入的音标或词性标注；每类改动在预览里逐条列出「第 N 行：去掉了 X」（不静默）。
 - [ ] AC-48.6 **拼写校验只提示、不自动改**：每个词标为「词表命中 / 疑似拼错（给 ≤2 个候选）/ 词表外」；疑似行可逐条「用建议」或「忽略」；顶部可「全部采用建议」，但**必须二次确认并列出将被改写的词**。
 - [ ] AC-48.7 「词表外」只是提示，**不阻拦导入**；专有名词、缩写、生僻词照常入库，并在列表里保留「词表外」标记直到内容生成完成。
@@ -170,10 +170,10 @@
 - [ ] AC-57.3 提供商可替换：`tts.provider` 支持 `local`（默认）/ `cloud` / `browser`。回落链固定为 **缓存 → 本地引擎 → 浏览器语音**：本地引擎缺失或超过 2s 未返回时回落浏览器，并照常完成复习，不弹阻塞式错误。
 - [ ] AC-57.4 生成失败与回落都要留可观测痕迹（计数 + 审计），但不记录词条正文以外的用户数据。
 - [ ] AC-57.5 若启用 `cloud`：凭据走现有 `/admin/ai` 配置方式（加密存储、掩码回显），不在前端暴露。
-- [ ] AC-57.6 **例句朗读（2026-10-24 定，T429）**：明细页与复习卡里**每条例句各带一个小喇叭**，**首次点击才合成**（本地引擎），合成结果按 `sha256(文本|语言|音色|语速)` 缓存到部署存储；没播放过的句子不落盘。释义（整段）仍不朗读。
+- [x] AC-57.6 **例句朗读（2026-10-24 定，T429）**：明细页与复习卡里**每条例句各带一个小喇叭**，**首次点击才合成**（本地引擎），合成结果按 `sha256(文本|语言|音色|语速)` 缓存到部署存储；没播放过的句子不落盘。释义（整段）仍不朗读。
 - [ ] AC-57.7 **英美口音**（T427）：`tts.voices.uk` / `tts.voices.us` 各配一个音色（默认 `en_GB-alan-medium` / `en_US-amy-medium`），缓存键含音色，两种口音互不复用；本地引擎缺对应模型时回落浏览器语音，语言分别为 `en-GB` / `en-US`，不弹阻塞错误。
-- [ ] AC-57.8 **服务端开关**：例句朗读由 `teachloop.vocab.tts.sentences.enabled`（环境变量 `VOCAB_TTS_SENTENCES_ENABLED`）控制，默认 **true**；前端通过 `GET /api/vocab/config` 拿到 `sentenceAudio` 布尔，关闭时不渲染例句喇叭；端点对 `text` 参数返回 404，单词发音不受影响。效果不好只需改环境变量重部署，不动代码。
-- [ ] AC-57.9 **音频端点契约扩展**：`GET /api/vocab/audio` 支持 `text`（≤200 字符）与 `lang`（学习语言，缺省跟随词条语言），与 `form` 互斥；缓存键含文本哈希与语言，避免与单词音频撞键；超长文本返回 400，不静默截断。
+- [x] AC-57.8 **服务端开关**：例句朗读由 `teachloop.vocab.tts.sentences.enabled`（环境变量 `VOCAB_TTS_SENTENCES_ENABLED`）控制，默认 **true**；前端通过 `GET /api/vocab/config` 拿到 `sentenceAudio` 布尔，关闭时不渲染例句喇叭；端点对 `text` 参数返回 404，单词发音不受影响。效果不好只需改环境变量重部署，不动代码。
+- [x] AC-57.9 **音频端点契约扩展**：`GET /api/vocab/audio` 支持 `text`（≤200 字符）与 `lang`（学习语言，缺省跟随词条语言），与 `form` 互斥；缓存键含文本哈希与语言，避免与单词音频撞键；超长文本返回 400，不静默截断。
 - [ ] AC-57.10 **语速与结尾完整性（T438，2026-10-24 用户反馈）**：单词发音默认语速 **0.9**（`teachloop.vocab.tts.rate`，环境变量 `VOCAB_TTS_RATE`；rate 进缓存键，旧缓存不受影响）；本地 Piper 用 `--length_scale = 1/rate` 实现；浏览器回落同样用 `rate=0.9`，且**保留 utterance 引用、播放前 cancel 上一条**，避免被回收时吞掉结尾（用户反馈「太快」「结尾被 cut」）。
 
 ### US-58 学习语言可扩展（不只英语）
@@ -218,8 +218,9 @@
 - [ ] AC-60.5 详情页是**模板 + JSON**：同一份 HTML 模板渲染不同单词，不允许每个词一个页面文件。
 - [ ] AC-60.6 **内容全局共享与预生成（2026-10-24 改）**：词内容以只读内容包（`content-<lang>-<version>.pack` + `.idx` + `manifest`）+ 内存索引为主，AI 现场生成的新内容写本地 SQLite delta；同一 `(language, normalized_form)` 只生成一次，不同学生共享；**不生成逐词 HTML**，也不再用 Bloom filter 做页面否定（词条到百万级、索引需要落盘时再议，见 decisions/017）。未命中时由 prepare 入队 AI，期间页面按 T428 显示「数据准备中」。
 - [ ] AC-60.7 **词族数据本地优先**：命中本地词表（Paul Nation word family 表）时直接显示同族词与频段，按频次降序、排除当前词、最多 N 个（默认 8，可配置）；未命中的词由异步生成补上并回填，下次直接命中。命中时显示频段标签（如「BNC 第 3 千词族」），未命中时不编造频段。
-- [ ] AC-60.9 **内容结构 v2（多语言）**：每条内容含 `schemaVersion`、`word`、`language`、`basicInfo{pronunciation{uk,us}, partOfSpeech[], image?}`、`meanings{zh,en}`（V1 只产 zh/en，`es` 留扩展位，见 decisions/018 §8）、`examples[{text, translations, partOfSpeech, usagePattern, popularity}]`、`wordFormation{analysis, parts[{text,type,meaning}], confidence?}`（可选，没把握就省略）、`memoryAids{synonyms,antonyms,mnemonic,supplement}`、`wordFamily.items[{word,partOfSpeech[],meanings}]`。**例句 1–6 条**：自然情况给 6，虚词/罕见词/单义名词 1–3 也接受，绝不硬凑；`usagePattern` 可重复但句子不重复；`popularity` 1..N 按词性常用度与用法常见度排序；页面默认显示 3 条，More 展开剩余；正文高亮目标词（见 decisions/018）。
-- [ ] AC-60.10 **语言档案（per user）**：`mainLanguage`（解释语言）/ `targetLanguage`（词的语言）/ `displayOrder`，默认 zh + en（V1 内容只产 zh/en，es 待后续批次）；存 `vocab_language_profile`，学生在个人资料页修改；内容按 target 语言缓存、`meanings` 覆盖 zh/en，换主语言不重新生成。
+- [ ] AC-60.9 **内容结构 v2（多语言）**：每条内容含 `schemaVersion`、`word`、`language`、`basicInfo{pronunciation{uk,us}, partOfSpeech[], image?}`、`meanings{zh,en}`（只产 zh/en，**不产 es**，见 decisions/018 §8）、`examples[{text, translations, partOfSpeech, usagePattern, popularity}]`、`wordFormation{analysis, parts[{text,type,meaning}], confidence?}`（可选，没把握就省略）、`memoryAids{synonyms,antonyms,mnemonic,supplement}`、`wordFamily.items[{word,partOfSpeech[],meanings}]`。**例句 1–6 条**：自然情况给 6，虚词/罕见词/单义名词 1–3 也接受，绝不硬凑；`usagePattern` 可重复但句子不重复；`popularity` 1..N 按词性常用度与用法常见度排序；页面默认显示 3 条，More 展开剩余；正文高亮目标词（见 decisions/018）。
+- [ ] AC-60.10 **语言档案（per user）**：`mainLanguage`（解释语言）/ `targetLanguage`（词的语言）/ `displayOrder`，默认 zh + en（内容只产 zh/en，es 不做）；存 `vocab_language_profile`，学生在个人资料页修改；内容按 target 语言缓存、`meanings` 覆盖 zh/en，换主语言不重新生成。
+- [ ] AC-60.12 **运行时按需生成（L1/L2 未命中 → AI）的调用契约与性能（2026-10-25 用户定）**：内容读取顺序 = 内存索引/只读包（L1）→ 本地 delta（L2）→ AI 实时生成；AI 只由异步生成任务触发，请求线程不阻塞（页面按 T428 显示「数据准备中」）。调用参数以 `teachloop-vocab/src/main/resources/vocab/content-prompt-v2.3.json` 为**唯一来源**（Java 运行时与 `scripts/vocab` 共用，禁止两边各写一份）：`thinking:{"type":"disabled"}`（不关会先吐 9k–24k reasoning tokens 把输出预算吃光导致正文截断）、`max_tokens 6000`、`temperature 0.2`（重试 0.1）、`response_format:{"type":"json_object"}`、单请求超时 20s、显式 User-Agent（Python urllib 默认 UA 会被 Cloudflare 拦成 `403 error 1010`，Java 侧同样显式设置）、`x-opencode-session` 每请求随机 UUID（网关路由头，缺失返回 `400 MissingSessionID`，与对话上下文无关）。**截断不算成功**：`finish_reason=length`、输出 token 顶满预算、`reasoning_tokens>200` 或正文为空，一律重试一次（温度 0.1）后置 FAILED，绝不写入内容存储。性能：批量/预取吞吐 **≤1.5 秒/词**（≥4 并发；3,000 词实跑 1.1 秒/词、6 并发）；单请求 p50 ≤7s、p95 ≤10s（实测 p50 6.1s / p90 8.7s）；成本基线 $0.00068/词（OpenCode Go `deepseek-v4.1-flash`）。生成结果写 delta 并回填内存索引，同一 `(language, normalized_form)` 之后不再调 AI（AC-60.6）。
 - [ ] AC-60.11 **可配置页面模板**：词详情的 section 顺序、显隐与例句显示条数存 `vocab_ui_config`（key=`word_detail_template`），管理员接口可改，前端按配置渲染；调整顺序（如例句置顶）不需要改代码或重新部署。
 
 ### US-61 词库内自由复习（不受到期限制）
