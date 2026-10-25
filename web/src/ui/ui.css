@@ -159,6 +159,8 @@
 .tl-table tbody tr.is-selected { background: var(--panel-2); }
 .tl-table tbody tr[tabindex] { cursor: pointer; }
 .tl-table tbody tr[tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* 操作列按钮不折行：折了行高会翻倍，一屏少看好几行 */
+.tl-table td > .row { flex-wrap: nowrap; }
 .tl-table-select { width: 34px; }
 .tl-table-sort {
   display: inline-flex;

@@ -106,8 +106,9 @@ class VocabWordsQueryTest {
         assertThat(get(base, cookie, "/api/vocab/words?deckId=" + deckId).get("total").asInt())
                 .isEqualTo(1);
 
-        // URL 参数即筛选条件：非法分页大小明确 400
-        HttpResponse<String> badSize = send(base, cookie, "/api/vocab/words?size=10");
+        // URL 参数即筛选条件：默认 10 条/页（AC-24.3 修订），10 是合法值；非法值明确 400
+        assertThat(get(base, cookie, "/api/vocab/words?size=10").get("items").size()).isLessThanOrEqualTo(10);
+        HttpResponse<String> badSize = send(base, cookie, "/api/vocab/words?size=7");
         assertThat(badSize.statusCode()).isEqualTo(400);
 
         // 学习语言隔离：zh 词不进 en 列表

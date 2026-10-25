@@ -92,12 +92,16 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 18. **UI 标准（2026-10-21，已合入 `main`）**：令牌层 + 组件层 + 守卫三层落地。
     视觉：蓝主色 `#1D5FBF`（白字 6.10:1）、实边框、圆角 12→6、中文行高 1.65、表头去 uppercase、
     主按钮去渐变与彩色投影；亮/暗两套主题，开关在侧栏底部，选择记在本机。
-    组件：`web/src/ui/` 16 个文件（Button/Field/Input/Alert/Segmented/PageHeader/StatCard/Tag/DataTable/
-    States/ThemeProvider/ThemeToggle/tokens/ui.css/index/icons），页面只从 `ui/` 引；组件参考页
-    收在资料页「偏好设置 → 界面标准」（2026-10-22 T356 从侧栏移入，旧链接 `/ui-kit` 跳到展开态）。
+    组件：`web/src/ui/` 18 个文件（Button/Field/Input/Alert/Segmented/PageHeader/StatCard/Tag/DataTable/
+    listState/useListState/States/ThemeProvider/ThemeToggle/tokens/ui.css/index/icons），页面只从 `ui/` 引；
+    组件参考页收在资料页「偏好设置 → 界面标准」（2026-10-22 T356 从侧栏移入，旧链接 `/ui-kit` 跳到展开态）。
+    **表格（2026-10-25，T441–T446）**：全仓只有 `ui/DataTable` 一处实现，手写表体、以「我的词库」原表格为真源
+    （排序 / 页脚 10-20-50-100 / 选择列与批量条 / 空态，`total` 即服务端分页）；15 张列表表统一，旧
+    `components/DataTable.tsx` 与 antd `Table` 退场（`tokens.ts` 的 Table 覆盖随之删除）；`sort/dir/page/size`
+    写 URL 并读兼容旧 `pageSize`；antd chunk gzip 293.82 → 202.35 kB。报告 `docs/reports/2026-10-25-table-unify/`。
     侧栏导航：15 个图标统一经 `ui/icons.tsx` 出口（T319）；当前项暗色文字由 3.25:1 修到 11.14:1。
-    守卫：`scripts/check-ui.py`（5 条规则 + 125 处基线）与 `scripts/ui/contrast.py`（16 组对比度 +
-    两处令牌一致）已进 `make test`。反证：插入 `#ff0000` 时退出码 1。
+    守卫：`scripts/check-ui.py`（6 条规则 + 128 处基线，2026-10-25 新增 `RAW_TABLE`：页面不再新写 `<table>`）
+    与 `scripts/ui/contrast.py`（16 组对比度 + 两处令牌一致）已进 `make test`。反证：插入 `#ff0000` 时退出码 1。
     迁移：登录、教师首页、试卷列表、新建作业、复核 5 屏已改用组件层；其余 13 屏靠令牌层继承视觉。
     验证：`make test` 退出码 0（209 tests / 0 failures / 0 errors）；`pnpm build` 0（antd chunk gzip 297.49 kB）；
     `check-ui` 125 处；`check-i18n`（1067 键对齐）；`contrast.py` 16 组。截图见

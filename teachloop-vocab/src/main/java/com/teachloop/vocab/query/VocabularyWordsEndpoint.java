@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.RestController;
 @ConditionalOnProperty(name = "teachloop.vocab.enabled", havingValue = "true")
 public class VocabularyWordsEndpoint {
 
-    private static final Set<Integer> PAGE_SIZES = Set.of(20, 50, 100);
+    private static final Set<Integer> PAGE_SIZES = Set.of(10, 20, 50, 100);
 
     private final VocabularyQueryRepository repository;
 
@@ -45,10 +45,10 @@ public class VocabularyWordsEndpoint {
             @RequestParam(required = false) String sort,
             @RequestParam(required = false, name = "dir") String direction,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "10") int size,
             @RequestAttribute("currentUser") CurrentUser me) {
         if (!PAGE_SIZES.contains(size)) {
-            throw ApiException.badRequest("size must be one of 20, 50, 100");
+            throw ApiException.badRequest("size must be one of 10, 20, 50, 100");
         }
         if (page < 1) {
             throw ApiException.badRequest("page must be >= 1");

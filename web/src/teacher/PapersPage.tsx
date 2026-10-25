@@ -78,7 +78,7 @@ export default function PapersPage() {
     {
       key: 'actions',
       title: t('teacher.common.actions'),
-      width: '240px',
+      width: '320px',
       value: () => '',
       render: (row) => (
         <div className="row" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
