@@ -107,6 +107,14 @@ public class VocabWordRepository {
                 Timestamp.from(now), Timestamp.from(now), wordId, userId) > 0;
     }
 
+    /** 撤销暂停：只把 removed 放回 false，**不动进度**（复习会话里点错了再用，T437）。 */
+    public boolean unpause(UUID userId, UUID wordId) {
+        Instant now = clock.instant();
+        return jdbc.update("update vocab_words set removed = false, removed_at = null, updated_at = ?"
+                        + " where id = ? and user_id = ? and removed = true",
+                Timestamp.from(now), wordId, userId) > 0;
+    }
+
     /** 恢复复习：回到「新词」，当天进队列；历史日志保留（AC-59.3）。 */
     @Transactional
     public boolean resume(UUID userId, UUID wordId) {

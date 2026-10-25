@@ -64,7 +64,7 @@ public class ReviewSessionEndpoint {
     }
 
     public record CurrentWord(UUID id, String form, JsonNode content, String contentStatus,
-                              boolean favorite, int cursor, int total) {
+                              boolean favorite, boolean paused, int cursor, int total) {
     }
 
     public record AdvanceRequest(String action, Integer elapsedMs) {
@@ -115,7 +115,7 @@ public class ReviewSessionEndpoint {
         return sessions.currentWord(wordId, me.id())
                 .map(row -> new CurrentWord(row.id(), row.form(),
                         row.contentJson() == null ? null : mapper.readTree(row.contentJson()),
-                        row.contentStatus(), row.favorite(), session.cursor(), session.total()))
+                        row.contentStatus(), row.favorite(), row.paused(), session.cursor(), session.total()))
                 .orElse(null);
     }
 
@@ -142,6 +142,17 @@ public class ReviewSessionEndpoint {
             case "SKIP" -> {
                 // T436：明细视图的「下一个」——只推进游标，不记日志、不动排期
             }
+            case "TOGGLE_PAUSE" -> {
+                // T437：卡片头部的暂停/恢复开关——原地切换，不推进游标；
+                // 恢复只撤销暂停、保留进度（不是 AC-59.3 的「回到新词」）。
+                boolean paused = sessions.isPaused(wordId);
+                boolean changed = paused ? words.unpause(me.id(), wordId) : words.pause(me.id(), wordId);
+                if (!changed) {
+                    throw ApiException.notFound("word not found");
+                }
+                sessions.advance(id, session.cursor(), 0, paused ? -1 : 1, clock.instant());
+                return new AdvanceResult(session.cursor(), session.total(), false);
+            }
             case "KNOWN", "DONT_KNOW" -> {
                 submit.submit(new ReviewSubmitEndpoint.SubmitRequest(wordId, action,
                         request.elapsedMs(), id), null, me);
@@ -149,7 +160,7 @@ public class ReviewSessionEndpoint {
                     knownIncrement = 1;
                 }
             }
-            default -> throw ApiException.badRequest("action must be KNOWN, DONT_KNOW, PAUSE or SKIP");
+            default -> throw ApiException.badRequest("action must be KNOWN, DONT_KNOW, PAUSE, SKIP or TOGGLE_PAUSE");
         }
         int cursor = session.cursor() + 1;
         sessions.advance(id, cursor, knownIncrement, pausedIncrement, clock.instant());

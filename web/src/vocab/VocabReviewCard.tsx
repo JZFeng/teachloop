@@ -1,5 +1,12 @@
 import { useTranslation } from 'react-i18next'
-import { Button, DeleteOutlined, PauseCircleOutlined, StarFilled, StarOutlined } from '../ui'
+import {
+  Button,
+  DeleteOutlined,
+  PauseCircleOutlined,
+  PlayCircleOutlined,
+  StarFilled,
+  StarOutlined,
+} from '../ui'
 import { SpeakerButton } from './SpeakerButton'
 
 export interface ReviewCardSense {
@@ -40,22 +47,27 @@ export function VocabReviewCard({
   onFlip,
   onToggleFavorite,
   onDelete,
-  onPause,
+  paused = false,
+  onTogglePause,
   onRate,
   ratingDisabled = false,
   emptyHint,
+  notice,
 }: {
   word: ReviewCardWord
   flipped: boolean
   onFlip: () => void
   onToggleFavorite?: () => void
   onDelete?: () => void
-  /** 自由复习的「暂停这个词」——与收藏同一行的图标按钮 */
-  onPause?: () => void
+  /** 自由复习的暂停开关：`paused` 决定图标（⏸/▶），点一下切换 */
+  paused?: boolean
+  onTogglePause?: () => void
   onRate?: (rating: 'KNOWN' | 'DONT_KNOW') => void
   ratingDisabled?: boolean
   /** 明细为空时显示的一行提示（查词/未入库/生成中） */
   emptyHint?: string
+  /** 覆盖正面提示行（例如「已暂停」） */
+  notice?: string
 }) {
   const { t } = useTranslation()
   const content = word.content
@@ -88,7 +100,7 @@ export function VocabReviewCard({
               </span>
             </div>
           </div>
-          {(onToggleFavorite || (!flipped && (onDelete || onPause))) && (
+          {(onToggleFavorite || (!flipped && (onDelete || onTogglePause))) && (
             <div className="review-card-head-actions" onClick={(event) => event.stopPropagation()}>
               {onToggleFavorite && (
                 <button
@@ -113,15 +125,16 @@ export function VocabReviewCard({
                   <DeleteOutlined />
                 </button>
               )}
-              {!flipped && onPause && (
+              {!flipped && onTogglePause && (
                 <button
                   type="button"
-                  className="review-icon-action"
-                  aria-label={t('vocab.freeReview.pause')}
-                  title={`${t('vocab.freeReview.pause')} · S`}
-                  onClick={onPause}
+                  className={`review-icon-action${paused ? ' is-on' : ''}`}
+                  aria-label={paused ? t('vocab.library.resume') : t('vocab.freeReview.pause')}
+                  aria-pressed={paused}
+                  title={`${paused ? t('vocab.library.resume') : t('vocab.freeReview.pause')} · S`}
+                  onClick={onTogglePause}
                 >
-                  <PauseCircleOutlined />
+                  {paused ? <PlayCircleOutlined /> : <PauseCircleOutlined />}
                 </button>
               )}
             </div>
@@ -156,7 +169,7 @@ export function VocabReviewCard({
             {content?.analysis && <p className="muted">{content.analysis}</p>}
           </div>
         )}
-        {!flipped && <div className="review-hint muted">{t('vocab.review.showAnswer')}</div>}
+        {!flipped && <div className="review-hint muted">{notice ?? t('vocab.review.showAnswer')}</div>}
       </div>
 
       {!flipped && onRate && (

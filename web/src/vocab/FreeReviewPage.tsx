@@ -18,6 +18,7 @@ interface SessionWord {
   } | null
   contentStatus: string
   favorite?: boolean
+  paused?: boolean
   cursor: number
   total: number
 }
@@ -185,7 +186,7 @@ export default function VocabFreeReviewPage() {
     }
   }, [word, t, toast])
 
-  const advance = useCallback(async (action: 'KNOWN' | 'DONT_KNOW' | 'PAUSE' | 'SKIP') => {
+  const advance = useCallback(async (action: 'KNOWN' | 'DONT_KNOW' | 'PAUSE' | 'SKIP' | 'TOGGLE_PAUSE') => {
     if (!word || busy) return
     setBusy(true)
     try {
@@ -231,7 +232,7 @@ export default function VocabFreeReviewPage() {
       } else if (event.key === '2') {
         void advance('KNOWN')
       } else if (event.key === 's' || event.key === 'S') {
-        void advance('PAUSE')
+        void advance('TOGGLE_PAUSE')
       } else if (event.key === 'n' || event.key === 'N' || event.key === 'ArrowRight') {
         // T436：明细视图可跳过当前词，不评分、不动排期
         void advance('SKIP')
@@ -353,9 +354,11 @@ export default function VocabFreeReviewPage() {
             flipped={flipped}
             onFlip={() => setFlipped((value) => !value)}
             onToggleFavorite={() => void toggleFavorite()}
-            onPause={() => void advance('PAUSE')}
+            paused={!!word.paused}
+            onTogglePause={() => void advance('TOGGLE_PAUSE')}
             onRate={(rating) => void advance(rating)}
-            ratingDisabled={busy}
+            ratingDisabled={busy || !!word.paused}
+            notice={word.paused ? t('vocab.freeReview.pausedHint') : undefined}
           />
           <div className="review-session-foot">
             <span className="review-keys muted">{t('vocab.freeReview.keys')}</span>

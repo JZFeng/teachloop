@@ -1639,6 +1639,7 @@
       "endTitle": "结束这次复习？",
       "endBody": "未看的词保持原状态不变；已评分的按规则推进。",
       "pause": "暂停复习",
+      "pausedHint": "已暂停排期，点 ▶ 恢复后才能评分",
       "keys": "空格翻面 · 1 不认识 · 2 认识 · S 暂停这个词",
       "summaryTitle": "复习小结",
       "summarySeen": "本次看了 {{count}} 个",

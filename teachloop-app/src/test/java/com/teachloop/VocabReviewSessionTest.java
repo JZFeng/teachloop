@@ -133,6 +133,22 @@ class VocabReviewSessionTest {
         UUID sessionId = UUID.fromString(created.get("id").asString());
         JsonNode current = get(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/current");
         assertThat(current.get("favorite").asBoolean()).isTrue();
+        assertThat(current.get("paused").asBoolean()).isFalse();
+
+        // T437：暂停是开关——点一次停排期、不推进游标，再点一次恢复（不重置进度）
+        JsonNode toggledOn = post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/advance",
+                Map.of("action", "TOGGLE_PAUSE"));
+        assertThat(toggledOn.get("cursor").asInt()).isZero();
+        assertThat(get(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/current")
+                .get("paused").asBoolean()).isTrue();
+        assertThat(jdbc.queryForObject("select removed from vocab_words where id = ?", Boolean.class, one))
+                .isTrue();
+        post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/advance",
+                Map.of("action", "TOGGLE_PAUSE"));
+        assertThat(get(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/current")
+                .get("paused").asBoolean()).isFalse();
+        assertThat(jdbc.queryForObject("select removed from vocab_words where id = ?", Boolean.class, one))
+                .isFalse();
 
         JsonNode skipped = post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/advance",
                 Map.of("action", "SKIP"));
@@ -144,6 +160,9 @@ class VocabReviewSessionTest {
         assertThat(jdbc.queryForObject(
                 "select count(*) from vocab_progress where word_id = ? and state = 'REVIEW'",
                 Integer.class, one)).isZero();
+
+        JsonNode summary = post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/end", Map.of());
+        assertThat(summary.get("paused").asInt()).isZero();
     }
 
     private String base() {

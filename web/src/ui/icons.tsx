@@ -29,6 +29,7 @@ export {
   LogoutOutlined,
   MoonOutlined,
   PauseCircleOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   RobotOutlined,
   SendOutlined,
