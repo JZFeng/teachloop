@@ -33,7 +33,7 @@ public class TtsAudioEndpoint {
 
     private static final Logger log = LoggerFactory.getLogger(TtsAudioEndpoint.class);
     private static final String PREFIX = "vocab/tts/";
-    private static final String CONTENT_TYPE = "audio/mpeg";
+    private static final String CONTENT_TYPE = "audio/wav";
 
     private final BlobStore blobs;
     private final Optional<TtsEngine> engine;
@@ -68,7 +68,7 @@ public class TtsAudioEndpoint {
         }
         try {
             byte[] audio = engine.get().synthesize(word, voice, rate);
-            blobs.store(PREFIX + key + ".mp3", audio, CONTENT_TYPE);
+            blobs.store(PREFIX + key + ".wav", audio, CONTENT_TYPE);
             return audio(audio, key);
         } catch (RuntimeException ex) {
             log.warn("本地 TTS 不可用，前端回落浏览器：{}", ex.getMessage());
@@ -85,7 +85,7 @@ public class TtsAudioEndpoint {
 
     private Optional<byte[]> load(String key) {
         try {
-            return blobs.load(PREFIX + key + ".mp3");
+            return blobs.load(PREFIX + key + ".wav");
         } catch (RuntimeException ex) {
             log.warn("音频缓存不可用：{}", ex.getMessage());
             return Optional.empty();

@@ -68,7 +68,10 @@ class VocabTtsTest {
         HttpResponse<byte[]> first = send(base, cookie, "/api/vocab/audio?form=" + form);
         assertThat(first.statusCode()).isEqualTo(200);
         assertThat(first.body()).isNotEmpty();
-        assertThat(first.headers().firstValue("Content-Type").orElseThrow()).contains("audio/mpeg");
+        // stub 必须返回合法 WAV（RIFF 头），不能像旧实现那样把文本字节当音频播成噪音
+        assertThat(new String(first.body(), 0, 4, java.nio.charset.StandardCharsets.US_ASCII))
+                .isEqualTo("RIFF");
+        assertThat(first.headers().firstValue("Content-Type").orElseThrow()).contains("audio/wav");
         assertThat(first.headers().firstValue("Cache-Control").orElseThrow()).contains("immutable");
         assertThat(first.headers().firstValue("ETag")).isPresent();
         assertThat(engine.calls()).isEqualTo(before + 1);
