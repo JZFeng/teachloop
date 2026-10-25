@@ -147,9 +147,32 @@ public class NotificationEndpoint {
         for (int i = 0; i < ARG_KEYS.size(); i++) {
             String key = ARG_KEYS.get(i);
             String raw = payload.get(key);
-            args[i] = "dueAt".equals(key) ? dueText(raw, locale) : raw;
+            args[i] = switch (key) {
+                case "dueAt" -> dueText(raw, locale);
+                case "teacher" -> teacherName(raw, locale);
+                default -> raw;
+            };
         }
         return args;
+    }
+
+    /**
+     * 老师名：显示名末尾已经带称谓时先去掉，模板再统一补，避免「周杰伦老师老师」。
+     *
+     * <p>称谓本身是用户可见文案，放在 {@code messages*.properties}
+     * （{@code notification.vocab_assignment.teacherSuffix}）；英文模板没有这个后缀，
+     * 所以显示名原样保留。
+     */
+    private String teacherName(String raw, Locale locale) {
+        if (raw == null) {
+            return null;
+        }
+        String name = raw.trim();
+        String suffix = messages.getMessage("notification.vocab_assignment.teacherSuffix", null, "", locale);
+        if (suffix != null && !suffix.isEmpty() && name.endsWith(suffix)) {
+            return name.substring(0, name.length() - suffix.length()).trim();
+        }
+        return name;
     }
 
     /**

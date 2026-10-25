@@ -25,23 +25,32 @@ public class VocabularyGenerationService {
 
     private final GenerationJobStore store;
     private final boolean enabled;
+    private final boolean onImport;
     private final int dailyBudget;
     private final Clock clock;
 
     public VocabularyGenerationService(
             GenerationJobStore store,
             @Value("${teachloop.vocab.generation.enabled:true}") boolean enabled,
+            @Value("${teachloop.vocab.generation.on-import:false}") boolean onImport,
             @Value("${teachloop.vocab.generation.daily-budget:2000}") int dailyBudget,
             Clock clock) {
         this.store = store;
         this.enabled = enabled;
+        this.onImport = onImport;
         this.dailyBudget = dailyBudget;
         this.clock = clock;
     }
 
-    /** 导入后为新词入队；预算打满或开关关闭时静默跳过（词条仍可复习，内容稍后补）。 */
+    /**
+     * 导入/发词后的批量预热（T426 起默认关闭）。
+     *
+     * <p>词库可能有几千个词，人背不完，全部预生成是浪费；默认改为学生复习/看详情时
+     * 按窗口准备（{@link #prepareOnDemand}）。需要恢复旧的「导入即全量生成」时把
+     * {@code teachloop.vocab.generation.on-import} 设为 true。
+     */
     public void enqueueNewWords(Collection<UUID> wordIds) {
-        if (!enabled || wordIds.isEmpty()) {
+        if (!enabled || !onImport || wordIds.isEmpty()) {
             return;
         }
         Instant since = LocalDate.ofInstant(clock.instant(), ZONE).atStartOfDay(ZONE).toInstant();
@@ -51,6 +60,20 @@ public class VocabularyGenerationService {
                     used, dailyBudget);
             return;
         }
-        store.enqueueWords(wordIds, clock.instant());
+        store.enqueueWords(wordIds, clock.instant(), GenerationJobStore.PRIORITY_BACKGROUND);
+    }
+
+    /**
+     * 学生正在等的内容：按需入队并排到队首，不受日预算限制。
+     *
+     * <p>窗口由调用方控制（复习页的首批 20 个、详情页的 1 个），同一词幂等；
+     * 预算若也拦这里，学生点开复习却永远等不到内容，所以此处只做开关判断。
+     */
+    public int prepareOnDemand(Collection<UUID> wordIds) {
+        if (!enabled || wordIds.isEmpty()) {
+            return 0;
+        }
+        store.enqueueWords(wordIds, clock.instant(), GenerationJobStore.PRIORITY_ON_DEMAND);
+        return wordIds.size();
     }
 }

@@ -32,20 +32,31 @@ public class GenerationJobStore {
     public record WordInfo(UUID id, String form, String language) {
     }
 
+    /** 后台预热优先级（导入等批量来源）。 */
+    public static final int PRIORITY_BACKGROUND = 0;
+    /** 学生正在等的按需准备（复习/详情页），先于后台任务领取。 */
+    public static final int PRIORITY_ON_DEMAND = 100;
+
     /** 一次入队一批词条；已存在的 job 不重复建。 */
     public void enqueueWords(Collection<UUID> wordIds, Instant now) {
+        enqueueWords(wordIds, now, PRIORITY_BACKGROUND);
+    }
+
+    /** 带优先级的入队：priority 越大越先被 worker 领取（T426）。 */
+    public void enqueueWords(Collection<UUID> wordIds, Instant now, int priority) {
         if (wordIds.isEmpty()) {
             return;
         }
         Timestamp timestamp = Timestamp.from(now);
         List<Object[]> batch = new ArrayList<>(wordIds.size());
         for (UUID wordId : wordIds) {
-            batch.add(new Object[]{wordId, timestamp, timestamp, timestamp});
+            batch.add(new Object[]{wordId, timestamp, timestamp, timestamp, priority});
         }
         jdbc.batchUpdate("""
                 insert into vocab_generation_jobs
-                    (subject_type, subject_id, state, attempts, next_run_at, created_at, updated_at)
-                values ('WORD', ?, 'QUEUED', 0, ?, ?, ?)
+                    (subject_type, subject_id, state, attempts, next_run_at, created_at, updated_at,
+                     priority)
+                values ('WORD', ?, 'QUEUED', 0, ?, ?, ?, ?)
                 on conflict (subject_type, subject_id) do nothing
                 """, batch);
     }
@@ -68,7 +79,7 @@ public class GenerationJobStore {
                     select id
                       from vocab_generation_jobs
                      where state = 'QUEUED' and next_run_at <= ?
-                     order by next_run_at
+                     order by priority desc, next_run_at
                      limit ?
                      for update skip locked
                 )
@@ -162,11 +173,11 @@ public class GenerationJobStore {
         int updated = jdbc.update("""
                 update vocab_generation_jobs
                    set state = 'QUEUED', attempts = 0, next_run_at = ?, last_error = null,
-                       locked_by = null, locked_at = null, updated_at = ?
+                       locked_by = null, locked_at = null, updated_at = ?, priority = ?
                  where subject_type = 'WORD' and subject_id = ?
-                """, timestamp, timestamp, wordId);
+                """, timestamp, timestamp, PRIORITY_ON_DEMAND, wordId);
         if (updated == 0) {
-            enqueueWords(List.of(wordId), now);
+            enqueueWords(List.of(wordId), now, PRIORITY_ON_DEMAND);
         }
     }
 

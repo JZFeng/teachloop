@@ -65,6 +65,9 @@ teachloop:
       # T402：每日新卡上限（超出次日再进队列）与单次最多加载张数
       daily-new-cards: ${VOCAB_REVIEW_DAILY_NEW_CARDS:20}
       queue-page-size: ${VOCAB_REVIEW_QUEUE_PAGE_SIZE:100}
+      # T426：进入复习时先准备前 N 个词；之后按窗口懒加载（前端 cadence 20/100/200/400/…）
+      prepare-first: ${VOCAB_REVIEW_PREPARE_FIRST:20}
+      prepare-window-max: ${VOCAB_REVIEW_PREPARE_WINDOW_MAX:1000}
     word-family:
       # spec §14.4：详情页最多显示 N 个同族词（默认 8）
       max-members: ${VOCAB_WORD_FAMILY_MAX_MEMBERS:8}
@@ -82,6 +85,9 @@ teachloop:
       # 日预算（按 Asia/Shanghai 的今天计算已建 job 数）；打满时暂停入队
       daily-budget: ${VOCAB_GENERATION_DAILY_BUDGET:2000}
       timeout-ms: ${VOCAB_GENERATION_TIMEOUT_MS:60000}
+      # T426：导入/发词只入库，默认不再批量生成；学生复习或看详情时按窗口准备。
+      # 想恢复旧的「导入即全量生成」设为 true。
+      on-import: ${VOCAB_GENERATION_ON_IMPORT:false}
     tts:
       # T410/T411：缓存 → 本地 Piper → 浏览器；只读单词本身
       provider: ${VOCAB_TTS_PROVIDER:local}

@@ -266,7 +266,7 @@ class NotificationTest {
     }
 
     @Test
-    @DisplayName("发词通知：班级 + 老师 + 词集 + 截止时间都进正文；没有截止时间用另一套措辞")
+    @DisplayName("发词通知：标题「新的词集」；班级 + 老师 + 词集 + 截止时间进正文，称谓不重复")
     void rendersVocabAssignmentDetail() throws Exception {
         // 2026-11-30T07:00Z = 15:00 Asia/Shanghai（通知正文的截止时间按部署时区渲染）
         notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "VOCAB_ASSIGNMENT",
@@ -275,20 +275,27 @@ class NotificationTest {
                         "dueAt", "2026-11-30T07:00:00Z"))));
         notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "VOCAB_ASSIGNMENT",
                 "VOCAB_ASSIGNMENT", UUID.randomUUID().toString(), null, null,
-                Map.of("setName", "无截止词集", "teacher", "周杰伦老师", "className", "三年二班"))));
+                Map.of("setName", "无截止词集", "teacher", "JZ", "className", "三年二班"))));
 
         List<?> zhRows = getListLang(studentA, "/api/notifications", "zh-CN");
         List<?> zhVocab = zhRows.stream().map(row -> (Map<?, ?>) row)
                 .filter(row -> "VOCAB_ASSIGNMENT".equals(row.get("kind"))).toList();
         assertThat(zhVocab).hasSize(2);
+        assertThat(zhVocab.stream().map(row -> String.valueOf(((Map<?, ?>) row).get("title"))).toList())
+                .as("detail 变体也要有自己的标题键，否则标题是空的（T425）")
+                .containsOnly("新的词集");
         assertThat(bodyOf(zhVocab, "不规则动词预习"))
+                .as("显示名已带「老师」时不重复")
                 .isEqualTo("三年二班的周杰伦老师发来一组生词「不规则动词预习」，请在2026/11/30 15:00之前完成预习。");
         assertThat(bodyOf(zhVocab, "无截止词集"))
-                .isEqualTo("三年二班的周杰伦老师发来一组生词「无截止词集」，请在截止前完成预习。");
+                .as("显示名没带称谓时模板补上")
+                .isEqualTo("三年二班的JZ老师发来一组生词「无截止词集」，请在截止前完成预习。");
 
         List<?> enVocab = getListLang(studentA, "/api/notifications", "en").stream()
                 .map(row -> (Map<?, ?>) row)
                 .filter(row -> "VOCAB_ASSIGNMENT".equals(row.get("kind"))).toList();
+        assertThat(enVocab.stream().map(row -> String.valueOf(((Map<?, ?>) row).get("title"))).toList())
+                .containsOnly("New word set");
         assertThat(bodyOf(enVocab, "不规则动词预习"))
                 .contains("周杰伦老师").contains("三年二班").contains("不规则动词预习")
                 .contains("11/30/26").contains("3:00");

@@ -21,6 +21,8 @@
 - 模板放 `messages_zh_CN.properties` / `messages.properties`，键为 `notification.<kind>[.<variant>].title|body`；`variant` 目前用于 `offering_published` 的 `exam`/`assignment`、`feedback_published` 的 `scored`，以及 `vocab_assignment` 的 `detail`（带截止）/`detail_nodue`（不带截止）。
 - `NotificationEndpoint` 用 `LocaleContextHolder.getLocale()`（与错误文案同一套机制）渲染；前端零改动，仍显示 `title`/`body`。
 - 调用方只传 payload：`offering_published` 传 `{title, offeringKind}`，`scores_published` 传 `{title}`，`feedback_published` 传 `{title, score, total}`，`VOCAB_ASSIGNMENT` 传 `{setName, teacher, className, dueAt?}`（2026-10-24 起；早前的空 payload 行仍能用泛化模板渲染）。
+- `teacher` 存 `users.display_name` **原文**；渲染时按 `notification.vocab_assignment.teacherSuffix`（中文「老师」，英文为空）先去掉末尾已有的称谓再套模板，避免「周杰伦老师老师」（T425）。
+- 发词通知的 `detail` / `detail_nodue` 变体各自必须有 `.title` 键（「新的词集」/ "New word set"）：只定义 `.body` 时 `templateKey` 会拼出不存在的键，标题就渲染成空（T425 的实际故障）。
 - 模板参数按固定顺序传给 MessageFormat：`{0}` title、`{1}` score、`{2}` total、`{3}` count、`{4}` teacher、`{5}` className、`{6}` setName、`{7}` dueAt。**新参数只能追加**，插到前面会让老模板串位。
 - `dueAt` 在 payload 里是 ISO-8601 瞬间，正文里的时间按 `teachloop.notification.due-zone`（默认 `Asia/Shanghai`）渲染成短日期时间；不能用 JVM 默认时区——容器里通常是 UTC，学生会看到差 8 小时的时间。
 - `WorkItem` 增加 `offeringTitle`（由 `SittingLedgerImpl` 从快照带出），复核发布时用它拼「《作业名》的反馈已发布」。
