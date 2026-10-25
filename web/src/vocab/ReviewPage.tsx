@@ -20,6 +20,8 @@ import './vocab.css'
 interface QueueItem {
   id: string
   form: string
+  /** 词条语言（en/zh/es）：例句喇叭按它选音色（019，后端读路径补齐） */
+  language?: string
   content: {
     senses?: Array<{ pos?: string; zh?: string; en?: string }>
     examples?: Array<{ en?: string; zh?: string }>

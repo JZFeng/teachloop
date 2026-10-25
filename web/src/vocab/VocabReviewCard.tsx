@@ -9,6 +9,7 @@ import {
   StarOutlined,
 } from '../ui'
 import { SpeakerButton } from './SpeakerButton'
+import type { AudioLanguage } from './SpeakerButton'
 import { useVocabAudioConfig } from './audioConfig'
 
 export interface ReviewCardSense {
@@ -32,6 +33,8 @@ export interface ReviewCardContent {
 export interface ReviewCardWord {
   id: string
   form: string
+  /** 词条语言（en/zh/es…）：例句喇叭跟着它选后端音色与浏览器语音 */
+  language?: string
   favorite?: boolean
   content: ReviewCardContent | null
 }
@@ -79,6 +82,9 @@ export function VocabReviewCard({
   const { sentenceAudio } = useVocabAudioConfig()
   const content = word.content
   const phonetic = content?.phonetic
+  // 019：例句喇叭跟随词条语言，避免中文 / 西语词条被硬编码读成英文音。
+  const exampleLang: AudioLanguage =
+    word.language === 'zh' ? 'zh' : word.language === 'es' ? 'es' : 'en'
 
   return (
     <div
@@ -194,7 +200,7 @@ export function VocabReviewCard({
                         onClick={(event) => event.stopPropagation()}
                         onKeyDown={(event) => event.stopPropagation()}
                       >
-                        <SpeakerButton text={example.en} lang="en" compact variant="text" />
+                        <SpeakerButton text={example.en} lang={exampleLang} compact variant="text" />
                       </span>
                     )}
                   </div>

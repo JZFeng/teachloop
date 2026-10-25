@@ -220,6 +220,7 @@ export default function VocabWordDetailPage() {
             word={{
               id: detail.id ?? detail.form,
               form: detail.form,
+              language: detail.language,
               favorite: detail.favorite,
               content: detail.content,
             }}
