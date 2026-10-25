@@ -27,6 +27,15 @@
 | T319 | 侧栏导航图标（含 `/ui-kit` 图标清单、暗色当前项文字对比修正） | T305 | 截图 `nav-icons-{light,dark}.png`、`ui-kit-icons-{light,dark}.png`、`nav-focus-dark.png`；`check-ui` 125 处；`check-i18n` 1067 键；`contrast.py` 16 组；`tsc`/`build` 0；`make test` 209/0/0/0 | 完成 |
 | T354 | 所有弹层 Esc 可关（统一弹层栈） | T305 | 审计抽屉、放大编辑器（MarkdownEditor / VditorMarkdown）、交卷前检查、窄屏目录、完形/七选五选项都接 `ui/useEscapeClose`；栈逻辑单测 8/8；CDP 真键盘实测审计抽屉与放大编辑器 Esc 关闭、路由与表格不动（`docs/reports/t354-esc-dismiss/`）；`tsc`/`build`/`check-ui`/`check-i18n`/`contrast` 全绿 | 完成 |
 | T356 | 界面标准从侧栏导航收进资料页「偏好设置」（旧链接 `/ui-kit` 跳展开态） | T305 | 侧栏不再有 `/ui-kit` 入口（教师 7 项）；资料页偏好设置默认收起、可展开，`?panel=ui-kit` 可深链；`/ui-kit` 前端重定向到展开态；学生看不到该行；`tsc`/`build`/`check-ui`/`check-i18n`/`contrast` 全绿；CDP 实测 11 项 + 亮暗截图（`docs/reports/t356-ui-kit-in-profile/`） | 完成 |
+| T441 | 表格组件重写：`ui/DataTable.tsx` 换手写表体（表头排序 + 页脚 10/20/50/100 + 选择列 + 批量条 + 工具栏/空态插槽）；a11y（`scope`、`aria-sort`、键盘排序、全选半选）；`useListState` 迁到 `ui/` 并统一 `sort/dir/page/size`（读兼容 `pageSize`）；`tl-table*` 样式迁到 `ui/ui.css`；i18n 新键 | — | `pnpm typecheck` 0；界面标准面板能点到排序、翻页、改每页条数、全选/半选；`web/tests/list-state.test.mjs` 覆盖参数读写与旧参数兼容；`make check-ui` / `make check-i18n` 0 新增 | 未开始 |
+| T442 | 「我的词库」改用组件：列配置、过滤、StatCard、5s 轮询留在页面层；删掉页面内重复的表格与分页 markup | T441 | 改造前后截图一致；排序（`meaning→form`、`sources→createdAt`）、分页、每页条数写 URL；选中后批量暂停/删除可用；复习仍从选中词开始（AC-68.5） | 未开始 |
+| T443 | 12 个列表站点迁移 + 删除 `components/DataTable.tsx`（关闭 T310）+ 删 `PageSizePicker`（8 处）+ 学生反馈页卡片/表格共用 URL 状态 | T441 | `grep -rn "components/DataTable" web/src` 与 `grep -rn "PageSizePicker" web/src` 均为 0；12 页逐页截图；`pnpm typecheck` / `build` 0（AC-68.1–68.3） | 未开始 |
+| T444 | 其余数据列表并入：词集页 2 张表（词集表补排序/分页/选择/批量/URL）、发词预览、班级成员表；3 张只读分析表只统一视觉 | T441 | 词集页可排序/翻页/全选批量启停删；成员表与发词预览视觉一致；只读分析表无排序分页控件；编辑器/表单表 grep 确认未改动（AC-68.4、AC-68.6） | 未开始 |
+| T445 | 守卫与文档：`check-ui.py` 新增「页面不得自建列表表格」规则 + 基线重生成并人工 diff；002 AC-24.3/24.4 与 003 spec/plan 同步；`docs/DELIVERY-STATUS.md` 更新 | T443、T444 | `make check-ui` 通过且无文件的规则计数上升；四份文档计数自检通过；`make check-i18n` 0 新增（AC-68.6、AC-30.2） | 未开始 |
+| T446 | 逐页亮/暗截图与交付报告：15 屏 × 2 主题落 `docs/reports/2026-10-25-table-unify/`，报告列明未验证项 | T443、T444 | 截图与 `index.md` 存在，写明「改了什么 / 没改什么」；报告注明「无自动化视觉基线（T308 未完成）」（AC-30.3） | 未开始 |
+
+> 编号说明（2026-10-25）：T360–T362 已被 `specs/002-v2-platform/tasks.md` 占用、T363–T371 属
+> `specs/006-brand-visual`，故表格统一这组任务按**全局最大号**顺延为 T441–T446，不新增重复编号。
 
 ## 执行记录
 
