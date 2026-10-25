@@ -14,7 +14,7 @@ import type {
 } from '../api/types'
 import { AuditDrawer } from '../components/AuditDrawer'
 import { Markdown } from '../components/Markdown'
-import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard } from '../ui'
+import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard, useListState } from '../ui'
 import type { Column } from '../ui'
 
 /** 一道题在复核页上的展示状态：答对、部分对、答错、不自动判分。 */
@@ -65,6 +65,8 @@ function displayAnswer(answer: ReviewAnswer | undefined): string {
 
 export default function ReviewPage() {
   const { t } = useTranslation('translation')
+  // T443 / AC-68.3：队列表格的排序、页码、每页条数写进 URL（原来固定 10 条且翻页无效）
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(undefined, 10)
 
   // T244：/review?submissionId=xxx 直达。URL 里的 id 优先——即使它不在复核队列里
   // （已通过、已发布、未派发 AI 的提交）也要能打开，刷新后仍然停在同一个人。
@@ -300,8 +302,19 @@ export default function ReviewPage() {
       {!queue && !queueError && <Loading />}
       {queue && queue.length === 0 && <Empty>{t('review.emptyQueue')}</Empty>}
       {queue && queue.length > 0 && (
-        <DataTable rows={queue} columns={columns} rowKey={(r) => r.id} pageSize={10} empty={t('review.emptyQueue')}
-          onRowClick={(r) => openSubmission(r.submissionId)} />
+        <DataTable
+          rows={queue}
+          columns={columns}
+          rowKey={(r) => r.id}
+          sort={sort}
+          page={page}
+          pageSize={pageSize}
+          onSortChange={setSort}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          empty={t('review.emptyQueue')}
+          onRowClick={(r) => openSubmission(r.submissionId)}
+        />
       )}
 
       {!selected ? <p className="muted">{t('review.noDetail')}</p> : (
@@ -453,7 +466,7 @@ export default function ReviewPage() {
                     )}
                   </div>
                 )}
-                <table className="review-items">
+                <table className="review-items tl-table">
                   <thead>
                     <tr>
                       <th scope="col">#</th>

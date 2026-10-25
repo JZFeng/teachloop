@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import { Button, Empty, ErrorState, Loading, PageHeader, useConfirm, useToast } from '../ui'
+import { Button, DataTable, ErrorState, Loading, PageHeader, useConfirm, useListState, useToast } from '../ui'
+import type { Column } from '../ui'
 import './vocab.css'
 
 interface SetView {
@@ -38,9 +39,20 @@ export default function VocabSetsPage() {
   const [tab, setTab] = useState<Tab>('sets')
   const [sets, setSets] = useState<SetView[] | null>(null)
   const [records, setRecords] = useState<AssignmentView[] | null>(null)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<string[]>([])
   const [error, setError] = useState<Error | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
+  // T444 / AC-68.3：排序、页码、每页条数写进 URL；两个页签共用，切页签时回到第 1 页
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
+    { key: tab === 'sets' ? 'updatedAt' : 'createdAt', dir: 'desc' },
+    10,
+  )
+
+  const switchTab = (next: Tab) => {
+    setTab(next)
+    setSelected([])
+    setPage(1)
+  }
 
   const load = useCallback(async () => {
     setError(null)
@@ -58,7 +70,7 @@ export default function VocabSetsPage() {
 
   /** 启用/停用合并成一个切换按钮（2026-10-24 教师要求）：批量动作是可逆的，不再二次确认。 */
   const batch = async (action: 'ACTIVATE' | 'DEACTIVATE' | 'DELETE') => {
-    const ids = [...selected]
+    const ids = selected
     if (ids.length === 0) return
     if (action === 'DELETE') {
       const ok = await confirm({
@@ -72,7 +84,7 @@ export default function VocabSetsPage() {
     }
     await api.post('/api/vocab/sets/batch', { ids, action })
     toast.success(t('vocab.sets.batchDone', { count: ids.length }))
-    setSelected(new Set())
+    setSelected([])
     refresh()
   }
 
@@ -91,10 +103,73 @@ export default function VocabSetsPage() {
   if (tab === 'sets' && sets === null) return <Loading label={t('common.loading')} />
   if (tab === 'records' && records === null) return <Loading label={t('common.loading')} />
 
-  const allSelected = (sets?.length ?? 0) > 0 && sets!.every((set) => selected.has(set.id))
-  const selectedSets = (sets ?? []).filter((set) => selected.has(set.id))
+  const selectedSets = (sets ?? []).filter((set) => selected.includes(set.id))
   /** 切换方向以「选中项是否全部启用」判定：全部启用时点一下是停用，否则是启用。 */
   const allSelectedActive = selectedSets.length > 0 && selectedSets.every((set) => set.active)
+
+  const setColumns: Column<SetView>[] = [
+    { key: 'name', title: t('vocab.sets.name'), value: (set) => set.name, sortable: true },
+    { key: 'wordCount', title: t('vocab.sets.wordCount'), value: (set) => set.wordCount, sortable: true },
+    {
+      key: 'active',
+      title: t('vocab.sets.status'),
+      value: (set) => (set.active ? 1 : 0),
+      sortable: true,
+      render: (set) => <span className="chip">{set.active ? t('vocab.sets.active') : t('vocab.sets.inactive')}</span>,
+    },
+    { key: 'assignedClasses', title: t('vocab.sets.assignedClasses'), value: (set) => set.assignedClasses, sortable: true },
+    {
+      key: 'updatedAt',
+      title: t('vocab.sets.updatedAt'),
+      value: (set) => set.updatedAt,
+      sortable: true,
+      render: (set) => new Date(set.updatedAt).toLocaleString(),
+    },
+    {
+      key: 'actions',
+      title: t('vocab.sets.actions'),
+      value: () => '',
+      render: (set) => (
+        <Button size="small" onClick={() => navigate(`/vocab/sets/${set.id}`)}>{t('vocab.sets.update')}</Button>
+      ),
+    },
+  ]
+
+  const recordColumns: Column<AssignmentView>[] = [
+    { key: 'setName', title: t('vocab.sets.recordSet'), value: (record) => record.setName, sortable: true },
+    { key: 'classCount', title: t('vocab.sets.recordClasses'), value: (record) => record.classCount, sortable: true },
+    {
+      key: 'createdAt',
+      title: t('vocab.sets.recordSentAt'),
+      value: (record) => record.createdAt,
+      sortable: true,
+      render: (record) => new Date(record.createdAt).toLocaleString(),
+    },
+    {
+      key: 'dueAt',
+      title: t('vocab.sets.recordDue'),
+      value: (record) => record.dueAt ?? '',
+      sortable: true,
+      render: (record) => (record.dueAt ? new Date(record.dueAt).toLocaleString() : t('vocab.sets.noDue')),
+    },
+    {
+      key: 'claimed',
+      title: t('vocab.sets.recordClaimed'),
+      value: (record) => record.claimedCount,
+      sortable: true,
+      render: (record) => `${record.claimedCount} / ${record.recipientCount}`,
+    },
+    {
+      key: 'actions',
+      title: t('vocab.sets.actions'),
+      value: () => '',
+      render: (record) => (
+        <Button size="small" title={t('vocab.sets.copyHint')} onClick={() => void copyLink(record.id)}>
+          {t('vocab.sets.copyLink')}
+        </Button>
+      ),
+    },
+  ]
 
   return (
     <>
@@ -106,116 +181,51 @@ export default function VocabSetsPage() {
 
       <div className="row" style={{ gap: 8, marginBottom: 12 }}>
         <Button size="small" variant={tab === 'sets' ? 'primary' : 'default'}
-          onClick={() => { setTab('sets'); setSelected(new Set()) }}>
+          onClick={() => switchTab('sets')}>
           {t('vocab.sets.tabSets')}
         </Button>
         <Button size="small" variant={tab === 'records' ? 'primary' : 'default'}
-          onClick={() => { setTab('records'); setSelected(new Set()) }}>
+          onClick={() => switchTab('records')}>
           {t('vocab.sets.tabRecords')}
         </Button>
       </div>
 
       {tab === 'sets' ? (
-        <>
-          {selected.size > 0 && (
-            <div className="vocab-batch">
-              <span>{t('vocab.sets.selected', { count: selected.size })}</span>
-              <Button size="small"
-                onClick={() => void batch(allSelectedActive ? 'DEACTIVATE' : 'ACTIVATE')}>
+        <DataTable
+          rows={sets ?? []}
+          columns={setColumns}
+          rowKey={(set) => set.id}
+          sort={sort}
+          page={page}
+          pageSize={pageSize}
+          onSortChange={setSort}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          selection={{ selectedKeys: selected, onChange: setSelected }}
+          batchBar={(
+            <>
+              <span>{t('vocab.sets.selected', { count: selected.length })}</span>
+              <Button size="small" onClick={() => void batch(allSelectedActive ? 'DEACTIVATE' : 'ACTIVATE')}>
                 {allSelectedActive ? t('vocab.sets.deactivate') : t('vocab.sets.activate')}
               </Button>
               <Button size="small" variant="danger" onClick={() => void batch('DELETE')}>{t('vocab.sets.delete')}</Button>
-            </div>
+            </>
           )}
-
-          {(sets?.length ?? 0) === 0 ? <Empty>{t('vocab.sets.empty')}</Empty> : (
-            <div className="card" style={{ padding: 0, overflow: 'auto' }}>
-              <table className="vocab-table">
-                <thead>
-                  <tr>
-                    <th style={{ width: 34 }}>
-                      <input type="checkbox" aria-label={t('vocab.sets.selectAll')} checked={allSelected}
-                        onChange={() => setSelected(allSelected ? new Set() : new Set(sets!.map((set) => set.id)))} />
-                    </th>
-                    <th>{t('vocab.sets.name')}</th>
-                    <th>{t('vocab.sets.wordCount')}</th>
-                    <th>{t('vocab.sets.status')}</th>
-                    <th>{t('vocab.sets.assignedClasses')}</th>
-                    <th>{t('vocab.sets.updatedAt')}</th>
-                    <th>{t('vocab.sets.actions')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {sets!.map((set) => (
-                    <tr key={set.id} className={selected.has(set.id) ? 'is-selected' : undefined}>
-                      <td>
-                        <input type="checkbox" aria-label={set.name} checked={selected.has(set.id)}
-                          onChange={() => {
-                            const next = new Set(selected)
-                            if (next.has(set.id)) next.delete(set.id)
-                            else next.add(set.id)
-                            setSelected(next)
-                          }} />
-                      </td>
-                      <td>
-                        <span className="vocab-word" role="link" tabIndex={0}
-                          onClick={() => navigate(`/vocab/sets/${set.id}`)}
-                          onKeyDown={(event) => { if (event.key === 'Enter') navigate(`/vocab/sets/${set.id}`) }}>
-                          {set.name}
-                        </span>
-                      </td>
-                      <td>{set.wordCount}</td>
-                      <td><span className="chip">{set.active ? t('vocab.sets.active') : t('vocab.sets.inactive')}</span></td>
-                      <td>{set.assignedClasses}</td>
-                      <td>{new Date(set.updatedAt).toLocaleString()}</td>
-                      <td>
-                        <Button size="small" onClick={() => navigate(`/vocab/sets/${set.id}`)}>
-                          {t('vocab.sets.update')}
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </>
+          empty={t('vocab.sets.empty')}
+        />
       ) : (
-        (records?.length ?? 0) === 0 ? <Empty>{t('vocab.sets.recordsEmpty')}</Empty> : (
-          <div className="card" style={{ padding: 0, overflow: 'auto' }}>
-            <table className="vocab-table">
-              <thead>
-                <tr>
-                  <th>{t('vocab.sets.recordSet')}</th>
-                  <th>{t('vocab.sets.recordClasses')}</th>
-                  <th>{t('vocab.sets.recordSentAt')}</th>
-                  <th>{t('vocab.sets.recordDue')}</th>
-                  <th>{t('vocab.sets.recordClaimed')}</th>
-                  <th>{t('vocab.sets.actions')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {records!.map((record) => (
-                  <tr key={record.id}>
-                    <td>{record.setName}</td>
-                    <td>{record.classCount}</td>
-                    <td>{new Date(record.createdAt).toLocaleString()}</td>
-                    <td>{record.dueAt
-                      ? new Date(record.dueAt).toLocaleString()
-                      : t('vocab.sets.noDue')}</td>
-                    <td>{record.claimedCount} / {record.recipientCount}</td>
-                    <td>
-                      <Button size="small" title={t('vocab.sets.copyHint')}
-                        onClick={() => void copyLink(record.id)}>
-                        {t('vocab.sets.copyLink')}
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )
+        <DataTable
+          rows={records ?? []}
+          columns={recordColumns}
+          rowKey={(record) => record.id}
+          sort={sort}
+          page={page}
+          pageSize={pageSize}
+          onSortChange={setSort}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          empty={t('vocab.sets.recordsEmpty')}
+        />
       )}
     </>
   )

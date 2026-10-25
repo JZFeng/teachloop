@@ -5,7 +5,7 @@ import { isAIConfigured } from '../api/ai'
 import { api } from '../api/client'
 import {
   Button,
-  Empty,
+  DataTable,
   ErrorState,
   Input,
   Loading,
@@ -16,6 +16,7 @@ import {
   useConfirm,
   useToast,
 } from '../ui'
+import type { Column, SortState } from '../ui'
 import './vocab.css'
 
 type ColumnKey = 'form' | 'meaning' | 'sources' | 'state' | 'due' | 'actions'
@@ -72,7 +73,7 @@ interface Prefs {
 
 const DEFAULT_ORDER: ColumnKey[] = ['form', 'meaning', 'sources', 'state', 'due', 'actions']
 const ALL_COLUMNS: ColumnKey[] = DEFAULT_ORDER
-const PAGE_SIZES = [20, 50, 100]
+const PAGE_SIZES = [10, 20, 50, 100]
 
 function sourceValue(source: SourceView): string {
   if (source.kind === 'IMPORT' && source.batchId) return `IMPORT:${source.batchId}`
@@ -97,7 +98,7 @@ export default function VocabLibraryPage() {
 
   const q = params.get('q') ?? ''
   const page = Math.max(1, Number(params.get('page') ?? 1))
-  const size = PAGE_SIZES.includes(Number(params.get('size'))) ? Number(params.get('size')) : 20
+  const size = PAGE_SIZES.includes(Number(params.get('size'))) ? Number(params.get('size')) : 10
   const sort = params.get('sort') ?? 'dueAt'
   const dir = params.get('dir') ?? 'asc'
   const states = params.getAll('state')
@@ -114,7 +115,7 @@ export default function VocabLibraryPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<string[]>([])
   const [filterOpen, setFilterOpen] = useState(false)
   const [columnsOpen, setColumnsOpen] = useState(false)
   const [prefs, setPrefs] = useState<Prefs>({ order: DEFAULT_ORDER, hidden: [] })
@@ -148,7 +149,7 @@ export default function VocabLibraryPage() {
     setLoading(true)
     setError(null)
     api.get<WordPage>(`/api/vocab/words?${queryString}`)
-      .then((value) => { if (alive) { setData(value); setSelected(new Set()) } })
+      .then((value) => { if (alive) { setData(value); setSelected([]) } })
       .catch((loadError) => { if (alive) setError(loadError as Error) })
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
@@ -395,7 +396,7 @@ export default function VocabLibraryPage() {
   }
 
   const batch = async (action: 'PAUSE' | 'DELETE') => {
-    const ids = [...selected]
+    const ids = selected
     if (ids.length === 0) return
     const ok = await confirm({
       title: action === 'PAUSE' ? t('vocab.library.batchPauseTitle') : t('vocab.library.batchDeleteTitle'),
@@ -419,19 +420,12 @@ export default function VocabLibraryPage() {
     navigate(`/vocab/words/by-form/${encodeURIComponent(form)}`)
   }
 
-  const toggleSelected = (id: string) => {
-    const next = new Set(selected)
-    if (next.has(id)) next.delete(id)
-    else next.add(id)
-    setSelected(next)
-  }
-
-  const sortBy = (column: ColumnKey) => {
-    if (column === 'actions') return
-    update((next) => {
-      next.set('sort', column === 'meaning' ? 'form' : column === 'sources' ? 'createdAt' : column)
-      next.set('dir', sort === column && dir === 'asc' ? 'desc' : 'asc')
-      next.set('page', '1')
+  // T442：排序交给 DataTable，页面只把「列 → 服务端排序字段」翻译一次
+  const changeSort = (next: SortState) => {
+    update((prev) => {
+      prev.set('sort', next.key === 'meaning' ? 'form' : next.key === 'sources' ? 'createdAt' : next.key)
+      prev.set('dir', next.dir)
+      prev.set('page', '1')
     })
   }
 
@@ -443,6 +437,17 @@ export default function VocabLibraryPage() {
   const stateLabel = (word: WordItem) => word.paused
     ? t('vocab.library.state.PAUSED')
     : t(`vocab.library.state.${word.state}`)
+
+  const columnValue = (column: ColumnKey, word: WordItem): string | number => {
+    switch (column) {
+      case 'form': return word.form
+      case 'meaning': return meaningOf(word)
+      case 'sources': return word.sources.map((source) => source.label ?? source.kind).join(' ')
+      case 'state': return word.state
+      case 'due': return word.dueAt ?? ''
+      default: return ''
+    }
+  }
 
   const renderCell = (column: ColumnKey, word: WordItem) => {
     switch (column) {
@@ -508,8 +513,15 @@ export default function VocabLibraryPage() {
 
   const items = data?.items ?? []
   const total = data?.total ?? 0
-  const totalPages = Math.max(1, Math.ceil(total / size))
-  const allSelected = items.length > 0 && items.every((item) => selected.has(item.id))
+  // URL 里的 sort 是服务端字段名，表头要高亮的是列：createdAt → sources、dueAt → due
+  const sortColumn: ColumnKey = sort === 'createdAt' ? 'sources' : sort === 'dueAt' ? 'due' : (sort as ColumnKey)
+  const columns: Column<WordItem>[] = visibleColumns.map((column) => ({
+    key: column,
+    title: t(`vocab.library.columnsLabel.${column}`),
+    sortable: column !== 'actions',
+    value: (word) => columnValue(column, word),
+    render: (word) => renderCell(column, word),
+  }))
 
   if (loading) return <Loading label={t('common.loading')} />
   if (error) return <ErrorState error={error} onRetry={refresh} />
@@ -573,86 +585,41 @@ export default function VocabLibraryPage() {
         <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
       </div>
 
-      {selected.size > 0 && (
-        <div className="vocab-batch">
-          <span>{t('vocab.library.selected', { count: selected.size })}</span>
-          <Button size="small" onClick={() => void batch('PAUSE')}>{t('vocab.library.batchPause')}</Button>
-          <Button size="small" variant="danger" onClick={() => void batch('DELETE')}>{t('vocab.library.batchDelete')}</Button>
-          {items.some((word) => selected.has(word.id) && word.contentStatus === 'FAILED') && (
-            <Button size="small" onClick={() => void retryContent([...selected])}>
-              {t('vocab.library.batchRetry')}
-            </Button>
-          )}
-        </div>
-      )}
-
-      {items.length === 0 ? (
-        <Empty>
-          <div>{filterCount > 0 || q ? t('vocab.library.noMatch') : t('vocab.library.empty')}</div>
-          <div className="row" style={{ gap: 8, justifyContent: 'center', marginTop: 10 }}>
-            <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
-            <Button onClick={() => navigate('/vocab/add?tab=file')}>{t('vocab.library.import')}</Button>
-          </div>
-        </Empty>
-      ) : (
-        <div className="card" style={{ padding: 0, overflow: 'auto' }}>
-          <table className="vocab-table">
-            <thead>
-              <tr>
-                <th style={{ width: 34 }}>
-                  <input
-                    type="checkbox"
-                    aria-label={t('vocab.library.selectAll')}
-                    checked={allSelected}
-                    onChange={() => setSelected(allSelected ? new Set() : new Set(items.map((item) => item.id)))}
-                  />
-                </th>
-                {visibleColumns.map((column) => (
-                  <th key={column} className={column === 'actions' ? undefined : 'is-sortable'} onClick={() => sortBy(column)}>
-                    {t(`vocab.library.columnsLabel.${column}`)}
-                    {sort === column && column !== 'actions' ? (dir === 'asc' ? ' ↑' : ' ↓') : ''}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {items.map((word) => (
-                <tr key={word.id} className={selected.has(word.id) ? 'is-selected' : undefined}>
-                  <td>
-                    <input
-                      type="checkbox"
-                      aria-label={word.form}
-                      checked={selected.has(word.id)}
-                      onChange={() => toggleSelected(word.id)}
-                    />
-                  </td>
-                  {visibleColumns.map((column) => (
-                    <td key={column} className={column === 'actions' ? 'vocab-actions' : undefined}>
-                      {renderCell(column, word)}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div className="vocab-pager">
-        <Button size="small" disabled={page <= 1} onClick={() => update((next) => next.set('page', String(page - 1)))}>
-          {t('vocab.library.prev')}
-        </Button>
-        <span className="muted">{t('vocab.library.pageInfo', { page, pages: totalPages, total })}</span>
-        <Button size="small" disabled={page >= totalPages} onClick={() => update((next) => next.set('page', String(page + 1)))}>
-          {t('vocab.library.next')}
-        </Button>
-        <select
-          value={size}
-          onChange={(event) => update((next) => { next.set('size', event.target.value); next.set('page', '1') })}
-        >
-          {PAGE_SIZES.map((value) => <option key={value} value={value}>{value}</option>)}
-        </select>
-      </div>
+      <DataTable
+        rows={items}
+        columns={columns}
+        rowKey={(word) => word.id}
+        sort={{ key: sortColumn, dir: dir === 'desc' ? 'desc' : 'asc' }}
+        page={page}
+        pageSize={size}
+        total={total}
+        onSortChange={changeSort}
+        onPageChange={(next) => update((prev) => prev.set('page', String(next)))}
+        onPageSizeChange={(next) => update((prev) => {
+          prev.set('size', String(next))
+          prev.set('page', '1')
+        })}
+        selection={{ selectedKeys: selected, onChange: setSelected }}
+        batchBar={(
+          <>
+            <span>{t('vocab.library.selected', { count: selected.length })}</span>
+            <Button size="small" onClick={() => void batch('PAUSE')}>{t('vocab.library.batchPause')}</Button>
+            <Button size="small" variant="danger" onClick={() => void batch('DELETE')}>{t('vocab.library.batchDelete')}</Button>
+            {items.some((word) => selected.includes(word.id) && word.contentStatus === 'FAILED') && (
+              <Button size="small" onClick={() => void retryContent(selected)}>{t('vocab.library.batchRetry')}</Button>
+            )}
+          </>
+        )}
+        empty={(
+          <>
+            <div>{filterCount > 0 || q ? t('vocab.library.noMatch') : t('vocab.library.empty')}</div>
+            <div className="row" style={{ gap: 8, justifyContent: 'center', marginTop: 10 }}>
+              <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
+              <Button onClick={() => navigate('/vocab/add?tab=file')}>{t('vocab.library.import')}</Button>
+            </div>
+          </>
+        )}
+      />
 
       <Modal open={filterOpen} title={t('vocab.library.filterTitle')} onCancel={() => setFilterOpen(false)} footer={null}>
         <div className="vocab-filter-group">

@@ -3,15 +3,13 @@ import { useTranslation } from 'react-i18next'
 import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassView, OfferingView, ReportWrongItem, WrongItemsReport } from '../api/types'
-import { DataTable } from '../components/DataTable'
-import type { Column } from '../components/DataTable'
+import { DataTable, useListState } from '../ui'
+import type { Column } from '../ui'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
-import { useListState } from '../components/useListState'
 import {
   fmtNum,
   fmtRate,
   loadAggregates,
-  PageSizePicker,
   Tag,
   TeacherPage,
   useApiData,
@@ -48,9 +46,9 @@ interface ReportRow {
 export default function ReportsPage() {
   const { t } = useTranslation('translation')
   const [params, setParams] = useSearchParams()
-  const { sort, page, pageSize, setSort, setPage } = useListState(
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
     { key: 'dueAt', dir: 'desc' },
-    20,
+    10,
   )
 
   const { data, loading, error, reload } = useApiData<ReportsData>(async () => {
@@ -65,6 +63,8 @@ export default function ReportsPage() {
   const [wrongLoading, setWrongLoading] = useState(false)
   const [wrongError, setWrongError] = useState<Error | null>(null)
   const [wrongLimit, setWrongLimit] = useState(10)
+  const [wrongPage, setWrongPage] = useState(1)
+  const [wrongPageSize, setWrongPageSize] = useState(10)
 
   const offerings = data?.offerings ?? []
   const classes = data?.classes ?? []
@@ -130,6 +130,7 @@ export default function ReportsPage() {
       const query = new URLSearchParams({ offeringIds: offeringIds.join(','), limit: String(wrongLimit) })
       if (chosenClasses.size > 0) query.set('classIds', [...chosenClasses].join(','))
       setWrongReport(await api.get<WrongItemsReport>(`/api/reports/wrong-items?${query.toString()}`))
+      setWrongPage(1)
     } catch (e) {
       setWrongError(e as Error)
     } finally {
@@ -265,7 +266,6 @@ export default function ReportsPage() {
                 {t('teacher.reports.tableCount', { n: filtered.length })}
               </small>
             </h2>
-            <PageSizePicker pageSize={pageSize} />
           </div>
 
           {rows.length === 0 ? (
@@ -280,6 +280,7 @@ export default function ReportsPage() {
               pageSize={pageSize}
               onSortChange={setSort}
               onPageChange={setPage}
+              onPageSizeChange={setPageSize}
               empty={t('teacher.reports.filteredEmpty')}
             />
           )}
@@ -314,7 +315,10 @@ export default function ReportsPage() {
                     rows={wrongReport.items}
                     columns={wrongColumns}
                     rowKey={(r) => r.itemId}
-                    pageSize={wrongLimit}
+                    page={wrongPage}
+                    pageSize={wrongPageSize}
+                    onPageChange={setWrongPage}
+                    onPageSizeChange={(size) => { setWrongPageSize(size); setWrongPage(1) }}
                     empty={t('teacher.reports.wrongEmpty')}
                   />
                 )}

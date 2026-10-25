@@ -175,7 +175,7 @@ export default function VocabSetEditPage() {
           onChange={(event) => setText(event.target.value)} />
 
         {words.length === 0 ? <Empty>{t('vocab.sets.wordsEmpty')}</Empty> : (
-          <table className="vocab-table" style={{ marginTop: 12 }}>
+          <table className="tl-table" style={{ marginTop: 12 }}>
             <thead>
               <tr>
                 <th>{t('vocab.sets.word')}</th>

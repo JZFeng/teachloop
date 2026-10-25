@@ -4,12 +4,11 @@ import { api, fmtDateTime } from '../api/client'
 import type { ClassView, OfferingView, ReviewView } from '../api/types'
 import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard } from '../ui'
 import type { Column } from '../ui'
-import { useListState } from '../components/useListState'
+import { useListState } from '../ui'
 import {
   classNamesText,
   loadAggregates,
   OfferingStateTag,
-  PageSizePicker,
   TeacherPage,
   useApiData,
 } from './common'
@@ -30,9 +29,9 @@ export default function TeacherHomePage() {
   const { t } = useTranslation('translation')
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { sort, page, pageSize, setSort, setPage } = useListState(
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
     { key: 'dueAt', dir: 'desc' },
-    20,
+    10,
   )
 
   const { data, loading, error, reload } = useApiData<HomeData>(async () => {
@@ -244,7 +243,6 @@ export default function TeacherHomePage() {
                   {t('teacher.home.recent')}{' '}
                   <small className="muted">{t('teacher.home.recentSub')}</small>
                 </h2>
-                <PageSizePicker pageSize={pageSize} />
               </div>
               <DataTable
                 rows={filteredOfferings}
@@ -255,6 +253,7 @@ export default function TeacherHomePage() {
                 pageSize={pageSize}
                 onSortChange={setSort}
                 onPageChange={setPage}
+                onPageSizeChange={setPageSize}
                 onRowClick={(o) => navigate(`/grading/${o.id}`)}
                 empty={t('teacher.home.filteredEmpty')}
               />

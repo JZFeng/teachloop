@@ -14,7 +14,7 @@ import type {
 } from '../api/types'
 import { AuditDrawer } from '../components/AuditDrawer'
 import { AiCircuitBanner } from '../components/AiCircuitBanner'
-import { useListState } from '../components/useListState'
+import { useListState } from '../ui'
 import { useAiReadiness } from '../components/useAiReadiness'
 import { Alert, Button, DataTable, Empty, ErrorState, Field, Input, Loading, PageHeader, StatCard, Segmented } from '../ui'
 import type { Column } from '../ui'
@@ -22,7 +22,6 @@ import {
   errorMessage,
   fmtLate,
   fmtNum,
-  PageSizePicker,
   SubmissionStateTag,
   Tag,
   TeacherPage,
@@ -52,9 +51,9 @@ export default function GradingDetailPage() {
   const { offeringId = '' } = useParams()
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { sort, page, pageSize, setSort, setPage } = useListState(
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
     { key: 'submittedAt', dir: 'desc' },
-    20,
+    10,
   )
   const aiReadiness = useAiReadiness()
   const { me } = useAuth()
@@ -590,7 +589,6 @@ export default function GradingDetailPage() {
               {t('teacher.detail.tableTitle')}{' '}
               <small className="muted">{t('teacher.detail.tableSub')}</small>
             </h2>
-            <PageSizePicker pageSize={pageSize} />
           </div>
 
           <div className="card" style={{ padding: '10px 14px' }}>
@@ -623,6 +621,7 @@ export default function GradingDetailPage() {
               pageSize={pageSize}
               onSortChange={setSort}
               onPageChange={setPage}
+              onPageSizeChange={setPageSize}
               empty={t('teacher.detail.filteredEmpty')}
             />
           )}

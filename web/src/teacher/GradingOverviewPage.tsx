@@ -4,13 +4,12 @@ import { api, fmtDateTime } from '../api/client'
 import type { ClassView, OfferingView } from '../api/types'
 import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard, Segmented } from '../ui'
 import type { Column } from '../ui'
-import { useListState } from '../components/useListState'
+import { useListState } from '../ui'
 import { AiCircuitBanner } from '../components/AiCircuitBanner'
 import {
   classNamesText,
   loadAggregates,
   OfferingStateTag,
-  PageSizePicker,
   Tag,
   TeacherPage,
   useApiData,
@@ -37,9 +36,9 @@ export default function GradingOverviewPage() {
   const { t } = useTranslation('translation')
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
-  const { sort, page, pageSize, setSort, setPage } = useListState(
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
     { key: 'dueAt', dir: 'desc' },
-    20,
+    10,
   )
 
   const { data, loading, error, reload } = useApiData<OverviewData>(async () => {
@@ -254,7 +253,6 @@ export default function GradingOverviewPage() {
               {t('teacher.grading.tableTitle')}{' '}
               <small className="muted">{t('teacher.grading.tableSub')}</small>
             </h2>
-            <PageSizePicker pageSize={pageSize} />
           </div>
 
           <div className="card" style={{ padding: '10px 14px' }}>
@@ -289,6 +287,7 @@ export default function GradingOverviewPage() {
               pageSize={pageSize}
               onSortChange={setSort}
               onPageChange={setPage}
+              onPageSizeChange={setPageSize}
               onRowClick={(o) => navigate(`/grading/${o.id}`)}
               empty={t('teacher.grading.filteredEmpty')}
             />

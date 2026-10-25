@@ -266,28 +266,6 @@
 }
 
 /* T325：班级成员表——姓名是主信息，ID 缩在下面做核对用。 */
-.teacher-page .member-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-top: 8px;
-}
-.teacher-page .member-table th,
-.teacher-page .member-table td {
-  text-align: left;
-  padding: 8px 10px;
-  border-bottom: 1px solid var(--line-2);
-  vertical-align: top;
-}
-.teacher-page .member-table th {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--muted);
-  background: var(--panel-2);
-}
-.teacher-page .member-table td.numeric {
-  text-align: right;
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-}
 
 /* T340：预览改成编号清单（原有的 li display:flex 会把列表标记吃掉，用 counter 补回来）。 */
 .teacher-page .rubric-preview-list {

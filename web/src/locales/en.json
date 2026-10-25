@@ -199,7 +199,10 @@
     "save": "Save",
     "search": "Search",
     "sortHint": "Click to sort",
-    "total": "{{total}} in total"
+    "total": "{{total}} in total",
+    "pageSize": "Per page",
+    "selectAll": "Select all on this page",
+    "selectRow": "Select"
   },
   "editor": {
     "bold": "Bold",
@@ -1363,7 +1366,12 @@
       "brandContrast": "Contrast (light / dark)",
       "statusPass": "Pass",
       "statusPartial": "Partial",
-      "statusFail": "Fail"
+      "statusFail": "Fail",
+      "colName": "Name",
+      "colState": "State",
+      "colUpdated": "Updated",
+      "tableHint": "Sort by clicking a header, page with the footer, change rows per page, tick rows to show the batch bar — one table implementation for the whole app (T441).",
+      "tableSelected": "{{count}} selected"
     }
   },
   "eyebrow": {

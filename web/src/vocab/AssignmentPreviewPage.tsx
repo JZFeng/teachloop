@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../api/client'
-import { Button, Empty, ErrorState, Loading, PageHeader, useToast } from '../ui'
+import { Button, DataTable, ErrorState, Loading, PageHeader, useToast } from '../ui'
+import type { Column } from '../ui'
 import './vocab.css'
 
 interface Word {
@@ -72,6 +73,18 @@ export default function VocabAssignmentPreviewPage() {
   if (error) return <ErrorState error={error} onRetry={() => void load()} />
   if (!detail) return <Loading label={t('common.loading')} />
 
+  const previewRows = detail.words.map((word, index) => ({ ...word, rowNumber: index + 1 }))
+  const previewColumns: Column<(typeof previewRows)[number]>[] = [
+    { key: 'rowNumber', title: '#', value: (row) => row.rowNumber },
+    { key: 'form', title: t('vocab.assignment.word'), value: (row) => row.form },
+    {
+      key: 'band',
+      title: t('vocab.assignment.band'),
+      value: (row) => row.band ?? 0,
+      render: (row) => (row.band ? t('vocab.detail.familyBand', { count: row.band * 1000 }) : '—'),
+    },
+  ]
+
   return (
     <>
       <PageHeader title={detail.setName} sub={detail.note} actions={(
@@ -89,28 +102,12 @@ export default function VocabAssignmentPreviewPage() {
         {detail.expired && <span className="chip">{t('vocab.assignment.expired')}</span>}
       </div>
 
-      {detail.words.length === 0 ? <Empty>{t('vocab.assignment.empty')}</Empty> : (
-        <div className="card" style={{ padding: 0 }}>
-          <table className="vocab-table">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>{t('vocab.assignment.word')}</th>
-                <th>{t('vocab.assignment.band')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {detail.words.map((word, index) => (
-                <tr key={`${word.form}-${index}`}>
-                  <td>{index + 1}</td>
-                  <td>{word.form}</td>
-                  <td>{word.band ? t('vocab.detail.familyBand', { count: word.band * 1000 }) : '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      <DataTable
+        rows={previewRows}
+        columns={previewColumns}
+        rowKey={(row) => `${row.form}-${row.rowNumber}`}
+        empty={t('vocab.assignment.empty')}
+      />
 
       <div className="row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
         <Button onClick={() => navigate('/vocab/library')}>{t('vocab.assignment.back')}</Button>

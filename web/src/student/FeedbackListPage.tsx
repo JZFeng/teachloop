@@ -3,7 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { fmtDateTime } from '../api/client'
 import type { AttemptView, OfferingKind } from '../api/types'
-import { DataTable, type Column, type SortState } from '../components/DataTable'
+import { DataTable, useListState } from '../ui'
+import type { Column } from '../ui'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
 import { fmtScore } from '../exam/examUtils'
 import {
@@ -39,9 +40,11 @@ export default function FeedbackListPage() {
   const [rows, setRows] = useState<StudentRow[] | null>(null)
   const [error, setError] = useState<Error | null>(null)
   const [view, setView] = useState<ViewMode>(readView)
-  const [sort, setSort] = useState<SortState>({ key: 'submittedAt', dir: 'desc' })
-  const [page, setPage] = useState(1)
-  const pageSize = 10
+  // T443 / AC-68.3：排序、页码、每页条数写进 URL，卡片与表格两个视图共用同一套状态
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
+    { key: 'submittedAt', dir: 'desc' },
+    10,
+  )
 
   const load = useCallback(async () => {
     setError(null)
@@ -231,11 +234,9 @@ export default function FeedbackListPage() {
           sort={sort}
           page={page}
           pageSize={pageSize}
-          onSortChange={(next) => {
-            setSort(next)
-            setPage(1)
-          }}
+          onSortChange={setSort}
           onPageChange={setPage}
+          onPageSizeChange={setPageSize}
           onRowClick={(item) => navigate(`/feedback/${item.row.offering.id}`)}
           empty={t('student.feedbackEmpty')}
         />

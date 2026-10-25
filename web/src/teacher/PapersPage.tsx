@@ -4,8 +4,8 @@ import { api } from '../api/client'
 import type { PaperView } from '../api/types'
 import { Button, DataTable, Empty, ErrorState, Loading, PageHeader } from '../ui'
 import type { Column } from '../ui'
-import { useListState } from '../components/useListState'
-import { PageSizePicker, Tag, TeacherPage, useApiData } from './common'
+import { useListState } from '../ui'
+import { Tag, TeacherPage, useApiData } from './common'
 
 /**
  * 试卷库（T206 的前置 / T185 入口）。
@@ -14,7 +14,7 @@ import { PageSizePicker, Tag, TeacherPage, useApiData } from './common'
 export default function PapersPage() {
   const { t } = useTranslation('translation')
   const navigate = useNavigate()
-  const { sort, page, pageSize, setSort, setPage } = useListState(undefined, 20)
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(undefined, 10)
 
   const { data, loading, error, reload } = useApiData<PaperView[]>(
     () => api.get<PaperView[]>('/api/papers'),
@@ -132,7 +132,6 @@ export default function PapersPage() {
           <>
             <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
               <span className="small muted">{t('teacher.papers.orderHint')}</span>
-              <PageSizePicker pageSize={pageSize} />
             </div>
             <DataTable
               rows={papers}
@@ -143,6 +142,7 @@ export default function PapersPage() {
               pageSize={pageSize}
               onSortChange={setSort}
               onPageChange={setPage}
+              onPageSizeChange={setPageSize}
               onRowClick={(row) => navigate(`/papers/${row.id}`)}
               empty={t('teacher.common.empty')}
             />

@@ -2,14 +2,12 @@ import { useTranslation } from 'react-i18next'
 import { Link, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassSummaryView, ClassView, OfferingView } from '../api/types'
-import { DataTable } from '../components/DataTable'
-import type { Column } from '../components/DataTable'
+import { DataTable, useListState } from '../ui'
+import type { Column } from '../ui'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
-import { useListState } from '../components/useListState'
 import {
   fmtNum,
   fmtRate,
-  PageSizePicker,
   Tag,
   TeacherPage,
   useApiData,
@@ -30,9 +28,9 @@ export default function ClassSummaryPage() {
   const { t, i18n } = useTranslation('translation')
   const lang = i18n.language.startsWith('zh') ? 'zh-CN' : 'en'
   const { offeringId = '' } = useParams()
-  const { sort, page, pageSize, setSort, setPage } = useListState(
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
     { key: 'className', dir: 'asc' },
-    20,
+    10,
   )
 
   const { data, loading, error, reload } = useApiData<SummaryData>(async () => {
@@ -151,7 +149,6 @@ export default function ClassSummaryPage() {
               {t('teacher.summary.tableTitle')}{' '}
               <small className="muted">{t('teacher.summary.tableSub')}</small>
             </h2>
-            <PageSizePicker pageSize={pageSize} />
           </div>
 
           {rows.length === 0 ? (
@@ -166,6 +163,7 @@ export default function ClassSummaryPage() {
               pageSize={pageSize}
               onSortChange={setSort}
               onPageChange={setPage}
+              onPageSizeChange={setPageSize}
               empty={t('teacher.common.empty')}
             />
           )}
@@ -173,7 +171,7 @@ export default function ClassSummaryPage() {
           <div className="card">
             <h2>{t('teacher.summary.distributionTitle')}</h2>
             <div className="hint" style={{ marginBottom: 10 }}>{t('teacher.summary.distributionHint')}</div>
-            <table>
+            <table className="tl-table">
               <thead>
                 <tr>
                   <th>{t('teacher.summary.colClass')}</th>
@@ -202,7 +200,7 @@ export default function ClassSummaryPage() {
               <p className="muted">{t('teacher.summary.accuracyEmpty')}</p>
             ) : (
               <div style={{ maxHeight: 360, overflow: 'auto' }}>
-                <table>
+                <table className="tl-table">
                   <thead>
                     <tr>
                       <th>{t('teacher.summary.colClass')}</th>

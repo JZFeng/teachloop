@@ -199,7 +199,10 @@
     "save": "保存",
     "search": "搜索",
     "sortHint": "点击排序",
-    "total": "共 {{total}} 条"
+    "total": "共 {{total}} 条",
+    "pageSize": "每页",
+    "selectAll": "全选当前页",
+    "selectRow": "选择"
   },
   "editor": {
     "bold": "加粗",
@@ -1363,7 +1366,12 @@
       "brandContrast": "对比度（亮 / 暗）",
       "statusPass": "对",
       "statusPartial": "部分对",
-      "statusFail": "错"
+      "statusFail": "错",
+      "colName": "名称",
+      "colState": "状态",
+      "colUpdated": "更新时间",
+      "tableHint": "点表头排序、点页码翻页、改「每页」条数、勾选后出现批量条——表格只有这一个实现（T441）。",
+      "tableSelected": "已选 {{count}} 项"
     }
   },
   "eyebrow": {

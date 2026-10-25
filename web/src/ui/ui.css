@@ -135,7 +135,8 @@
   color: var(--muted-2);
 }
 
-/* 表格卡片：antd Table 外面那层容器，和旧 `.card` 视觉一致 */
+/* 列表表格（T441 / US-68）：全仓唯一实现，DOM 与样式都以「我的词库」原表格为准。
+   页面不再自带表格样式；只读表（班级汇总、复核逐题）也复用 `.tl-table` 的单元格规则。 */
 .tl-table-card {
   background: var(--panel);
   border: 1px solid var(--line);
@@ -143,8 +144,63 @@
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-.tl-table-card .ant-table {
-  background: transparent;
+.tl-table-scroll { overflow: auto; }
+.tl-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.tl-table th,
+.tl-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+.tl-table th { font-weight: 650; color: var(--muted); white-space: nowrap; }
+.tl-table tbody tr { transition: background 0.1s; }
+.tl-table tbody tr:hover { background: var(--panel-2); }
+.tl-table tbody tr.is-selected { background: var(--panel-2); }
+.tl-table tbody tr[tabindex] { cursor: pointer; }
+.tl-table tbody tr[tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.tl-table-select { width: 34px; }
+.tl-table-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: inherit;
+  cursor: pointer;
+}
+.tl-table-sort:hover { color: var(--text); }
+.tl-table-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.tl-table-sort-icon { color: var(--muted-2); font-size: 10px; }
+.tl-table-sort-icon.is-asc,
+.tl-table-sort-icon.is-desc { color: var(--accent-text); }
+.tl-table-pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--line);
+}
+.tl-table-pager-info { color: var(--muted); font-size: 12px; }
+.tl-table-pager-controls { display: flex; align-items: center; gap: 8px; }
+.tl-table-size { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
+.tl-table-size select { width: auto; padding: 2px 6px; }
+.tl-table-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 10px; }
+.tl-table-batch {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 10px;
 }
 
 /* 状态块 */

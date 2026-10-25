@@ -2,11 +2,10 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api, fmtDateTime } from '../api/client'
 import type { ClassView, OfferingView } from '../api/types'
-import { DataTable } from '../components/DataTable'
-import type { Column } from '../components/DataTable'
+import { DataTable, useListState } from '../ui'
+import type { Column } from '../ui'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
-import { useListState } from '../components/useListState'
-import { classNamesText, PageSizePicker, Tag, TeacherPage, useApiData } from './common'
+import { classNamesText, Tag, TeacherPage, useApiData } from './common'
 
 interface AssignmentsData {
   offerings: OfferingView[]
@@ -20,9 +19,9 @@ interface AssignmentsData {
 export default function AssignmentsPage() {
   const { t } = useTranslation('translation')
   const navigate = useNavigate()
-  const { sort, page, pageSize, setSort, setPage } = useListState(
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
     { key: 'dueAt', dir: 'desc' },
-    20,
+    10,
   )
 
   const { data, loading, error, reload } = useApiData<AssignmentsData>(async () => {
@@ -135,7 +134,6 @@ export default function AssignmentsPage() {
           <>
             <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
               <span className="small muted">{t('teacher.assignments.orderHint')}</span>
-              <PageSizePicker pageSize={pageSize} />
             </div>
             <DataTable
               rows={assignments}
@@ -146,6 +144,7 @@ export default function AssignmentsPage() {
               pageSize={pageSize}
               onSortChange={setSort}
               onPageChange={setPage}
+              onPageSizeChange={setPageSize}
               onRowClick={(row) => navigate(`/grading/${row.id}`)}
               empty={t('teacher.assignments.empty')}
             />

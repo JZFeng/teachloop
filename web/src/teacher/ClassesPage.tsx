@@ -3,13 +3,11 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import type { ClassMemberView, ClassView } from '../api/types'
-import { DataTable } from '../components/DataTable'
-import type { Column } from '../components/DataTable'
+import { DataTable, useListState } from '../ui'
+import type { Column } from '../ui'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
-import { useListState } from '../components/useListState'
 import {
   errorMessage,
-  PageSizePicker,
   Tag,
   TeacherPage,
   useApiData,
@@ -24,9 +22,9 @@ export default function ClassesPage() {
   const { t } = useTranslation('translation')
   const { me } = useAuth()
   const isStudent = me?.role === 'STUDENT'
-  const { sort, page, pageSize, setSort, setPage } = useListState(
+  const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
     { key: 'name', dir: 'asc' },
-    20,
+    10,
   )
 
   const { data, loading, error, reload } = useApiData<ClassView[]>(
@@ -46,6 +44,26 @@ export default function ClassesPage() {
 
   const classes = data ?? []
   const selectedClass = classes.find((c) => c.id === membersClassId) ?? null
+
+  // T444：成员列表也走统一表格（只读，不加排序，分页由组件自己管）
+  const memberColumns: Column<ClassMemberView>[] = [
+    {
+      key: 'name',
+      title: t('teacher.classes.colMemberName'),
+      value: (member) => member.displayName || t('teacher.classes.unnamedStudent'),
+      render: (member) => (
+        <>
+          <b>{member.displayName || t('teacher.classes.unnamedStudent')}</b>
+          <div className="small muted mono">{member.studentId}</div>
+        </>
+      ),
+    },
+    {
+      key: 'submissions',
+      title: t('teacher.classes.colMemberSubmissions'),
+      value: (member) => member.submissionCount,
+    },
+  ]
 
   const createClass = async () => {
     if (!name.trim()) {
@@ -256,7 +274,6 @@ export default function ClassesPage() {
               {t('teacher.classes.listTitle')}{' '}
               <small className="muted">{t('teacher.classes.count', { n: classes.length })}</small>
             </h2>
-            <PageSizePicker pageSize={pageSize} />
           </div>
 
           {classes.length === 0 ? (
@@ -271,6 +288,7 @@ export default function ClassesPage() {
               pageSize={pageSize}
               onSortChange={setSort}
               onPageChange={setPage}
+              onPageSizeChange={setPageSize}
               empty={t('teacher.common.empty')}
             />
           )}
@@ -291,25 +309,11 @@ export default function ClassesPage() {
                   {members.length === 0 ? (
                     <p className="muted">{t('teacher.classes.noMembers')}</p>
                   ) : (
-                    <table className="member-table">
-                      <thead>
-                        <tr>
-                          <th>{t('teacher.classes.colMemberName')}</th>
-                          <th>{t('teacher.classes.colMemberSubmissions')}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {members.map((member) => (
-                          <tr key={member.studentId}>
-                            <td>
-                              <b>{member.displayName || t('teacher.classes.unnamedStudent')}</b>
-                              <div className="small muted mono">{member.studentId}</div>
-                            </td>
-                            <td className="numeric">{member.submissionCount}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                    <DataTable
+                      rows={members}
+                      columns={memberColumns}
+                      rowKey={(member) => member.studentId}
+                    />
                   )}
                 </>
               )}

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { DependencyList, ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type {
   ClassSummaryView,
@@ -242,34 +241,4 @@ export function OfferingStateTag({
   }
   if (expected > progress.total) return <Tag tone="gray">{t('teacher.status.waitingSubmissions')}</Tag>
   return <Tag tone="gray">{t('teacher.status.inProgress')}</Tag>
-}
-
-/** T183 / AC-24.3：每页条数也写进 URL，刷新后保持一致。 */
-export function PageSizePicker({ pageSize }: { pageSize: number }) {
-  const { t } = useTranslation('translation')
-  const [, setParams] = useSearchParams()
-
-  const change = (size: number) => {
-    setParams((prev) => {
-      const next = new URLSearchParams(prev)
-      next.set('pageSize', String(size))
-      next.delete('page')
-      return next
-    })
-  }
-
-  return (
-    <label className="small muted" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-      {t('teacher.common.pageSize')}
-      <select
-        value={String(pageSize)}
-        onChange={(e) => change(Number(e.target.value))}
-        style={{ width: 'auto', padding: '4px 8px' }}
-      >
-        <option value="20">20</option>
-        <option value="50">50</option>
-        <option value="100">100</option>
-      </select>
-    </label>
-  )
 }

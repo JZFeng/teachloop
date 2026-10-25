@@ -210,14 +210,7 @@ const components: ThemeConfig['components'] = {
     fontWeight: 500,
     paddingInline: 14,
   },
-  Table: {
-    headerBg: 'var(--ant-color-fill-quaternary)',
-    headerColor: 'var(--ant-color-text-secondary)',
-    headerSplitColor: 'transparent',
-    cellPaddingBlock: 10,
-    cellPaddingInline: 14,
-    rowHoverBg: 'var(--ant-color-fill-quaternary)',
-  },
+  // Table 的组件覆盖随 T441 退场：列表表格不再由 antd 渲染，密度与表头样式在 ui.css 的 tl-table* 里。
   Card: { paddingLG: 18 },
   Input: { activeShadow: '0 0 0 3px var(--ant-color-primary-bg)' },
   Select: { optionSelectedBg: 'var(--ant-color-primary-bg)' },

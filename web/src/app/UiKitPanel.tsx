@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
@@ -36,11 +37,17 @@ interface DemoRow {
   updated: string
 }
 
-const DEMO_ROWS: DemoRow[] = [
+const BASE_ROWS: DemoRow[] = [
   { id: '1', name: 'demoRow1', state: 'grading', updated: '2026-10-20 09:24' },
   { id: '2', name: 'demoRow2', state: 'done', updated: '2026-10-19 21:10' },
   { id: '3', name: 'demoRow3', state: 'failed', updated: '2026-10-18 16:03' },
 ]
+
+/** 24 行只为让排序、翻页、每页条数真的可点（T441 验收要求能操作，不是静态摆拍）。 */
+const DEMO_ROWS: DemoRow[] = Array.from({ length: 24 }, (_, index) => ({
+  ...BASE_ROWS[index % BASE_ROWS.length],
+  id: String(index + 1),
+}))
 
 /** 图标清单：与 `ui/icons.tsx` 的导出一一对应，文案复用导航/通用 key。 */
 const ICON_DEMO: { key: string; icon: ReactNode }[] = [
@@ -69,12 +76,16 @@ const ICON_DEMO: { key: string; icon: ReactNode }[] = [
  */
 export function UiKitPanel() {
   const { t } = useTranslation('translation')
+  const [demoSort, setDemoSort] = useState<{ key: string; dir: 'asc' | 'desc' }>({ key: 'updated', dir: 'desc' })
+  const [demoPage, setDemoPage] = useState(1)
+  const [demoPageSize, setDemoPageSize] = useState(10)
+  const [demoSelected, setDemoSelected] = useState<string[]>([])
 
   const columns: Column<DemoRow>[] = [
-    { key: 'name', title: t('ui.kit.sectionTable'), value: (row) => t(`ui.kit.${row.name}`), sortable: true },
+    { key: 'name', title: t('ui.kit.colName'), value: (row) => t(`ui.kit.${row.name}`), sortable: true },
     {
       key: 'state',
-      title: t('ui.kit.sectionTag'),
+      title: t('ui.kit.colState'),
       value: (row) => row.state,
       render: (row) => (
         <Tag tone={row.state === 'done' ? 'green' : row.state === 'failed' ? 'red' : 'amber'}>
@@ -82,7 +93,7 @@ export function UiKitPanel() {
         </Tag>
       ),
     },
-    { key: 'updated', title: t('common.loading'), value: (row) => row.updated, sortable: true },
+    { key: 'updated', title: t('ui.kit.colUpdated'), value: (row) => row.updated, sortable: true },
   ]
 
   return (
@@ -148,7 +159,20 @@ export function UiKitPanel() {
       </Section>
 
       <Section title={t('ui.kit.sectionTable')}>
-        <DataTable rows={DEMO_ROWS} columns={columns} rowKey={(row) => row.id} pageSize={5} />
+        <p className="tl-demo-note">{t('ui.kit.tableHint')}</p>
+        <DataTable
+          rows={DEMO_ROWS}
+          columns={columns}
+          rowKey={(row) => row.id}
+          sort={demoSort}
+          page={demoPage}
+          pageSize={demoPageSize}
+          onSortChange={(next) => { setDemoSort(next); setDemoPage(1) }}
+          onPageChange={setDemoPage}
+          onPageSizeChange={(size) => { setDemoPageSize(size); setDemoPage(1) }}
+          selection={{ selectedKeys: demoSelected, onChange: setDemoSelected }}
+          batchBar={<span>{t('ui.kit.tableSelected', { count: demoSelected.length })}</span>}
+        />
       </Section>
 
       <Section title={t('ui.kit.sectionState')}>

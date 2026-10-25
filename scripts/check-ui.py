@@ -7,6 +7,7 @@
   3. ANTD_DIRECT       页面禁止直接 import antd / @ant-design/icons，只能从 ui/ 引
   4. LEGACY_BTN_CLASS  禁止手写 className="btn…"（应使用组件层 Button）
   5. EMOJI_ICON        禁止用 emoji 当图标（应使用 @ant-design/icons，经 ui/ 引出）
+  6. RAW_TABLE         页面不得新写 <table>（列表表格统一由 ui/DataTable 渲染，T441/US-68）
 
 存量用基线文件 `scripts/ui-baseline.txt`（格式 `路径|规则|数量`）冻结：
   - 基线内的数量可以下降，不能上升；
@@ -41,6 +42,7 @@ INLINE_COLOR_KEY = re.compile(
 ANTD_IMPORT = re.compile(r"from\s+['\"](antd|@ant-design/icons)")
 LEGACY_BTN = re.compile(r'className=\{?["`]([^"`]*\bbtn\b)')
 EMOJI = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf]")
+RAW_TABLE = re.compile(r"<table\b")
 
 RULE_HINT = {
     "COLOR_LITERAL": "颜色只能来自 web/src/ui/tokens.ts 或 web/src/styles/tokens.css",
@@ -48,6 +50,7 @@ RULE_HINT = {
     "ANTD_DIRECT": "页面请从 '../ui' 引组件，不要直接 import antd",
     "LEGACY_BTN_CLASS": "用 <Button variant=...>，不要手写 className=\"btn\"",
     "EMOJI_ICON": "图标用 @ant-design/icons（经 ui/ 引出），不要用 emoji",
+    "RAW_TABLE": "列表表格用 ui 的 DataTable；页面不再新写 <table>（T441）",
 }
 
 
@@ -74,6 +77,7 @@ def scan() -> dict[str, dict[str, int]]:
                 counts[rel]["ANTD_DIRECT"] += len(ANTD_IMPORT.findall(text))
                 counts[rel]["LEGACY_BTN_CLASS"] += len(LEGACY_BTN.findall(text))
                 counts[rel]["EMOJI_ICON"] += len(EMOJI.findall(text))
+                counts[rel]["RAW_TABLE"] += len(RAW_TABLE.findall(text))
     return {k: dict(v) for k, v in counts.items() if v}
 
 
