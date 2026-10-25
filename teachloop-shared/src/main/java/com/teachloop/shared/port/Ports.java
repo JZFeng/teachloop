@@ -176,6 +176,23 @@ public final class Ports {
 
         /** D-31：从 since 起失败的提交所涉及的作业创建者（熔断通知与重派范围用）。 */
         List<UUID> teacherIdsWithFailedGradingSince(Instant since);
+
+        /**
+         * 反馈通知的「哪个班、哪位老师」；查不到时返回字段为 null 的记录，不抛异常。
+         *
+         * <p>2026-10-25：学生要求反馈通知也写清班级与老师。班级归属在 sitting/classroom 的表里，
+         * grading 只能走端口问；查不到就回退泛化文案。
+         */
+        OfferingAudience audienceOf(UUID offeringId, UUID studentId);
+    }
+
+    /**
+     * 反馈通知展示用：这场布置里这个学生所在的班名与布置老师的显示名。
+     *
+     * @param className 学生在这批参与班里的第一个班；没有交集时为 null
+     * @param teacherName 布置老师的显示名原文（末尾自带的「老师」由通知读取侧去重）；查不到为 null
+     */
+    public record OfferingAudience(String className, String teacherName) {
     }
 
     /**

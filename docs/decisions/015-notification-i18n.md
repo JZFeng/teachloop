@@ -53,9 +53,10 @@ B 只修「写的时候猜对语言」：切语言后旧通知不变，改文案
 | `ai_not_ready` | `dueAt`（最早截止）、`waiting`（批次内 PENDING/RUNNING/QUEUED 份数） | `due`；缺字段回退原文案 |
 | `ai_circuit_open` | `provider`、`failures`（连续失败份数）、`errorKind`、`nextProbeAt` | 模板键 `notification.ai_circuit_open.*`；旧 `notification.aiCircuit.*` 与写入时拼接一起删除 |
 | `ai_circuit_close` | `provider`、`requeued` | 模板键 `notification.ai_circuit_close.*` |
-| `feedback_published` | 不改 | 已有作业名 + 得分/满分；grading 只有 ledger、没有班级/目录端口，加「哪个班」要新开端口，暂不做 |
+| `feedback_published` | `teacher`、`className`（经新增 `SittingLedger.audienceOf(offeringId, studentId)` 取：布置参与班与学生班级的交集 + 布置老师显示名） | `detail`（有班级与老师）/ `scored`（只有分）；都没有回退泛化文案 |
 
 - 模板参数**追加**到 {8}–{13}：`provider`、`failures`、`requeued`、`nextProbeAt`、`errorKind`、`waiting`；前面的 {0}–{7} 序号不动。
 - 缺参数的键传空串而不是 `null`：`MessageFormat` 会把 `null` 渲染成字面量「null」，「预计 null 自动试探」比少一句细节更糟。
 - `ai_not_ready` 的统计失败不阻断通知：`waiting`/`dueAt` 在 try/catch 里取，取不到就发原有事实。
 - 成绩只在提交已判完（`grading_state = DONE`）时写分数：没判完显示 0 分会误导学生。
+- 反馈通知的班级/老师走端口取，不在 grading 里 JOIN 别人的表：`Ports.OfferingAudience` 是只读记录，查不到返回 null 字段，发布失败路径不受影响（通知异常本来只记日志）。

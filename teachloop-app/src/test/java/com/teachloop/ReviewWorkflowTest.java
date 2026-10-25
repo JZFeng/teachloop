@@ -228,6 +228,10 @@ class ReviewWorkflowTest {
                 .as("反馈页的参数是布置 id，不是提交 id")
                 .isEqualTo(f.offeringId())
                 .isNotEqualTo(submissionId.toString());
+        // 2026-10-25：正文要写清哪个班、哪位老师，学生不用点进去也知道是哪一场
+        assertThat(String.valueOf(feedback.get("body")))
+                .as("反馈通知带班级与老师")
+                .contains("复核班").contains("示例老师");
     }
 
     private Map<?, ?> notificationOfKind(String cookie, String kind) throws Exception {

@@ -353,6 +353,31 @@ class NotificationTest {
     }
 
     @Test
+    @DisplayName("2026-10-25：反馈通知写明班级、老师与本次得分")
+    void rendersFeedbackDetailNotification() throws Exception {
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "feedback_published",
+                "offering", UUID.randomUUID().toString(), null, null,
+                Map.of("title", "第一次月考", "score", "8", "total", "10",
+                        "teacher", "周杰伦老师", "className", "三年二班"))));
+
+        Map<?, ?> zh = byKind(getListLang(studentA, "/api/notifications", "zh-CN"), "feedback_published");
+        assertThat(zh.get("title")).isEqualTo("反馈已发布：第一次月考");
+        assertThat(zh.get("body"))
+                .isEqualTo("三年二班的周杰伦老师发布了《第一次月考》的反馈，本次得分 8/10，可查看得分与评语。");
+
+        // 只有分数、没有班级/老师时仍要有分数（scored 变体），不能退回泛化文案
+        notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "feedback_published",
+                "offering", UUID.randomUUID().toString(), null, null,
+                Map.of("title", "第二次月考", "score", "6", "total", "10"))));
+        Map<?, ?> scored = getListLang(studentA, "/api/notifications", "zh-CN").stream()
+                .map(row -> (Map<?, ?>) row)
+                .filter(row -> "feedback_published".equals(row.get("kind")))
+                .filter(row -> String.valueOf(row.get("body")).contains("第二次月考"))
+                .findFirst().orElseThrow();
+        assertThat(scored.get("body")).isEqualTo("老师已发布《第二次月考》的反馈，本次得分 6/10，可查看得分与评语。");
+    }
+
+    @Test
     @DisplayName("2026-10-25：AI 未就绪通知写清待批改份数与最早截止时间")
     void rendersAiNotReadyDueNotification() throws Exception {
         notifications.notify(List.of(new Ports.NotificationMessage(studentAId, "ai_not_ready",

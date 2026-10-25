@@ -233,7 +233,10 @@ public class NotificationEndpoint {
             return has(payload, "dueAt") && has(payload, "waiting") ? "due" : null;
         }
         if ("feedback_published".equalsIgnoreCase(kind)) {
-            return payload.get("score") == null ? null : "scored";
+            if (!has(payload, "score")) {
+                return null;
+            }
+            return has(payload, "teacher") && has(payload, "className") ? "detail" : "scored";
         }
         if ("vocab_assignment".equalsIgnoreCase(kind)) {
             // 老行/老调用只有空 payload：走泛化文案，避免拼出「的null老师」。

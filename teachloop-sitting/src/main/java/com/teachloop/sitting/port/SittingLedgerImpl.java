@@ -24,16 +24,22 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
     private final OfferingRepository offerings;
     private final SnapshotCodec codec;
     private final Ports.StudentDirectory directory;
+    /** 反馈通知要写「哪个班」：布置的参与班在 sitting，班级名在 classroom。 */
+    private final OfferingClassRepository offeringClasses;
+    private final Ports.ClassMembership membership;
     private final Clock clock;
 
     public SittingLedgerImpl(SubmissionRepository submissions, ObjectiveAnswerRepository answers,
                              OfferingRepository offerings, SnapshotCodec codec,
-                             Ports.StudentDirectory directory, Clock clock) {
+                             Ports.StudentDirectory directory, OfferingClassRepository offeringClasses,
+                             Ports.ClassMembership membership, Clock clock) {
         this.submissions = submissions;
         this.answers = answers;
         this.offerings = offerings;
         this.codec = codec;
         this.directory = directory;
+        this.offeringClasses = offeringClasses;
+        this.membership = membership;
         this.clock = clock;
     }
 
@@ -80,6 +86,31 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
         Submission s = submissions.findById(submissionId).orElseThrow(() -> ApiException.notFound("提交不存在"));
         return new Ports.SubmissionScores(s.getId(), s.getSubmittedAt(), s.getObjectiveTotal(),
                 s.getSubjectiveTotal(), s.getGradingState().name());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Ports.OfferingAudience audienceOf(UUID offeringId, UUID studentId) {
+        String className = null;
+        List<UUID> studentClassIds = membership.classIdsOf(studentId);
+        if (!studentClassIds.isEmpty()) {
+            java.util.Set<UUID> mine = new java.util.HashSet<>(studentClassIds);
+            for (OfferingClass oc : offeringClasses.findByOfferingId(offeringId)) {
+                if (mine.contains(oc.getClassId())) {
+                    className = membership.classNames(List.of(oc.getClassId())).get(oc.getClassId());
+                    break;
+                }
+            }
+        }
+        Offering offering = offerings.findById(offeringId).orElse(null);
+        String teacherName = offering == null || offering.getCreatedBy() == null ? null
+                : directory.displayNames(List.of(offering.getCreatedBy())).get(offering.getCreatedBy());
+        return new Ports.OfferingAudience(blank(className), blank(teacherName));
+    }
+
+    /** 展示用字段：空白当没有，通知侧据此决定用带细节的模板还是泛化文案。 */
+    private static String blank(String value) {
+        return value == null || value.isBlank() ? null : value;
     }
 
     @Override

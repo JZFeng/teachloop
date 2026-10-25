@@ -348,6 +348,16 @@ public class ReviewEndpoint {
             BigDecimal score = scores.objectiveTotal().add(scores.subjectiveTotal());
             payload.put("score", plain(score));
             payload.put("total", plain(total));
+            // 2026-10-25：反馈通知也要写「哪个班的哪位老师」；查不到就只发原有事实（泛化文案）。
+            Ports.OfferingAudience audience = ledger.audienceOf(item.offeringId(), item.studentId());
+            if (audience != null) {
+                if (audience.className() != null) {
+                    payload.put("className", audience.className());
+                }
+                if (audience.teacherName() != null) {
+                    payload.put("teacher", audience.teacherName());
+                }
+            }
             notifications.notify(List.of(new Ports.NotificationMessage(item.studentId(),
                     "feedback_published", "offering", item.offeringId().toString(),
                     null, null, payload)));
