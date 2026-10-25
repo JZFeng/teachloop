@@ -4,37 +4,13 @@ import { useNavigate } from 'react-router-dom'
 import { api, ApiError, fmtDateTime } from '../api/client'
 import type { NotificationView } from '../api/types'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
+import { notificationRoute } from './notificationRoute'
 
 /** 未读数变更事件：通知页标已读后，侧边栏角标立刻跟着变，不用等 30 秒轮询。 */
 export const NOTIFICATIONS_CHANGED = 'teachloop:notifications-changed'
 
 export function notifyUnreadChanged() {
   window.dispatchEvent(new Event(NOTIFICATIONS_CHANGED))
-}
-
-/**
- * 通知要跳到哪个页面（T250）：target_type 由后端按目标对象给出。
- *
- * - `exam` / `assignment`：布置的 id，分别去考试页与作业页；
- * - `offering`：改造前的历史 target_type，按 kind 猜——成绩发布去反馈页，布置发布去作业页；
- * - `submission`：改造前的反馈通知存的是提交 id，反馈页要的是布置 id，退到反馈列表。
- */
-/**
- * 通知要跳到哪个页面（T250）。
- *
- * 先看 kind（决定「去哪类页面」），再看 target_type（决定「哪个具体页面」）：
- * - `feedback_published` / `scores_published`：都指向布置的反馈页 `/feedback/{offeringId}`；
- *   历史数据里 feedback_published 存过提交 id（target_type=submission），只能退到反馈列表。
- * - `offering_published`：exam → `/exams/{id}`，assignment（或改造前的 offering）→ `/assignments/{id}`。
- */
-export function notificationRoute(n: NotificationView): string | null {
-  if (!n.targetId) return null
-  if (n.kind === 'feedback_published' || n.kind === 'scores_published') {
-    return n.targetType === 'submission' ? '/feedback' : `/feedback/${n.targetId}`
-  }
-  if (n.targetType === 'exam') return `/exams/${n.targetId}`
-  if (n.targetType === 'assignment' || n.targetType === 'offering') return `/assignments/${n.targetId}`
-  return null
 }
 
 export default function NotificationsPage() {

@@ -60,3 +60,10 @@ B 只修「写的时候猜对语言」：切语言后旧通知不变，改文案
 - `ai_not_ready` 的统计失败不阻断通知：`waiting`/`dueAt` 在 try/catch 里取，取不到就发原有事实。
 - 成绩只在提交已判完（`grading_state = DONE`）时写分数：没判完显示 0 分会误导学生。
 - 反馈通知的班级/老师走端口取，不在 grading 里 JOIN 别人的表：`Ports.OfferingAudience` 是只读记录，查不到返回 null 字段，发布失败路径不受影响（通知异常本来只记日志）。
+
+## 2026-10-25 补：vocab 发词通知的「查看」按钮
+
+- **现象**：学生的 vocab 发词通知没有「查看」按钮，整卡也点不动。
+- **根因**：前端 `notificationRoute()` 大小写敏感，只认 `exam` / `assignment` / `offering` / `submission`；而 vocab 发射方写的是大写 `VOCAB_ASSIGNMENT`（`VocabularyAssignmentEndpoint.notifyStudents`），匹配不到就返回 `null`，而按钮与整卡点击都以 `route !== null` 为条件。
+- **改法**：把 route 判断抽成纯函数 `web/src/app/notificationRoute.ts`，`kind` 与 `targetType` 都转小写后再比，并新增 `vocab_assignment → /vocab/assignments/{id}`（学生预习/领取页，词集名、截止、逐词列表、加入词库都在那一页）。`web/tests/notification-route.test.mjs` 5 条守住大小写两种写法和既有跳转不回归。
+- **不改后端**：`target_type` 的历史行已是大写，前端容错即可；后端统一大小写属于另一次清理，不是本 bug 的必要条件。
