@@ -61,6 +61,22 @@ public class ReviewQueueEndpoint {
                             BigDecimal intervalDays, BigDecimal ease, boolean newCard) {
     }
 
+    /**
+     * 到期行的原始数据：内容先不解析。
+     *
+     * <p>队列可能一次扫出几千条到期卡再按 cap 截断；内容查找只对真正返回的卡片做，
+     * 避免按 content_id 为整条队列做无用查找（plan §4.1.6 命中路径目标）。
+     */
+    private record QueueRow(UUID id, String form, String language, Long contentId,
+                            String contentStatus, boolean favorite, String state, Instant dueAt,
+                            BigDecimal intervalDays, BigDecimal ease, boolean newCard) {
+
+        QueueItem toItem(JsonNode content) {
+            return new QueueItem(id, form, language, content, contentStatus, favorite, state,
+                    dueAt, intervalDays, ease, newCard);
+        }
+    }
+
     public record QueueView(List<QueueItem> items, int total, long todayReviewed, int remaining,
                             int newToday, boolean newLimitReached) {
     }
@@ -73,7 +89,7 @@ public class ReviewQueueEndpoint {
         int cap = Math.min(limit == null || limit <= 0 ? pageSize : limit, pageSize);
         int newCap = dailyNewCards;
 
-        List<QueueItem> due = jdbc.query("""
+        List<QueueRow> due = jdbc.query("""
                 select w.id, w.form, w.language, w.content_id, w.content_status, w.favorite,
                        p.state, p.due_at, p.interval_days, p.ease
                   from vocab_words w
@@ -81,11 +97,11 @@ public class ReviewQueueEndpoint {
                  where w.user_id = ? and w.language = ? and w.deleted = false and w.removed = false
                    and p.due_at <= ?
                  order by p.due_at asc, w.id asc
-                """, (rs, rowNumber) -> new QueueItem(
+                """, (rs, rowNumber) -> new QueueRow(
                         rs.getObject(1, UUID.class),
                         rs.getString(2),
                         rs.getString(3),
-                        ContentView.resolve(contentStore, rs.getObject(4, Long.class)),
+                        rs.getObject(4, Long.class),
                         rs.getString(5),
                         rs.getBoolean(6),
                         rs.getString(7),
@@ -96,23 +112,26 @@ public class ReviewQueueEndpoint {
                 me.id(), lang, Timestamp.from(clock.instant()));
 
         int newDueTotal = 0;
-        List<QueueItem> selected = new ArrayList<>();
+        List<QueueRow> selected = new ArrayList<>();
         int newSelected = 0;
-        for (QueueItem item : due) {
-            if (item.newCard()) {
+        for (QueueRow row : due) {
+            if (row.newCard()) {
                 newDueTotal++;
                 if (newSelected >= newCap || selected.size() >= cap) {
                     continue;
                 }
                 newSelected++;
-                selected.add(item);
+                selected.add(row);
             } else if (selected.size() < cap) {
-                selected.add(item);
+                selected.add(row);
             }
         }
         int remaining = due.size() - Math.max(0, newDueTotal - Math.min(newDueTotal, newCap));
         long todayReviewed = countReviewedToday(me.id());
-        return new QueueView(selected, due.size(), todayReviewed, remaining, newSelected,
+        List<QueueItem> items = selected.stream()
+                .map(row -> row.toItem(ContentView.resolve(contentStore, row.contentId())))
+                .toList();
+        return new QueueView(items, due.size(), todayReviewed, remaining, newSelected,
                 newDueTotal > newCap);
     }
 
