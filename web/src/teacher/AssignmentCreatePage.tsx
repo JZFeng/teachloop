@@ -3,9 +3,22 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassView, OfferingView } from '../api/types'
-import { Alert, Button, ErrorState, Field, Input, Loading, PageHeader, TextArea, UploadOutlined } from '../ui'
+import {
+  Alert,
+  Button,
+  ErrorState,
+  Field,
+  Input,
+  Loading,
+  PageHeader,
+  TextArea,
+  UploadOutlined,
+  useConfirm,
+  useToast,
+} from '../ui'
 import { errorMessage, fromLocalInput, TeacherPage, useApiData } from './common'
 import { RubricPreview } from '../components/RubricPreview'
+import { MARKDOWN_IMPORT_MAX_BYTES, readMarkdownFile } from './markdownImport'
 
 /** T339：Vditor 只在打开这一页时加载（含 Lute 引擎），不要把 600 kB 的编辑器塞进首屏。 */
 const VditorMarkdown = lazy(() => import('../components/VditorMarkdown'))
@@ -19,11 +32,18 @@ const VditorMarkdown = lazy(() => import('../components/VditorMarkdown'))
  * T325：评分标准一栏按教师反馈重做——不再预填示例（以前那段英文 2/4/4 rubric 与教师写的
  * 作业毫无关系，还会被误当成 AI 真会看到的东西）、「导入 .md」升成真按钮并挪到标签旁、
  * 两段长文本改成 Markdown 编辑器（AI 读的就是 Markdown，富文本会被后端白名单洗掉结构）。
+ *
+ * T422：题目要求也加同款导入（两个字段都是 Markdown，只导入一半没道理）；覆盖前先确认，
+ * 文件超过 1 MB / 为空 / 读不到各有提示——读取逻辑在 markdownImport.ts，不解析内容。
  */
 export default function AssignmentCreatePage() {
   const { t } = useTranslation('translation')
   const navigate = useNavigate()
-  const fileInputRef = useRef<HTMLInputElement>(null)
+  // 两个字段各一个 input：共用同一个 input 时要记「这次点的是哪个字段」，状态反而更绕。
+  const instructionsFileRef = useRef<HTMLInputElement>(null)
+  const rubricFileRef = useRef<HTMLInputElement>(null)
+  const confirm = useConfirm()
+  const toast = useToast()
 
   const { data, loading, error, reload } = useApiData<ClassView[]>(
     () => api.get<ClassView[]>('/api/classes'),
@@ -51,11 +71,44 @@ export default function AssignmentCreatePage() {
     )
   }
 
-  const importMarkdown = (file: File | undefined) => {
+  /**
+   * 导入 .md / .txt：只读文件、不解析内容，所以失败面只有三种——太大、空、读不到。
+   * 目标字段已有内容时先确认：写入会覆盖，且程序化改值会清掉编辑器的撤销栈。
+   */
+  const importMarkdown = async (
+    file: File | undefined,
+    current: string,
+    fieldLabel: string,
+    apply: (text: string) => void,
+  ) => {
     if (!file) return
-    void file.text().then((text) => {
-      setRubricMarkdown(text.replace(/\r\n/g, '\n'))
-    })
+    const result = await readMarkdownFile(file)
+    if (!result.ok) {
+      toast.error(
+        result.reason === 'tooLarge'
+          ? t('teacher.assignmentCreate.importTooLarge', {
+              max: MARKDOWN_IMPORT_MAX_BYTES / (1024 * 1024),
+            })
+          : result.reason === 'empty'
+            ? t('teacher.assignmentCreate.importEmpty')
+            : t('teacher.assignmentCreate.importUnreadable'),
+      )
+      return
+    }
+    if (current.trim() !== '') {
+      const ok = await confirm({
+        title: t('teacher.assignmentCreate.importOverwriteTitle'),
+        content: t('teacher.assignmentCreate.importOverwriteBody', {
+          name: file.name,
+          field: fieldLabel,
+        }),
+        okText: t('common.confirm'),
+        cancelText: t('common.cancel'),
+      })
+      if (!ok) return
+    }
+    apply(result.text)
+    toast.success(t('teacher.assignmentCreate.importDone', { name: file.name }))
   }
 
   const submit = async () => {
@@ -154,6 +207,15 @@ export default function AssignmentCreatePage() {
             required
             hint={t('teacher.assignmentCreate.instructionsHint')}
             htmlFor="assign-instructions"
+            extra={(
+              <Button
+                size="small"
+                icon={<UploadOutlined />}
+                onClick={() => instructionsFileRef.current?.click()}
+              >
+                {t('teacher.assignmentCreate.importMarkdown')}
+              </Button>
+            )}
           >
             <Suspense fallback={<div className="md-editor md-editor-loading">{t('editor.loading')}</div>}>
               <VditorMarkdown
@@ -166,6 +228,22 @@ export default function AssignmentCreatePage() {
                 heading={t('teacher.assignmentCreate.fieldInstructions')}
               />
             </Suspense>
+            <input
+              ref={instructionsFileRef}
+              id="assign-instructions-file"
+              type="file"
+              accept=".md,.markdown,.txt,text/markdown,text/plain"
+              hidden
+              onChange={(e) => {
+                void importMarkdown(
+                  e.target.files?.[0],
+                  instructions,
+                  t('teacher.assignmentCreate.fieldInstructions'),
+                  setInstructions,
+                )
+                e.target.value = ''
+              }}
+            />
           </Field>
 
           <Field
@@ -194,7 +272,7 @@ export default function AssignmentCreatePage() {
               <Button
                 size="small"
                 icon={<UploadOutlined />}
-                onClick={() => fileInputRef.current?.click()}
+                onClick={() => rubricFileRef.current?.click()}
               >
                 {t('teacher.assignmentCreate.importMarkdown')}
               </Button>
@@ -218,12 +296,18 @@ export default function AssignmentCreatePage() {
               />
             </Suspense>
             <input
-              ref={fileInputRef}
+              ref={rubricFileRef}
+              id="assign-rubric-file"
               type="file"
               accept=".md,.markdown,.txt,text/markdown,text/plain"
               hidden
               onChange={(e) => {
-                importMarkdown(e.target.files?.[0])
+                void importMarkdown(
+                  e.target.files?.[0],
+                  rubricMarkdown,
+                  t('teacher.assignmentCreate.fieldRubric'),
+                  setRubricMarkdown,
+                )
                 e.target.value = ''
               }}
             />
