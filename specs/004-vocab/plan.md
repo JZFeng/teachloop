@@ -44,6 +44,8 @@ teachloop-vocab（第 11 个模块）
 | `vocab_review_sessions` | `id uuid`、`user_id`、`scope jsonb`、`total`、`cursor`、`known_count`、`paused_count`（V049）、`status`(ACTIVE/ENDED)、`started_at/updated_at` | `index(user_id, status)` |
 | `vocab_user_prefs`（V047） | `user_id`(pk)、`table_columns jsonb`、`updated_at` | 列显示/顺序按学生保存（AC-59.5） |
 | `vocab_review_requests`（V048） | `user_id`、`idempotency_key`、`word_id`、`created_at`；主键 `(user_id, idempotency_key)` | 评分幂等（AC-53.6 / T405），重放不双写 |
+| `vocab_lists`（V064，US-69） | `id uuid`、`user_id`、`name varchar(80)`、`description varchar(200)` 可空、`position int`、`deleted bool`、`created_at/updated_at` | `unique(user_id, lower(name)) where not deleted`（AC-69.1 重名拒绝）、`index(user_id, deleted, position)` |
+| `vocab_list_items`（V064，US-69） | `id bigserial`、`list_id uuid`（FK→`vocab_lists` on delete cascade）、`word_id uuid`、`position int`、`added_at` | `unique(list_id, word_id)`（AC-69.2 同单不重复）、`index(list_id, position)`、`index(word_id)`；**不对 `word_id` 建外键**——词软删后引用保留，恢复后仍在词单（与 `vocab_review_logs` 同口径），归属由 `words.belongsTo` 在应用层校验 |
 
 ### 2.2 教师侧
 
@@ -294,6 +296,37 @@ P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` �
 | 存量 v1 内容 | 过渡期 UI 兼容渲染；下次 prepare 需要时按 v2 重生成（`schemaVersion` 区分） |
 | 语言档案未设置 | 使用默认 zh/en，不报错 |
 
+## 4.3 学生词单（US-69 / decisions/020）
+
+> 词单是**只引用词条**的容器：`vocab_words` 一份、`vocab_progress` 一份，词单里不存任何进度或排期。
+
+### 4.3.1 流程
+
+| 流程 | 步骤 | 失败路径 |
+| :--- | :--- | :--- |
+| 建单 | 校验名字（1–80，同学生未删除词单内不重名）→ 校验上限 `lists.max-per-student`（默认 100）→ 插 `vocab_lists` | 重名 409（库层唯一索引兜底）；超上限 409，前端禁用创建按钮（AC-69.4） |
+| 加词 | 按 `forms` 提交时先走「加词入库」（与查词页 `POST /api/vocab/words` 同一条路径）→ 取 `word_id` → `insert … on conflict (list_id, word_id) do nothing` | 词不属于本人 404；已存在返回 `duplicated`（幂等，AC-69.2）；词单已软删 404 |
+| 移出 | 删 `vocab_list_items` 行 | 只删引用；词条与进度不变（AC-69.3/62.6） |
+| 删单 | `vocab_lists.deleted = true` | 引用行保留（恢复词单时可用），查询按 `deleted = false` 过滤；词条与进度不动 |
+| 复习 | 取该词单内未暂停词的 `word_id` → `POST /api/vocab/review-sessions`（既有接口，`MAX_WORDS = 1000`） | 空/全部暂停时禁用按钮并提示（AC-69.7）；超过 1000 时按自由复习既有做法分批 |
+
+### 4.3.2 端口与依赖
+
+- 全部在 `teachloop-vocab` 内：`com.teachloop.vocab.lists`（Endpoint + Repository），不新增跨模块依赖。
+- 复习走既有会话端点，不复制卡片逻辑（`VocabReviewCard` 复用）。
+- 查询：`VocabularyWordsEndpoint` 增加可重复的 `list` 参数 → `VocabularyQueryRepository` 拼 `exists (select 1 from vocab_list_items i where i.list_id = any(...) and i.word_id = w.id)`，与其他条件取交集（AC-69.8）。
+
+### 4.3.3 容量与性能
+
+- 上限 100 份 × 每份 ≤1000 词 = 10 万引用行/学生；列表页 `wordCount` 用一次 `left join … group by`，不做 N+1。
+- 复习取词单词 id 时按 `(list_id, position)` 顺序读，单次上限 1000 与会话上限一致。
+
+### 4.3.4 测试
+
+- 后端 `VocabWordListTest`：重名 409、超上限 409、他人词单 404、重复加入幂等、删单后词条与进度行数不变、一个词进 3 份词单复习后 `vocab_progress` 仍 1 行且 `due_at` 只更新一次、软删词后引用保留。
+- 前端：列表页与详情页四态；`check-i18n` 中英 key 对齐；词库 `?list=` 筛选与 URL 还原。
+- 端到端：查词页 → 加入词单 → 词单详情 → 开始复习 → 评分 → 回到详情，`vocab_progress` 只一行。
+
 ## 5. TTS 缓存
 
 - 键：`sha256(normalized_form + "|" + provider + "|" + voice + "|" + rate)`；值：音频字节 + contentType。
@@ -411,7 +444,7 @@ P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` �
 
 | # | 检查项 | 结论 | 证据 |
 | :--- | :--- | :--- | :--- |
-| 1 | 每条 AC 都能指出由哪张表、哪个流程承接 | **是** | AC-46→§2.1/§7；47→§2.1 decks；48→§3/§7；49/50→§2.2；51→§2.2 recipients；52/53→§6；54→§2/§6；55→§2.1 removed；56→§8；57→§5；58→§2.1 language；59→§2.1/§6；60→§3/§4/§5；61→§6 会话 |
+| 1 | 每条 AC 都能指出由哪张表、哪个流程承接 | **是** | AC-46→§2.1/§7；47→§2.1 decks（2026-10-25 起暂缓，见 US-47 注记）；48→§3/§7；49/50→§2.2；51→§2.2 recipients；52/53→§6；54→§2/§6；55→§2.1 removed；56→§8；57→§5；58→§2.1 language；59→§2.1/§6；60→§3/§4/§5；61→§6 会话；**62→§2.1 `vocab_lists`/`vocab_list_items` + §4.3** |
 | 2 | 每个实体的表、字段、索引、状态迁移写全 | **是** | §2.1–2.4 |
 | 3 | 每条外部依赖都有失败与重试路径 | **是** | §8 八条 + §4 退避策略 |
 | 4 | 模块依赖无环、跨模块只走端口 | **是** | §1/§9；vocab 只依赖 shared/identity/classroom，无反向依赖 |
@@ -427,3 +460,5 @@ P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` �
 | 教师「已发出的布置」 | **已定** | 放在词集页的第二个 tab（不占一级导航），按时间倒序，可复制链接 |
 | 路由表与 i18n key 清单 | **留给 tasks** | 每个页面一条任务，key 前缀 `vocab.*`，中英同步 |
 | 词表 manifest 发布流程 | **已定** | `scripts/vocab/build-wordlist-index.py` 生成 → `make vocab-lexicon` 校验 sha256；产物不进 git，部署时构建阶段生成或挂卷 |
+| 学生词单入口（US-69，2026-10-25） | **已定** | 词库页工具条 → `/vocab/lists`（列表）、`/vocab/lists/:id`（详情）；**不新增一级导航**（AC-69.11）；文案前缀 `vocab.lists.*` |
+| 卡组视图（US-47） | **暂缓** | 表与 `deckId` 参数保留、不开接口与页面；学生分组由 US-69 承接（`decisions/020`） |
