@@ -4,19 +4,16 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import {
   Button,
-  DeleteOutlined,
   Empty,
   ErrorState,
   InfoCircleOutlined,
   Loading,
   PageHeader,
   Popover,
-  StarFilled,
-  StarOutlined,
   useConfirm,
   useToast,
 } from '../ui'
-import { SpeakerButton } from './SpeakerButton'
+import { VocabReviewCard } from './VocabReviewCard'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
@@ -445,8 +442,6 @@ export default function VocabReviewPage() {
     )
   }
 
-  const content = current.content
-  const phonetic = content?.phonetic
   const disabled = rated !== null
 
   return (
@@ -455,108 +450,15 @@ export default function VocabReviewPage() {
 
       <div className="review-stage review-stage--today">
         <div className="review-card-column">
-          <div
-            className={`review-card${flipped ? ' is-flipped' : ''}`}
-            role="button"
-            tabIndex={0}
-            aria-label={flipped ? t('vocab.review.back') : t('vocab.review.front')}
-            onClick={() => setFlipped((value) => !value)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') setFlipped((value) => !value)
-            }}
-          >
-            {/* T435：翻面后的「单词明细」是只读视图——删除只留在正面（AC-59.11） */}
-            {!flipped && (
-              <div className="review-card-tools">
-                <button
-                  type="button"
-                  className="review-icon-action is-danger"
-                  aria-label={t('vocab.library.delete')}
-                  title={`${t('vocab.library.delete')} · Delete`}
-                  onClick={(event) => { event.stopPropagation(); void removeCurrent() }}
-                >
-                  <DeleteOutlined />
-                </button>
-              </div>
-            )}
-
-            <div className="review-card-body">
-              {/* T435：音标 + 两个喇叭 + 收藏挪到单词同一行 */}
-              <div className="review-card-head">
-                <div className="review-word">{current.form}</div>
-                <div
-                  className="review-phonetic-row muted"
-                  onClick={(event) => event.stopPropagation()}
-                >
-                  <span className="review-phonetic">
-                    {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
-                    <SpeakerButton form={current.form} accent="uk" shortcut="u" compact variant="text" />
-                  </span>
-                  <span className="review-phonetic">
-                    {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
-                    <SpeakerButton form={current.form} accent="us" shortcut="a" compact variant="text" />
-                  </span>
-                  <button
-                    type="button"
-                    className={`review-icon-action${current.favorite ? ' is-on' : ''}`}
-                    aria-label={current.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')}
-                    aria-pressed={current.favorite}
-                    title={`${current.favorite ? t('vocab.library.unfavorite') : t('vocab.library.favorite')} · F`}
-                    onClick={(event) => { event.stopPropagation(); void toggleFavorite() }}
-                  >
-                    {current.favorite ? <StarFilled /> : <StarOutlined />}
-                  </button>
-                </div>
-              </div>
-              {flipped && (
-                <div className="review-back">
-                  {(content?.senses?.length ?? 0) > 0 && (
-                    <ul className="vocab-sense">
-                      {content!.senses!.map((sense, senseIndex) => (
-                        <li key={senseIndex}>
-                          {sense.pos && <span className="chip">{sense.pos}</span>} {sense.zh ?? sense.en}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  {(content?.examples?.length ?? 0) > 0 && (
-                    <div className="review-examples">
-                      {content!.examples!.map((example, exampleIndex) => (
-                        <div key={exampleIndex}>
-                          <div>{example.en}</div>
-                          {example.zh && <div className="muted">{example.zh}</div>}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {content?.analysis && <p className="muted">{content.analysis}</p>}
-                </div>
-              )}
-              {!flipped && <div className="review-hint muted">{t('vocab.review.showAnswer')}</div>}
-            </div>
-
-            {/* T435：明细（翻面）只用来查看，评分按钮只留在单词卡正面 */}
-            {!flipped && (
-              <div className="review-card-actions" onClick={(event) => event.stopPropagation()}>
-                <Button
-                  size="large"
-                  className="review-unknown"
-                  disabled={disabled}
-                  onClick={() => void submit('DONT_KNOW')}
-                >
-                  {t('vocab.review.unknown')}
-                </Button>
-                <Button
-                  size="large"
-                  variant="primary"
-                  disabled={disabled}
-                  onClick={() => void submit('KNOWN')}
-                >
-                  {t('vocab.review.known')}
-                </Button>
-              </div>
-            )}
-          </div>
+          <VocabReviewCard
+            word={current}
+            flipped={flipped}
+            onFlip={() => setFlipped((value) => !value)}
+            onToggleFavorite={() => void toggleFavorite()}
+            onDelete={() => void removeCurrent()}
+            onRate={(rating) => void submit(rating)}
+            ratingDisabled={disabled}
+          />
         </div>
 
         <Button

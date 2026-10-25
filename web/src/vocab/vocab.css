@@ -137,6 +137,17 @@
 .review-next.is-highlighted { opacity: 1; color: var(--on-accent); }
 .review-next.is-highlighted:hover { color: var(--on-accent); }
 
+/* T436：自由复习的「暂停这个词」与快捷键行，放在卡片下方居中 */
+.review-session-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px 14px;
+  margin-top: 12px;
+}
+.review-session-foot .review-keys { margin-top: 0; }
+
 /* T427：卡片右上角收藏/删除、音标旁喇叭、卡片底部两档评分 */
 .review-card-tools {
   position: absolute;

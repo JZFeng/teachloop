@@ -120,6 +120,7 @@ export default function VocabLibraryPage() {
   const [prefs, setPrefs] = useState<Prefs>({ order: DEFAULT_ORDER, hidden: [] })
   const [reviewableCount, setReviewableCount] = useState(0)
   const [pending, setPending] = useState<PendingAssignment | null>(null)
+  const [startingReview, setStartingReview] = useState(false)
   const [draft, setDraft] = useState({
     states: [] as string[], sources: [] as string[], tag: '', favorite: false, paused: false, due: false,
   })
@@ -186,10 +187,13 @@ export default function VocabLibraryPage() {
     if (dueFilter) query.set('due', 'true')
     if (tagFilter) query.set('tag', tagFilter)
     query.set('paused', 'false')
+    // T436：复习顺序跟随列表当前排序，点了哪一个就从哪一个往后
+    query.set('sort', sort)
+    query.set('dir', dir)
     query.set('size', '20')
     query.set('page', '1')
     return query.toString()
-  }, [q, states.join(','), sourceFilters.join(','), favorite, dueFilter, tagFilter])
+  }, [q, states.join(','), sourceFilters.join(','), favorite, dueFilter, tagFilter, sort, dir])
 
   useEffect(() => {
     let alive = true
@@ -319,22 +323,43 @@ export default function VocabLibraryPage() {
     refresh()
   }
 
-  const startFreeReview = async () => {
-    const ids: string[] = []
-    let pageNumber = 1
-    while (ids.length < Math.min(reviewableCount, 1000)) {
-      const value = await api.get<WordPage>(`/api/vocab/words?${reviewableQuery}&size=100&page=${pageNumber}`)
-      value.items.forEach((item) => ids.push(item.id))
-      if (value.items.length === 0 || ids.length >= value.total) break
-      pageNumber++
+  // T436：从词库点一个词 = 从该词开始复习当前筛选结果（与复习页同一张卡）
+  const startFreeReview = async (startWordId?: string) => {
+    if (startingReview) return
+    setStartingReview(true)
+    try {
+      const ids: string[] = []
+      let pageNumber = 1
+      let total = reviewableCount
+      for (;;) {
+        const value = await api.get<WordPage>(`/api/vocab/words?${reviewableQuery}&size=100&page=${pageNumber}`)
+        total = value.total
+        value.items.forEach((item) => ids.push(item.id))
+        if (value.items.length === 0 || ids.length >= Math.min(total, 1000)) break
+        pageNumber++
+      }
+      let scoped = ids.slice(0, 1000)
+      if (startWordId) {
+        const index = scoped.indexOf(startWordId)
+        if (index < 0) {
+          // 已暂停的词不进入复习范围（AC-61.1），别悄悄从列表头开始
+          toast.info(t('vocab.library.pausedNotReviewable'))
+          return
+        }
+        scoped = scoped.slice(index)
+      }
+      if (scoped.length === 0) {
+        toast.info(t('vocab.freeReview.empty'))
+        return
+      }
+      const session = await api.post<{ id: string }>('/api/vocab/review-sessions',
+        { wordIds: scoped, fromStart: !!startWordId })
+      navigate(`/vocab/review/session/${session.id}`)
+    } catch (startError) {
+      toast.error((startError as Error).message)
+    } finally {
+      setStartingReview(false)
     }
-    if (ids.length === 0) {
-      toast.info(t('vocab.freeReview.empty'))
-      return
-    }
-    const session = await api.post<{ id: string }>('/api/vocab/review-sessions',
-      { wordIds: ids.slice(0, 1000), fromStart: false })
-    navigate(`/vocab/review/session/${session.id}`)
   }
 
   const retryContent = async (ids: string[]) => {
@@ -427,9 +452,9 @@ export default function VocabLibraryPage() {
             className="vocab-word"
             role="link"
             tabIndex={0}
-            onClick={() => navigate(`/vocab/words/by-form/${encodeURIComponent(word.form)}`)}
+            onClick={() => void startFreeReview(word.id)}
             onKeyDown={(event) => {
-              if (event.key === 'Enter') navigate(`/vocab/words/by-form/${encodeURIComponent(word.form)}`)
+              if (event.key === 'Enter') void startFreeReview(word.id)
             }}
           >
             {word.form}
@@ -541,7 +566,7 @@ export default function VocabLibraryPage() {
         </Button>
         <Button onClick={() => setColumnsOpen(true)}>{t('vocab.library.columns')}</Button>
         <Button onClick={clearFilters}>{t('vocab.library.clear')}</Button>
-        <Button variant="primary" disabled={reviewableCount === 0} onClick={() => void startFreeReview()}>
+        <Button variant="primary" disabled={reviewableCount === 0 || startingReview} onClick={() => void startFreeReview()}>
           {t('vocab.library.reviewThese', { count: reviewableCount })}
         </Button>
         <Button onClick={() => navigate('/vocab/add?tab=file')}>{t('vocab.library.import')}</Button>

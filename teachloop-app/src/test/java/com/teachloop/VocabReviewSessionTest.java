@@ -117,6 +117,35 @@ class VocabReviewSessionTest {
         assertThat(summary.get("paused").asInt()).isEqualTo(1);
     }
 
+    @Test
+    @DisplayName("T436：当前卡带 favorite；SKIP 只推进游标，不记日志、不动排期")
+    void skipAndFavorite() throws Exception {
+        String base = base();
+        String cookie = login(base, "student@teachloop.local");
+        UUID userId = me(base, cookie);
+        commit(base, cookie, "sskipone, sskiptwo");
+        UUID one = wordId(userId, "sskipone");
+        UUID two = wordId(userId, "sskiptwo");
+        jdbc.update("update vocab_words set favorite = true where id = ?", one);
+
+        JsonNode created = post(base, cookie, "/api/vocab/review-sessions",
+                Map.of("wordIds", List.of(one, two), "fromStart", true));
+        UUID sessionId = UUID.fromString(created.get("id").asString());
+        JsonNode current = get(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/current");
+        assertThat(current.get("favorite").asBoolean()).isTrue();
+
+        JsonNode skipped = post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/advance",
+                Map.of("action", "SKIP"));
+        assertThat(skipped.get("cursor").asInt()).isEqualTo(1);
+        assertThat(skipped.get("done").asBoolean()).isFalse();
+        assertThat(jdbc.queryForObject(
+                "select count(*) from vocab_review_logs where session_id = ?", Integer.class, sessionId))
+                .isZero();
+        assertThat(jdbc.queryForObject(
+                "select count(*) from vocab_progress where word_id = ? and state = 'REVIEW'",
+                Integer.class, one)).isZero();
+    }
+
     private String base() {
         return "http://127.0.0.1:" + env.getProperty("local.server.port");
     }

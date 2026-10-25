@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { Button, Empty, ErrorState, Loading, PageHeader, useConfirm, useToast } from '../ui'
+import { VocabReviewCard } from './VocabReviewCard'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
@@ -16,6 +17,7 @@ interface SessionWord {
     phonetic?: { uk?: string; us?: string }
   } | null
   contentStatus: string
+  favorite?: boolean
   cursor: number
   total: number
 }
@@ -171,7 +173,19 @@ export default function VocabFreeReviewPage() {
     }
   }, [word, windowSize, sessionId, toast])
 
-  const advance = useCallback(async (action: 'KNOWN' | 'DONT_KNOW' | 'PAUSE') => {
+  const toggleFavorite = useCallback(async () => {
+    if (!word) return
+    const favorite = !word.favorite
+    try {
+      await api.put(`/api/vocab/words/${word.id}/favorite`, { favorite })
+      setWord((previous) => (previous ? { ...previous, favorite } : previous))
+      toast.success(favorite ? t('vocab.review.favoriteAdded') : t('vocab.review.favoriteRemoved'))
+    } catch (favoriteError) {
+      toast.error((favoriteError as Error).message)
+    }
+  }, [word, t, toast])
+
+  const advance = useCallback(async (action: 'KNOWN' | 'DONT_KNOW' | 'PAUSE' | 'SKIP') => {
     if (!word || busy) return
     setBusy(true)
     try {
@@ -218,11 +232,17 @@ export default function VocabFreeReviewPage() {
         void advance('KNOWN')
       } else if (event.key === 's' || event.key === 'S') {
         void advance('PAUSE')
+      } else if (event.key === 'n' || event.key === 'N' || event.key === 'ArrowRight') {
+        // T436：明细视图可跳过当前词，不评分、不动排期
+        void advance('SKIP')
+      } else if (event.key === 'f' || event.key === 'F') {
+        event.preventDefault()
+        void toggleFavorite()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [advance, preparing])
+  }, [advance, preparing, toggleFavorite])
 
   if (error) return <ErrorState error={error} onRetry={() => void load()} />
 
@@ -260,7 +280,7 @@ export default function VocabFreeReviewPage() {
         <PageHeader title={t('vocab.freeReview.title')}
           sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
           actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
-        <div className="review-stage">
+        <div className="review-stage review-stage--today">
           <div className="review-card-column">
             <div className="review-card">
               <div className="review-word">{word.form}</div>
@@ -289,7 +309,7 @@ export default function VocabFreeReviewPage() {
         <PageHeader title={t('vocab.freeReview.title')}
           sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
           actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
-        <div className="review-stage">
+        <div className="review-stage review-stage--today">
           <div className="review-card-column">
             <div className="review-card">
               <div className="review-word">{word.form}</div>
@@ -320,66 +340,39 @@ export default function VocabFreeReviewPage() {
     )
   }
 
-  const content = word.content
-  const phonetic = content?.phonetic
-
   return (
     <>
       <PageHeader title={t('vocab.freeReview.title')}
         sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
         actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
 
-      <div className="review-stage">
+      <div className="review-stage review-stage--today">
         <div className="review-card-column">
-          <div
-            className={`review-card${flipped ? ' is-flipped' : ''}`}
-            role="button"
-            tabIndex={0}
-            aria-label={flipped ? t('vocab.review.back') : t('vocab.review.front')}
-            onClick={() => setFlipped((value) => !value)}
-            onKeyDown={(event) => { if (event.key === 'Enter') setFlipped((value) => !value) }}
-          >
-            <div className="review-word">{word.form}</div>
-            {phonetic && (
-              <div className="row muted" style={{ gap: 12, justifyContent: 'center' }}>
-                <span>{t('vocab.detail.phoneticUk')} {phonetic.uk ?? '—'}</span>
-                <span>{t('vocab.detail.phoneticUs')} {phonetic.us ?? '—'}</span>
-              </div>
-            )}
-            {flipped && (
-              <div className="review-back">
-                {(content?.senses?.length ?? 0) > 0 && (
-                  <ul className="vocab-sense">
-                    {content!.senses!.map((sense, index) => (
-                      <li key={index}>
-                        {sense.pos && <span className="chip">{sense.pos}</span>} {sense.zh ?? sense.en}
-                      </li>
-                    ))}
-                  </ul>
-                )}
-                {(content?.examples?.length ?? 0) > 0 && (
-                  <div className="review-examples">
-                    {content!.examples!.map((example, index) => (
-                      <div key={index}>
-                        <div>{example.en}</div>
-                        {example.zh && <div className="muted">{example.zh}</div>}
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {content?.analysis && <p className="muted">{content.analysis}</p>}
-              </div>
-            )}
-            {!flipped && <div className="review-hint muted">{t('vocab.review.showAnswer')}</div>}
+          <VocabReviewCard
+            word={word}
+            flipped={flipped}
+            onFlip={() => setFlipped((value) => !value)}
+            onToggleFavorite={() => void toggleFavorite()}
+            onRate={(rating) => void advance(rating)}
+            ratingDisabled={busy}
+          />
+          <div className="review-session-foot">
+            <Button size="small" disabled={busy} onClick={() => void advance('PAUSE')}>
+              {t('vocab.freeReview.pause')}
+            </Button>
+            <span className="review-keys muted">{t('vocab.freeReview.keys')}</span>
           </div>
-
-          <div className="review-actions">
-            <Button disabled={busy} onClick={() => void advance('DONT_KNOW')}>{t('vocab.review.unknown')}</Button>
-            <Button variant="primary" disabled={busy} onClick={() => void advance('KNOWN')}>{t('vocab.review.known')}</Button>
-            <Button disabled={busy} onClick={() => void advance('PAUSE')}>{t('vocab.freeReview.pause')}</Button>
-          </div>
-          <div className="review-keys muted">{t('vocab.freeReview.keys')}</div>
         </div>
+
+        <Button
+          size="large"
+          className={`review-next${flipped ? ' is-highlighted' : ''}`}
+          variant={flipped ? 'primary' : 'default'}
+          disabled={busy}
+          onClick={() => void advance('SKIP')}
+        >
+          {t('vocab.review.next')}
+        </Button>
       </div>
     </>
   )

@@ -1440,6 +1440,7 @@
       "resume": "Resume",
       "delete": "Delete",
       "pausedToast": "Paused {{word}}",
+      "pausedNotReviewable": "This word is paused. Resume it before reviewing.",
       "resumedToast": "Resumed {{word}} (back to new)",
       "deletedToast": "Deleted",
       "deleteTitle": "Delete this word?",

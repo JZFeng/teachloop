@@ -64,7 +64,7 @@ public class ReviewSessionEndpoint {
     }
 
     public record CurrentWord(UUID id, String form, JsonNode content, String contentStatus,
-                              int cursor, int total) {
+                              boolean favorite, int cursor, int total) {
     }
 
     public record AdvanceRequest(String action, Integer elapsedMs) {
@@ -115,7 +115,7 @@ public class ReviewSessionEndpoint {
         return sessions.currentWord(wordId, me.id())
                 .map(row -> new CurrentWord(row.id(), row.form(),
                         row.contentJson() == null ? null : mapper.readTree(row.contentJson()),
-                        row.contentStatus(), session.cursor(), session.total()))
+                        row.contentStatus(), row.favorite(), session.cursor(), session.total()))
                 .orElse(null);
     }
 
@@ -139,6 +139,9 @@ public class ReviewSessionEndpoint {
                 }
                 pausedIncrement = 1;
             }
+            case "SKIP" -> {
+                // T436：明细视图的「下一个」——只推进游标，不记日志、不动排期
+            }
             case "KNOWN", "DONT_KNOW" -> {
                 submit.submit(new ReviewSubmitEndpoint.SubmitRequest(wordId, action,
                         request.elapsedMs(), id), null, me);
@@ -146,7 +149,7 @@ public class ReviewSessionEndpoint {
                     knownIncrement = 1;
                 }
             }
-            default -> throw ApiException.badRequest("action must be KNOWN, DONT_KNOW or PAUSE");
+            default -> throw ApiException.badRequest("action must be KNOWN, DONT_KNOW, PAUSE or SKIP");
         }
         int cursor = session.cursor() + 1;
         sessions.advance(id, cursor, knownIncrement, pausedIncrement, clock.instant());

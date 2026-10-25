@@ -1440,6 +1440,7 @@
       "resume": "恢复",
       "delete": "删除",
       "pausedToast": "已暂停 {{word}}",
+      "pausedNotReviewable": "这个词已暂停，恢复后才能开始复习。",
       "resumedToast": "已恢复 {{word}}（回到新词）",
       "deletedToast": "已删除",
       "deleteTitle": "删除这个词？",
