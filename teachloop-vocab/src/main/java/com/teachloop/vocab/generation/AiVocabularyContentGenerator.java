@@ -44,6 +44,8 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
     private static final int ERROR_BODY_LIMIT = 400;
     private static final int MAX_REASONING_TOKENS = 200;
     private static final int ATTEMPTS = 2;
+    /** 超过这个耗时打 INFO（AC-60.12 的 p90 在 8.7s 附近，留一点余量）。 */
+    private static final long SLOW_REQUEST_MS = 9_000;
 
     private final Ports.AiSettingsLookup settings;
     private final ContentPromptContract contract;
@@ -81,6 +83,7 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
                         .orElse(defaults.timeout());
         String endpoint = stripTrailingSlash(ai.baseUrl()) + "/chat/completions";
 
+        long startedAt = System.nanoTime();
         List<String> problems = new ArrayList<>();
         for (int attempt = 0; attempt < ATTEMPTS; attempt++) {
             double temperature = attempt == 0 ? defaults.temperature() : defaults.temperatureRetry();
@@ -106,10 +109,18 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
                 continue;
             }
             problems = ContentSchemaV2.validateAndClean(content, form, language,
-                    contract.exampleMin(), contract.exampleMax());
+                    contract.languages(), contract.exampleMin(), contract.exampleMax());
             if (problems.isEmpty()) {
-                log.debug("内容生成成功 word={} attempt={} prompt={}/{}",
-                        form, attempt + 1, contract.promptVersion(), contract.promptSha256());
+                long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+                // AC-60.12 要求 p50/p95 可观测：正常走 DEBUG，慢请求打 INFO 便于 grep
+                if (elapsedMs >= SLOW_REQUEST_MS) {
+                    log.info("内容生成偏慢 word={} {}ms examples={} prompt={}",
+                            form, elapsedMs, content.path("examples").size(), contract.promptVersion());
+                } else {
+                    log.debug("内容生成成功 word={} {}ms examples={} prompt={}/{}",
+                            form, elapsedMs, content.path("examples").size(),
+                            contract.promptVersion(), contract.promptSha256());
+                }
                 return mapper.writeValueAsString(content);
             }
             log.debug("内容不合格 word={} attempt={}：{}", form, attempt + 1, problems);

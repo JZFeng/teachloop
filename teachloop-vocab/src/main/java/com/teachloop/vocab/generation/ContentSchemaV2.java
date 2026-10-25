@@ -73,7 +73,7 @@ public final class ContentSchemaV2 {
      * @return 问题列表；为空表示内容可用（清洗后的结果已写回 {@code content}）
      */
     public static List<String> validateAndClean(ObjectNode content, String form, String language,
-                                                int minExamples, int maxExamples) {
+                                                List<String> languages, int minExamples, int maxExamples) {
         List<String> problems = new ArrayList<>();
         if (asInt(content, "schemaVersion", -1) != 2) {
             problems.add("schemaVersion != 2");
@@ -102,14 +102,14 @@ public final class ContentSchemaV2 {
             problems.add("meanings.en empty");
         }
 
-        problems.addAll(cleanExamples(content, form, language, minExamples, maxExamples));
+        problems.addAll(cleanExamples(content, form, language, languages, minExamples, maxExamples));
         problems.addAll(cleanFormation(content));
-        problems.addAll(cleanFamily(content, form));
+        problems.addAll(cleanFamily(content, form, languages));
         return problems;
     }
 
     private static List<String> cleanExamples(ObjectNode content, String form, String language,
-                                              int minExamples, int maxExamples) {
+                                              List<String> languages, int minExamples, int maxExamples) {
         List<String> problems = new ArrayList<>();
         JsonNode examples = content.path("examples");
         if (!examples.isArray() || examples.isEmpty()) {
@@ -158,7 +158,7 @@ public final class ContentSchemaV2 {
                 problems.add("examples[" + index + "].usagePattern empty");
             }
             JsonNode translations = node.path("translations");
-            for (String candidate : ContentSchemaV2.LANGUAGES_EXPECTED) {
+            for (String candidate : languages) {
                 if (candidate.equals(language)) {
                     continue;
                 }
@@ -170,9 +170,6 @@ public final class ContentSchemaV2 {
         }
         return problems;
     }
-
-    /** 目前只产 zh/en；扩展语言时与契约的 languages 保持一致。 */
-    private static final List<String> LANGUAGES_EXPECTED = List.of("zh", "en");
 
     private static List<String> cleanFormation(ObjectNode content) {
         List<String> problems = new ArrayList<>();
@@ -209,7 +206,7 @@ public final class ContentSchemaV2 {
         return problems;
     }
 
-    private static List<String> cleanFamily(ObjectNode content, String form) {
+    private static List<String> cleanFamily(ObjectNode content, String form, List<String> languages) {
         List<String> problems = new ArrayList<>();
         JsonNode family = content.path("wordFamily").path("items");
         if (!family.isArray()) {
@@ -245,7 +242,7 @@ public final class ContentSchemaV2 {
                 problems.add("wordFamily[" + index + "].partOfSpeech empty");
             }
             JsonNode meanings = node.path("meanings");
-            for (String candidate : LANGUAGES_EXPECTED) {
+            for (String candidate : languages) {
                 if (text(meanings, candidate).isBlank()) {
                     problems.add("wordFamily[" + index + "].meanings." + candidate + " empty");
                 }

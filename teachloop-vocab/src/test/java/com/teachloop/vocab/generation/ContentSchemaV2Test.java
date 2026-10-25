@@ -11,6 +11,8 @@ import tools.jackson.databind.node.ObjectNode;
 /** AC-60.9 / AC-60.12：v2 结构校验，噪音就地清洗，硬错误才退回重试。 */
 class ContentSchemaV2Test {
 
+    private static final List<String> LANGS = List.of("zh", "en");
+
     private final ObjectMapper mapper = new ObjectMapper();
 
     private ObjectNode sample(String word, int examples) {
@@ -55,7 +57,7 @@ class ContentSchemaV2Test {
 
     @Test
     void cleanRecordPasses() {
-        assertThat(ContentSchemaV2.validateAndClean(sample("apple", 6), "apple", "en", 1, 6)).isEmpty();
+        assertThat(ContentSchemaV2.validateAndClean(sample("apple", 6), "apple", "en", LANGS, 1, 6)).isEmpty();
     }
 
     @Test
@@ -65,7 +67,7 @@ class ContentSchemaV2Test {
         ((ObjectNode) examples.get(1)).put("text", "Rain fell all night.");
         ((ObjectNode) examples.get(1)).put("usagePattern", "rain falls");
 
-        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", 1, 6)).isEmpty();
+        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", LANGS, 1, 6)).isEmpty();
         assertThat(content.path("examples")).hasSize(2);
         assertThat(content.path("examples").get(0).path("popularity").asInt()).isEqualTo(1);
         assertThat(content.path("examples").get(1).path("popularity").asInt()).isEqualTo(2);
@@ -77,7 +79,7 @@ class ContentSchemaV2Test {
         ArrayNode examples = (ArrayNode) content.path("examples");
         ((ObjectNode) examples.get(1)).put("text", "Sentence 1 uses apple.");
 
-        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", 1, 6)).isEmpty();
+        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", LANGS, 1, 6)).isEmpty();
         assertThat(content.path("examples")).hasSize(1);
     }
 
@@ -90,7 +92,7 @@ class ContentSchemaV2Test {
         ((ObjectNode) examples.get(1)).put("text", "Snow fell.");
         ((ObjectNode) examples.get(1)).put("usagePattern", "snow");
 
-        List<String> problems = ContentSchemaV2.validateAndClean(content, "apple", "en", 1, 6);
+        List<String> problems = ContentSchemaV2.validateAndClean(content, "apple", "en", LANGS, 1, 6);
         assertThat(ContentSchemaV2.join(problems)).contains("no sentence contains the target word");
     }
 
@@ -98,7 +100,7 @@ class ContentSchemaV2Test {
     void irregularInflectionsCountAsTheWord() {
         ObjectNode content = sample("leaf", 1);
         ((ObjectNode) content.path("examples").get(0)).put("text", "The leaves turn red in autumn.");
-        assertThat(ContentSchemaV2.validateAndClean(content, "leaf", "en", 1, 6)).isEmpty();
+        assertThat(ContentSchemaV2.validateAndClean(content, "leaf", "en", LANGS, 1, 6)).isEmpty();
     }
 
     @Test
@@ -114,7 +116,7 @@ class ContentSchemaV2Test {
             ((ObjectNode) items.get(i)).putObject("meanings").put("zh", "释义").put("en", "meaning");
         }
 
-        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", 1, 6)).isEmpty();
+        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", LANGS, 1, 6)).isEmpty();
         ArrayNode cleaned = (ArrayNode) content.path("wordFamily").path("items");
         assertThat(cleaned).hasSize(2);
         assertThat(cleaned.get(0).path("word").asString()).isEqualTo("apples");
@@ -129,7 +131,7 @@ class ContentSchemaV2Test {
         parts.addObject().put("text", "apple").put("type", "root").put("meaning", "fruit");
         parts.addObject().put("text", "ap").put("type", "prefix");
 
-        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", 1, 6)).isEmpty();
+        assertThat(ContentSchemaV2.validateAndClean(content, "apple", "en", LANGS, 1, 6)).isEmpty();
         assertThat(content.path("wordFormation").path("parts")).hasSize(1);
     }
 
@@ -138,20 +140,20 @@ class ContentSchemaV2Test {
         ObjectNode missingEnglish = sample("apple", 6);
         ((ObjectNode) missingEnglish.path("meanings")).put("en", "");
         assertThat(ContentSchemaV2.join(
-                ContentSchemaV2.validateAndClean(missingEnglish, "apple", "en", 1, 6)))
+                ContentSchemaV2.validateAndClean(missingEnglish, "apple", "en", LANGS, 1, 6)))
                 .contains("meanings.en empty");
 
         ObjectNode wrongLanguage = sample("apple", 6);
         wrongLanguage.put("language", "es");
         assertThat(ContentSchemaV2.join(
-                ContentSchemaV2.validateAndClean(wrongLanguage, "apple", "en", 1, 6)))
+                ContentSchemaV2.validateAndClean(wrongLanguage, "apple", "en", LANGS, 1, 6)))
                 .contains("language mismatch");
 
         ObjectNode missingZh = sample("apple", 6);
         ObjectNode firstExample = (ObjectNode) missingZh.path("examples").get(0);
         ((ObjectNode) firstExample.path("translations")).put("zh", "");
         assertThat(ContentSchemaV2.join(
-                ContentSchemaV2.validateAndClean(missingZh, "apple", "en", 1, 6)))
+                ContentSchemaV2.validateAndClean(missingZh, "apple", "en", LANGS, 1, 6)))
                 .contains("translations.zh empty");
     }
 
