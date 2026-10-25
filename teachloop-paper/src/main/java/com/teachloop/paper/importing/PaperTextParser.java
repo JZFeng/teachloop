@@ -198,6 +198,19 @@ public final class PaperTextParser {
             "^(?:听下面|听第五段|听第[一二三四五六七八九十\\d]+段|听每段"
                     + "|阅读下面|阅读下列|阅读材料"
                     + "|在句子空白处|从每题所给|从短文后|请将答案|将答案写|选出可以|选出最佳)");
+    /** 分值说明行里允许的间隔字符：空白、括号与各种连接标点。 */
+    private static final String SCORE_SEP = "[\\s（()）【】\\[\\]、，,；;：:./|·—\\-]*";
+    /**
+     * 只由分值/题数词与连接标点组成的整行：{@code 每小题 1.5 分}、{@code 共 5 小题；每小题 1.5 分，满分 7.5 分}。
+     *
+     * <p>T456：这种排版说明行既不进材料也不进题干（正文里单独一行时尤其明显）。
+     * 普通英文句子（{@code They like each other}）里有词不在白名单，匹配不上，因此不会被误删。</p>
+     */
+    private static final Pattern SCORE_LINE = Pattern.compile(
+            "^" + SCORE_SEP + "(?:(?:共|每(?:小)?题|满分|总分|total|score|each|and|各|小题|题|"
+                    + "questions?|quiz(?:zes|s)?|items?|points?|pts?|分|" + NUMBER + ")"
+                    + SCORE_SEP + ")+$",
+            Pattern.CASE_INSENSITIVE);
     /**
      * 一个空。
      *
@@ -406,7 +419,7 @@ public final class PaperTextParser {
         List<DocumentTextExtractor.SourceLine> content = new ArrayList<>();
         for (DocumentTextExtractor.SourceLine line : sub.lines) {
             String text = strip(line.text());
-            if (text.isEmpty() || INSTRUCTION.matcher(text).find()) {
+            if (text.isEmpty() || INSTRUCTION.matcher(text).find() || isScoreOnlyLine(text)) {
                 continue;
             }
             content.add(new DocumentTextExtractor.SourceLine(line.number(), text));
@@ -775,7 +788,7 @@ public final class PaperTextParser {
         return lines.isEmpty() ? 1 : lines.get(0).number();
     }
 
-    /** 写作题题干 = 任务标题 + 正文（去掉纯下划线作答行与分页符）。 */
+    /** 写作题题干 = 任务标题 + 正文（去掉纯下划线作答行、分页符与纯分值说明行）。 */
     private static String writingStem(WritingTask task) {
         StringBuilder sb = new StringBuilder();
         if (!task.title.isBlank()) {
@@ -784,7 +797,7 @@ public final class PaperTextParser {
         for (DocumentTextExtractor.SourceLine line : task.body) {
             String text = strip(line.text());
             if (text.isEmpty() || BLANK_ANSWER_LINE.matcher(text).matches()
-                    || text.equalsIgnoreCase("newpage")) {
+                    || text.equalsIgnoreCase("newpage") || isScoreOnlyLine(text)) {
                 continue;
             }
             if (sb.length() > 0) {
@@ -1367,6 +1380,22 @@ public final class PaperTextParser {
             }
         }
         return null;
+    }
+
+    /**
+     * 整行只讲分值/题数时为 true：{@code 每小题 1.5 分}、
+     * {@code 共 5 小题；每小题 1.5 分，满分 7.5 分}。
+     *
+     * <p>这种行是排版说明，不进材料、不进题干（T456）；但必须真能读到一个分值/题数/满分数字，
+     * 否则「分」「题」这种孤立单字也会被当成说明行删掉。</p>
+     */
+    private static boolean isScoreOnlyLine(String text) {
+        if (text == null || text.isBlank() || !SCORE_LINE.matcher(text).matches()) {
+            return false;
+        }
+        return pointsOf(text) != null
+                || firstNumber(ITEM_COUNT_IN_TITLE, text) != null
+                || firstNumber(TOTAL_SCORE_IN_TITLE, text) != null;
     }
 
     private static String plain(BigDecimal value) {

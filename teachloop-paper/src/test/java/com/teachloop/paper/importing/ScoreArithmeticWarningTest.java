@@ -119,6 +119,26 @@ class ScoreArithmeticWarningTest {
                 assertThat(item.points()).isNull());
     }
 
+    @Test
+    @DisplayName("正文里的纯分值说明行不进题干")
+    void dropsTheScoreOnlyLineFromTheStem() {
+        PaperTextParser.Result result = parse("每小题 1.5 分");
+
+        assertThat(result.items()).hasSize(5);
+        assertThat(result.items().get(0).stem()).doesNotContain("每小题 1.5 分");
+    }
+
+    @Test
+    @DisplayName("普通英文句子不会被当成分值说明行删掉")
+    void keepsOrdinaryEnglishSentencesInTheMaterial() {
+        PaperTextParser.Result result = parseRaw("第一部分 听力\n"
+                + "They like each other.\n"
+                + "1. Question 1?\nA. a\nB. b\nC. c\n");
+
+        assertThat(result.items()).hasSize(1);
+        assertThat(result.items().get(0).stem()).contains("They like each other.");
+    }
+
     /** 一份 5 道题的最小卷子；小节标题由用例给定。 */
     private static PaperTextParser.Result parse(String subHeader) {
         StringBuilder raw = new StringBuilder("第一部分 听力\n").append(subHeader).append('\n');
@@ -126,7 +146,11 @@ class ScoreArithmeticWarningTest {
             raw.append(number).append(". Question ").append(number).append("?\n")
                     .append("A. a\nB. b\nC. c\n");
         }
+        return parseRaw(raw.toString());
+    }
+
+    private static PaperTextParser.Result parseRaw(String raw) {
         return PaperTextParser.parse(DocumentTextExtractor.extract("score.md",
-                raw.toString().getBytes(StandardCharsets.UTF_8)).lines());
+                raw.getBytes(StandardCharsets.UTF_8)).lines());
     }
 }
