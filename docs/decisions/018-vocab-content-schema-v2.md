@@ -1,0 +1,126 @@
+# 决策 018 — 词详情内容结构 v2：多语言、例句配置、可配置页面模板
+
+日期：2026-10-24　状态：方案待确认　相关：US-60、AC-60.x、AC-48.14、T432/T433
+输入：用户 2026-10-24 提供的 `word_detail_page` 样例 JSON 与语言/例句配置要求。
+
+## 1. 内容结构 v2（每条内容 = 一个词，语言无关的键）
+
+用户样例里的 `Chinese`/`English` 键改成 **ISO 语言代码**（`zh`/`en`/`es`），这样同一份内容
+能服务「中文母语学英语」「英文母语学中文」「中文母语学西班牙语」三种画像，显示顺序由用户档案决定。
+
+```json
+{
+  "schemaVersion": 2,
+  "word": "struggle",
+  "language": "en",
+  "basicInfo": {
+    "pronunciation": { "uk": "/ˈstrʌɡ(ə)l/", "us": "/ˈstrʌɡəl/" },
+    "partOfSpeech": ["verb", "noun"],
+    "image": null
+  },
+  "meanings": {
+    "zh": "奋斗；挣扎；努力；艰难的努力；斗争",
+    "en": "to try very hard to do something difficult; ..."
+  },
+  "examples": [
+    {
+      "text": "She struggled to open the jar.",
+      "translations": { "zh": "她费力地想打开罐子。" },
+      "partOfSpeech": "verb",
+      "usagePattern": "struggle to do something",
+      "popularity": 1
+    }
+  ],
+  "memoryAids": {
+    "synonyms": ["strive", "fight", "battle", "endeavor"],
+    "antonyms": ["surrender", "yield", "give up"],
+    "mnemonic": "struggle = strive + trouble：努力去做，但过程中有困难。",
+    "supplement": "注意区别：struggle to do 强调…；struggle with 强调…"
+  },
+  "wordFamily": {
+    "items": [
+      { "word": "struggled", "partOfSpeech": ["verb (past tense / past participle)"],
+        "meanings": { "zh": "奋斗了；挣扎了" } }
+    ]
+  }
+}
+```
+
+约定：
+
+- `language` 是**词本身**的语言（目标语言）；`meanings` / `translations` 的键是解释语言。
+- 例句 `text` 用目标语言，`translations` 至少含主语言；`partOfSpeech`、`usagePattern`、`popularity`
+  用于排序与展示；前端在 `text` 里高亮该词。
+- `examples` 至少返回 `AIRequestCount` 条（默认 6），页面默认显示 3 条，「More」再显示 3 条。
+- `schemaVersion` 每记录一份；ContentStore 只返回与配置一致的版本，换结构 = 出新包/新 prompt 版本。
+
+## 2. 语言档案（per user，不属于词内容）
+
+```json
+{
+  "mainLanguage": "zh",
+  "targetLanguage": "en",
+  "displayOrder": ["zh", "en"],
+  "languageLabels": { "zh": "Chinese", "en": "English", "es": "Spanish" }
+}
+```
+
+- 默认 `zh` + `en`，可在个人资料里改；支持第三种语言（如儿子学中文：main=en、target=zh；
+  学西语：main=zh、target=es）。
+- 存 vocab 自己的表 `vocab_language_profile(user_id, main_language, target_language, display_order jsonb)`，
+  不污染 identity 的 `users`；前端在个人资料页调用 vocab 的语言设置接口。
+- **缓存键与主语言无关**：内容按 `(target 语言, normalized_form)` 存；`meanings`/`translations`
+  默认生成 `teachloop.vocab.languages`（zh,en,es）三种，换主语言不需要重新生成。
+
+## 3. 例句配置（全局可调，per-word 可覆盖）
+
+```json
+{
+  "aiRequestCount": 6,
+  "defaultVisibleCount": 3,
+  "moreVisibleCount": 3,
+  "sortRule": "按词性常用度和用法常见度排序，常用动词用法优先，名词用法随后"
+}
+```
+
+- 作为 vocab 的 UI/生成配置（`vocab_ui_config` 行），管理员接口可改，改完前端下次请求生效（不改代码、不重启）。
+- 生成 prompt 里要求 AI 按 `sortRule` 给出 `popularity`；后端保存时按 `popularity` 稳定排序，展示时先 3 条。
+
+## 4. 词详情页面模板（不写死 section 顺序）
+
+```json
+{
+  "sections": [
+    { "key": "basicInfo",  "enabled": true },
+    { "key": "examples",   "enabled": true, "options": { "defaultVisible": 3, "moreVisible": 3 } },
+    { "key": "meanings",   "enabled": true, "options": { "order": "profile" } },
+    { "key": "memoryAids", "enabled": true },
+    { "key": "wordFamily", "enabled": true }
+  ]
+}
+```
+
+- 存 `vocab_ui_config(key='word_detail_template', value jsonb)`，管理员接口 `PUT /api/admin/vocab/ui-config`；
+  前端 `GET /api/vocab/ui-config/word-detail` 取模板后按顺序渲染。以后要把例句放最前、构词放后面，
+  改配置即可，不需要发版。
+- 词详情页/复习卡共用同一份内容，但卡面只取 `meanings` + 前 1–2 条例句（模板可配）。
+
+## 5. 与现有结构的关系
+
+| 现状 | v2 |
+| :--- | :--- |
+| `content.senses[{pos,zh,en}]` | `basicInfo.partOfSpeech` + `meanings{lang: text}` |
+| `content.examples[{en,zh}]` | `examples[{text, translations, partOfSpeech, usagePattern, popularity}]` |
+| `content.analysis` | `memoryAids.supplement`（构词/用法提示） |
+| `content.family[]` | `wordFamily.items[{word, partOfSpeech, meanings}]` |
+| `content.phonetic{uk,us}` | `basicInfo.pronunciation{uk,us}` |
+
+迁移：新预生成包直接按 v2 生成；存量 delta 的 v1 内容打 `schemaVersion:1`，UI 过渡期兼容渲染，
+或在下次 prepare 时按 v2 重新生成（用户后续定）。
+
+## 6. 待确认
+
+1. `meanings`/`translations` 生成范围：三种语言（推荐，缓存与主语言无关）还是只生成主+目标两种。
+2. 语言档案存 vocab 表（推荐）还是加在 users 表。
+3. 页面模板与例句配置：DB 配置 + 管理员接口（推荐，免发版）还是配置文件。
+4. 存量 v1 内容：兼容渲染还是按 v2 重新生成。
