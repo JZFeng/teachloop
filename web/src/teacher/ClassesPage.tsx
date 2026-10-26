@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import type { ClassMemberView, ClassView } from '../api/types'
-import { DataTable, useListState } from '../ui'
+import { DataTable, InlineNote, useListState } from '../ui'
 import type { Column } from '../ui'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
 import {
@@ -238,9 +238,9 @@ export default function ClassesPage() {
                 </button>
               </div>
               {actionError && (
-                <div className="hint" style={{ color: 'var(--red)' }}>
+                <InlineNote tone="error" style={{ marginTop: 6 }}>
                   {actionError}
-                </div>
+                </InlineNote>
               )}
               <div className="hint">{t('teacher.classes.joinHint')}</div>
             </div>
@@ -261,9 +261,9 @@ export default function ClassesPage() {
                 </button>
               </div>
               {actionError && (
-                <div className="hint" style={{ color: 'var(--red)' }}>
+                <InlineNote tone="error" style={{ marginTop: 6 }}>
                   {actionError}
-                </div>
+                </InlineNote>
               )}
               <div className="hint">{t('teacher.classes.createHint')}</div>
             </div>
@@ -298,7 +298,7 @@ export default function ClassesPage() {
               <h2>
                 {selectedClass.name} <small>{t('teacher.classes.membersTitle')}</small>
               </h2>
-              {membersError && <p className="inline-note">{membersError}</p>}
+              {membersError && <InlineNote tone="error">{membersError}</InlineNote>}
               {members === null && !membersError && <Loading label={t('teacher.common.loading')} />}
               {members !== null && (
                 <>

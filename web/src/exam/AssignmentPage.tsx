@@ -15,7 +15,7 @@ import type {
 import { RichTextEditor } from '../components/RichTextEditor'
 import { Markdown } from '../components/Markdown'
 import { ErrorState, Loading, PageHeader } from '../components/States'
-import { Button } from '../ui'
+import { Button, InlineNote } from '../ui'
 import { countWrittenWords, fmtScore } from './examUtils'
 import './exam.css'
 
@@ -332,7 +332,7 @@ export default function AssignmentPage() {
         {entry.rubric && entry.rubric.trim() ? (
           <Markdown className="md-body" text={entry.rubric} />
         ) : (
-          <div className="inline-note">{t('exam.rubricMissing')}</div>
+          <InlineNote tone="warning">{t('exam.rubricMissing')}</InlineNote>
         )}
       </div>
 
@@ -347,7 +347,7 @@ export default function AssignmentPage() {
               {busy ? t('exam.working') : t('exam.resubmit')}
             </button>
           )}
-          {!canStart && <p className="small muted">{t('exam.noAttemptsLeft')}</p>}
+          {!canStart && <InlineNote tone="warning">{t('exam.noAttemptsLeft')}</InlineNote>}
         </div>
       )}
 
@@ -489,7 +489,7 @@ export default function AssignmentPage() {
               </button>
             </>
           ) : (
-            <p className="small muted" style={{ marginTop: 0 }}>{t('exam.noAttemptsLeft')}</p>
+            <InlineNote tone="warning" style={{ marginTop: 0 }}>{t('exam.noAttemptsLeft')}</InlineNote>
           )}
         </div>
       )}

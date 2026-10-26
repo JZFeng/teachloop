@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import { Button, Empty, ErrorState, Loading, PageHeader, useConfirm, useToast } from '../ui'
+import { Button, Empty, ErrorState, InlineNote, Loading, PageHeader, useConfirm, useToast } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import { fetchLists } from './lists'
@@ -426,7 +426,7 @@ export default function VocabFreeReviewPage() {
                 </>
               ) : (
                 <>
-                  <div className="muted">{t('vocab.review.contentFailed')}</div>
+                  <InlineNote tone="error">{t('vocab.review.contentFailed')}</InlineNote>
                   <div className="review-actions">
                     <Button variant="primary" loading={retrying} onClick={() => void retryContent()}>
                       {t('vocab.review.retryContent')}

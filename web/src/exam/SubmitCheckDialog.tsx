@@ -1,5 +1,5 @@
 import { useTranslation } from 'react-i18next'
-import { useEscapeClose } from '../ui'
+import { useEscapeClose, InlineNote } from '../ui'
 import type { ExamPart } from './examUtils'
 
 interface SubmitCheckDialogProps {
@@ -90,7 +90,7 @@ export function SubmitCheckDialog({
           </div>
         )}
 
-        {error && <div className="inline-note" style={{ marginTop: 14 }}>{error}</div>}
+        {error && <InlineNote tone="error" style={{ marginTop: 14 }}>{error}</InlineNote>}
 
         <div className="mfoot">
           <button type="button" className="btn sm" disabled={submitting} onClick={onClose}>

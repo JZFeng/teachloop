@@ -18,6 +18,7 @@ import {
   FileTextOutlined,
   HighlightOutlined,
   HomeOutlined,
+  InlineNote,
   LogoutOutlined,
   RobotOutlined,
   SendOutlined,
@@ -138,7 +139,7 @@ export function Shell({ children }: { children: ReactNode }) {
                   {t('profile.aiMissingAction')}
                 </Button>
               )
-              : <span className="small muted">{t('profile.aiMissingTeacher')}</span>)}
+              : <InlineNote tone="warning" className="compact">{t('profile.aiMissingTeacher')}</InlineNote>)}
             <Button size="small" icon={<BellOutlined aria-hidden="true" />} onClick={() => navigate('/notifications')}>
               {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
             </Button>

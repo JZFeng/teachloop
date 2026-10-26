@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
+import { InlineNote } from '../ui'
 
 interface Status { needsAdmin: boolean; aiConfigured: boolean; aiModel: string }
 
@@ -32,14 +33,14 @@ export default function SetupPage() {
   }
 
   if (!status) {
-    return <div className="card"><h2>{t('app.setup.title')}</h2>{error ? <div className="inline-note danger">{error}</div> : <p className="muted">{t('app.setup.loading')}</p>}</div>
+    return <div className="card"><h2>{t('app.setup.title')}</h2>{error ? <InlineNote tone="error">{error}</InlineNote> : <p className="muted">{t('app.setup.loading')}</p>}</div>
   }
 
   return (
     <div className="card" style={{ maxWidth: 560, margin: '48px auto' }}>
       <h1>{t('app.setup.pageTitle')}</h1>
       <p className="small muted">{t('app.setup.sub')}</p>
-      {error && <div className="inline-note danger">{error}</div>}
+      {error && <InlineNote tone="error">{error}</InlineNote>}
       {done ? (
         <>
           <div className="inline-note">{t('app.setup.adminDone')}</div>

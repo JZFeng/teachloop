@@ -521,7 +521,7 @@ export default function GradingDetailPage() {
             )}
             {explainResult && (
               <Alert
-                type="success"
+                type={explainResult.failed > 0 ? 'warning' : 'success'}
                 showIcon
                 style={{ marginTop: 12 }}
                 message={t('teacher.detail.explanationReceipt')}

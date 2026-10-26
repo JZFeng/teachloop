@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next'
 import type { AttemptView, SubmitResponse } from '../api/types'
+import { InlineNote } from '../ui'
 import { fmtScore } from './examUtils'
 
 interface ExamResultProps {
@@ -60,7 +61,7 @@ export function ExamResult({
 
         <div className="card">
           <h2>{t('exam.resultWrongTitle')}</h2>
-          <div className="inline-note">{t('exam.resultWrongMissing')}</div>
+          <InlineNote tone="warning">{t('exam.resultWrongMissing')}</InlineNote>
         </div>
 
         <div className="result-actions">

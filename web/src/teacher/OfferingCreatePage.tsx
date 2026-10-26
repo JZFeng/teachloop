@@ -4,6 +4,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassView, OfferingView, PaperView } from '../api/types'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
+import { InlineNote } from '../ui'
 import {
   errorMessage,
   fromLocalInput,
@@ -348,9 +349,9 @@ export default function OfferingCreatePage() {
               </div>
 
               {formError && (
-                <div className="inline-note" style={{ borderLeftColor: 'var(--red)', marginTop: 12 }}>
+                <InlineNote tone="error" style={{ marginTop: 12 }}>
                   {formError}
-                </div>
+                </InlineNote>
               )}
 
               <div className="row" style={{ marginTop: 14 }}>

@@ -5,6 +5,7 @@ import { api, fmtDateTime, fmtDuration } from '../api/client'
 import { trackEvent } from '../api/events'
 import type { AttemptView, EntryView, MyAttemptsView, SessionView } from '../api/types'
 import { ErrorState, Loading, PageHeader } from '../components/States'
+import { InlineNote } from '../ui'
 import './exam.css'
 
 /**
@@ -203,7 +204,7 @@ export default function ExamEntryPage() {
                 {starting ? t('exam.starting') : t('exam.retryStart')}
               </button>
             ) : (
-              <p className="small muted">{t('exam.noAttemptsLeft')}</p>
+              <InlineNote tone="warning">{t('exam.noAttemptsLeft')}</InlineNote>
             )}
           </>
         )}
@@ -219,15 +220,15 @@ export default function ExamEntryPage() {
               </>
             )}
             {!entry.canStart && individual && (
-              <p className="small muted" style={{ marginTop: 0 }}>{t('exam.startNotAllowed')}</p>
+              <InlineNote tone="warning" style={{ marginTop: 0 }}>{t('exam.startNotAllowed')}</InlineNote>
             )}
             {!individual && (
               <div>
                 <div className="inline-note">{entry.notice || t('exam.fixedWindowNotice')}</div>
-                {lockedOnly && <p className="small muted">{t('exam.lockedNote')}</p>}
+                {lockedOnly && <InlineNote tone="warning">{t('exam.lockedNote')}</InlineNote>}
               </div>
             )}
-            {lockedOnly && individual && <p className="small muted">{t('exam.lockedNote')}</p>}
+            {lockedOnly && individual && <InlineNote tone="warning">{t('exam.lockedNote')}</InlineNote>}
           </div>
         )}
 

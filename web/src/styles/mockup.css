@@ -124,9 +124,12 @@ tr:last-child td{border-bottom:0}
 .inline-note{background:var(--panel-2); border-left:3px solid var(--accent); padding:10px 13px;
   font-size:12.5px; color:var(--muted); border-radius:0 var(--radius-sm) var(--radius-sm) 0;
   margin-bottom:14px; line-height:1.65}
-.inline-note.ok{border-left-color:var(--green)}
-.inline-note.err{border-left-color:var(--red)}
-.inline-note.warn{border-left-color:var(--amber)}
+/* 语义色：只在边框上用色等于没上色，文字与底色一起给（2026-10-25）。 */
+.inline-note.ok{border-left-color:var(--green); background:var(--green-weak); color:var(--green)}
+.inline-note.err{border-left-color:var(--red); background:var(--red-weak); color:var(--red)}
+.inline-note.warn{border-left-color:var(--amber); background:var(--amber-weak); color:var(--amber)}
+/* 顶栏那种横向窄位：不占整行，也不要那 14px 下边距。 */
+.inline-note.compact{display:inline-block; margin:0; padding:3px 10px; font-size:12px; line-height:1.5}
 
 details{border:1px solid var(--line); border-radius:var(--radius-sm); padding:12px 14px;
   margin-bottom:10px; background:var(--panel)}

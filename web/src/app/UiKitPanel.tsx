@@ -18,6 +18,7 @@ import {
   HighlightOutlined,
   SyncOutlined,
   HomeOutlined,
+  InlineNote,
   Loading,
   LogoutOutlined,
   MoonOutlined,
@@ -155,6 +156,15 @@ export function UiKitPanel() {
           <Tag tone="red">failed</Tag>
           <Tag tone="blue">queued</Tag>
           <Tag>draft</Tag>
+        </div>
+      </Section>
+
+      <Section title={t('ui.kit.sectionNote')}>
+        <div className="tl-kit-notes">
+          <InlineNote tone="error">{t('ui.kit.demoError')}</InlineNote>
+          <InlineNote tone="warning">{t('ui.kit.demoWarn')}</InlineNote>
+          <InlineNote tone="success">{t('ui.kit.demoOk')}</InlineNote>
+          <InlineNote>{t('ui.kit.demoInfo')}</InlineNote>
         </div>
       </Section>
 

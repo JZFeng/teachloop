@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api, fmtDateTime } from '../api/client'
 import type { MyFeedback } from '../api/types'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
+import { InlineNote } from '../ui'
 import { fmtScore } from '../exam/examUtils'
 
 /**
@@ -168,7 +169,7 @@ export default function FeedbackDetailPage() {
               </>
             )}
             {feedback.feedbackPublished && !feedback.review?.comment && (
-              <div className="inline-note">{t('student.commentMissing')}</div>
+              <InlineNote tone="warning">{t('student.commentMissing')}</InlineNote>
             )}
           </div>
 

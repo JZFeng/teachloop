@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import { LANGUAGES, changeLanguage } from '../i18n'
-import { Alert, Button, Field, Input, PageHeader, ThemeToggle } from '../ui'
+import { Alert, Button, Field, InlineNote, Input, PageHeader, ThemeToggle } from '../ui'
 import { UiKitPanel } from './UiKitPanel'
 import type { GradingPreference } from '../api/types'
 
@@ -168,7 +168,7 @@ export default function ProfilePage() {
               {t('profile.save')}
             </Button>
             {missingRequired && (
-              <p className="small muted" style={{ margin: '10px 0 0' }}>{t('profile.saveBlocked')}</p>
+              <InlineNote tone="warning" style={{ margin: '10px 0 0' }}>{t('profile.saveBlocked')}</InlineNote>
             )}
           </>
         )}

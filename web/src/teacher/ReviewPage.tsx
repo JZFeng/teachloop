@@ -14,7 +14,7 @@ import type {
 } from '../api/types'
 import { AuditDrawer } from '../components/AuditDrawer'
 import { Markdown } from '../components/Markdown'
-import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard, useListState } from '../ui'
+import { Button, DataTable, Empty, ErrorState, InlineNote, Loading, PageHeader, StatCard, useListState } from '../ui'
 import type { Column } from '../ui'
 
 /** 一道题在复核页上的展示状态：答对、部分对、答错、不自动判分。 */
@@ -330,7 +330,7 @@ export default function ReviewPage() {
                 </h2>
                 <span className="tag gray">{fmtDateTime(detail.review.createdAt)}</span>
               </div>
-              {actionError && <div className="inline-note">{actionError}</div>}
+              {actionError && <InlineNote tone="error">{actionError}</InlineNote>}
 
               <h3>{t('review.content')}</h3>
               <div className="card" style={{ background: 'var(--panel-2)' }}>

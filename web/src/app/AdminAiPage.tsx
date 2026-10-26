@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import { Alert, Button, Field, Input, PageHeader, TextArea } from '../ui'
+import { Alert, Button, Field, InlineNote, Input, PageHeader, TextArea } from '../ui'
 import type { AiModelsView, AiProviderRequest, AiProviderStatus, AiProviderView, AiTestResult } from '../api/types'
 
 interface ModelsResult { ok: boolean; models: string[]; message: string }
@@ -241,7 +241,7 @@ export default function AdminAiPage() {
           <p className="small muted">{t('app.ai.globalHint')}</p>
         )}
         {status?.active && (
-          <div className="inline-note" style={{ marginBottom: 12 }}>
+          <InlineNote tone="warning" style={{ marginBottom: 12 }}>
             <b>{t('app.ai.failoverBadge')}</b>{' '}
             {t('app.ai.failoverActive', {
               from: status.fromProviderKey ?? '—',
@@ -252,7 +252,7 @@ export default function AdminAiPage() {
               reason: status.reason ?? '—',
               since: status.since ? new Date(status.since).toLocaleString() : '—',
             })}
-          </div>
+          </InlineNote>
         )}
         <Button variant="primary" onClick={openAdd}>{t('app.ai.addProvider')}</Button>
       </div>

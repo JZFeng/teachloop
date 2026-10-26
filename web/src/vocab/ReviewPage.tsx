@@ -7,6 +7,7 @@ import {
   Empty,
   ErrorState,
   InfoCircleOutlined,
+  InlineNote,
   Loading,
   PageHeader,
   Popover,
@@ -414,7 +415,7 @@ export default function VocabReviewPage() {
                   </>
                 ) : (
                   <>
-                    <div className="muted">{t('vocab.review.contentFailed')}</div>
+                    <InlineNote tone="error">{t('vocab.review.contentFailed')}</InlineNote>
                     <div className="review-actions">
                       <Button variant="primary" loading={retrying} onClick={() => void retryContent()}>
                         {t('vocab.review.retryContent')}

@@ -249,6 +249,12 @@
   display: grid;
   gap: 12px;
 }
+/* 提示条四档语义色：错误红、警告黄、成功绿、信息蓝（2026-10-25）。 */
+.tl-kit-notes {
+  display: grid;
+  gap: 8px;
+}
+.tl-kit-notes .inline-note { margin-bottom: 0; }
 /* 图标清单：一行一个「字形 + 文案」，15 个图标一屏看完（见 ui/icons.tsx）。 */
 .tl-kit-icons {
   display: grid;
