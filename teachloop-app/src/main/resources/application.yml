@@ -99,6 +99,11 @@ teachloop:
       # T426：导入/发词只入库，默认不再批量生成；学生复习或看详情时按窗口准备。
       # 想恢复旧的「导入即全量生成」设为 true。
       on-import: ${VOCAB_GENERATION_ON_IMPORT:false}
+    lookup:
+      # T515 / AC-60.13：查词页遇到「不在本人词库、全局也没有内容」的词形时，直接为这个词形入队
+      # 一次 AI 生成（结果只写全局内容，不建词条、不进复习队列）。查词是全站最容易被随手触发的
+      # 入口（打错一个字母就是一次 AI 调用），要临时止血就设 false：页面回到「＋ 加入词库」。
+      generate-on-miss: ${VOCAB_LOOKUP_GENERATE_ON_MISS:true}
     tts:
       # T410/T411：缓存 → 本地 Piper → 浏览器；单词与例句都读，释义不读（019/AC-57.6）
       provider: ${VOCAB_TTS_PROVIDER:local}

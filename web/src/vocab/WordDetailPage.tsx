@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
@@ -73,10 +73,32 @@ interface Detail {
 }
 
 /**
+ * T515 / AC-60.13：查词即生成的状态。
+ *
+ * <p>`PENDING` = 已为这个词形入队 AI 生成（不建词条），页面每 2 秒问一次；
+ * `READY` = 内容到了，卡背直接渲染；`FAILED` = 生成失败或超时，给「重试」；
+ * `DISABLED` = 后端关掉了查词即生成（`teachloop.vocab.lookup.generate-on-miss=false`），回落到「＋ 加入词库」。
+ */
+type LookupState = 'IDLE' | 'PENDING' | 'READY' | 'FAILED' | 'DISABLED'
+
+interface LookupResponse {
+  state: LookupState
+  detail: Detail
+}
+
+/** 查词轮询上限：worker 失败会退避到 5 分钟，页面等太久没意义，到点给「重试」。 */
+const LOOKUP_POLL_MS = 2000
+const LOOKUP_GIVE_UP_MS = 120000
+
+/**
  * 查词页（US-60 / T436）：和复习卡**同一张卡**，只是不带词表相关的东西——
  * 没有评分、没有「下一个」、没有「暂停复习」/快捷键行；底部只留「返回」。
  *
  * <p>在库的词可收藏；不在库的词给「＋ 加入词库」，加入后内容才异步生成。
+ *
+ * <p>T515（2026-10-26 用户 Bug：「查词为啥不直接接 AI 查询，然后跳转到 card back」）：不在库的词进页面
+ * 就直接为这个词形触发一次 AI 生成（不建词条、不进复习队列），生成完自动渲染到卡背；「＋ 加入词库」
+ * 仍然保留，但不再是看到内容的前提。
  */
 export default function VocabWordDetailPage() {
   const { form = '' } = useParams()
@@ -93,6 +115,10 @@ export default function VocabWordDetailPage() {
   const [addToListOpen, setAddToListOpen] = useState(false)
   const [prep, setPrep] = useState<PrepareResult | null>(null)
   const [retrying, setRetrying] = useState(false)
+  // T515：查词即生成的状态（见 LookupState）；lookupStarted 保证同一个词只自动入队一次
+  const [lookupState, setLookupState] = useState<LookupState>('IDLE')
+  const lookupStarted = useRef(false)
+  const lookupDeadline = useRef(0)
   // AC-60.1：查词页默认面**必须是反面**——查词 = 复习时选「不认识」，不认识就要看详细信息，
   // 所以进页面直接落到 review-back，看正面才按空格 / 点卡片（2026-10-26 用户定死，别改成 false）。
   const [flipped, setFlipped] = useState(true)
@@ -131,6 +157,54 @@ export default function VocabWordDetailPage() {
   const wordId = detail?.id ?? null
   const preparing = !!detail?.inLibrary && detail?.contentStatus === 'PENDING'
   const contentFailed = !!detail?.inLibrary && detail?.contentStatus === 'FAILED'
+
+  // T515：查词即生成——不在库的词进页面就为这个词形入队一次 AI 生成，结果只写全局内容。
+  // 同一个词只自动触发一次（lookupStarted），换词（form 变）才重置。
+  const askLookup = useCallback(async (retry: boolean) => {
+    const result = await api.post<LookupResponse>('/api/vocab/words/lookup',
+      { form, language: detail?.language ?? 'en', retry })
+    if (result.detail) setDetail(result.detail)
+    setLookupState(result.state)
+  }, [form, detail?.language])
+
+  useEffect(() => {
+    lookupStarted.current = false
+    lookupDeadline.current = 0
+    setLookupState('IDLE')
+  }, [form])
+
+  useEffect(() => {
+    if (!detail || detail.inLibrary || detail.content || lookupStarted.current) return
+    lookupStarted.current = true
+    lookupDeadline.current = Date.now() + LOOKUP_GIVE_UP_MS
+    void askLookup(false).catch(() => setLookupState('FAILED'))
+  }, [detail, askLookup])
+
+  // 生成中：每 2 秒问一次（后端幂等，已有任务不会重复入队）；到点还没好就给「重试」
+  useEffect(() => {
+    if (lookupState !== 'PENDING') return
+    if (!detail || detail.inLibrary || detail.content) return
+    if (lookupDeadline.current === 0) lookupDeadline.current = Date.now() + LOOKUP_GIVE_UP_MS
+    const timer = setInterval(() => {
+      if (Date.now() > lookupDeadline.current) {
+        setLookupState('FAILED')
+        return
+      }
+      void askLookup(false).catch(() => setLookupState('FAILED'))
+    }, LOOKUP_POLL_MS)
+    return () => clearInterval(timer)
+  }, [lookupState, detail?.inLibrary, detail?.content, askLookup])
+
+  const retryLookup = useCallback(async () => {
+    setRetrying(true)
+    try {
+      await askLookup(true)
+    } catch {
+      setLookupState('FAILED')
+    } finally {
+      setRetrying(false)
+    }
+  }, [askLookup])
 
   // T426：打开详情时只为这一个词按需准备内容
   useEffect(() => {
@@ -197,12 +271,19 @@ export default function VocabWordDetailPage() {
   if (error) return <ErrorState error={error} onRetry={refresh} />
   if (!detail) return <Empty>{t('vocab.detail.notFound')}</Empty>
 
+  // T515：不在库的词有三种卡背提示——AI 生成中 / 生成失败（给重试）/ 查词即生成被关掉（回落原提示）
+  const lookupHint = lookupState === 'PENDING'
+    ? t('vocab.detail.lookupPending')
+    : lookupState === 'FAILED'
+      ? t('vocab.detail.lookupFailed')
+      : t('vocab.detail.notInLibraryHint')
+
   const emptyHint = preparing
     ? `${t('vocab.review.preparing')}${prep ? `（${t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}）` : ''}`
     : contentFailed
       ? t('vocab.review.contentFailed')
       : !detail.inLibrary
-        ? t('vocab.detail.notInLibraryHint')
+        ? lookupHint
         : t('vocab.detail.noContent')
 
   return (
@@ -242,6 +323,13 @@ export default function VocabWordDetailPage() {
             <div className="review-session-foot">
               <Button size="small" loading={retrying} onClick={() => void retryContent()}>
                 {t('vocab.review.retryContent')}
+              </Button>
+            </div>
+          )}
+          {!detail.inLibrary && lookupState === 'FAILED' && (
+            <div className="review-session-foot">
+              <Button size="small" loading={retrying} onClick={() => void retryLookup()}>
+                {t('vocab.detail.lookupRetry')}
               </Button>
             </div>
           )}

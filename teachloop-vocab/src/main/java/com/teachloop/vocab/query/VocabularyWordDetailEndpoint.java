@@ -3,12 +3,15 @@ package com.teachloop.vocab.query;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.vocab.content.ContentStore;
 import com.teachloop.vocab.content.ContentView;
+import com.teachloop.vocab.generation.GenerationJobStore;
+import com.teachloop.vocab.generation.VocabularyGenerationService;
 import com.teachloop.vocab.importer.WordImportService;
 import com.teachloop.vocab.lexicon.WordFamily;
 import com.teachloop.vocab.lexicon.WordFamilyIndex;
 import com.teachloop.vocab.word.VocabWordRepository;
 import com.teachloop.vocab.word.WordNormalizer;
 import java.math.BigDecimal;
+import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
 import java.util.UUID;
@@ -40,14 +43,22 @@ public class VocabularyWordDetailEndpoint {
     private final WordFamilyIndex lexicon;
     private final WordImportService imports;
     private final ContentStore contentStore;
+    private final GenerationJobStore jobs;
+    private final VocabularyGenerationService generation;
+    private final Clock clock;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public VocabularyWordDetailEndpoint(VocabWordRepository words, WordFamilyIndex lexicon,
-                                        WordImportService imports, ContentStore contentStore) {
+                                        WordImportService imports, ContentStore contentStore,
+                                        GenerationJobStore jobs,
+                                        VocabularyGenerationService generation, Clock clock) {
         this.words = words;
         this.lexicon = lexicon;
         this.imports = imports;
         this.contentStore = contentStore;
+        this.jobs = jobs;
+        this.generation = generation;
+        this.clock = clock;
     }
 
     public record MemberView(String form, long freq, boolean head) {
@@ -78,14 +89,70 @@ public class VocabularyWordDetailEndpoint {
     public record FeedbackResult(long id) {
     }
 
+    public record LookupRequest(String form, String language, Boolean retry) {
+    }
+
+    /** 查词状态：READY=内容已在；PENDING=已入队/正在生成；FAILED=生成失败；DISABLED=查词即生成被关掉。 */
+    public record LookupResult(String state, DetailView detail) {
+    }
+
     @GetMapping("/words/by-form/{form}")
     public DetailView byForm(@PathVariable String form,
                              @RequestParam(required = false) String language,
                              @RequestAttribute("currentUser") CurrentUser me) {
         String lang = language == null || language.isBlank() ? "en" : language;
+        return view(me, form, lang);
+    }
+
+    /**
+     * 查词即生成（T515 / AC-60.13，2026-10-26 用户 Bug：「查词为啥不直接接 AI 查询，然后跳转到 card back」）。
+     *
+     * <p>不在库的词不再要求先点「＋ 加入词库」：全局内容没有命中时，直接为这个**词形**入队一次 AI 生成，
+     * 生成结果只写全局 {@code ContentStore}，不建词条、不进复习队列。前端拿到 {@code PENDING} 后每 2 秒
+     * 再调一次本接口，直到 {@code READY} 把内容渲染在卡片反面。
+     *
+     * <p>幂等：同一词形只会有一条 FORM 任务；{@code retry=true} 只在用户点「重试」时传，
+     * 否则失败任务不会被页面轮询自动重置（避免一条生成不了的词无限烧 AI）。
+     */
+    @PostMapping("/words/lookup")
+    public LookupResult lookup(@RequestBody(required = false) LookupRequest request,
+                               @RequestAttribute("currentUser") CurrentUser me) {
+        String form = request == null || request.form() == null ? "" : request.form().strip();
+        String lang = request == null || request.language() == null || request.language().isBlank()
+                ? "en" : request.language();
+        if (!WordNormalizer.valid(form)) {
+            throw com.teachloop.shared.error.ApiException.badRequest("form is required");
+        }
+        DetailView detail = view(me, form, lang);
+        if (detail.content() != null) {
+            return new LookupResult("READY", detail);
+        }
+        if (detail.inLibrary()) {
+            // 在库的词由详情页自己的 prepare 流程推进（T426），查词接口不重复入队。
+            return new LookupResult("PENDING", detail);
+        }
+        if (!generation.lookupEnabled()) {
+            return new LookupResult("DISABLED", detail);
+        }
+        String state = jobs.formState(lang, WordNormalizer.normalized(form)).orElse(null);
+        if ("FAILED".equals(state)) {
+            if (request != null && Boolean.TRUE.equals(request.retry())) {
+                jobs.retryForm(lang, form, clock.instant());
+                return new LookupResult("PENDING", detail);
+            }
+            return new LookupResult("FAILED", detail);
+        }
+        if (state == null) {
+            generation.prepareLookup(lang, form);
+        }
+        return new LookupResult("PENDING", detail);
+    }
+
+    /** 两种状态共用一份视图：在库 = 词条 + 进度 + 来源；不在库 = 全局内容（有就展示）+ 词族。 */
+    private DetailView view(CurrentUser me, String form, String language) {
         String normalized = WordNormalizer.normalized(form);
         FamilyView family = familyOf(WordNormalizer.display(form));
-        return words.detail(me.id(), lang, normalized)
+        return words.detail(me.id(), language, normalized)
                 .map(row -> new DetailView(true, row.id(), row.form(), row.language(),
                         row.contentStatus(), row.favorite(), row.paused(), parseTags(row.tagsJson()),
                         row.state(), row.dueAt(), row.intervalDays(), row.ease(),
@@ -93,8 +160,8 @@ public class VocabularyWordDetailEndpoint {
                         sources(me.id(), row.id()), family))
                 .orElseGet(() -> {
                     // 不在库的词也能查：全局内容命中（包/delta）就展示，只是不进复习队列
-                    var content = ContentView.resolve(contentStore, null, lang, normalized);
-                    return new DetailView(false, null, WordNormalizer.display(form), lang,
+                    var content = ContentView.resolve(contentStore, null, language, normalized);
+                    return new DetailView(false, null, WordNormalizer.display(form), language,
                             content != null ? "READY" : null, false, false, List.of(),
                             null, null, null, null, content, List.of(), family);
                 });
