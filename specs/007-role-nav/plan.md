@@ -42,7 +42,7 @@ static final Map<UserRole, Set<String>> ROLE_KEYS = Map.of(
 const NAV_CATALOG = [            // 全局顺序，唯一一份
   nav.home, nav.classes, nav.assignments, nav.papers,
   nav.vocab.sets, nav.vocab.assign, nav.grading, nav.review, nav.reports,
-  nav.vocab.library, nav.vocab.review, nav.feedback, nav.ai,
+  nav.vocab.library, nav.vocab.lists, nav.vocab.review, nav.ai,
 ]
 
 export function navSpecs(features: Record<string, boolean>) {
@@ -50,7 +50,7 @@ export function navSpecs(features: Record<string, boolean>) {
 }
 ```
 
-**三套顺序由同一份目录自然得出**：教师过滤后 = 首页/班级/作业/试卷/词集/发词/批改/复核/报表（9）；学生 = 首页/班级/我的词库/今日复习/我的反馈（5）；管理员 = 班级/AI 设置（2）。前端没有任何一处写「某角色能看某菜单」。
+**三套顺序由同一份目录自然得出**：教师过滤后 = 首页/班级/作业/试卷/词集/发词/批改/复核/报表（9）；学生 = 首页/班级/我的词库/我的词单/今日复习（5，2026-10-26 AC-69.11 修订加词单）；管理员 = 班级/AI 设置（2）。前端没有任何一处写「某角色能看某菜单」。
 
 ### 2.3 加载态
 

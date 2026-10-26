@@ -24,6 +24,7 @@ import {
   SyncOutlined,
   TeamOutlined,
   ThemeToggle,
+  UnorderedListOutlined,
   UserOutlined,
 } from '../ui'
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
@@ -40,6 +41,7 @@ const NAV_ICONS: Record<NavIcon, ReactNode> = {
   reports: <BarChartOutlined />,
   ai: <RobotOutlined />,
   library: <BookOutlined />,
+  lists: <UnorderedListOutlined />,
   vocabReview: <SyncOutlined />,
   sets: <AppstoreOutlined />,
   assign: <SendOutlined />,

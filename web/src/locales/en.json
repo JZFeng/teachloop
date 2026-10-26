@@ -1438,6 +1438,7 @@
   "vocab": {
     "nav": {
       "library": "My library",
+      "lists": "My lists",
       "review": "Today's review",
       "sets": "Word sets",
       "assign": "Send words"

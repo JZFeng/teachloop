@@ -22,8 +22,9 @@ const TEACHER_KEYS = [
   'nav.vocab.sets', 'nav.vocab.assign', 'nav.grading', 'nav.review', 'nav.reports',
 ]
 // 2026-10-26（AC-72.8）：学生不再有 nav.feedback 菜单项（列表页删除，详情从行内进）。
+// 2026-10-26（AC-69.11 修订）：新增 nav.vocab.lists「我的词单」，紧跟我的词库。
 const STUDENT_KEYS = [
-  'nav.home', 'nav.classes', 'nav.vocab.library', 'nav.vocab.review',
+  'nav.home', 'nav.classes', 'nav.vocab.library', 'nav.vocab.lists', 'nav.vocab.review',
 ]
 
 const paths = (features) => navSpecs(features).map((item) => item.to)
@@ -57,11 +58,23 @@ test('教师 vocab 开时 9 项，词集/发词插在试卷之后、批改之前
   ])
 })
 
-test('学生 vocab 关时 2 项；开时 4 项，词库/复习插在班级之后', () => {
+test('学生 vocab 关时 2 项；开时 5 项，词库/词单/复习插在班级之后', () => {
   assert.deepEqual(paths(featuresFor(withoutVocab(STUDENT_KEYS))), ['/', '/classes'])
   assert.deepEqual(paths(featuresFor(STUDENT_KEYS, true)), [
-    '/', '/classes', '/vocab/library', '/vocab/review',
+    '/', '/classes', '/vocab/library', '/vocab/lists', '/vocab/review',
   ])
+})
+
+test('我的词单紧跟、且只紧跟在我的词库后面', () => {
+  const student = paths(featuresFor(STUDENT_KEYS, true))
+  assert.equal(student.indexOf('/vocab/lists'), student.indexOf('/vocab/library') + 1)
+})
+
+test('教师不出现学生专属的词库/词单/复习入口', () => {
+  const teacher = paths(featuresFor(TEACHER_KEYS, true))
+  for (const studentOnly of ['/vocab/library', '/vocab/lists', '/vocab/review']) {
+    assert.ok(!teacher.includes(studentOnly), `教师不应看到 ${studentOnly}`)
+  }
 })
 
 test('教师与学生互不越界', () => {

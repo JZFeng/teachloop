@@ -30,15 +30,26 @@ class RoleNavMatrixTest {
     }
 
     @Test
-    void studentSeesFourIncludingVocabButNoTeacherItems() {
+    void studentSeesFiveIncludingVocabButNoTeacherItems() {
         // 2026-10-26（AC-72.8）：学生 5 → 4 项，「成绩与评语」菜单项随列表页一起删除。
+        // 2026-10-26（AC-69.11 修订）：再加「我的词单」→ 4 → 5 项（vocab 开时）。
         assertThat(RoleNavMatrix.keysFor(UserRole.STUDENT))
-                .hasSize(4)
+                .hasSize(5)
                 .contains(RoleNavMatrix.NAV_HOME, RoleNavMatrix.NAV_CLASSES,
-                        RoleNavMatrix.NAV_VOCAB_LIBRARY, RoleNavMatrix.NAV_VOCAB_REVIEW)
+                        RoleNavMatrix.NAV_VOCAB_LIBRARY, RoleNavMatrix.NAV_VOCAB_LISTS,
+                        RoleNavMatrix.NAV_VOCAB_REVIEW)
                 .doesNotContain(RoleNavMatrix.NAV_PAPERS, RoleNavMatrix.NAV_GRADING,
                         RoleNavMatrix.NAV_REVIEW, RoleNavMatrix.NAV_REPORTS,
-                        RoleNavMatrix.NAV_ASSIGNMENTS, RoleNavMatrix.NAV_AI);
+                        RoleNavMatrix.NAV_ASSIGNMENTS, RoleNavMatrix.NAV_AI,
+                        RoleNavMatrix.NAV_VOCAB_SETS, RoleNavMatrix.NAV_VOCAB_ASSIGN);
+    }
+
+    @Test
+    void teachersDoNotGetStudentOnlyVocabEntries() {
+        // 我的词库 / 我的词单 / 今日复习是学生专属，教师侧栏不能多出这三项。
+        assertThat(RoleNavMatrix.keysFor(UserRole.TEACHER))
+                .doesNotContain(RoleNavMatrix.NAV_VOCAB_LIBRARY,
+                        RoleNavMatrix.NAV_VOCAB_LISTS, RoleNavMatrix.NAV_VOCAB_REVIEW);
     }
 
     @Test
@@ -60,6 +71,7 @@ class RoleNavMatrixTest {
     void onlyVocabKeysAreModuleGated() {
         assertThat(RoleNavMatrix.isVocabKey(RoleNavMatrix.NAV_VOCAB_SETS)).isTrue();
         assertThat(RoleNavMatrix.isVocabKey(RoleNavMatrix.NAV_VOCAB_LIBRARY)).isTrue();
+        assertThat(RoleNavMatrix.isVocabKey(RoleNavMatrix.NAV_VOCAB_LISTS)).isTrue();
         assertThat(RoleNavMatrix.isVocabKey(RoleNavMatrix.NAV_REPORTS)).isFalse();
         assertThat(RoleNavMatrix.isVocabKey(null)).isFalse();
     }
