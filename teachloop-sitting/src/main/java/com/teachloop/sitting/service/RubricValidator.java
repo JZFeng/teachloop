@@ -23,7 +23,8 @@ import java.util.regex.Pattern;
 public final class RubricValidator {
 
     private static final Pattern HEADING = Pattern.compile("^\\s{0,3}#{1,4}\\s+(.+?)\\s*$");
-    private static final Pattern BULLET = Pattern.compile("^\\s{0,3}[-*+]\\s+(.+?)\\s*$");
+    /** 无序列表行：{@code - 内容} 与 {@code -内容} 都算（T474，空格几乎总会被漏掉）。 */
+    private static final Pattern BULLET = Pattern.compile("^\\s{0,3}[-*+]\\s*(.+?)\\s*$");
     /**
      * 有序列表行：「1. 内容」与「1 内容」都算。
      *
@@ -31,8 +32,20 @@ public final class RubricValidator {
      * 回写的 Markdown 是「1 内容」（实测 2026-10-25，试卷向导评分项）。只认带点的写法会让
      * 老师刚写的分值在预览与判分里都看不见（T470）。
      */
-    private static final Pattern NUMBERED = Pattern.compile("^\\s{0,3}\\d+(?:[.)、]\\s+|\\s+)(.+?)\\s*$");
-    private static final Pattern LEADING_NUMBER = Pattern.compile("^\\d+[.)、]\\s*");
+    /**
+     * 有序列表行：{@code 1. 内容}、{@code 1.内容}、{@code 1、内容}、{@code 1）内容}、
+     * {@code 1 内容}、{@code （1）内容}、{@code ① 内容} 都算。
+     *
+     * <p>T474：老师手写「1.表达理解（5 分）」时点后面几乎不会带空格，原来的
+     * {@code \\d+[.)、]\\s+} 会把整行静默丢掉；只要行首有编号标记，就允许紧跟内容。
+     * 裸数字仍要求空格（{@code 1 内容}），否则 {@code 2026 年} 这类行会被当成评分项。</p>
+     */
+    private static final Pattern NUMBERED = Pattern.compile(
+            "^\\s{0,3}(?:\\d+[.)、．）]\\s*|\\d+\\s+|\\d{1,2}(?=[^\\d\\s.、．)）])"
+                    + "|[（(]\\d+[)）]\\s*|[①-⑳]\\s*)(.+?)\\s*$");
+    /** 行首编号（含全角括号与圈号）：把 {@code 1. 内容}、{@code （1）内容}、{@code ① 内容} 剥成名称本身。 */
+    private static final Pattern LEADING_NUMBER =
+            Pattern.compile("^\\s*(?:\\d+[.)、．）]|[（(]\\d+[)）]|[①-⑳])\\s*");
 
     /**
      * 评分项名称的长度上限。原本是 80，但教师常用「整句问句」甚至一段说明当评分项

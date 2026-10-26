@@ -572,6 +572,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | T471 | **删除「同步并校验」**（AC-4.29③ 追记）：删 `sync()`、按钮、`busy='sync'` 与 `syncHint`/`synced` 文案；发布前校验仍由 `publishCheck` + 服务端承担 | T469 | 第 4 步只剩「发布试卷」；`grep -r "teacher.wizard.sync" web/src` 为空；发布按钮在缺答案/目标不一致时仍置灰 |
 | T472 | **解析不出 = 没填**（AC-4.28⑨）：`essayRubricCheck` 增 `unparsed`（有字但 0 条评分项），`rubricGate.blocked` 一并拦；提示分开说「没填 / 一行都没解析出来」，并把分隔线颜色做到「拦人红、只提醒琥珀」 | T471 | 「评分标准：+ 无编号行」会被拦在 step 3 并切到该题；`1. ` 开头则放行；`pnpm test` 87/87；`check-i18n` 通过 |
 | T473 | **试卷 / 作业 Markdown 模板 + 防漂移测试**：`docs/templates/README.md`（规则、变体、静默失效写法、维护者须知）、`paper.md`、`assignment-rubric.md`；新增 `PaperTemplateDocTest` 读真实文档跑解析器；夹具加 `assignment-template-doc`（`file` 指模板）被三套测试共用 | T472 | 模板跑出来是 4 题（3 客观 + 1 写作，写作自动编号 4）且 rubric 自动预填 3 条；sitting 9/9、grading 7/7、web 88/88；改解析器后这两处测试先红 |
+| T474 | **编号标记不要求空格**（用户实测 typo）：「1.表达理解（5 分）」原本整行静默丢失。`NUMBERED` 放宽到 `1.` `1)` `1）` `1、` `1 ` `（1）` `①`（标记后空格可有可无），编辑器写回的 `1内容` 也认（1–2 位裸数字，防「2026 年」误判），`BULLET` 同理；三处同步 + `LEADING_NUMBER` 认全角括号与圈号；夹具加 `numbered-marker-without-space` / `mixed-marker-styles` / `editor-ordered-list-no-marker` | T473 | 三条新用例在 sitting / grading / 前端三处都通过；「2026 年…」与 4 位数字开头不会被误识别；sitting 13/13、grading 11/11、web 91/91 |
 
 ---
 

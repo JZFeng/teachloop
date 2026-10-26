@@ -58,6 +58,62 @@
       "ignored": []
     },
     {
+      "name": "editor-ordered-list-no-marker",
+      "rubric": "1表达理解（5 分）\n2给出建议（5 分）\n3语法与拼写（5 分）\n",
+      "totalPoints": 15,
+      "valid": true,
+      "issues": [],
+      "parsed": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 }
+      ],
+      "allocated": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 }
+      ],
+      "ignored": []
+    },
+    {
+      "name": "numbered-marker-without-space",
+      "rubric": "1.表达理解（5 分）\n2.给出建议（5 分）\n3.语法与拼写（5 分）\n",
+      "totalPoints": 15,
+      "valid": true,
+      "issues": [],
+      "parsed": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 }
+      ],
+      "allocated": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 }
+      ],
+      "ignored": []
+    },
+    {
+      "name": "mixed-marker-styles",
+      "rubric": "（1）表达理解（5 分）\n②给出建议（5 分）\n-语法与拼写（5 分）\n1、结构清楚（5 分）\n",
+      "totalPoints": 20,
+      "valid": true,
+      "issues": [],
+      "parsed": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 },
+        { "name": "结构清楚", "points": 5 }
+      ],
+      "allocated": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 },
+        { "name": "结构清楚", "points": 5 }
+      ],
+      "ignored": []
+    },
+    {
       "name": "ordered-list-without-dot-vditor",
       "rubric": "1 表达理解（5 分）\n2 给出建议（5 分）\n3 语法与拼写（5 分）\n",
       "totalPoints": 15,
