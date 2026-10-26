@@ -48,7 +48,7 @@ const NAV_ICONS: Record<NavIcon, ReactNode> = {
 
 export function Shell({ children }: { children: ReactNode }) {
   const { me, logout, profileComplete } = useAuth()
-  const { features } = useFeatures()
+  const { features, loaded: featuresLoaded } = useFeatures()
   const { t } = useTranslation()
   const navigate = useNavigate()
   const [unread, setUnread] = useState(0)
@@ -56,8 +56,8 @@ export function Shell({ children }: { children: ReactNode }) {
 
   // 三个功能位（作业/试卷 create、批改/复核 assess、报表/我的反馈 insights）之外，
   // 首页与班级作为「空间位」各有一个颜色：home 海军蓝、classes 淡紫（决策 006 2026-10-23 修订）。
-  // 背单词是 practice 位；开关关闭时两项完全不出现（app/nav.ts）。
-  const items = navSpecs(me?.role ?? '', features.vocab)
+  // 可见性全部来自后端 key 集合；features 未回来前不渲染业务菜单，避免闪出全量再收缩（AC-63.11）。
+  const items = featuresLoaded ? navSpecs(features) : []
 
   useEffect(() => {
     let alive = true

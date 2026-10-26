@@ -3,10 +3,14 @@ import type { ReactNode } from 'react'
 import { api } from './client'
 import { useAuth } from './auth'
 
-/** 后端 /api/features 的形状：只放「模块是否上线」这类布尔开关。 */
-export interface Features {
-  vocab: boolean
-}
+/**
+ * 后端 /api/features 的形状（007-role-nav）：`key → 是否可用` 的扁平布尔。
+ *
+ * 里面同时装两类 key：
+ * - `nav.*`：角色菜单可见性（后端 `RoleNavMatrix` 算好，前端不判断角色）
+ * - `vocab`：模块是否上线（开关关闭时 vocab 路由不注册）
+ */
+export type Features = Record<string, boolean>
 
 interface FeaturesState {
   features: Features
@@ -18,9 +22,20 @@ interface FeaturesState {
   loaded: boolean
 }
 
-const OFF: Features = { vocab: false }
+const OFF: Features = {}
 
 const FeaturesContext = createContext<FeaturesState>({ features: OFF, loaded: false })
+
+/** 只收布尔，丢弃形状异常的值：宁可少显示，也不放空承诺。 */
+function normalize(value: unknown): Features {
+  const out: Features = {}
+  if (value && typeof value === 'object') {
+    for (const [key, flag] of Object.entries(value as Record<string, unknown>)) {
+      out[key] = Boolean(flag)
+    }
+  }
+  return out
+}
 
 export function FeaturesProvider({ children }: { children: ReactNode }) {
   const { me, loading } = useAuth()
@@ -38,7 +53,7 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
     api.get<Features>('/api/features')
       .then((value) => {
         if (!alive) return
-        setFeatures({ vocab: Boolean(value?.vocab) })
+        setFeatures(normalize(value))
         setFetchedFor(me.id)
       })
       .catch(() => {

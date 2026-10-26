@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { trackEvent } from './api/events'
@@ -65,7 +66,22 @@ function LoginRoute() {
 /** 根路由按角色分流：教师看跨班首页，学生看自己的考试/作业。 */
 function HomeRouter() {
   const { me } = useAuth()
+  const { features, loaded } = useFeatures()
+  if (!loaded) return <div style={{ padding: 40 }}><Loading /></div>
+  // 没有 nav.home 的角色（管理员）直接落到班级页（AC-63.5）：这里只看 key，不看角色。
+  if (features['nav.home'] !== true) return <Navigate to="/classes" replace />
   return me?.role === 'STUDENT' ? <StudentHomePage /> : <TeacherHomePage />
+}
+
+/**
+ * 007-role-nav：路由级可见性，key 由后端 `/api/features` 给出。
+ * 未加载时不放行也不重定向（避免深链被吃掉）；不具备该 key 时回到班级页。
+ */
+function RequireFeature({ feature, children }: { feature: string; children: ReactNode }) {
+  const { features, loaded } = useFeatures()
+  if (!loaded) return <div style={{ padding: 40 }}><Loading /></div>
+  if (features[feature] !== true) return <Navigate to="/classes" replace />
+  return <>{children}</>
 }
 
 function ShellLayout() {
@@ -130,18 +146,19 @@ export default function App() {
               <Route path="vocab/assignments/:id" element={<VocabAssignmentPreviewPage />} />
             </>
           )}
-          <Route path="papers" element={<PapersPage />} />
-          <Route path="papers/new" element={<PaperWizardPage />} />
-          <Route path="papers/:paperId" element={<PaperWizardPage />} />
-          <Route path="offerings/new" element={<OfferingCreatePage />} />
-          <Route path="assignments" element={<AssignmentsPage />} />
+          <Route path="papers" element={<RequireFeature feature="nav.papers"><PapersPage /></RequireFeature>} />
+          <Route path="papers/new" element={<RequireFeature feature="nav.papers"><PaperWizardPage /></RequireFeature>} />
+          <Route path="papers/:paperId" element={<RequireFeature feature="nav.papers"><PaperWizardPage /></RequireFeature>} />
+          <Route path="offerings/new" element={<RequireFeature feature="nav.papers"><OfferingCreatePage /></RequireFeature>} />
+          <Route path="assignments" element={<RequireFeature feature="nav.assignments"><AssignmentsPage /></RequireFeature>} />
           {/* 静态段在前：/assignments/new 是教师建作业，/assignments/:offeringId 是学生作业页 */}
-          <Route path="assignments/new" element={<AssignmentCreatePage />} />
-          <Route path="grading" element={<GradingOverviewPage />} />
-          <Route path="grading/:offeringId" element={<GradingDetailPage />} />
-          <Route path="review" element={<ReviewPage />} />
-          <Route path="reports" element={<ReportsPage />} />
-          <Route path="offerings/:offeringId/summary" element={<ClassSummaryPage />} />
+          <Route path="assignments/new" element={<RequireFeature feature="nav.assignments"><AssignmentCreatePage /></RequireFeature>} />
+          <Route path="grading" element={<RequireFeature feature="nav.grading"><GradingOverviewPage /></RequireFeature>} />
+          <Route path="grading/:offeringId" element={<RequireFeature feature="nav.grading"><GradingDetailPage /></RequireFeature>} />
+          <Route path="review" element={<RequireFeature feature="nav.review"><ReviewPage /></RequireFeature>} />
+          <Route path="reports" element={<RequireFeature feature="nav.reports"><ReportsPage /></RequireFeature>} />
+          <Route path="offerings/:offeringId/summary" element={<RequireFeature feature="nav.reports"><ClassSummaryPage /></RequireFeature>} />
+          {/* 学生作业页不按 nav.assignments 拦：学生没有这个 key，但必须能作答 */}
           <Route path="assignments/:offeringId" element={<AssignmentPage />} />
           <Route path="feedback" element={<FeedbackListPage />} />
           <Route path="feedback/:offeringId" element={<FeedbackDetailPage />} />

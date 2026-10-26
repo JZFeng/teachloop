@@ -1,8 +1,9 @@
 /**
- * 侧栏导航规格（T389）：纯数据，Shell 负责把 icon 与文案换成人话。
+ * 侧栏菜单**目录**（007-role-nav）：只描述「有哪些菜单项、长什么样、按什么顺序」，
+ * 不描述「谁能看到」——可见性由后端 `GET /api/features` 按角色算好后返回 key 集合，
+ * 前端只做过滤。
  *
- * 单独抽出来的原因只有一个：`web/tests/vocab-nav.test.mjs` 能直接断言
- * 「功能开关关闭时 vocab 项不出现、打开时学生两个/教师两个」，
+ * 单独抽成纯数据的原因：`web/tests/vocab-nav.test.mjs` 能直接断言三套角色的结果，
  * 不必起浏览器或登录。
  */
 export type NavTone = 'create' | 'assess' | 'insights' | 'home' | 'classes' | 'practice'
@@ -23,6 +24,8 @@ export type NavIcon =
   | 'assign'
 
 export interface NavSpec {
+  /** 与后端 `RoleNavMatrix` 的 key 一致，是前后端唯一的约定。 */
+  key: string
   to: string
   labelKey: string
   icon: NavIcon
@@ -31,46 +34,34 @@ export interface NavSpec {
 }
 
 /**
- * 按角色与功能开关给出导航项。
+ * 全局顺序。三套角色菜单由「同一份目录 + 后端给的 key 集合」过滤得出：
+ * - 管理员：班级 / AI 设置
+ * - 教师：首页 / 班级 / 作业 / 试卷 / 词集 / 发词 / 批改 / 复核 / 报表（vocab 关时少两项）
+ * - 学生：首页 / 班级 / 我的词库 / 今日复习 / 我的反馈（vocab 关时少两项）
  *
- * - 学生：首页 / 班级 / [我的词库 / 今日复习] / 我的反馈
- * - 教师（含管理员）：首页 / 班级 / 作业 / 试卷 / [词集 / 发词] / 批改 / 复核 / 报表
- * - `vocabEnabled=false` 时 vocab 两项完全不出现（AC-56.3：不放占位空承诺）。
+ * 加菜单 = 这里加一项 + 后端矩阵加一个 key，不需要任何角色分支。
  */
-export function navSpecs(role: string, vocabEnabled: boolean): NavSpec[] {
-  const studentVocab: NavSpec[] = vocabEnabled
-    ? [
-        { to: '/vocab/library', labelKey: 'vocab.nav.library', icon: 'library', tone: 'practice' },
-        { to: '/vocab/review', labelKey: 'vocab.nav.review', icon: 'vocabReview', tone: 'practice' },
-      ]
-    : []
-  const teacherVocab: NavSpec[] = vocabEnabled
-    ? [
-        { to: '/vocab/sets', labelKey: 'vocab.nav.sets', icon: 'sets', tone: 'practice' },
-        { to: '/vocab/assign', labelKey: 'vocab.nav.assign', icon: 'assign', tone: 'practice' },
-      ]
-    : []
+export const NAV_CATALOG: NavSpec[] = [
+  { key: 'nav.home', to: '/', labelKey: 'nav.home', icon: 'home', end: true, tone: 'home' },
+  { key: 'nav.classes', to: '/classes', labelKey: 'nav.classes', icon: 'classes', tone: 'classes' },
+  { key: 'nav.assignments', to: '/assignments', labelKey: 'nav.assignments', icon: 'assignments', tone: 'create' },
+  { key: 'nav.papers', to: '/papers', labelKey: 'nav.papers', icon: 'papers', tone: 'create' },
+  { key: 'nav.vocab.sets', to: '/vocab/sets', labelKey: 'vocab.nav.sets', icon: 'sets', tone: 'practice' },
+  { key: 'nav.vocab.assign', to: '/vocab/assign', labelKey: 'vocab.nav.assign', icon: 'assign', tone: 'practice' },
+  { key: 'nav.grading', to: '/grading', labelKey: 'nav.grading', icon: 'grading', tone: 'assess' },
+  { key: 'nav.review', to: '/review', labelKey: 'nav.review', icon: 'review', tone: 'assess' },
+  { key: 'nav.reports', to: '/reports', labelKey: 'nav.reports', icon: 'reports', tone: 'insights' },
+  { key: 'nav.vocab.library', to: '/vocab/library', labelKey: 'vocab.nav.library', icon: 'library', tone: 'practice' },
+  { key: 'nav.vocab.review', to: '/vocab/review', labelKey: 'vocab.nav.review', icon: 'vocabReview', tone: 'practice' },
+  { key: 'nav.feedback', to: '/feedback', labelKey: 'nav.feedback', icon: 'feedback', tone: 'assess' },
+  { key: 'nav.ai', to: '/admin/ai', labelKey: 'nav.aiSettings', icon: 'ai' },
+]
 
-  if (role === 'STUDENT') {
-    return [
-      { to: '/', labelKey: 'nav.home', icon: 'home', end: true, tone: 'home' },
-      { to: '/classes', labelKey: 'nav.classes', icon: 'classes', tone: 'classes' },
-      ...studentVocab,
-      { to: '/feedback', labelKey: 'nav.feedback', icon: 'feedback', tone: 'assess' },
-    ]
-  }
-
-  return [
-    { to: '/', labelKey: 'nav.home', icon: 'home', end: true, tone: 'home' },
-    { to: '/classes', labelKey: 'nav.classes', icon: 'classes', tone: 'classes' },
-    { to: '/assignments', labelKey: 'nav.assignments', icon: 'assignments', tone: 'create' },
-    { to: '/papers', labelKey: 'nav.papers', icon: 'papers', tone: 'create' },
-    ...teacherVocab,
-    { to: '/grading', labelKey: 'nav.grading', icon: 'grading', tone: 'assess' },
-    { to: '/review', labelKey: 'nav.review', icon: 'review', tone: 'assess' },
-    { to: '/reports', labelKey: 'nav.reports', icon: 'reports', tone: 'insights' },
-    ...(role === 'ADMIN'
-      ? [{ to: '/admin/ai', labelKey: 'nav.aiSettings', icon: 'ai' as const }]
-      : []),
-  ]
+/**
+ * 按后端给的 key 集合过滤出侧栏项。**不认识角色**——角色判断在 `RoleNavMatrix`。
+ *
+ * @param features `GET /api/features` 的返回值；未加载时传空对象即可（侧栏不渲染）。
+ */
+export function navSpecs(features: Record<string, boolean>): NavSpec[] {
+  return NAV_CATALOG.filter((item) => features[item.key] === true)
 }

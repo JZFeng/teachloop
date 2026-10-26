@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
@@ -62,7 +63,25 @@ public class SecurityConfig {
                         "/api/setup/**",
                         "/api/auth/login", "/api/auth/wechat", "/api/auth/teacher-invite").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/papers/**").hasAnyRole("TEACHER", "ADMIN")
+                // 007-role-nav：教师专属功能。管理员只做班级查看与 AI 配置，
+                // 因此这里不再沿用 hasAnyRole(TEACHER, ADMIN)。
+                .requestMatchers("/api/papers/**").hasRole("TEACHER")
+                .requestMatchers("/api/reports/**").hasRole("TEACHER")
+                .requestMatchers("/api/grading/**").hasRole("TEACHER")
+                .requestMatchers("/api/submissions/*/review", "/api/submissions/*/review/**").hasRole("TEACHER")
+                // 布置与批改相关的子路径：路径前缀与学生答题共用，必须细化到方法/子路径。
+                .requestMatchers(HttpMethod.POST, "/api/offerings").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.POST,
+                        "/api/offerings/*/publish",
+                        "/api/offerings/*/scores/publish",
+                        "/api/offerings/*/grading/**",
+                        "/api/offerings/*/submissions/*/grading/**",
+                        "/api/offerings/*/submissions/*/reject").hasRole("TEACHER")
+                .requestMatchers(HttpMethod.GET,
+                        "/api/offerings/*/submissions",
+                        "/api/offerings/*/progress",
+                        "/api/offerings/*/class-summary",
+                        "/api/offerings/*/export/**").hasRole("TEACHER")
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e
                     // 未认证 = 401；已认证但 CSRF 失败 = 403（T033 契约）。
