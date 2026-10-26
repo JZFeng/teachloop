@@ -64,6 +64,7 @@ export function useToast() {
   return {
     success: (text: string) => message.success(text),
     error: (text: string) => message.error(text),
+    warning: (text: string) => message.warning(text),
     info: (text: string) => message.info(text),
   }
 }

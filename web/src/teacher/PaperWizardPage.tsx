@@ -82,9 +82,9 @@ export default function PaperWizardPage() {
   const [detail, setDetail] = useState<PaperDetail | null>(null)
   const [ready, setReady] = useState(false)
   const [loadError, setLoadError] = useState<Error | null>(null)
-  const [busy, setBusy] = useState<'meta' | 'generate' | 'sync' | 'publish' | null>(null)
+  const [busy, setBusy] = useState<'meta' | 'generate' | 'publish' | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
-  const [note, setNote] = useState<{ tone: 'ok' | 'err' | 'info'; text: string } | null>(null)
+  const [note, setNote] = useState<{ tone: 'ok' | 'err' | 'warn' | 'info'; text: string } | null>(null)
   const [pendingFile, setPendingFile] = useState<File | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [tab, setTab] = useState(0)
@@ -293,6 +293,8 @@ export default function PaperWizardPage() {
       }),
     [tabs, rubricEdits],
   )
+  /** 当前 tab 的体检结果：编辑器下方那句话要跟着「没填 / 解析不出 / 正常」变。 */
+  const activeCheck = activeTab === null ? null : (rubricChecks.find((entry) => entry.number === activeTab.number) ?? null)
   const target = draft ? toNumberOrNull(draft.targetTotalPoints) : null
   const actual = detail ? Number(detail.paper.totalPoints) : 0
   const legacyCriteria = detail
@@ -382,9 +384,19 @@ export default function PaperWizardPage() {
         }
         const gate = rubricGate(rubricChecks)
         if (gate.blocked) {
-          const firstEmpty = tabs.findIndex((entry) => gate.empty.includes(entry.number))
-          if (firstEmpty >= 0) setTab(firstEmpty)
-          const text = t('teacher.wizard.errors.rubricRequired', { list: gate.empty.join('、') })
+          // 切到第一条拦人的题：空的和「一行都没解析出来」都算没填，但提示要分开说。
+          const firstBad = tabs.findIndex(
+            (entry) => gate.empty.includes(entry.number) || gate.unparsed.includes(entry.number),
+          )
+          if (firstBad >= 0) setTab(firstBad)
+          const messages: string[] = []
+          if (gate.empty.length > 0) {
+            messages.push(t('teacher.wizard.errors.rubricRequired', { list: gate.empty.join('、') }))
+          }
+          if (gate.unparsed.length > 0) {
+            messages.push(t('teacher.wizard.errors.rubricUnparsed', { list: gate.unparsed.join('、') }))
+          }
+          const text = messages.join(' ')
           setFormError(text)
           setNote(null)
           toast.error(text)
@@ -398,6 +410,7 @@ export default function PaperWizardPage() {
                 number: entry.number,
                 total: fmtNum(entry.total),
                 points: fmtNum(entry.points),
+                diff: fmtNum(Math.round(Math.abs(entry.points - entry.total) * 100) / 100),
               }),
             )
             .join('；')
@@ -410,8 +423,8 @@ export default function PaperWizardPage() {
           // 只提醒，不拦：老师可能先写提纲、分值后补，拦下来反而逼他编数字。
           const text = parts.join(' ')
           setFormError(null)
-          setNote({ tone: 'info', text })
-          toast.info(text)
+          setNote({ tone: 'warn', text })
+          toast.warning(text)
         } else {
           setNote(null)
         }
@@ -524,30 +537,6 @@ export default function PaperWizardPage() {
     }
   }
 
-  const sync = async () => {
-    if (!draft?.paperId) return
-    setBusy('sync')
-    setFormError(null)
-    setNote(null)
-    try {
-      await loadDetail(draft.paperId, (draft.step ?? 4) as WizardStep)
-      const fresh = await api.get<PaperDetail>(`/api/papers/${draft.paperId}`)
-      const freshActual = Number(fresh.paper.totalPoints)
-      const freshItems = previewSummary(fresh)
-      const mismatch = compareTarget(target, freshActual) === 'mismatch'
-      setNote({
-        tone: mismatch ? 'err' : 'ok',
-        text: mismatch
-          ? t('teacher.wizard.totalMismatch', { local: fmtNum(target ?? 0), server: fmtNum(freshActual) })
-          : t('teacher.wizard.synced', { total: fmtNum(freshActual), n: freshItems.itemCount }),
-      })
-    } catch (err) {
-      setFormError(describeError(err))
-    } finally {
-      setBusy(null)
-    }
-  }
-
   const publish = async () => {
     if (!draft?.paperId) return
     setBusy('publish')
@@ -603,7 +592,17 @@ export default function PaperWizardPage() {
   const metaLocked = Boolean(draft.paperId)
   const publishBlocked = !check.ok && check.reason !== null
 
-  const noteClass = note?.tone === 'ok' ? 'inline-note ok' : note?.tone === 'err' ? 'inline-note' : 'inline-note'
+  // 提示条颜色跟着语气走：ok 绿、err 红、warn 琥珀（只提醒不拦），info 用默认强调色。
+  const noteClass =
+    note === null
+      ? 'inline-note'
+      : note.tone === 'ok'
+        ? 'inline-note ok'
+        : note.tone === 'err'
+          ? 'inline-note err'
+          : note.tone === 'warn'
+            ? 'inline-note warn'
+            : 'inline-note'
 
   return (
     <TeacherPage>
@@ -633,15 +632,9 @@ export default function PaperWizardPage() {
       {locked && <div className="inline-note">{t('teacher.wizard.lockedNote')}</div>}
 
       {note && (
-        <div className={noteClass} style={note.tone === 'err' ? { borderLeftColor: 'var(--red)' } : undefined}>
-          {note.text}
-        </div>
+        <div className={noteClass}>{note.text}</div>
       )}
-      {formError && (
-        <div className="hint" style={{ color: 'var(--red)', marginBottom: 10 }}>
-          {formError}
-        </div>
-      )}
+      {formError && <div className="form-error">{formError}</div>}
 
       {step === 1 && (
         <div className="card">
@@ -913,18 +906,16 @@ export default function PaperWizardPage() {
                       }
                     />
                   </Suspense>
-                  <div className="hint">
-                    {activeRubric.trim() === ''
-                      ? t('teacher.wizard.essayItemRubricDefault', {
-                          content: detail?.essayContentPercent ?? 80,
-                          language: 100 - (detail?.essayContentPercent ?? 80),
-                        })
-                      : t('teacher.wizard.essayItemRubricHint')}
+                  <div className={activeCheck?.verdict === 'matched' || activeCheck?.verdict === 'mismatch' || activeCheck?.verdict === 'noPoints' ? 'hint' : 'hint rubric-hint-empty'}>
+                    {activeCheck?.verdict === 'unparsed'
+                      ? t('teacher.wizard.essayItemRubricUnparsed')
+                      : activeCheck?.verdict === 'empty'
+                        ? t('teacher.wizard.essayItemRubricDefault')
+                        : t('teacher.wizard.essayItemRubricHint')}
                   </div>
                   {locked ? null : (
                     <div
-                      className="hint"
-                      style={{ marginTop: 8, ...(rubricSave === 'error' ? { color: 'var(--red)' } : null) }}
+                      className={`rubric-save-state${rubricSave === 'error' ? ' is-error' : ''}`}
                       role="status"
                       aria-live="polite"
                     >
@@ -1043,16 +1034,8 @@ export default function PaperWizardPage() {
           <div className="row" style={{ marginTop: 10 }}>
             <button
               type="button"
-              className="btn"
-              disabled={!draft.paperId || busy === 'sync' || busy === 'publish' || locked}
-              onClick={() => void sync()}
-            >
-              {busy === 'sync' ? t('teacher.common.loading') : t('teacher.wizard.sync')}
-            </button>
-            <button
-              type="button"
               className="btn pri"
-              disabled={publishBlocked || busy === 'publish' || busy === 'sync'}
+              disabled={publishBlocked || busy === 'publish'}
               onClick={() => void publish()}
             >
               {busy === 'publish' ? t('teacher.common.saving') : t('teacher.wizard.publish')}
@@ -1062,7 +1045,6 @@ export default function PaperWizardPage() {
             {check.reason === 'mismatch' && <span className="tag red">{t('teacher.wizard.publishBlocked')}</span>}
             {check.reason === 'empty' && <span className="tag red">{t('teacher.wizard.errors.emptyPaper')}</span>}
           </div>
-          <div className="hint" style={{ marginTop: 8 }}>{t('teacher.wizard.syncHint')}</div>
           {locked && (
             <div className="row" style={{ marginTop: 10 }}>
               <Link className="btn pri" to={`/offerings/new?paperId=${draft.paperId ?? ''}`}>

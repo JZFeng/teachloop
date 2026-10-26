@@ -1275,7 +1275,7 @@ PUBLISHED --generate-----> 拒绝（409）  （`confirm=true` 时也拒绝：已
 
 | 文件 | 变更 |
 | :--- | :--- |
-| `web/src/teacher/PaperWizardPage.tsx` | 重写：4 步；删掉 section/item/criteria 三套表单状态、`syncDraft` 的补建逻辑（约 100 行）、批量改题型、参考范文；保留 `localStorage` 草稿（键升级为 `teachloop.paperDraft.v2`）。**2026-10-25 追记**：评分项去掉保存按钮改 800ms 防抖自动保存（离开本步冲刷、失败放回队列），第 3 步「下一步」加闸门（空必填拦截、合计不一致只提醒） |
+| `web/src/teacher/PaperWizardPage.tsx` | 重写：4 步；删掉 section/item/criteria 三套表单状态、`syncDraft` 的补建逻辑（约 100 行）、批量改题型、参考范文；保留 `localStorage` 草稿（键升级为 `teachloop.paperDraft.v2`）。**2026-10-25 追记**：评分项去掉保存按钮改 800ms 防抖自动保存（离开本步冲刷、失败放回队列），第 3 步「下一步」加闸门（空必填拦截、合计不一致只提醒）；同日再改：删「同步并校验」（T471），「一条都解析不出来」也算没填一并拦（T472） |
 | `web/src/teacher/paperFlow.ts` | **新增**纯函数：草稿 v2 规整、目标 vs 实际判定、预览行构造（缺答案 / 题号断档）、评分项列构造（`无`/`N/A` + 题号分块）、删除摘要、阶段文案序列。**2026-10-25 补**：`essayRubricCheck` + `rubricGate`（第 3 步闸门：空 = 拦、合计不一致 = 只提醒、没写分值 = 只提醒） |
 | `web/src/teacher/PapersPage.tsx` | 删「导入考卷」按钮；其余不动 |
 | `web/src/App.tsx` | 删 `papers/import` 路由与 import |

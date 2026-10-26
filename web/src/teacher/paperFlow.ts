@@ -222,13 +222,14 @@ export function publishCheck(input: {
  * 第 3 步「下一步」的评分项体检（2026-10-25 用户拍板）。
  *
  * - `empty`：完全没填 → **拦**（评分项必填，不进下一步）；
+ * - `unparsed`：写了字但**一条评分项都没解析出来** → 也**拦**（等于没填，放过去等于让 AI 无标准判分）；
  * - `mismatch`：评分项合计 ≠ 本题满分 → 只提醒，不拦；
  * - `noPoints`：写了文字但一个分值都没写 → 只提醒（后端判分时按均分，不是错）。
  *
  * 为什么把「不一致」定为不拦：老师常常先写要点、分值后补，拦下来只会逼他随便编数字；
  * 而「没填」是明确的缺口，放过去等于让 AI 无标准判分。
  */
-export type RubricVerdict = 'empty' | 'matched' | 'mismatch' | 'noPoints'
+export type RubricVerdict = 'empty' | 'unparsed' | 'matched' | 'mismatch' | 'noPoints'
 
 export interface RubricScoreCheck {
   number: number
@@ -243,6 +244,8 @@ export interface RubricGate {
   blocked: boolean
   /** 完全没填的题号。 */
   empty: number[]
+  /** 写了字、但一条评分项都没解析出来的题号（没有 `1. ` / `- ` 这类行首标记）。 */
+  unparsed: number[]
   /** 合计与本题满分不一致的题。 */
   mismatch: RubricScoreCheck[]
   /** 有文字但没写任何分值的题号。 */
@@ -255,6 +258,10 @@ export function essayRubricCheck(tab: EssayTab, text: string, summary: RubricSum
   if (text.trim() === '') {
     return { number: tab.number, points: tab.points, total: 0, verdict: 'empty' }
   }
+  // 有字但解析不出评分项：等于没填（老师可能写成了没有列表标记的散文行）。
+  if (summary.criteria.length === 0) {
+    return { number: tab.number, points: tab.points, total: 0, verdict: 'unparsed' }
+  }
   if (!summary.anyPoints) {
     return { number: tab.number, points: tab.points, total: 0, verdict: 'noPoints' }
   }
@@ -265,9 +272,10 @@ export function essayRubricCheck(tab: EssayTab, text: string, summary: RubricSum
 
 export function rubricGate(checks: RubricScoreCheck[]): RubricGate {
   const empty = checks.filter((entry) => entry.verdict === 'empty').map((entry) => entry.number)
+  const unparsed = checks.filter((entry) => entry.verdict === 'unparsed').map((entry) => entry.number)
   const mismatch = checks.filter((entry) => entry.verdict === 'mismatch')
   const noPoints = checks.filter((entry) => entry.verdict === 'noPoints').map((entry) => entry.number)
-  return { blocked: empty.length > 0, empty, mismatch, noPoints, checks }
+  return { blocked: empty.length > 0 || unparsed.length > 0, empty, unparsed, mismatch, noPoints, checks }
 }
 
 /**

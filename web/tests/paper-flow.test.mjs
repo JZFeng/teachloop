@@ -298,3 +298,26 @@ test('rubricGate：只有「完全没填」拦人，合计不一致不拦', () =
   assert.equal(all.blocked, false)
   assert.deepEqual(all.noPoints, [76])
 })
+
+test('essayRubricCheck：写了字但一条评分项都没解析出来 = unparsed（等于没填）', () => {
+  const tab = essayTab(76, 15)
+  // 老师在即时渲染视图里手打的形态：没有 1. / - 标记，「评分标准：」也不是 Markdown 标题。
+  const text = '评分标准：\n表达理解(5分)\n给出建议(5分)'
+  const check = essayRubricCheck(tab, text, summarizeRubric(text))
+  assert.equal(check.verdict, 'unparsed')
+  assert.equal(check.total, 0)
+})
+
+test('rubricGate：unparsed 和 empty 一起拦下一步，提示分开', () => {
+  const blank = '评分标准：\n表达理解(5分)'
+  const unparsed = essayRubricCheck(essayTab(76, 15), blank, summarizeRubric(blank))
+  const empty = essayRubricCheck(essayTab(77, 15), '', summarizeRubric(''))
+  const gate = rubricGate([unparsed, empty])
+
+  assert.equal(gate.blocked, true)
+  assert.deepEqual(gate.unparsed, [76])
+  assert.deepEqual(gate.empty, [77])
+  // 只报「没写分值」的题不拦：它有解析结果，只是没写分值。
+  const noPoints = essayRubricCheck(essayTab(78, 15), '1. 要点', summarizeRubric('1. 要点'))
+  assert.equal(rubricGate([noPoints]).blocked, false)
+})

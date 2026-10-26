@@ -35,6 +35,19 @@ export function RubricPreview({ rubric, totalPoints, showTotalCheck = true, titl
   const expected = Number.isFinite(totalPoints) && (totalPoints ?? 0) > 0 ? (totalPoints as number) : null
   const matched = expected !== null && !summary.missingPoints && Math.abs(summary.total - expected) < 0.01
   const heading = title ?? t('teacher.assignmentCreate.aiPreview')
+  /**
+   * 合计一致性用颜色说话（用户 2026-10-25「错误信息要 color code」）：
+   * 一致 = 绿；试卷页不一致 = 琥珀（只提醒）；作业页不一致 = 红（提交会被拒）；均分 = 灰。
+   */
+  const stateTone: 'ok' | 'warn' | 'err' | 'muted' = summary.missingPoints
+    ? 'warn'
+    : !summary.anyPoints
+      ? 'muted'
+      : matched
+        ? 'ok'
+        : scope === 'paper'
+          ? 'warn'
+          : 'err'
 
   return (
     <div className="rubric-preview">
@@ -54,7 +67,7 @@ export function RubricPreview({ rubric, totalPoints, showTotalCheck = true, titl
         )}
       </div>
       {summary.criteria.length === 0 ? (
-        <div className="small muted">{t('teacher.assignmentCreate.aiPreviewEmpty')}</div>
+        <div className="small rubric-preview-state warn">{t('teacher.assignmentCreate.aiPreviewEmpty')}</div>
       ) : (
         <>
           <ol className="rubric-preview-list">
@@ -66,7 +79,7 @@ export function RubricPreview({ rubric, totalPoints, showTotalCheck = true, titl
             ))}
           </ol>
           {showTotalCheck ? (
-            <div className="small muted">
+            <div className={`small rubric-preview-state ${stateTone}`}>
               {summary.missingPoints
                 ? t('teacher.assignmentCreate.aiPreviewMissingPoints')
                 : !summary.anyPoints
@@ -88,7 +101,7 @@ export function RubricPreview({ rubric, totalPoints, showTotalCheck = true, titl
           )}
           {summary.ignored.length > 0 ? (
             <div
-              className="small muted rubric-preview-note"
+              className="small rubric-preview-note"
               title={summary.ignored.map((criterion) => criterion.name).join('\n')}
             >
               {t('teacher.assignmentCreate.aiPreviewIgnored', { count: summary.ignored.length })}

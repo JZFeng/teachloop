@@ -294,7 +294,33 @@
 
 .teacher-page .rubric-preview-note {
   margin-top: 2px;
+  /* 没有分值、被忽略的行：琥珀，别让老师以为它们计分了。 */
+  color: var(--amber);
 }
+
+/* 合计一致性：一致绿、试卷页不一致琥珀（只提醒）、作业页不一致红（会被拒）。 */
+.teacher-page .rubric-preview-state.ok { color: var(--green); }
+.teacher-page .rubric-preview-state.warn { color: var(--amber); }
+.teacher-page .rubric-preview-state.err { color: var(--red); }
+.teacher-page .rubric-preview-state.muted { color: var(--muted); }
+
+/* 评分项自动保存的状态行：成功不动声色，失败必须看得见。 */
+.teacher-page .rubric-save-state {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+.teacher-page .rubric-save-state.is-error { color: var(--red); }
+
+/* 这一步过不去的错误（如「评分项必填」）。 */
+.teacher-page .form-error {
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--red);
+}
+
+/* 还没写评分项时的提示：这一步必填，用琥珀提前提醒。 */
+.teacher-page .rubric-hint-empty { color: var(--amber); }
 
 /* ---------------------------------------------------------------- 试卷向导（D-34）
  * 第 2 步的不确定进度、第 3 步的一题一 tab、第 4 步的评分项分块。
