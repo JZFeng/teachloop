@@ -46,7 +46,7 @@
       "displayName": "显示名称",
       "displayNameHint": "列表里显示的名字，例如 DeepSeek。",
       "baseUrl": "API 地址",
-      "baseUrlHint": "从后端服务器发起连接；localhost 指后端所在机器。",
+      "baseUrlHint": "填到 /v1 为止，不要带 /chat/completions（示例：https://api.deepseek.com/v1、http://192.168.68.101:8080/v1）。从后端服务器发起连接；localhost 指后端所在机器。",
       "protocol": "API 协议",
       "protocolHint": "v1 只实现 OpenAI 兼容；Anthropic 置灰。",
       "protocolOpenai": "OpenAI Chat Completions",
@@ -70,7 +70,10 @@
       "moveUp": "上移",
       "moveDown": "下移",
       "extraHeaders": "额外请求头（JSON）",
-      "extraHeadersHint": "例如 {\"x-opencode-session\": \"$uuid\"}。值为 $uuid 时每次请求生成一个新 UUID；留空表示不发送。"
+      "extraHeadersHint": "例如 {\"x-opencode-session\": \"$uuid\"}。值为 $uuid 时每次请求生成一个新 UUID；留空表示不发送。",
+      "manualModel": "手填模型 ID（拉取不到时用）",
+      "manualModelHint": "有些网关没有 /models 端点（例如 opencode go），只能手填模型名；填完会出现在上面的已选列表里。",
+      "addManualModel": "添加"
     },
     "name": "TeachLoop",
     "setup": {

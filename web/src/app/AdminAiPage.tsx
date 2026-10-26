@@ -35,6 +35,7 @@ export default function AdminAiPage() {
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [currentModel, setCurrentModel] = useState<string | null>(null)
   const [modelsMessage, setModelsMessage] = useState<string | null>(null)
+  const [manualModel, setManualModel] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [test, setTest] = useState<AiTestResult | null>(null)
@@ -58,6 +59,14 @@ export default function AdminAiPage() {
   useEffect(() => { void load() }, [])
 
   const active = providers.find((p) => p.active)
+
+  // 拉取失败（或网关根本没有 /models）时允许手填模型 ID，否则这类 provider 存不进去。
+  const addManualModel = () => {
+    const model = manualModel.trim()
+    if (!model) return
+    if (!selectedModels.includes(model)) setSelectedModels([...selectedModels, model])
+    setManualModel('')
+  }
 
   // 新 provider 排到最后：取现有最大优先级 +10。
   const nextPriority = () => providers.reduce((max, p) => Math.max(max, p.priority), 0) + 10
@@ -83,6 +92,7 @@ export default function AdminAiPage() {
     setAvailableModels([])
     setSelectedModels([])
     setModelsMessage(null)
+    setManualModel('')
     setTest(null)
     setFormOpen(true)
   }
@@ -97,6 +107,7 @@ export default function AdminAiPage() {
     setAvailableModels([])
     setSelectedModels(p.models?.length ? p.models : [p.model])
     setModelsMessage(null)
+    setManualModel('')
     setTest(null)
     setFormOpen(true)
   }
@@ -110,6 +121,7 @@ export default function AdminAiPage() {
         baseUrl: form.baseUrl,
         model: '',
         apiKey: form.apiKey || null,
+        extraHeaders: form.extraHeaders.trim() || null,
       })
       setAvailableModels(result.models)
       setModelsMessage(result.ok
@@ -125,6 +137,7 @@ export default function AdminAiPage() {
     try {
       setTest(await api.post<AiTestResult>('/api/admin/ai-providers/test', {
         baseUrl: form.baseUrl, model: selectedModels[0] ?? '', apiKey: form.apiKey || null,
+        extraHeaders: form.extraHeaders.trim() || null,
       }))
     } catch (e) {
       setError((e as Error).message)
@@ -340,7 +353,7 @@ export default function AdminAiPage() {
               </div>
             )}
             {selectedModels.length > 0 && (
-              <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }}>
+              <div className="row" style={{ gap: 6, flexWrap: 'wrap', marginTop: 8 }} data-manual-model-row>
                 {selectedModels.map((model) => (
                   <span key={model} className="mono" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     {model}
@@ -349,6 +362,16 @@ export default function AdminAiPage() {
                 ))}
               </div>
             )}
+            <div className="row" style={{ gap: 8, marginTop: 12, alignItems: 'flex-end' }}>
+              <div className="grow">
+                <div className="muted sm">{t('app.ai.manualModel')}</div>
+                <Input value={manualModel} placeholder="deepseek-v4.1-flash"
+                  onChange={(e) => setManualModel(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addManualModel() } }} />
+              </div>
+              <Button onClick={addManualModel}>{t('app.ai.addManualModel')}</Button>
+            </div>
+            <p className="small muted" style={{ marginTop: 6 }}>{t('app.ai.manualModelHint')}</p>
           </Field>
           {modelsMessage && <p className="small muted">{modelsMessage}</p>}
           {test && (

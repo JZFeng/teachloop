@@ -53,7 +53,12 @@ public class AiSettingsService {
                                 String since, String activeProviderId, String activeProviderKey) {
     }
 
-    public record TestRequest(String baseUrl, String model, String apiKey) {
+    public record TestRequest(String baseUrl, String model, String apiKey, String extraHeaders) {
+
+        /** 兼容旧调用方（不带额外头）。 */
+        public TestRequest(String baseUrl, String model, String apiKey) {
+            this(baseUrl, model, apiKey, null);
+        }
     }
 
     public record TestResult(boolean ok, long latencyMs, String message, String model) {
@@ -63,6 +68,9 @@ public class AiSettingsService {
     }
 
     private static final Logger log = LoggerFactory.getLogger(AiSettingsService.class);
+
+    /** 探测与判分统一用产品 UA：Cloudflare 前置的网关会拦掉默认 UA（error 1010）。 */
+    static final String USER_AGENT = "teachloop/1.0";
 
     private final AiSettingsRepository repo;
     private final AiProviderRepository providers;
@@ -227,10 +235,13 @@ public class AiSettingsService {
             HttpRequest.Builder builder = HttpRequest.newBuilder(
                             URI.create(baseUrl.replaceAll("/+$", "") + "/models"))
                     .timeout(Duration.ofSeconds(10))
-                    .header("Accept", "application/json");
+                    .header("Accept", "application/json")
+                    // 有些网关（Cloudflare 前置）没有产品 UA 直接 403 error code: 1010
+                    .header("User-Agent", USER_AGENT);
             if (key != null && !key.isBlank()) {
                 builder.header("Authorization", "Bearer " + key);
             }
+            applyExtraHeaders(builder, req.extraHeaders());
             HttpResponse<String> response = http.send(builder.GET().build(),
                     HttpResponse.BodyHandlers.ofString());
             if (response.statusCode() < 200 || response.statusCode() >= 300) {
@@ -274,10 +285,12 @@ public class AiSettingsService {
             HttpRequest.Builder builder = HttpRequest.newBuilder(
                             URI.create(baseUrl.replaceAll("/+$", "") + "/chat/completions"))
                     .timeout(Duration.ofSeconds(20))
-                    .header("Content-Type", "application/json");
+                    .header("Content-Type", "application/json")
+                    .header("User-Agent", USER_AGENT);
             if (key != null && !key.isBlank()) {
                 builder.header("Authorization", "Bearer " + key);
             }
+            applyExtraHeaders(builder, req.extraHeaders());
             HttpResponse<String> response = http.send(builder.POST(HttpRequest.BodyPublishers.ofString(body)).build(),
                     HttpResponse.BodyHandlers.ofString());
             long ms = (System.nanoTime() - started) / 1_000_000;
@@ -295,10 +308,10 @@ public class AiSettingsService {
 
     private String effectiveBaseUrl(TestRequest req) {
         if (req.baseUrl() != null && !req.baseUrl().isBlank()) {
-            return req.baseUrl().strip();
+            return AiProviderService.normalizeBaseUrl(req.baseUrl());
         }
-        return repo.findById(1).map(e -> activeProvider(e).map(AiProviderEntity::getBaseUrl)
-                .orElse(e.getBaseUrl())).orElse(null);
+        return repo.findById(1).map(e -> AiProviderService.normalizeBaseUrl(
+                activeProvider(e).map(AiProviderEntity::getBaseUrl).orElse(e.getBaseUrl()))).orElse(null);
     }
 
     private String effectiveModel(TestRequest req) {
@@ -397,6 +410,48 @@ public class AiSettingsService {
             return resolved;
         } catch (Exception ex) {
             log.warn("provider {} 的 extraHeaders 不是合法 JSON，已忽略：{}", p.getProviderKey(), ex.getMessage());
+            return Map.of();
+        }
+    }
+
+    /** 决策 024：把 provider 级额外头应用到探测请求上（值为 $uuid 时生成 UUID）。 */
+    private void applyExtraHeaders(HttpRequest.Builder builder, String rawJson) {
+        Map<String, String> headers = parseHeaders(rawJson);
+        headers.forEach((name, value) -> {
+            if (name == null || name.isBlank()) {
+                return;
+            }
+            String header = name.strip();
+            if ("authorization".equalsIgnoreCase(header) || "content-type".equalsIgnoreCase(header)
+                    || "accept".equalsIgnoreCase(header) || "user-agent".equalsIgnoreCase(header)) {
+                return;
+            }
+            try {
+                builder.header(header, value);
+            } catch (IllegalArgumentException restricted) {
+                // Host/Content-Length 等受限头跳过
+            }
+        });
+    }
+
+    /** 解析 {\"name\": \"value\"} 形式的额外头；值为 $uuid 时生成新 UUID。 */
+    private Map<String, String> parseHeaders(String rawJson) {
+        if (rawJson == null || rawJson.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Map<?, ?> parsed = mapper.readValue(rawJson.strip(), Map.class);
+            Map<String, String> resolved = new LinkedHashMap<>();
+            parsed.forEach((name, value) -> {
+                if (name == null || value == null) {
+                    return;
+                }
+                String text = String.valueOf(value);
+                resolved.put(String.valueOf(name), "$uuid".equals(text.strip()) ? UUID.randomUUID().toString() : text);
+            });
+            return resolved;
+        } catch (RuntimeException ex) {
+            log.warn("extraHeaders 不是合法 JSON，已忽略：{}", ex.getMessage());
             return Map.of();
         }
     }

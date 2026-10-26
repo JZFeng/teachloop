@@ -252,7 +252,7 @@ public class AiProviderService {
         if (raw == null || raw.isBlank()) {
             throw ApiException.badRequest("error.ai.baseUrl");
         }
-        String url = raw.strip();
+        String url = normalizeBaseUrl(raw);
         if (!url.startsWith("http://") && !url.startsWith("https://")) {
             throw ApiException.badRequest("error.ai.baseUrl");
         }
@@ -325,5 +325,28 @@ public class AiProviderService {
         } catch (RuntimeException ex) {
             throw ApiException.badRequest("error.ai.extraHeadersInvalid");
         }
+    }
+
+    /** 常见的端点后缀：用户把「完整接口地址」当成 base URL 填进来时自动裁掉。 */
+    private static final java.util.List<String> ENDPOINT_SUFFIXES = java.util.List.of(
+            "/chat/completions", "/completions", "/models", "/embeddings", "/responses");
+
+    /** 把 base URL 归一到「协议 + 主机 + /v1」这一层；幂等。 */
+    static String normalizeBaseUrl(String raw) {
+        String url = raw == null ? "" : raw.strip();
+        boolean stripped = true;
+        while (stripped) {
+            stripped = false;
+            while (url.endsWith("/")) {
+                url = url.substring(0, url.length() - 1);
+            }
+            for (String suffix : ENDPOINT_SUFFIXES) {
+                if (url.endsWith(suffix)) {
+                    url = url.substring(0, url.length() - suffix.length());
+                    stripped = true;
+                }
+            }
+        }
+        return url;
     }
 }

@@ -46,7 +46,7 @@
       "displayName": "Display name",
       "displayNameHint": "The name shown in this list, for example DeepSeek.",
       "baseUrl": "API address",
-      "baseUrlHint": "The request starts from the backend server; localhost means the server's machine.",
+      "baseUrlHint": "Stop at /v1 — do not include /chat/completions (e.g. https://api.deepseek.com/v1, http://192.168.68.101:8080/v1). The request comes from the backend host.",
       "protocol": "API protocol",
       "protocolHint": "v1 implements OpenAI-compatible only; Anthropic is disabled.",
       "protocolOpenai": "OpenAI Chat Completions",
@@ -70,7 +70,10 @@
       "moveUp": "Move up",
       "moveDown": "Move down",
       "extraHeaders": "Extra request headers (JSON)",
-      "extraHeadersHint": "e.g. {\"x-opencode-session\": \"$uuid\"}. A value of $uuid generates a new UUID per request; leave empty to send none."
+      "extraHeadersHint": "e.g. {\"x-opencode-session\": \"$uuid\"}. A value of $uuid generates a new UUID per request; leave empty to send none.",
+      "manualModel": "Model ID (type it when discovery fails)",
+      "manualModelHint": "Some gateways have no /models endpoint (opencode go, for example). Type the model name; it is added to the selected list above.",
+      "addManualModel": "Add"
     },
     "name": "TeachLoop",
     "setup": {
