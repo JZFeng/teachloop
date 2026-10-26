@@ -256,11 +256,22 @@ public final class Ports {
 
     /** 管理员/教师保存的 AI 配置；key 不随端口返回给业务方以外的接口。 */
     public record AiSettings(String provider, String baseUrl, String model, String apiKey,
-                             BigDecimal temperature, boolean configured, String source) {
+                             BigDecimal temperature, boolean configured, String source,
+                             java.util.Map<String, String> extraHeaders) {
+
+        public AiSettings {
+            extraHeaders = extraHeaders == null ? java.util.Map.of() : java.util.Map.copyOf(extraHeaders);
+        }
+
+        public AiSettings(String provider, String baseUrl, String model, String apiKey,
+                          BigDecimal temperature, boolean configured, String source) {
+            this(provider, baseUrl, model, apiKey, temperature, configured, source, java.util.Map.of());
+        }
 
         public AiSettings(String provider, String baseUrl, String model, String apiKey,
                           BigDecimal temperature, boolean configured) {
-            this(provider, baseUrl, model, apiKey, temperature, configured, configured ? "global" : "none");
+            this(provider, baseUrl, model, apiKey, temperature, configured, configured ? "global" : "none",
+                    java.util.Map.of());
         }
     }
 

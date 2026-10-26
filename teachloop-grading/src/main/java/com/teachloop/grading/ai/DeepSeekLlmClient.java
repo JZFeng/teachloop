@@ -30,6 +30,7 @@ public class DeepSeekLlmClient implements LlmClient {
     private final BigDecimal temperature;
     private final Duration timeout;
     private final HttpClient http;
+    private final java.util.Map<String, String> extraHeaders;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public DeepSeekLlmClient(String apiKey, String baseUrl, String model, BigDecimal temperature,
@@ -39,14 +40,28 @@ public class DeepSeekLlmClient implements LlmClient {
                 .build());
     }
 
+    /** 决策 024：带 provider 级额外请求头（如 opencode go 的 x-opencode-session）。 */
+    public DeepSeekLlmClient(String apiKey, String baseUrl, String model, BigDecimal temperature,
+                             Duration timeout, java.util.Map<String, String> extraHeaders) {
+        this(apiKey, baseUrl, model, temperature, timeout, HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build(), extraHeaders);
+    }
+
     DeepSeekLlmClient(String apiKey, String baseUrl, String model, BigDecimal temperature,
                       Duration timeout, HttpClient http) {
+        this(apiKey, baseUrl, model, temperature, timeout, http, java.util.Map.of());
+    }
+
+    DeepSeekLlmClient(String apiKey, String baseUrl, String model, BigDecimal temperature,
+                      Duration timeout, HttpClient http, java.util.Map<String, String> extraHeaders) {
         this.apiKey = apiKey == null ? "" : apiKey.strip();
         this.baseUrl = baseUrl == null || baseUrl.isBlank() ? "https://api.deepseek.com" : baseUrl.strip();
         this.model = model == null || model.isBlank() ? "deepseek-flash" : model.strip();
         this.temperature = temperature == null ? new BigDecimal("0.2") : temperature;
         this.timeout = timeout == null ? Duration.ofSeconds(180) : timeout;
         this.http = http;
+        this.extraHeaders = extraHeaders == null ? java.util.Map.of() : java.util.Map.copyOf(extraHeaders);
     }
 
     @Override
@@ -58,6 +73,21 @@ public class DeepSeekLlmClient implements LlmClient {
         if (!apiKey.isBlank()) {
             builder.header("Authorization", "Bearer " + apiKey);
         }
+        // 决策 024：provider 级额外头。鉴权与内容类型由上面统一管理，这里不允许覆盖。
+        extraHeaders.forEach((name, value) -> {
+            if (name == null || name.isBlank()) {
+                return;
+            }
+            String header = name.strip();
+            if ("authorization".equalsIgnoreCase(header) || "content-type".equalsIgnoreCase(header)) {
+                return;
+            }
+            try {
+                builder.header(header, value == null ? "" : value);
+            } catch (IllegalArgumentException restricted) {
+                // Host/Content-Length 等受限头直接跳过，不让配置把整次调用搞挂
+            }
+        });
         HttpRequest httpRequest = builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
         long started = System.nanoTime();
         HttpResponse<String> response;

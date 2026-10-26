@@ -6,6 +6,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.stereotype.Service;
@@ -23,11 +24,18 @@ public class AiProviderService {
 
     public record View(String id, String providerId, String displayName, String baseUrl, String protocol,
                        String model, List<String> models, boolean apiKeySet, String apiKeyMasked,
-                       boolean active, String updatedAt) {
+                       boolean active, String updatedAt, int priority, String extraHeaders) {
     }
 
     public record Request(String providerId, String displayName, String baseUrl, String protocol,
-                          String apiKey, String model, List<String> models) {
+                          String apiKey, String model, List<String> models, int priority,
+                          String extraHeaders) {
+
+        /** 兼容旧调用方（不带优先级与额外头）。 */
+        public Request(String providerId, String displayName, String baseUrl, String protocol,
+                       String apiKey, String model, List<String> models) {
+            this(providerId, displayName, baseUrl, protocol, apiKey, model, models, 100, null);
+        }
     }
 
     public record Option(String key, String providerId, String displayName, String model, String label) {
@@ -92,6 +100,8 @@ public class AiProviderService {
                 validProtocol(req.protocol()), encrypt(req.apiKey()), models.get(0),
                 now, now, actorId);
         p.setModelsJson(json(models));
+        p.setPriority(req.priority());
+        p.setExtraHeadersJson(normalizeHeaders(req.extraHeaders()));
         repo.save(p);
         // 第一次添加的 provider 直接成为当前模型，避免教师下拉为空。
         if (aiSettings.activeProviderId() == null) {
@@ -114,6 +124,8 @@ public class AiProviderService {
         p.setProtocol(validProtocol(req.protocol()));
         p.setModel(models.get(0));
         p.setModelsJson(json(models));
+        p.setPriority(req.priority());
+        p.setExtraHeadersJson(normalizeHeaders(req.extraHeaders()));
         if (req.apiKey() != null && !req.apiKey().isBlank()) {
             p.setApiKeyCipher(secretBox.encrypt(req.apiKey().strip()));
         }
@@ -182,7 +194,7 @@ public class AiProviderService {
         List<String> models = modelsOf(p);
         return new View(p.getId().toString(), p.getProviderKey(), p.getDisplayName(), p.getBaseUrl(),
                 p.getProtocol(), p.getModel(), models, key != null && !key.isBlank(), mask(key), active,
-                p.getUpdatedAt().toString());
+                p.getUpdatedAt().toString(), p.getPriority(), p.getExtraHeadersJson());
     }
 
     private List<String> modelsOf(AiProviderEntity p) {
@@ -277,5 +289,27 @@ public class AiProviderService {
             return "****";
         }
         return key.substring(0, 3) + "****" + key.substring(key.length() - 4);
+    }
+
+    /**
+     * 决策 024：额外请求头必须是 JSON 对象且键值都是字符串；空串视为清空。
+     * 写坏了在保存时就报错，不要留到判分时才发现。
+     */
+    private String normalizeHeaders(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            Map<?, ?> parsed = mapper.readValue(raw.strip(), Map.class);
+            Map<String, String> headers = new java.util.LinkedHashMap<>();
+            parsed.forEach((name, value) -> {
+                if (name != null && value != null) {
+                    headers.put(String.valueOf(name), String.valueOf(value));
+                }
+            });
+            return headers.isEmpty() ? null : mapper.writeValueAsString(headers);
+        } catch (RuntimeException ex) {
+            throw ApiException.badRequest("error.ai.extraHeadersInvalid");
+        }
     }
 }

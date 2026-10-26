@@ -10,12 +10,16 @@ import java.net.http.HttpResponse;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.core.type.TypeReference;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -52,6 +56,8 @@ public class AiSettingsService {
 
     public record ModelsResult(boolean ok, List<String> models, String message) {
     }
+
+    private static final Logger log = LoggerFactory.getLogger(AiSettingsService.class);
 
     private final AiSettingsRepository repo;
     private final AiProviderRepository providers;
@@ -97,7 +103,7 @@ public class AiSettingsService {
             String model = e.getActiveModel() == null || e.getActiveModel().isBlank()
                     ? p.getModel() : e.getActiveModel();
             return Optional.of(new Ports.AiSettings(p.getProviderKey(), p.getBaseUrl(), model, key,
-                    e.getTemperature(), true, "global"));
+                    e.getTemperature(), true, "global", extraHeaders(p)));
         }
         String key = secretBox.decrypt(e.getApiKeyCipher());
         return Optional.of(new Ports.AiSettings(e.getProvider(), e.getBaseUrl(), e.getModel(), key,
@@ -343,5 +349,33 @@ public class AiSettingsService {
             return "****";
         }
         return key.substring(0, 3) + "****" + key.substring(key.length() - 4);
+    }
+
+    /**
+     * 决策 024：provider 级额外请求头。值为 {@code $uuid} 时每次解析生成一个新 UUID，
+     * 用于只要求「每次请求不同」的网关路由头（如 opencode go 的 {@code x-opencode-session}）。
+     *
+     * <p>配置写坏不拦住判分：解析失败只记一条 warn 并返回空表。
+     */
+    private Map<String, String> extraHeaders(AiProviderEntity p) {
+        String raw = p.getExtraHeadersJson();
+        if (raw == null || raw.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Map<String, String> parsed = mapper.readValue(raw, new TypeReference<Map<String, String>>() { });
+            Map<String, String> resolved = new LinkedHashMap<>();
+            parsed.forEach((name, value) -> {
+                if (name == null || name.isBlank()) {
+                    return;
+                }
+                String text = value == null ? "" : value;
+                resolved.put(name.strip(), "$uuid".equals(text.strip()) ? UUID.randomUUID().toString() : text);
+            });
+            return resolved;
+        } catch (Exception ex) {
+            log.warn("provider {} 的 extraHeaders 不是合法 JSON，已忽略：{}", p.getProviderKey(), ex.getMessage());
+            return Map.of();
+        }
     }
 }

@@ -128,9 +128,10 @@ public class AiGradingConfig {
             @Override
             public LlmClient forTeacher(UUID teacherId) {
                 Ports.AiSettings settings = resolve(teacherId);
-                if ("http".equalsIgnoreCase(clientKind)) {
+                // 决策 024：带额外请求头的 provider 必须走 http 客户端——Spring AI 那条链路无法注入任意头。
+                if ("http".equalsIgnoreCase(clientKind) || !settings.extraHeaders().isEmpty()) {
                     return RetryingLlmClient.wrap(new DeepSeekLlmClient(settings.apiKey(), settings.baseUrl(),
-                            settings.model(), settings.temperature(), timeout), retryPolicy);
+                            settings.model(), settings.temperature(), timeout, settings.extraHeaders()), retryPolicy);
                 }
                 return RetryingLlmClient.wrap(new SpringAiLlmClient(settings.apiKey(), settings.baseUrl(),
                         settings.model(), settings.temperature(), timeout), retryPolicy);

@@ -52,6 +52,13 @@ public class AiProviderEntity {
     @Column(nullable = false)
     private int priority = 100;
 
+    /**
+     * 决策 024：provider 级额外请求头（JSON 对象，值为 {@code $uuid} 时运行时生成）。
+     * 典型用途：opencode go 网关要求的 {@code x-opencode-session}。
+     */
+    @Column(name = "extra_headers", columnDefinition = "jsonb")
+    private String extraHeadersJson;
+
     protected AiProviderEntity() {
     }
 
@@ -93,4 +100,6 @@ public class AiProviderEntity {
     public void setUpdatedBy(UUID v) { this.updatedBy = v; }
     public int getPriority() { return priority; }
     public void setPriority(int v) { this.priority = v; }
+    public String getExtraHeadersJson() { return extraHeadersJson; }
+    public void setExtraHeadersJson(String v) { this.extraHeadersJson = v; }
 }
