@@ -124,6 +124,9 @@
   margin-top: 12px;
 }
 .review-actions .ant-btn { min-width: 120px; }
+
+/* 卡片里的「数据准备中」进度条（2026-10-26 用户要求）：定宽居中，不撑满整张卡。 */
+.review-prep-progress { width: 260px; max-width: 100%; margin: 10px auto 0; }
 .review-keys { text-align: center; margin-top: 6px; }
 /* T435/T437：下一个按钮加大加宽、垂直居中在卡片右侧；
    T510（2026-10-26 用户要求「返回按钮的 css 要和复习页面的那个『下一个』按钮一样」）：

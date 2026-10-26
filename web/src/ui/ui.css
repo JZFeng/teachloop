@@ -557,3 +557,20 @@
 .tl-brand-swatch[data-brand='yellow'] i { background: var(--brand-yellow); }
 .tl-brand-swatch[data-brand='rose'] i { background: var(--brand-rose); }
 .tl-brand-ratio { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+
+/* 进度条（2026-10-26）：颜色全部来自令牌，页面不许自己画色块。 */
+.tl-progress { display: flex; align-items: center; gap: 10px; width: 100%; }
+.tl-progress-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+.tl-progress-bar {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 240ms ease-out;
+}
+.tl-progress-text { font-size: 12px; color: var(--muted); white-space: nowrap; }

@@ -2,16 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link } from 'react-router-dom'
 import { api } from '../api/client'
-import {
-  Button,
-  Empty,
-  ErrorState,
-  InlineNote,
-  Loading,
-  PageHeader,
-  useConfirm,
-  useToast,
-} from '../ui'
+import { Button, Empty, ErrorState, InlineNote, Loading, PageHeader, Progress, useConfirm, useToast } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
@@ -362,9 +353,17 @@ export default function VocabReviewPage() {
                 <div className="review-word">{items[0]?.form}</div>
                 <div className="muted">{t('vocab.review.preparing')}</div>
                 {gatePrep && (
-                  <div className="muted">
-                    {t('vocab.review.preparingCount', { ready: gatePrep.ready, total: gatePrep.requested })}
-                  </div>
+                  <>
+                    <div className="muted">
+                      {t('vocab.review.preparingCount', { ready: gatePrep.ready, total: gatePrep.requested })}
+                    </div>
+                    <div className="review-prep-progress">
+                      <Progress value={gatePrep.ready} max={gatePrep.requested}
+                        label={t('vocab.review.preparingCount', {
+                          ready: gatePrep.ready, total: gatePrep.requested,
+                        })} />
+                    </div>
+                  </>
                 )}
                 <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
                 {gateSlow && (
@@ -393,9 +392,17 @@ export default function VocabReviewPage() {
                   <>
                     <div className="muted">{t('vocab.review.preparing')}</div>
                     {prep && (
-                      <div className="muted">
-                        {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
-                      </div>
+                      <>
+                        <div className="muted">
+                          {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
+                        </div>
+                        <div className="review-prep-progress">
+                          <Progress value={prep.ready} max={prep.requested}
+                            label={t('vocab.review.preparingCount', {
+                              ready: prep.ready, total: prep.requested,
+                            })} />
+                        </div>
+                      </>
                     )}
                     <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
                   </>
