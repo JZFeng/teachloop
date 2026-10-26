@@ -21,6 +21,11 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
 import org.springframework.security.web.csrf.CsrfFilter;
 
+/**
+ * 2026-10-25：只有 servlet 相关的两个 bean 限制在 Web 环境。
+ * worker profile 是 non-web（application-worker.yml），没有 HttpSecurity/FilterRegistrationBean，
+ * 类级禁用会连带把 passwordEncoder 一起拿掉，worker 起不来；所以条件加在方法上。
+ */
 @Configuration
 public class SecurityConfig {
 
@@ -33,6 +38,7 @@ public class SecurityConfig {
      * 限流过滤器在安全链里运行；这里禁用 Boot 对 Filter Bean 的自动注册，
      * 避免同一个过滤器在 servlet 层再跑一遍。
      */
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(type = org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type.SERVLET)
     @Bean
     public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(RateLimitFilter filter) {
         FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
@@ -40,6 +46,7 @@ public class SecurityConfig {
         return registration;
     }
 
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(type = org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type.SERVLET)
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, UserRepository users,
                                            RateLimitFilter rateLimitFilter, Environment environment) throws Exception {

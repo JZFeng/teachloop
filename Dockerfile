@@ -29,7 +29,9 @@ ARG PIPER_MODEL_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/
 ARG PIPER_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/amy/medium/en_US-amy-medium.onnx.json
 ARG PIPER_UK_MODEL_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx
 ARG PIPER_UK_CONFIG_URL=https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_GB/alan/medium/en_GB-alan-medium.onnx.json
-RUN pip install --no-cache-dir piper-tts \
+# 2026-10-25：新版 temurin 基础镜像启用了 PEP 668（externally-managed-environment），
+# 系统级 pip 安装会被拒；容器内只有一个用途，直接 --break-system-packages 即可。
+RUN pip install --no-cache-dir --break-system-packages piper-tts \
  && mkdir -p /app/piper \
  && curl -fsSL "$PIPER_MODEL_URL" -o /app/piper/en_US-amy-medium.onnx \
  && curl -fsSL "$PIPER_CONFIG_URL" -o /app/piper/en_US-amy-medium.onnx.json \
