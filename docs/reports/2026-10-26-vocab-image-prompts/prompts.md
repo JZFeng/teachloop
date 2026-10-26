@@ -94,3 +94,18 @@ a person standing in a dusty second-hand bookshop, an old book open in their han
 text, letters, typography, watermark, signature, photo, photorealistic, 3d render, busy background, clutter, extra fingers, distorted hands, deformed face, low contrast, oversaturated
 ```
 
+
+## 实测回填（2026-10-26，struggle 两张）
+
+| 来源 | 尺寸 | 1:1 裁切后 88px 观感 | 备注 |
+| :--- | :--- | :--- | :--- |
+| 本地（Pushing Against the Light） | 1024×1536（2:3） | ✅ 主体大、门占满画面、光缝清楚 | 裁 1:1 后仍可用 |
+| Gemini | 2741×1530（≈16:9） | ⚠️ 主体偏小、两侧空白多 | 缩到 88px 细节丢失 |
+
+结论与调整：
+
+1. **直接按 1:1 生成**（SDXL 1024×1024；Gemini 要「方形 1:1」），不要生成 2:3/16:9 再裁。
+2. 宽画幅模型要在 prompt 里加 `close-up, subject fills 60-70% of the frame`，否则主体太小。
+3. 卡片右侧是 88px，图必须“大主体 + 高对比 + 无文字”，细节在图上看不见。
+
+对比图：`struggle-crop-compare.png`（300px / 88px / 48px 三档）。
