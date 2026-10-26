@@ -27,8 +27,19 @@ export function Empty({ children }: { children?: ReactNode }) {
   return <UiEmpty>{children}</UiEmpty>
 }
 
-export function PageHeader({ title, sub, actions }: { title: string; sub?: string; actions?: ReactNode }) {
-  return <UiPageHeader title={title} sub={sub} actions={actions} />
+export function PageHeader({
+  title,
+  sub,
+  info,
+  actions,
+}: {
+  title: string
+  sub?: string
+  /** 标题旁 ⓘ 里的长解释（AC-71 / AC-72.1）：屏幕上推不出来的规则才放这里。 */
+  info?: ReactNode
+  actions?: ReactNode
+}) {
+  return <UiPageHeader title={title} sub={sub} info={info} actions={actions} />
 }
 
 /** 旧签名是 `n`，新组件叫 `value`；这里做一次映射，调用点不用改。 */

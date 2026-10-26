@@ -40,7 +40,8 @@ const EYEBROW_RULES: EyebrowRule[] = [
   { test: /^\/profile$/, key: 'profile', tone: 'neutral' },
   { test: /^\/notifications$/, key: 'notifications', tone: 'neutral' },
   { test: /^\/admin\/ai$/, key: 'adminAi', tone: 'neutral' },
-  { test: /^\/$/, key: 'home', tone: 'neutral' },
+  // 首页刻意没有 eyebrow（AC-72.5 / 决策 027）：它没有功能位，这一行只能重复标题
+  // （原来是 `DASHBOARD`，纯英文、零信息，且标题就叫「我的学习」，等于同一个标签写两遍）。
 ]
 
 export function PageHeader({

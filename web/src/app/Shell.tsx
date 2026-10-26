@@ -55,7 +55,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const [unread, setUnread] = useState(0)
   const [aiMissing, setAiMissing] = useState(false)
 
-  // 三个功能位（作业/试卷 create、批改/复核 assess、报表/我的反馈 insights）之外，
+  // 三个功能位（作业/试卷 create、批改/复核 assess、报表/成绩与评语 insights）之外，
   // 首页与班级作为「空间位」各有一个颜色：home 海军蓝、classes 淡紫（决策 006 2026-10-23 修订）。
   // 可见性全部来自后端 key 集合；features 未回来前不渲染业务菜单，避免闪出全量再收缩（AC-63.11）。
   const items = featuresLoaded ? navSpecs(features) : []

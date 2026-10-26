@@ -41,7 +41,7 @@
 | 报表 | `nav.reports` | — | ✓ | — |
 | 我的词库 | `nav.vocab.library` | — | — | ✓（vocab 开） |
 | 今日复习 | `nav.vocab.review` | — | — | ✓（vocab 开） |
-| 我的反馈 | `nav.feedback` | — | — | ✓ |
+| 成绩与评语 | `nav.feedback` | — | — | ✓ |
 | AI 设置 | `nav.ai` | ✓ | — | — |
 
 合计：ADMIN 2 项；TEACHER 7 项（vocab 开 9）；STUDENT 3 项（vocab 开 5）。资料页与通知在侧栏底部常驻，不计入矩阵。
@@ -60,7 +60,7 @@
 - [ ] AC-63.1 角色 × 菜单矩阵是**后端唯一真源**（Java 常量，位于 `teachloop-identity`）；`GET /api/features` 返回当前用户最终生效的 key 集合（含 `nav.*` 与实验项，扁平等）；前端 `web/src/app/nav.ts` 只保留「菜单目录」（key → 路径 / 图标 / 文案 / **全局顺序**），**不含任何角色判断**
 - [ ] AC-63.2 ADMIN 侧栏恰好 2 项：班级（`/classes`）、AI 设置（`/admin/ai`），顺序固定
 - [ ] AC-63.3 TEACHER 侧栏 7 项，顺序为 首页、班级、作业、试卷、批改、复核、报表；vocab 开关打开时词集、发词插在试卷之后（共 9 项）
-- [ ] AC-63.4 STUDENT 侧栏 3 项，顺序为 首页、班级、我的反馈；vocab 开关打开时我的词库、今日复习插在班级之后（共 5 项）
+- [ ] AC-63.4 STUDENT 侧栏 3 项，顺序为 首页、班级、成绩与评语（`nav.feedback`，2026-10-26 由「我的反馈」改名，见 AC-72.4）；vocab 开关打开时我的词库、今日复习插在班级之后（共 5 项）
 - [ ] AC-63.5 ADMIN 登录后落在 `/classes`；访问 `/` 时重定向到 `/classes`，不停留在教师首页
 - [ ] AC-63.6 ADMIN 直接输入 `/papers`、`/grading`、`/review`、`/reports`、`/assignments` 时被重定向到 `/classes`，不出现白屏、不出现原始 403 错误页
 - [ ] AC-63.7 后端接口按角色收口，细到方法：`/api/reports/**`、`/api/papers/**`、`/api/offerings/{id}/grading/**`、`/api/submissions/*/review*`、`/api/offerings/{id}/class-summary`、`/api/offerings/{id}/export/**`、`POST /api/offerings`、`POST /api/offerings/{id}/submissions/{sid}/reject` 对 ADMIN 返回 403，对 TEACHER 放行

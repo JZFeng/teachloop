@@ -32,6 +32,7 @@
 | `after-published-score.png` | 公布态（fetch 拦截伪造 `totalScore=88`）：绿「已公布」+ 分数 + 客观/主观 + 按钮可点 |
 | `after-notes-compact.png` | 作业说明：整句已删，宽限期拆「宽限期 0 小时」+ ⓘ |
 | `unsubmitted-still-expanded.png` | 未交卷（fetch 拦截伪造未交）：两卡仍展开，作业说明无那句 |
+| `live-5174-after-deploy.png` | 5174 快照重新部署后的实测（暗色）：折叠卡、分数槽、禁用的「查看结果」都在 |
 
 ## 怎么验的
 
@@ -54,7 +55,8 @@
 
 ## 未做 / 待用户拍板
 
-1. **5174 快照没有重新部署**：要发布就跑 `./scripts/env.sh deploy qa`（会连 jar 一起重建）。
+1. **5174 快照已上线**：另一条线（T499 学生首页）在本次 commit 之后跑了 `./scripts/env.sh deploy qa`，
+   所以 5174 上的 `/assignments/:id` 已经是这版（实测 `.fold-head` 2 个、页面内搜不到「没有倒计时」）。
 2. 学生首页卡片、「成绩与评语」列表仍可点进 `/feedback/:id`（未公布时页面有「未发布」说明）。
    是否一起门控，等用户决定（已写进决策 025 的修订段）。
 3. `我提交的内容` 保持展开：用户只点名了两张参考卡。若也想收起，把 `SubmittedContentCard` 套一层
