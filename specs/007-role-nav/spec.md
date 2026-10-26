@@ -63,7 +63,7 @@
 - [ ] AC-63.4 STUDENT 侧栏 3 项，顺序为 首页、班级、我的反馈；vocab 开关打开时我的词库、今日复习插在班级之后（共 5 项）
 - [ ] AC-63.5 ADMIN 登录后落在 `/classes`；访问 `/` 时重定向到 `/classes`，不停留在教师首页
 - [ ] AC-63.6 ADMIN 直接输入 `/papers`、`/grading`、`/review`、`/reports`、`/assignments` 时被重定向到 `/classes`，不出现白屏、不出现原始 403 错误页
-- [ ] AC-63.7 后端接口按角色收口，细到方法：`/api/reports/**`、`/api/papers/**`、`/api/offerings/{id}/grading/**`、`/api/submissions/*/review*`、`/api/offerings/{id}/class-summary`、`/api/offerings/{id}/export/**`、`POST /api/offerings` 对 ADMIN 返回 403，对 TEACHER 放行
+- [ ] AC-63.7 后端接口按角色收口，细到方法：`/api/reports/**`、`/api/papers/**`、`/api/offerings/{id}/grading/**`、`/api/submissions/*/review*`、`/api/offerings/{id}/class-summary`、`/api/offerings/{id}/export/**`、`POST /api/offerings`、`POST /api/offerings/{id}/submissions/{sid}/reject` 对 ADMIN 返回 403，对 TEACHER 放行
 - [ ] AC-63.8 学生答题链路不受收口影响：学生仍能 `GET /api/offerings`、`/api/offerings/{id}/entry`、`/api/offerings/{id}/paper`、`/session`、`/my-submissions`、`PUT /answers`、`POST /submissions`；`POST /api/offerings`（创建布置）对学生返回 403
 - [ ] AC-63.9 管理员落到班级页后，页面内不出现会 403 的入口（布置作业、批改等按钮对 ADMIN 不可见或禁用），点击不产生报错
 - [ ] AC-63.10 前端侧栏渲染 = 「菜单目录」按**全局顺序**过滤出 `features` 中为 true 的 key，再映射成菜单项；教师 9 项、学生 5 项、管理员 2 项这三套顺序由同一份目录自然得出，**不需要按角色的分支**
@@ -94,10 +94,10 @@
 
 ## 8. 开放问题
 
-1. **`POST /api/offerings/{id}/submissions/{sid}/reject` 归属未定**：教师页 `GradingDetailPage.tsx:222` 在调它，但它定义在学生答题的 `ExamSessionEndpoint` 里。语义确认前，plan 第 1 条清单打不上勾。
+1. ~~`reject` 端点归属~~ **已定（2026-10-25）**：`ExamSessionEndpoint.reject` 方法体首行即 `if (me.is("STUDENT")) throw forbidden("学生不能拒收提交")`，唯一调用方是教师页 `GradingDetailPage.tsx:222`，语义为「教师拒收提交」。收口为 **TEACHER**。
 2. ADMIN 落到班级页时，是否需要看到班级列表之外的任何操作（如导出）？当前矩阵只给「查看」。
 
 ## 9. 已知偏差与风险
 
-- AC-63.7 的端点清单需要逐个对 controller 核对后才能定稿；规则是「实现前逐个确认方法级语义」，不按前缀猜。
+- AC-63.7 的端点清单已逐个对 controller 核对（2026-10-25），结果见 plan §4；实现时若路径有变更，以代码为准重新核对。
 - 管理员失去报表后，若 `AdminAiPage` 依赖报表接口会出现 403，实现前须 grep 该页的接口调用。

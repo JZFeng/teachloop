@@ -1,7 +1,7 @@
 # 实施计划 — 角色导航矩阵（007-role-nav）
 
 - 上游：`specs/007-role-nav/spec.md`
-- 状态：**草稿（2026-10-24）；6 条清单 5 勾 1 待定（`reject` 端点语义）**
+- 状态：**定稿（2026-10-25）；6 条清单全部打勾，可拆 tasks**
 - 相关：实验开关是独立服务（`specs/008-flags-service/`），与本计划无代码依赖，可并行
 
 ---
@@ -80,7 +80,7 @@ export function navSpecs(features: Record<string, boolean>) {
 | `POST /api/offerings/{id}/submissions/{sid}/grading/dispatch` | 登录 | **TEACHER** |
 | `GET /api/offerings/{id}/class-summary` | 登录 | **TEACHER** |
 | `GET /api/offerings/{id}/export/**` | 登录 | **TEACHER** |
-| `POST /api/offerings/{id}/submissions/{sid}/reject` | 登录 | **待核对**（教师页在用，但定义在学生答题 Endpoint；语义确认后再定） |
+| `POST /api/offerings/{id}/submissions/{sid}/reject` | 登录（方法体内只拦 STUDENT） | **TEACHER**（2026-10-25 语义已确认） |
 | `GET /api/offerings/{id}/entry` `/paper` `/session` `/my-submissions` `/my-feedback` | 登录 | 不变（学生答题） |
 | `POST /api/offerings/{id}/start` `/attempts` | 登录 | 不变 |
 | `PUT /api/offerings/{id}/answers` | 登录 | 不变 |
@@ -117,8 +117,7 @@ export function navSpecs(features: Record<string, boolean>) {
 
 **完整性**
 
-1. **spec 每条 AC 都有承接** —— ✅ AC-63.1–63.4 → §2；AC-63.5–63.6 → §3；AC-63.7 → §4；AC-63.8 → §4「不变」行；AC-63.9 → §5。
-   ⚠️ **未完全打勾**：AC-63.7 中 `reject` 一行归属未定（§4 标「待核对」）。
+1. **spec 每条 AC 都有承接** —— ✅ AC-63.1–63.4 → §2 后端矩阵 + `/api/features`；AC-63.5–63.6 → §3；AC-63.7 → §4 授权表（`reject` 已定为 TEACHER）；AC-63.8 → §4「不变」行；AC-63.9 → §5；AC-63.10–63.11 → §2.2 / §2.3。
 2. **每个实体的表、字段、索引、状态迁移** —— ✅ 本计划无新增表（N/A）。
 3. **外部依赖的失败路径** —— ✅ 无新增外部依赖（N/A）。
 
@@ -128,7 +127,7 @@ export function navSpecs(features: Record<string, boolean>) {
 5. **每张表只有一个属主** —— ✅ 无新增表（N/A）。
 6. **拆服务路径** —— ✅ 不影响各模块可拆性；`identity` 的收口规则都在自己的 `SecurityConfig` 与端点注解里。
 
-**结论：6 条里 5 条打勾，第 1 条因 `reject` 待定 → 本计划未定稿，不拆 tasks。**
+**结论：6 条全部打勾 → 本计划定稿，可以拆 tasks。**
 
 ## 9. 风险
 
