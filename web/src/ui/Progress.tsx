@@ -27,18 +27,18 @@ export function Progress({
   const percent = Math.round((clamped / total) * 100)
 
   return (
-    <div className="tl-progress">
+    <div className="tl-meter">
       <div
-        className="tl-progress-track"
+        className="tl-meter-track"
         role="progressbar"
         aria-valuenow={clamped}
         aria-valuemin={0}
         aria-valuemax={total}
         aria-label={label}
       >
-        <div className="tl-progress-bar" style={{ width: `${percent}%` }} />
+        <div className="tl-meter-fill" style={{ width: `${percent}%` }} />
       </div>
-      {showText && <span className="tl-progress-text">{`${clamped}/${total}`}</span>}
+      {showText && <span className="tl-meter-text">{`${clamped}/${total}`}</span>}
     </div>
   )
 }
