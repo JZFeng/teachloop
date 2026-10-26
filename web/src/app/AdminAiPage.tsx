@@ -6,6 +6,27 @@ import type { AiModelsView, AiProviderRequest, AiProviderStatus, AiProviderView,
 
 interface ModelsResult { ok: boolean; models: string[]; message: string }
 
+type ProbeTone = 'success' | 'info' | 'warning' | 'error'
+
+/**
+ * 探测失败时按原因分级上色（2026-10-25 用户要求「错误消息要 color coded」）：
+ * 鉴权问题红、地址/端点问题黄、限流黄、服务端或网络红黄不一。返回值同时带一句可操作的提示。
+ */
+function classifyProbe(message: string | null | undefined): { tone: ProbeTone; hint?: string } {
+  const text = message ?? ''
+  if (!text) return { tone: 'info' }
+  if (/HTTP 401|HTTP 403|authentication|unauthorized|MissingSessionID/i.test(text)) {
+    return { tone: 'error', hint: 'app.ai.errAuth' }
+  }
+  if (/HTTP 404/i.test(text)) return { tone: 'warning', hint: 'app.ai.errNotFound' }
+  if (/HTTP 429/i.test(text)) return { tone: 'warning', hint: 'app.ai.errRate' }
+  if (/HTTP 5\d\d/i.test(text)) return { tone: 'error', hint: 'app.ai.errServer' }
+  if (/\u8d85\u65f6|timeout|\u8fde\u63a5|refused|unknown host|timed out/i.test(text)) {
+    return { tone: 'warning', hint: 'app.ai.errNetwork' }
+  }
+  return { tone: 'error' }
+}
+
 interface FormState {
   providerId: string
   displayName: string
@@ -352,15 +373,33 @@ export default function AdminAiPage() {
             </div>
             <p className="small muted" style={{ marginTop: 6 }}>{t('app.ai.manualModelHint')}</p>
           </Field>
-          {modelsMessage && <p className="small muted">{modelsMessage}</p>}
-          {test && (
-            <p className="small muted">
-              {t('app.ai.testResult', {
-                result: test.ok ? t('app.ai.testOk') : t('app.ai.testFail'),
-                message: test.message, ms: test.latencyMs,
-              })}
-            </p>
-          )}
+          {modelsMessage && (() => {
+            const cls = classifyProbe(modelsMessage)
+            return (
+              <Alert
+                type={cls.tone}
+                showIcon
+                style={{ marginTop: 8 }}
+                message={modelsMessage}
+                description={cls.hint ? t(cls.hint) : undefined}
+              />
+            )
+          })()}
+          {test && (() => {
+            const cls = test.ok ? { tone: 'success' as ProbeTone, hint: undefined } : classifyProbe(test.message)
+            return (
+              <Alert
+                type={cls.tone}
+                showIcon
+                style={{ marginTop: 8 }}
+                message={t('app.ai.testResult', {
+                  result: test.ok ? t('app.ai.testOk') : t('app.ai.testFail'),
+                  message: test.message, ms: test.latencyMs,
+                })}
+                description={cls.hint ? t(cls.hint) : undefined}
+              />
+            )
+          })()}
           <div className="row" style={{ gap: 8, marginTop: 6 }}>
             <Button variant="primary" busy={busy} onClick={() => void save()}>{t('app.ai.saveProvider')}</Button>
             <Button busy={busy} onClick={() => void runTest()}>{t('app.ai.test')}</Button>

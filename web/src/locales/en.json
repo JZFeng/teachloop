@@ -70,7 +70,12 @@
       "extraHeadersHint": "e.g. {\"x-opencode-session\": \"$uuid\"}. A value of $uuid generates a new UUID per request; leave empty to send none.",
       "manualModel": "Model ID (type it when discovery fails)",
       "manualModelHint": "Some gateways have no /models endpoint (opencode go, for example). Type the model name; it is added to the selected list above.",
-      "addManualModel": "Add"
+      "addManualModel": "Add",
+      "errAuth": "Authentication failed: check the API key. Gateways like opencode also need the extra session header.",
+      "errNotFound": "Wrong address: use the base URL up to /v1 (no /chat/completions). Some gateways have no /models — just type the model ID.",
+      "errRate": "Rate limited: retry later or check the plan quota.",
+      "errServer": "Upstream error (5xx): retry later or try another provider.",
+      "errNetwork": "Cannot connect or timed out: check the address and port; from inside a container use the LAN IP, not localhost."
     },
     "name": "TeachLoop",
     "setup": {
