@@ -217,6 +217,33 @@ make seed                # 需要演示数据：1 班 + 30 学生 + 1 份 4 题�
 - 一路走完：建卷 → 布置 → 学生交卷 → 批改 → 复核 → 发布 → 导出 PDF/XLSX。
 - 这一档**不要**用 `docker-compose.prod.yml`：prod 强制 Secure Cookie，`http://localhost:8010` 登录会失败（不是 bug）。
 
+### A+ 档 · 免费公网试用（Cloudflare 临时隧道，0 元，5 分钟）
+
+不想买服务器、只想让外网打开看一眼，用这个。不需要域名、不需要备案、自带 HTTPS。
+
+```bash
+# 1) 起隧道（把本机 dev server 挂到公网）
+docker run -d --name teachloop-tunnel cloudflare/cloudflared:latest \
+  tunnel --url http://host.docker.internal:5173
+docker logs teachloop-tunnel 2>&1 | grep -oE "https://[a-z0-9-]+\.trycloudflare\.com"
+
+# 2) 用完立刻关（链接随即失效）
+docker rm -f teachloop-tunnel
+```
+
+前置：`web/vite.config.ts` 的 `server.allowedHosts` 必须放行 `.trycloudflare.com`，否则 Vite 回
+`403 Blocked request. This host ... is not allowed.`（2026-10-25 实测确认，已配置）。
+
+2026-10-25 实测：隧道首页 200、`POST /api/auth/login` 200、登录后 `GET /api/papers` 200，往返 0.13s。
+
+**坑（都会真实咬人）**：
+
+1. **dev profile 的演示账号是公开的**：任何拿到链接的人都能用 `teacher@teachloop.local / teachloop123` 以教师身份登录。只发给特定的人，用完 `docker rm -f teachloop-tunnel`。
+2. **域名每次重启都变**，且国内访问 `*.trycloudflare.com` 常常很慢甚至打不开。给国内朋友之前先自己用手机 4G 点一下。
+3. **电脑休眠/合盖即断**，不适合「挂一晚上让别人自助点」。
+4. **重新构建 jar 会切断正在运行的后端**：`mvn package` 覆盖 jar 后，运行中的进程对未加载过的类抛 `NoClassDefFoundError`（2026-10-25 实测踩到：`ch/qos/logback/classic/spi/ThrowableProxy`，表现是带 `X-Forwarded-*` 的请求全部 400，本机 localhost 却正常）。这就是 `docs/DELIVERY-STATUS.md` 第 14 条的老坑：**先停后端再构建，构建后立刻重启**。
+5. 免费但有代价：出网走 Cloudflare，学生作答内容会经过第三方 CDN（HTTPS 终止在 CF 边缘）。只用于演示，不要放真实学生数据。
+
 ### B 档 · 朋友帮测（半天，免备案）
 
 前置：一台**境外**云服务器（香港/新加坡/日本，2C4G 起）+ 一个域名（解析到境外 IP **不需要**备案）。用大陆 ECS 就必须先备案，没有中间地带。

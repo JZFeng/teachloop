@@ -18,7 +18,9 @@ const proxy = {
 
 export default defineConfig({
   plugins: [react()],
-  server: { port: webPort, proxy },
+  // 用临时隧道（cloudflared quick tunnel 等）从外部域名访问 dev server 时，
+  // Vite 的 Host 校验会回 403 Blocked request；这里只放行隧道域名后缀。
+  server: { port: webPort, proxy, allowedHosts: ['.trycloudflare.com'] },
   // 测试台用 `vite preview` 服务构建好的 dist：它不监听源码，所以开发时改代码不会漏进测试台。
   preview: { port: webPort, proxy },
   build: {
