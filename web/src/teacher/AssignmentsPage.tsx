@@ -77,15 +77,15 @@ export default function AssignmentsPage() {
     {
       key: 'submissions',
       title: t('teacher.assignments.colSubmitted'),
-      value: (row) => row.submissionCount,
+      // 2026-10-26 用户要求：提交列写「已交/应交」。班级数不在这里重复第二行——左侧班级列已经写了。
+      // 排序按交齐比例：30/30 排在 1/30 前面，比按已交份数排更符合「谁先追」的判断。
+      value: (row) => (row.expectedCount > 0 ? row.submissionCount / row.expectedCount : -1),
       sortable: true,
       render: (row) => (
-        <div>
-          <span className="mono">{row.submissionCount}</span>
-          <div className="small muted">
-            {t('teacher.common.classCount', { count: row.classCount })}
-          </div>
-        </div>
+        <span className="mono">
+          {row.submissionCount}
+          <span className="muted">/{row.expectedCount}</span>
+        </span>
       ),
     },
     {

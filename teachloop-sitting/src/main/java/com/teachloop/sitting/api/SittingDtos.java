@@ -32,12 +32,18 @@ public final class SittingDtos {
                                     long memberCount) {
     }
 
-    /** {@code paperId} 只有考试才有；独立作业（D-14）为 null，标题仍取快照 title。 */
+    /**
+     * {@code paperId} 只有考试才有；独立作业（D-14）为 null，标题仍取快照 title。
+     *
+     * <p>{@code submissionCount} / {@code expectedCount} 是**人数**口径（2026-10-26 用户要求）：同一学生的
+     * 多次提交、同一学生同时在本作业的两个班，都只算一次；被拒收的份不算已交。教师端列表的「提交」列
+     * 显示 {@code submissionCount/expectedCount}，与批改详情页的「已交 / 应交」同源。
+     */
     public record OfferingView(String id, String paperId, String paperTitle, int paperVersion, String kind,
                                String timingMode, String status, String startAt, String dueAt,
                                Integer durationMinutes, int effectiveDurationMinutes, int graceHours,
                                int maxAttempts, String feedbackLanguage, boolean showPeerOverview,
-                               boolean publishScores, int classCount, int submissionCount,
+                               boolean publishScores, int classCount, int submissionCount, int expectedCount,
                                List<OfferingClassView> classes) {
     }
 

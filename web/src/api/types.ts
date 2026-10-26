@@ -145,7 +145,10 @@ export interface OfferingView {
   showPeerOverview: boolean
   publishScores: boolean
   classCount: number
+  /** 已交人数：按学生去重，不算被拒收的份（2026-10-26）。 */
   submissionCount: number
+  /** 应交人数：本作业各班成员的并集，同一学生带两个班只算一次（2026-10-26）。 */
+  expectedCount: number
   classes: OfferingClassView[]
 }
 

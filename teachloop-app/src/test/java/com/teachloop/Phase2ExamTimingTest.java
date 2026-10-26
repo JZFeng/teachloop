@@ -143,6 +143,9 @@ class Phase2ExamTimingTest {
         assertThat(((Number) detail.get("paperVersion")).intValue()).isEqualTo(1);
         assertThat(((Number) detail.get("effectiveDurationMinutes")).intValue()).isEqualTo(60);
         assertThat(((Number) detail.get("submissionCount")).intValue()).isZero();
+        // 2026-10-26：提交列改成「已交/应交」，两个数都按学生去重。本用例只有一个学生、但他进了 3 个班，
+        // 所以应交是 1 人而不是 3 人（按班相加会把同一个学生算三次）。
+        assertThat(((Number) detail.get("expectedCount")).intValue()).isEqualTo(1);
 
         // T201：发布时通知参与者（当前实现写审计痕迹，T208 建表后替换投递）
         Integer notified = jdbc.queryForObject(

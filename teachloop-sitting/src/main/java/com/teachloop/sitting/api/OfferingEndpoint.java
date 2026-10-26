@@ -618,13 +618,27 @@ public class OfferingEndpoint {
     }
 
     private SittingDtos.OfferingView view(Offering o) {
-        List<SittingDtos.OfferingClassView> classes = offeringClasses.findByOfferingId(o.getId()).stream()
+        List<OfferingClass> classRows = offeringClasses.findByOfferingId(o.getId());
+        Map<UUID, List<UUID>> membersByClass = new LinkedHashMap<>();
+        for (OfferingClass oc : classRows) {
+            membersByClass.put(oc.getClassId(), membership.membersOf(oc.getClassId()));
+        }
+        List<SittingDtos.OfferingClassView> classes = classRows.stream()
                 .map(oc -> new SittingDtos.OfferingClassView(oc.getClassId().toString(),
                         str(oc.getDueAtOverride()), oc.getDurationOverride(),
-                        membership.membersOf(oc.getClassId()).size()))
+                        membersByClass.get(oc.getClassId()).size()))
                 .toList();
-        int submitted = (int) submissions.findByOfferingIdOrderByCreatedAtDesc(o.getId()).stream()
-                .filter(s -> s.getSubmittedAt() != null).count();
+        // 2026-10-26：教师端「提交」列改成「已交/应交」，两个数都按**学生**去重——同一学生同时在本作业的
+        // 两个班（应交只算一次）、同一学生重复提交（已交只算一次）；被拒收的份不算已交，学生要重交。
+        // 口径与批改详情页的 submittedSummary 保持一致，否则列表说 2/30、详情说 1/30。
+        Set<UUID> expectedStudents = new LinkedHashSet<>();
+        membersByClass.values().forEach(expectedStudents::addAll);
+        Set<UUID> submittedStudents = new LinkedHashSet<>();
+        for (Submission s : submissions.findByOfferingIdOrderByCreatedAtDesc(o.getId())) {
+            if (s.getSubmittedAt() != null && s.getRejectedAt() == null) {
+                submittedStudents.add(s.getStudentId());
+            }
+        }
         // D-14：独立作业没有试卷，paperId 返回 null；标题两种来源都取快照 title。
         return new SittingDtos.OfferingView(o.getId().toString(),
                 o.getPaperId() == null ? null : o.getPaperId().toString(),
@@ -632,7 +646,7 @@ public class OfferingEndpoint {
                 o.getTimingMode().name(), o.getStatus().name(), str(o.getStartAt()), o.getDueAt().toString(),
                 o.getDurationMinutes(), windows.forOffering(o).durationMinutes(), o.getGraceHours(),
                 o.getMaxAttempts(), o.getFeedbackLanguage(), o.isShowPeerOverview(), o.isPublishScores(),
-                classes.size(), submitted, classes);
+                classes.size(), submittedStudents.size(), expectedStudents.size(), classes);
     }
 
     /**

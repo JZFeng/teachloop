@@ -109,9 +109,9 @@ export default function GradingDetailPage() {
   const submissions = data?.submissions ?? []
   const classNames = Object.fromEntries((data?.classes ?? []).map((c) => [c.id, c.name]))
 
-  const expected = offering
-    ? offering.classes.reduce((acc, c) => acc + Number(c.memberCount), 0)
-    : 0
+  // 应交人数取后端 expectedCount（各班成员并集，学生带两个班只算一次）。2026-10-26 之前这里按班相加，
+  // 同一学生跨两个班会被算两次，导致「已交 1 / 应交 31」永远交不齐；列表页「提交」列已改成同一口径。
+  const expected = offering ? offering.expectedCount : 0
   const submittedStudents = new Set(
     submissions.filter((s) => s.submittedAt && !s.rejectedAt).map((s) => s.studentId),
   ).size
