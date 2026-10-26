@@ -232,6 +232,9 @@ export default function VocabWordDetailPage() {
             onAdd={detail.inLibrary ? undefined : () => void addToLibrary()}
             onAddToList={() => setAddToListOpen(true)}
             emptyHint={emptyHint}
+            // 2026-10-26 用户要求：查词页卡片正面与 review-front 同一版式（单词居中、音标另起一行居中、
+            // 图标浮右上角）。反面由 `.is-centered:not(.is-flipped)` 自动回落左对齐，不受影响。
+            centered
           />
           {contentFailed && (
             <div className="review-session-foot">

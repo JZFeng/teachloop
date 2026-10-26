@@ -13,6 +13,18 @@
 
 ## 当前
 
+- 已实现：**T510 查词页卡片正面与 `review-front` 统一 + 返回按钮同「下一个」（2026-10-26 用户 Bug）**：
+  查词页（`/vocab/words/by-form/:form`）给 `VocabReviewCard` 补传 `centered`，正面改成单词居中、
+  英/美音标另起一行居中、图标浮右上角（与今日复习 / 自由复习同一个开关；`review-back` 由
+  `.is-centered:not(.is-flipped)` 自动回落，一行未动）；`.review-exit` 并入 `.review-next` 规则块，
+  尺寸 / 字号 / 主色描边 + 主色文字 / 透明度 / 阴影 / 悬停全部共用，返回只留 `←` 且无高亮态。
+  spec AC-53.1 / AC-60.1 / AC-60.2 同步改写（撤销 T440「查词页保持左对齐」那半句）。验证：
+  `typecheck`/`build` 0、`pnpm test` 123/123、`check-i18n` 1693 键对齐、`check-ui` 无本任务新增；
+  5174 实测正面单词/音标中心 = 卡片中心 666（0.00 / -0.01px）、反面仍 `row` + 左距 41px、
+  返回按钮计算样式与复习页「下一个」逐项相等（168×58 / `rgb(26, 99, 224)` / opacity .92）；
+  截图 `docs/reports/2026-10-26-word-details-front-parity/`。`check-ui` 存量 1 处
+  `web/src/exam/importToEditor.ts` `RAW_TABLE` 属并发 T508，不属本任务。
+
 - 已实现：**T509 全站页头统一（2026-10-26，决策 028）**：`PageHeader` 删除整张 eyebrow 路由表与四档功能色
   样式，zh/en 删 20 个 `eyebrow.*` 键；标题行固定渲染 `<h1>` + `InfoHint`，无 `info` 的页面先用
   `common.pageInfoPending` 占位（用户后统一提供文案）。`/review` 改名「复核」、`/vocab/review` 恢复

@@ -111,9 +111,9 @@ export function VocabReviewCard({
   /** 覆盖正面提示行（例如「已暂停」） */
   notice?: string
   /**
-   * T440：卡片正面（review-front）版式——单词居中、英美音标另起一行居中；**只作用于未翻面**。
-   * 卡片反面（review-back）与查词页（WordDetailPage）都保持 T437 的左对齐一行版式。
-   * 今日复习 / 自由复习传 true，查词页不传。
+   * T440 / T510：卡片正面（review-front）版式——单词居中、英美音标另起一行居中；**只作用于未翻面**。
+   * 卡片反面（review-back）保持 T437 的左对齐一行版式。
+   * T510（2026-10-26 用户要求）起查词页（WordDetailPage）的正面也用这套版式，所以三个调用点都传 true。
    */
   centered?: boolean
 }) {

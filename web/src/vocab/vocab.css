@@ -125,8 +125,12 @@
 }
 .review-actions .ant-btn { min-width: 120px; }
 .review-keys { text-align: center; margin-top: 6px; }
-/* T435/T437：下一个按钮加大加宽、垂直居中在卡片右侧 */
-.review-next.ant-btn {
+/* T435/T437：下一个按钮加大加宽、垂直居中在卡片右侧；
+   T510（2026-10-26 用户要求「返回按钮的 css 要和复习页面的那个『下一个』按钮一样」）：
+   查词页的「返回」与「下一个」共用同一套描边样式——尺寸、字号、主色描边 + 主色文字、阴影、悬停都一致。
+   唯一的差别是「下一个」翻面/评分后有 `is-highlighted` 主按钮高亮态，返回没有（它不是推进动作）。 */
+.review-next.ant-btn,
+.review-exit.ant-btn {
   margin-top: 0;
   align-self: center;
   min-width: 168px;
@@ -140,23 +144,10 @@
   box-shadow: 0 1px 2px var(--line-2);
   transition: opacity 0.12s, box-shadow 0.12s, border-color 0.12s;
 }
-.review-next.ant-btn:hover { opacity: 1; box-shadow: 0 2px 8px var(--line); }
+.review-next.ant-btn:hover,
+.review-exit.ant-btn:hover { opacity: 1; box-shadow: 0 2px 8px var(--line); }
 .review-next.is-highlighted { opacity: 1; color: var(--on-accent); }
 .review-next.is-highlighted:hover { color: var(--on-accent); }
-
-/* T438：查词页的「返回」放在原「下一个」的位置，同尺寸、次要样式 */
-.review-exit.ant-btn {
-  align-self: center;
-  min-width: 168px;
-  height: 58px;
-  padding: 0 28px;
-  font-size: 18px;
-  font-weight: 650;
-  color: var(--text);
-  border-color: var(--line-strong);
-  transition: border-color 0.12s, color 0.12s;
-}
-.review-exit.ant-btn:hover { color: var(--text); border-color: var(--accent); }
 
 /* T436：自由复习的「暂停这个词」与快捷键行，放在卡片下方居中 */
 .review-session-foot {
