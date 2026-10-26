@@ -53,8 +53,12 @@
 
 ### D3 · 每份记录判分者
 
-`submissions` 增 `graded_provider varchar(64)`（或等价列），在 AI 判分落库时写入 provider key。
-复核台（`ReviewPage`）在该场发生过切换时显示「本场由 opencode-go 判 12 份、deepseek 判 28 份」。
+`submissions` 增 `graded_provider varchar(64)`（V068），在 AI 判分落库时写入 provider key
+（判分**开始前**取一次当前 provider，避免判分途中切换记错）。
+批改详情表（`/grading/:offeringId`）每行在状态下方显示该份由哪条 provider 判，悬停说明「同一场可能跨模型」。
+
+**实现取舍**：没有做「本场 A 判 12 份、B 判 28 份」的汇总行，改成了逐行标记——逐行信息更精确（能点某一行直接看是谁判的），
+汇总行可以在需要时用一条 `group by graded_provider` 加上，不需要新表。
 **没有这个字段，跨模型混判就是不可审计的**——这也正是 013 当初反对的理由，把它补上才算解决了。
 
 ### D4 · 不静默：切换必须可见

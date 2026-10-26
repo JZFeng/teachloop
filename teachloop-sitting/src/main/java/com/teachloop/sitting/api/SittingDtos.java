@@ -139,7 +139,8 @@ public final class SittingDtos {
                                          int attemptNo, String submittedAt, boolean autoSubmitted,
                                          long lateBySeconds, String rejectedAt, String rejectReason,
                                          String gradingState, BigDecimal objectiveScore,
-                                         BigDecimal subjectiveScore, BigDecimal totalScore, boolean active) {
+                                         BigDecimal subjectiveScore, BigDecimal totalScore, boolean active,
+                                         String gradedProvider) {
     }
 
     /** 学生反馈里的错题（T111 / T194）：已发布反馈才返回标准答案。 */

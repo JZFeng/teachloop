@@ -203,6 +203,8 @@ export interface OfferingSubmissionView {
   subjectiveScore: number
   totalScore: number
   active: boolean
+  /** 决策 022 D3：这份提交由哪条 provider 判（人工判分为 null）。 */
+  gradedProvider: string | null
 }
 
 export interface ExplanationGenerateResult {

@@ -291,6 +291,11 @@ export default function GradingDetailPage() {
             submittedAt={row.submittedAt}
             rejectedAt={row.rejectedAt}
           />
+          {row.gradedProvider && (
+            <div className="small muted mono" title={t('teacher.detail.gradedByHint')}>
+              {row.gradedProvider}
+            </div>
+          )}
         </span>
       ),
     },

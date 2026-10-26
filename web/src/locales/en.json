@@ -858,7 +858,8 @@
         "failed": "Failed"
       },
       "aiDispatching": "Dispatching…",
-      "nightlyGrading": "Assignment AI grading starts at the timing the teacher set on the profile page; the default is 02:30 Asia/Shanghai every night. If you need results sooner, use \"Send all to AI grading\" at the top right."
+      "nightlyGrading": "Assignment AI grading starts at the timing the teacher set on the profile page; the default is 02:30 Asia/Shanghai every night. If you need results sooner, use \"Send all to AI grading\" at the top right.",
+      "gradedByHint": "This submission was graded by this model; one assignment may span models."
     },
     "grading": {
       "colClassCount": "Classes",

@@ -120,6 +120,8 @@ public class GradingWorker {
                 item = ledger.load(id);
                 queue.markRunning(id);
                 log.debug("grading claimed {}", id);
+                // 决策 022 D3：记下「这一次」用的是哪条 provider（判分途中可能发生切换）。
+                String gradedBy = providerKey();
                 Ports.GradingResult result = engine.grade(item);
                 log.debug("grading graded {}, subjective={}", id, result.subjectivePoints());
                 // T243 / D-15：AI 跑的这一小段时间里老师可能已经人工判分；此时丢弃 AI 结果，
@@ -129,6 +131,14 @@ public class GradingWorker {
                     continue;
                 }
                 queue.markDone(id, result);
+                if (gradedBy != null) {
+                    try {
+                        queue.markProvider(id, gradedBy);
+                    } catch (RuntimeException ex) {
+                        // 记录判分者失败不影响成绩本身
+                        log.warn("failed to record graded_provider (scores unaffected): {}", ex.getMessage());
+                    }
+                }
                 recordCircuit(true, null);
                 log.debug("grading done {}", id);
                 // T101：建复核行时捕获 AI 主观草稿。教师改分后的前后对比以这一列为基准；

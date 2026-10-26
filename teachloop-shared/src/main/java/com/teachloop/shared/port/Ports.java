@@ -207,6 +207,9 @@ public final class Ports {
 
         void markDone(UUID submissionId, GradingResult result);
 
+        /** 决策 022 D3：记录这份提交由哪条 provider 判（同一场可能跨 provider）。 */
+        void markProvider(UUID submissionId, String providerKey);
+
         void markFailed(UUID submissionId, String error);
 
         /**

@@ -132,6 +132,15 @@ public class SittingLedgerImpl implements Ports.SittingLedger, Ports.GradingOutc
     }
 
     @Override
+    @Transactional
+    public void markProvider(UUID submissionId, String providerKey) {
+        if (providerKey == null || providerKey.isBlank()) {
+            return;
+        }
+        submissions.markProvider(submissionId, providerKey.strip());
+    }
+
+    @Override
     @Transactional(readOnly = true)
     public boolean hasOpenWork(UUID offeringId) {
         return submissions.countOpenWork(offeringId) > 0;

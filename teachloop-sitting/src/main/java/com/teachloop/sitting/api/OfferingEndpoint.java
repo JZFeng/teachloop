@@ -288,7 +288,8 @@ public class OfferingEndpoint {
                 s.getAttemptNo(), str(s.getSubmittedAt()), s.isAutoSubmitted(), s.getLateBySeconds(),
                 str(s.getRejectedAt()), s.getRejectReason(), s.getGradingState().name(),
                 s.getObjectiveTotal(), s.getSubjectiveTotal(),
-                s.getObjectiveTotal().add(s.getSubjectiveTotal()), s.isActive())).toList();
+                s.getObjectiveTotal().add(s.getSubjectiveTotal()), s.isActive(),
+                s.getGradedProvider())).toList();
     }
 
     /**

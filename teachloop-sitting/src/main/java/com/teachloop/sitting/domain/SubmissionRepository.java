@@ -48,6 +48,11 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
             + "where id = :id and grading_state = 'PENDING'", nativeQuery = true)
     int claim(UUID id, Instant now);
 
+    /** 决策 022 D3：记录这份提交由哪条 provider 判。幂等（覆盖写同值无害）。 */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(value = "update submissions set graded_provider = :provider where id = :id", nativeQuery = true)
+    int markProvider(UUID id, String provider);
+
     /** T182：把这一场 FAILED 的提交退回 PENDING 重批；只动失败项，幂等。 */
     @Modifying(clearAutomatically = true, flushAutomatically = true)
     @Query(value = "update submissions set grading_state = 'PENDING', grading_error = null, "

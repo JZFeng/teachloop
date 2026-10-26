@@ -72,6 +72,10 @@ public class Submission {
     @Column(name = "reject_reason", columnDefinition = "text")
     private String rejectReason;
 
+    /** 决策 022 D3：这份提交由哪条 provider 判的；人工判分或未判时为 null。 */
+    @Column(name = "graded_provider", length = 64)
+    private String gradedProvider;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "grading_state", nullable = false)
     private GradingState gradingState = GradingState.DONE;
@@ -182,4 +186,12 @@ public class Submission {
     public void setAttachmentName(String name) { this.attachmentName = name; }
     public void setAttachmentMime(String mime) { this.attachmentMime = mime; }
     public void setUnreadable(boolean v) { this.unreadable = v; }
+
+    public String getGradedProvider() {
+        return gradedProvider;
+    }
+
+    public void setGradedProvider(String gradedProvider) {
+        this.gradedProvider = gradedProvider;
+    }
 }
