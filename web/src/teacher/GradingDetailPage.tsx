@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { isAIReady } from '../api/ai'
 import { useAuth } from '../api/auth'
 import { api, fmtDateTime } from '../api/client'
 import type {
+  ClassSummaryView,
   ClassView,
   ExplanationGenerateResult,
   GradingDispatchView,
@@ -16,8 +17,24 @@ import { AuditDrawer } from '../components/AuditDrawer'
 import { AiCircuitBanner } from '../components/AiCircuitBanner'
 import { useListState } from '../ui'
 import { useAiReadiness } from '../components/useAiReadiness'
-import { Alert, Button, DataTable, Empty, ErrorState, Field, Input, Loading, PageHeader, RowActions, StatCard, Segmented } from '../ui'
+import {
+  Alert,
+  Button,
+  ColumnPicker,
+  DataTable,
+  ErrorState,
+  Field,
+  Input,
+  Loading,
+  PageHeader,
+  RowActions,
+  StatCard,
+  TableToolbar,
+  ViewTabs,
+  useColumnPrefs,
+} from '../ui'
 import type { Column } from '../ui'
+import { defaultTab, detailGates } from './detailGates'
 import {
   errorMessage,
   fmtLate,
@@ -33,18 +50,39 @@ interface DetailData {
   progress: ProgressView
   submissions: OfferingSubmissionView[]
   classes: ClassView[]
+  /** 未交名单从这个接口取（与班级汇总页同一个数据源，不新增接口）。 */
+  summary: ClassSummaryView[]
 }
 
-type FilterKey = 'all' | 'done' | 'running' | 'pending' | 'failed' | 'rejected'
-const FILTERS: FilterKey[] = ['all', 'done', 'running', 'pending', 'failed', 'rejected']
+/** 逐份提交的筛选档位；`all` 不在这里——「不选任何一档」就是全部。 */
+type FilterKey = 'done' | 'running' | 'pending' | 'failed' | 'rejected'
+const FILTERS: FilterKey[] = ['done', 'running', 'pending', 'failed', 'rejected']
+
+/** 列顺序与显隐（列配置存本地，与首页同一套 `useColumnPrefs`）。 */
+const COLUMN_ORDER = ['student', 'attempt', 'submittedAt', 'late', 'state', 'objective', 'subjective', 'total', 'actions']
+const COLUMN_LABEL_KEY: Record<string, string> = {
+  student: 'teacher.detail.colStudent',
+  attempt: 'teacher.detail.colAttempt',
+  submittedAt: 'teacher.detail.colSubmittedAt',
+  late: 'teacher.detail.colLate',
+  state: 'teacher.detail.colState',
+  objective: 'teacher.detail.colObjective',
+  subjective: 'teacher.detail.colSubjective',
+  total: 'teacher.detail.colTotal',
+  actions: 'teacher.common.actions',
+}
+const PREFS_KEY = 'teachloop.grading.detail.columns.v1'
 
 /**
  * T182 / AC-20.5–AC-20.7：逐份提交表。
  * 派发回执直接显示在页面；拒收走行内表单（不使用 prompt/confirm）；
  * 「重试失败项」只把 FAILED 退回队列，运行中与已完成的不动。
  *
- * 2026-10-21（UI 标准）：顶部七枚标签改成 4 张可点统计卡（点数字即过滤），
- * 5 个操作按钮按主次分到页头；回执与错误改用 Alert；拒收表单用 Field。
+ * 2026-10-26（用户拍板）：这页重做四件事——
+ *   ① 视图切换做成真页签（原来那对 Segmented 用户根本没看到），默认页签随「成绩是否公布」；
+ *   ② 筛选条删掉，换成与首页/词库同一套工具栏（筛选 · N / 列 / 清空）；
+ *   ③ 动作可用性随状态收敛：没人交卷时派发/解析/复核/公布全禁用并写明原因；
+ *   ④ 没人交卷时不再摆 4 张 0 卡，直接给「谁没交」的名单（数据来自 class-summary）。
  */
 export default function GradingDetailPage() {
   const { t } = useTranslation('translation')
@@ -61,13 +99,14 @@ export default function GradingDetailPage() {
   const aiSetupTarget = me?.role === 'ADMIN' ? '/admin/ai' : null
 
   const { data, loading, error, reload } = useApiData<DetailData>(async () => {
-    const [offering, progress, submissions, classes] = await Promise.all([
+    const [offering, progress, submissions, classes, summary] = await Promise.all([
       api.get<OfferingView>(`/api/offerings/${offeringId}`),
       api.get<ProgressView>(`/api/offerings/${offeringId}/progress`),
       api.get<OfferingSubmissionView[]>(`/api/offerings/${offeringId}/submissions`),
       api.get<ClassView[]>('/api/classes'),
+      api.get<ClassSummaryView[]>(`/api/offerings/${offeringId}/class-summary`),
     ])
-    return { offering, progress, submissions, classes }
+    return { offering, progress, submissions, classes, summary }
   }, [offeringId])
 
   const [dispatchReceipt, setDispatchReceipt] = useState<GradingDispatchView | null>(null)
@@ -93,12 +132,33 @@ export default function GradingDetailPage() {
   const [publishScoresError, setPublishScoresError] = useState<string | null>(null)
   const [auditTarget, setAuditTarget] = useState<OfferingSubmissionView | null>(null)
 
-  const filter = normalizeFilter(params.get('state'))
-  const setFilter = (next: FilterKey) => {
+  const [columnsOpen, setColumnsOpen] = useState(false)
+  const colPrefs = useColumnPrefs(PREFS_KEY, COLUMN_ORDER)
+
+  /** 多选筛选：`?state=done&state=failed`；一组都不选＝全部。 */
+  const activeStates = params
+    .getAll('state')
+    .filter((value): value is FilterKey => (FILTERS as string[]).includes(value))
+
+  const toggleFilter = (next: FilterKey) => {
+    setParams((prev) => {
+      const current = prev.getAll('state').filter((value) => (FILTERS as string[]).includes(value))
+      const values = current.includes(next)
+        ? current.filter((value) => value !== next)
+        : [...current, next]
+      const updated = new URLSearchParams(prev)
+      updated.delete('state')
+      values.forEach((value) => updated.append('state', value))
+      updated.delete('page')
+      return updated
+    })
+  }
+
+  const applyFilters = (next: Record<string, string[]>) => {
     setParams((prev) => {
       const updated = new URLSearchParams(prev)
-      if (next === 'all') updated.delete('state')
-      else updated.set('state', next)
+      updated.delete('state')
+      ;(next.state ?? []).forEach((value) => updated.append('state', value))
       updated.delete('page')
       return updated
     })
@@ -117,7 +177,41 @@ export default function GradingDetailPage() {
   ).size
   const unsubmitted = Math.max(0, expected - submittedStudents)
 
-  const filtered = submissions.filter((row) => matchesFilter(row, filter))
+  const filtered = activeStates.length === 0
+    ? submissions
+    : submissions.filter((row) => {
+      const bucket = bucketOf(row)
+      return bucket !== null && activeStates.includes(bucket)
+    })
+
+  const submittedCount = submissions.filter((row) => Boolean(row.submittedAt)).length
+  const rejectedCount = submissions.filter((row) => Boolean(row.rejectedAt)).length
+  const gradedCount = (progress?.done ?? 0) + rejectedCount
+  const dispatchableCount = submissions.filter(canAiDispatch).length
+  const gates = detailGates({
+    publishScores: Boolean(offering?.publishScores),
+    submitted: submittedCount,
+    done: gradedCount,
+    dispatchable: dispatchableCount,
+  })
+
+  /** 未交名单：按班分组，空态直接告诉老师「该找谁」。 */
+  const unsubmittedGroups = (data?.summary ?? [])
+    .map((row) => ({
+      className: classNames[row.classId] ?? row.classId,
+      names: row.unsubmitted.map((student) => student.studentName),
+    }))
+    .filter((group) => group.names.length > 0)
+
+  // 默认页签随「成绩是否公布」（AC-25.6 修订）：已公布直接落在成绩汇总。
+  // 只有没带 `?tab=` 时才算「默认」，否则用户自己点了「提交明细」会被弹回去。
+  useEffect(() => {
+    if (!offering) return
+    if (params.get('tab')) return
+    if (defaultTab(offering.publishScores) === 'summary') {
+      navigate(`/offerings/${offering.id}/summary`, { replace: true })
+    }
+  }, [offering, params, navigate])
 
   /**
    * 四个 AI 动作（全部派发 / 单份派发 / 重试失败 / 生成解析）共用的前置判断：
@@ -250,7 +344,7 @@ export default function GradingDetailPage() {
     }
   }
 
-  const columns: Column<OfferingSubmissionView>[] = [
+  const allColumns: Column<OfferingSubmissionView>[] = [
     {
       key: 'student',
       title: t('teacher.detail.colStudent'),
@@ -423,13 +517,12 @@ export default function GradingDetailPage() {
     },
   ]
 
+  const columns = colPrefs.visible
+    .map((key) => allColumns.find((column) => column.key === key))
+    .filter((column): column is Column<OfferingSubmissionView> => Boolean(column))
+
   return (
     <TeacherPage>
-      <div className="breadcrumb">
-        <Link to="/grading">{t('teacher.grading.title')}</Link> /{' '}
-        <b>{offering?.paperTitle ?? t('teacher.detail.title')}</b>
-      </div>
-
       {loading && <Loading label={t('teacher.common.loading')} />}
       {error && <ErrorState error={error} onRetry={reload} />}
 
@@ -438,10 +531,9 @@ export default function GradingDetailPage() {
           <PageHeader
             title={offering.paperTitle}
             sub={t('teacher.detail.sub', {
-              classes: offering.classes
-                .map((c) => classNames[c.classId] ?? c.classId)
-                .join('、'),
+              classes: offering.classes.map((c) => classNames[c.classId] ?? c.classId).join('、'),
               count: expected,
+              due: fmtDateTime(offering.dueAt),
             })}
             actions={
               <>
@@ -458,10 +550,18 @@ export default function GradingDetailPage() {
                   size="small"
                   onClick={() => void generateExplanations()}
                   busy={explaining}
+                  disabled={!gates.canExplain}
+                  title={gates.canExplain ? undefined : t('teacher.detail.explainDisabled')}
                 >
                   {t('teacher.detail.generateExplanations')}
                 </Button>
-                <Button size="small" variant="text" onClick={() => navigate(`/review?offeringId=${offering.id}`)}>
+                <Button
+                  size="small"
+                  variant="text"
+                  disabled={!gates.canReview}
+                  title={gates.canReview ? undefined : t('teacher.detail.reviewDisabled')}
+                  onClick={() => navigate(`/review?offeringId=${offering.id}`)}
+                >
                   {t('teacher.detail.toReview')}
                 </Button>
                 {!offering.publishScores && (
@@ -469,7 +569,8 @@ export default function GradingDetailPage() {
                     size="small"
                     onClick={() => void publishOfferingScores()}
                     busy={publishingScores}
-                    title={t('teacher.detail.publishScoresHint')}
+                    disabled={!gates.canPublish}
+                    title={gates.canPublish ? t('teacher.detail.publishScoresHint') : t('teacher.detail.publishDisabled')}
                   >
                     {t('teacher.detail.publishScores')}
                   </Button>
@@ -478,7 +579,8 @@ export default function GradingDetailPage() {
                   variant="primary"
                   onClick={() => void dispatch()}
                   busy={dispatching}
-                  title={t('teacher.detail.dispatchHint')}
+                  disabled={!gates.canDispatch}
+                  title={gates.canDispatch ? t('teacher.detail.dispatchHint') : t('teacher.detail.dispatchDisabled')}
                 >
                   {t('teacher.detail.dispatch')}
                 </Button>
@@ -486,20 +588,26 @@ export default function GradingDetailPage() {
             }
           />
 
-          {/* AC-25.6：汇总是同一场作业的另一个视图，不是「对这批发操作」，所以放标题下做切换（T491）。 */}
-          <div className="row" style={{ marginBottom: 12 }}>
-            <Segmented
-              size="small"
-              value="submissions"
-              onChange={(value) => {
-                if (value === 'summary') navigate(`/offerings/${offering.id}/summary`)
-              }}
-              options={[
-                { value: 'submissions', label: t('teacher.detail.viewSubmissions') },
-                { value: 'summary', label: t('teacher.detail.viewSummary') },
-              ]}
-            />
-          </div>
+          {/* AC-25.6（2026-10-26 修订）：换成带下划线的真页签 + 计数/角标；上一版 Segmented 用户说「根本没看到」。 */}
+          <ViewTabs
+            selected="submissions"
+            items={[
+              {
+                key: 'submissions',
+                label: t('teacher.detail.viewSubmissions'),
+                to: `/grading/${offering.id}?tab=submissions`,
+                badge: <span className="tl-tab-count">{submissions.length}</span>,
+              },
+              {
+                key: 'summary',
+                label: t('teacher.detail.viewSummary'),
+                to: `/offerings/${offering.id}/summary`,
+                badge: offering.publishScores
+                  ? undefined
+                  : <span className="tl-tab-badge">{t('teacher.detail.summaryPreview')}</span>,
+              },
+            ]}
+          />
 
           <AiCircuitBanner />
 
@@ -516,36 +624,40 @@ export default function GradingDetailPage() {
           )}
 
           {offering.status === 'DRAFT' && <Alert type="warning" showIcon message={t('teacher.detail.draftNote')} />}
-          {offering.kind === 'ASSIGNMENT' && (
+          {/* 没有提交时这条「AI 什么时候批」的说明没有对象可批，纯噪音。 */}
+          {!gates.noSubmission && offering.kind === 'ASSIGNMENT' && (
             <div className="inline-note">{t('teacher.detail.nightlyGrading')}</div>
           )}
 
-          <div className="stats">
-            <StatCard
-              value={progress.done}
-              label={t('teacher.detail.stats.done')}
-              active={filter === 'done'}
-              onClick={() => setFilter(filter === 'done' ? 'all' : 'done')}
-            />
-            <StatCard
-              value={progress.running}
-              label={t('teacher.detail.stats.running')}
-              active={filter === 'running'}
-              onClick={() => setFilter(filter === 'running' ? 'all' : 'running')}
-            />
-            <StatCard
-              value={progress.pending}
-              label={t('teacher.detail.stats.pending')}
-              active={filter === 'pending'}
-              onClick={() => setFilter(filter === 'pending' ? 'all' : 'pending')}
-            />
-            <StatCard
-              value={progress.failed}
-              label={t('teacher.detail.stats.failed')}
-              active={filter === 'failed'}
-              onClick={() => setFilter(filter === 'failed' ? 'all' : 'failed')}
-            />
-          </div>
+          {/* 没人交卷时不再摆 4 张 0 卡（用户要求）：所有计数器都是 0，占掉半屏零信息。 */}
+          {!gates.noSubmission && (
+            <div className="stats">
+              <StatCard
+                value={progress.done}
+                label={t('teacher.detail.stats.done')}
+                active={activeStates.includes('done')}
+                onClick={() => toggleFilter('done')}
+              />
+              <StatCard
+                value={progress.running}
+                label={t('teacher.detail.stats.running')}
+                active={activeStates.includes('running')}
+                onClick={() => toggleFilter('running')}
+              />
+              <StatCard
+                value={progress.pending}
+                label={t('teacher.detail.stats.pending')}
+                active={activeStates.includes('pending')}
+                onClick={() => toggleFilter('pending')}
+              />
+              <StatCard
+                value={progress.failed}
+                label={t('teacher.detail.stats.failed')}
+                active={activeStates.includes('failed')}
+                onClick={() => toggleFilter('failed')}
+              />
+            </div>
+          )}
 
           <div className="card">
             <div className="row" style={{ justifyContent: 'space-between' }}>
@@ -557,14 +669,42 @@ export default function GradingDetailPage() {
                 <span className="small muted">
                   {t('teacher.detail.submittedSummary', { submitted: submittedStudents, expected })}
                 </span>
+                {/* 两个「发布」必须并排说清：作业已发布 ≠ 成绩已公布（2026-10-26 用户指出）。 */}
+                <Tag tone={offering.publishScores ? 'green' : 'gray'}>
+                  {offering.publishScores
+                    ? t('teacher.detail.publishedScores')
+                    : t('teacher.detail.unpublishedScores')}
+                </Tag>
                 {offering.kind === 'EXAM' && (
                   <span className="small muted">
                     {t('teacher.detail.duration', { minutes: offering.effectiveDurationMinutes })}
                   </span>
                 )}
-                <span className="small muted">{t('teacher.detail.statUnsubmitted', { n: unsubmitted })}</span>
               </div>
             </div>
+
+            {/* 没人交卷：这一屏唯一的有效信息是「谁没交」，直接用 class-summary 列出来。 */}
+            {gates.noSubmission && (
+              <div style={{ marginTop: 12 }}>
+                <h3 style={{ margin: '0 0 4px' }}>{t('teacher.detail.noSubmissionTitle')}</h3>
+                <p className="muted" style={{ margin: 0 }}>
+                  {t('teacher.detail.noSubmissionHint', { n: unsubmitted, due: fmtDateTime(offering.dueAt) })}
+                </p>
+                {unsubmittedGroups.length > 0 && (
+                  <div style={{ marginTop: 10 }}>
+                    <div className="small muted" style={{ marginBottom: 6 }}>
+                      {t('teacher.detail.unsubmittedListTitle')}
+                    </div>
+                    {unsubmittedGroups.map((group) => (
+                      <div key={group.className} className="small" style={{ marginBottom: 4 }}>
+                        <b>{group.className}</b>
+                        <span className="muted"> · {group.names.join('、')}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {explainError && (
               <Alert type="error" showIcon style={{ marginTop: 12 }} message={explainError} />
@@ -650,34 +790,8 @@ export default function GradingDetailPage() {
             )}
           </div>
 
-          <div className="row" style={{ justifyContent: 'space-between', marginBottom: 8 }}>
-            <h2 style={{ margin: 0 }}>
-              {t('teacher.detail.tableTitle')}{' '}
-              <small className="muted">{t('teacher.detail.tableSub')}</small>
-            </h2>
-          </div>
-
-          <div className="card" style={{ padding: '10px 14px' }}>
-            <div className="row">
-              <span className="small muted">{t('teacher.detail.filterLabel')}</span>
-              <Segmented
-                size="small"
-                value={filter}
-                onChange={(value) => setFilter(value as FilterKey)}
-                options={FILTERS.map((key) => ({ value: key, label: t(`teacher.detail.filters.${key}`) }))}
-              />
-              <span className="small muted" style={{ marginLeft: 'auto' }}>
-                {t('teacher.detail.filteredCount', { shown: filtered.length, total: submissions.length })}
-              </span>
-            </div>
-            <div className="hint" style={{ marginTop: 6 }}>
-              {t('teacher.detail.filterHint')}
-            </div>
-          </div>
-
-          {submissions.length === 0 ? (
-            <Empty>{t('teacher.detail.empty')}</Empty>
-          ) : (
+          {/* 表格标题不再另起「逐份状态」：页签已经说明了这是「提交明细」（用户要求 tab 与内容同名）。 */}
+          {!gates.noSubmission && (
             <DataTable
               rows={filtered}
               columns={columns}
@@ -688,7 +802,20 @@ export default function GradingDetailPage() {
               onSortChange={setSort}
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
-              empty={t('teacher.detail.filteredEmpty')}
+              toolbar={(
+                <TableToolbar
+                  groups={[{
+                    key: 'state',
+                    label: t('teacher.detail.filterStates'),
+                    options: FILTERS.map((key) => ({ value: key, label: t(`teacher.detail.filters.${key}`) })),
+                  }]}
+                  value={{ state: activeStates }}
+                  onChange={applyFilters}
+                  columnPicker={<Button onClick={() => setColumnsOpen(true)}>{t('common.columns')}</Button>}
+                  summary={t('teacher.detail.filteredCount', { shown: filtered.length, total: submissions.length })}
+                />
+              )}
+              empty={activeStates.length > 0 ? t('teacher.detail.filteredEmpty') : t('teacher.detail.empty')}
             />
           )}
 
@@ -699,17 +826,20 @@ export default function GradingDetailPage() {
             targetId={auditTarget?.submissionId ?? ''}
             title={auditTarget ? `${auditTarget.studentName} · ${t('teacher.common.audit')}` : undefined}
           />
+
+          <ColumnPicker
+            open={columnsOpen}
+            onClose={() => setColumnsOpen(false)}
+            order={colPrefs.order}
+            hidden={colPrefs.hidden}
+            labels={Object.fromEntries(COLUMN_ORDER.map((key) => [key, t(COLUMN_LABEL_KEY[key])]))}
+            onToggle={colPrefs.toggle}
+            onMove={colPrefs.move}
+          />
         </>
       )}
     </TeacherPage>
   )
-}
-
-function normalizeFilter(raw: string | null): FilterKey {
-  if (raw === 'done' || raw === 'running' || raw === 'pending' || raw === 'failed' || raw === 'rejected') {
-    return raw
-  }
-  return 'all'
 }
 
 /** T252：只有「待派发（QUEUED）/ 上次失败（FAILED）」且已交卷未拒收的提交可以先跑 AI。 */
@@ -718,20 +848,20 @@ function canAiDispatch(row: OfferingSubmissionView): boolean {
   return row.gradingState === 'QUEUED' || row.gradingState === 'FAILED'
 }
 
-function matchesFilter(row: OfferingSubmissionView, filter: FilterKey): boolean {
-  if (filter === 'all') return true
-  if (filter === 'rejected') return Boolean(row.rejectedAt)
-  if (row.rejectedAt) return false
-  switch (filter) {
-    case 'done':
-      return row.gradingState === 'DONE'
-    case 'running':
-      return row.gradingState === 'RUNNING'
-    case 'pending':
-      return row.gradingState === 'PENDING' || row.gradingState === 'QUEUED'
-    case 'failed':
-      return row.gradingState === 'FAILED'
+/** 一行提交属于哪个筛选档；不认识的批改状态返回 null（不参与任何一档）。 */
+function bucketOf(row: OfferingSubmissionView): FilterKey | null {
+  if (row.rejectedAt) return 'rejected'
+  switch (row.gradingState) {
+    case 'DONE':
+      return 'done'
+    case 'RUNNING':
+      return 'running'
+    case 'FAILED':
+      return 'failed'
+    case 'PENDING':
+    case 'QUEUED':
+      return 'pending'
     default:
-      return true
+      return null
   }
 }

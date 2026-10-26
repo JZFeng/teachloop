@@ -3,7 +3,18 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime } from '../api/client'
 import type { ClassView, OfferingView, ReviewView } from '../api/types'
-import { Button, DataTable, Empty, ErrorState, Loading, Modal, PageHeader, StatCard } from '../ui'
+import {
+  Button,
+  ColumnPicker,
+  DataTable,
+  Empty,
+  ErrorState,
+  Loading,
+  PageHeader,
+  StatCard,
+  TableToolbar,
+  useColumnPrefs,
+} from '../ui'
 import type { Column } from '../ui'
 import { useListState } from '../ui'
 import {
@@ -39,37 +50,10 @@ const STATE_FILTERS = ['uncollected', 'grading', 'to_publish', 'published'] as c
 type StateFilter = (typeof STATE_FILTERS)[number]
 
 /**
- * 列配置存浏览器本地（AC-19.8）。
- * 词库的列配置存在后端 `/api/vocab/prefs`；首页没有对应接口，也不值得为一个列开关加迁移，
- * 所以用 localStorage——代价是换浏览器/清缓存会回默认，可接受。
+ * 列配置存浏览器本地（AC-19.8），读写交给 ui 的 `useColumnPrefs`。
+ * 词库的列配置存在后端 `/api/vocab/prefs`；首页没有对应接口，也不值得为一个列开关加迁移。
  */
 const PREFS_KEY = 'teachloop.home.columns.v1'
-
-interface ColumnPrefs {
-  order: ColumnKey[]
-  hidden: ColumnKey[]
-}
-
-function normalizePrefs(raw: unknown): ColumnPrefs {
-  const value = (raw ?? {}) as Partial<ColumnPrefs>
-  const pick = (list: unknown): ColumnKey[] =>
-    Array.isArray(list)
-      ? list.filter((key): key is ColumnKey => (DEFAULT_ORDER as readonly string[]).includes(String(key)))
-      : []
-  const order = pick(value.order)
-  return {
-    order: order.length === DEFAULT_ORDER.length ? order : [...DEFAULT_ORDER],
-    hidden: pick(value.hidden),
-  }
-}
-
-function readPrefs(): ColumnPrefs {
-  try {
-    return normalizePrefs(JSON.parse(window.localStorage.getItem(PREFS_KEY) ?? 'null'))
-  } catch {
-    return { order: [...DEFAULT_ORDER], hidden: [] }
-  }
-}
 
 /**
  * T180 教师首页：跨班级聚合，不需要先选班级。
@@ -98,10 +82,8 @@ export default function TeacherHomePage() {
     return { offerings, classes, queue, aggregates: await loadAggregates(offerings) }
   }, [])
 
-  const [prefs, setPrefs] = useState<ColumnPrefs>(() => readPrefs())
-  const [filterOpen, setFilterOpen] = useState(false)
   const [columnsOpen, setColumnsOpen] = useState(false)
-  const [draft, setDraft] = useState<{ classes: string[]; states: StateFilter[] }>({ classes: [], states: [] })
+  const colPrefs = useColumnPrefs(PREFS_KEY, [...DEFAULT_ORDER])
 
   const selectedClasses = (params.get('classes') ?? '').split(',').filter(Boolean)
   const selectedStates = params.getAll('state').filter((value): value is StateFilter =>
@@ -113,6 +95,17 @@ export default function TeacherHomePage() {
     const next = new URLSearchParams(params)
     mutate(next)
     setParams(next, { replace: true })
+  }
+
+  /** 两组筛选 → URL：班级用逗号（沿用旧链接），状态用多值 `state=`。 */
+  const applyFilters = (next: Record<string, string[]>) => {
+    update((search) => {
+      search.delete('classes')
+      search.delete('state')
+      const classes = next.classes ?? []
+      if (classes.length > 0) search.set('classes', classes.join(','))
+      ;(next.state ?? []).forEach((value) => search.append('state', value))
+    })
   }
 
   const classes = data?.classes ?? []
@@ -144,54 +137,6 @@ export default function TeacherHomePage() {
   })
 
   const filterCount = selectedClasses.length + selectedStates.length
-
-  const openFilters = () => {
-    setDraft({ classes: selectedClasses, states: selectedStates })
-    setFilterOpen(true)
-  }
-
-  const applyFilters = () => {
-    update((next) => {
-      next.delete('classes')
-      next.delete('state')
-      if (draft.classes.length > 0) next.set('classes', draft.classes.join(','))
-      draft.states.forEach((state) => next.append('state', state))
-    })
-    setFilterOpen(false)
-  }
-
-  const clearFilters = () => {
-    update((next) => {
-      next.delete('classes')
-      next.delete('state')
-    })
-  }
-
-  const savePrefs = (next: ColumnPrefs) => {
-    const normalized = normalizePrefs(next)
-    setPrefs(normalized)
-    try {
-      window.localStorage.setItem(PREFS_KEY, JSON.stringify(normalized))
-    } catch {
-      /* 隐私模式下写不进去：本次会话照常生效，不打断页面 */
-    }
-  }
-
-  const toggleColumn = (key: ColumnKey) => {
-    const hidden = new Set(prefs.hidden)
-    if (hidden.has(key)) hidden.delete(key)
-    else hidden.add(key)
-    savePrefs({ ...prefs, hidden: [...hidden] })
-  }
-
-  const moveColumn = (key: ColumnKey, offset: number) => {
-    const order = [...prefs.order]
-    const index = order.indexOf(key)
-    const target = index + offset
-    if (index < 0 || target < 0 || target >= order.length) return
-    ;[order[index], order[target]] = [order[target], order[index]]
-    savePrefs({ ...prefs, order })
-  }
 
   const sum = (pick: (agg: OfferingAggregate) => number) =>
     offerings.reduce((acc, o) => {
@@ -300,8 +245,9 @@ export default function TeacherHomePage() {
     },
   }), [aggregates, classNames, t])
 
-  const hidden = new Set(prefs.hidden)
-  const columns = prefs.order.filter((key) => !hidden.has(key)).map((key) => allColumns[key])
+  const columns = colPrefs.visible
+    .filter((key): key is ColumnKey => (DEFAULT_ORDER as readonly string[]).includes(key))
+    .map((key) => allColumns[key])
 
   return (
     <TeacherPage>
@@ -357,13 +303,26 @@ export default function TeacherHomePage() {
                 onPageSizeChange={setPageSize}
                 onRowClick={(o) => navigate(`/grading/${o.id}`)}
                 toolbar={(
-                  <>
-                    <Button onClick={openFilters}>
-                      {t('teacher.home.filter')}{filterCount > 0 ? ` · ${filterCount}` : ''}
-                    </Button>
-                    <Button onClick={() => setColumnsOpen(true)}>{t('teacher.home.columns')}</Button>
-                    {filterCount > 0 && <Button onClick={clearFilters}>{t('teacher.home.clear')}</Button>}
-                  </>
+                  <TableToolbar
+                    groups={[
+                      {
+                        key: 'classes',
+                        label: t('teacher.home.filterClasses'),
+                        options: classes.map((c) => ({ value: c.id, label: `${c.name} (${c.memberCount})` })),
+                      },
+                      {
+                        key: 'state',
+                        label: t('teacher.home.filterStates'),
+                        options: STATE_FILTERS.map((state) => ({
+                          value: state,
+                          label: t(`teacher.home.stateFilter.${state}`),
+                        })),
+                      },
+                    ]}
+                    value={{ classes: selectedClasses, state: selectedStates }}
+                    onChange={applyFilters}
+                    columnPicker={<Button onClick={() => setColumnsOpen(true)}>{t('common.columns')}</Button>}
+                  />
                 )}
                 empty={filterCount > 0 ? t('teacher.home.filteredEmpty') : t('teacher.home.empty')}
               />
@@ -372,95 +331,15 @@ export default function TeacherHomePage() {
         </>
       )}
 
-      <Modal
-        open={filterOpen}
-        title={t('teacher.home.filterTitle')}
-        onCancel={() => setFilterOpen(false)}
-        footer={null}
-      >
-        <div className="tl-filter-group">
-          <strong>{t('teacher.home.filterClasses')}</strong>
-          <div className="row" style={{ gap: 6 }}>
-            {classes.length === 0 ? (
-              <span className="muted small">{t('teacher.home.noClasses')}</span>
-            ) : classes.map((c) => {
-              const on = draft.classes.includes(c.id)
-              return (
-                <button
-                  key={c.id}
-                  type="button"
-                  className={`chip${on ? ' on' : ''}`}
-                  aria-pressed={on}
-                  onClick={() => setDraft((prev) => ({
-                    ...prev,
-                    classes: prev.classes.includes(c.id)
-                      ? prev.classes.filter((id) => id !== c.id)
-                      : [...prev.classes, c.id],
-                  }))}
-                >
-                  {c.name} ({c.memberCount})
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="tl-filter-group">
-          <strong>{t('teacher.home.filterStates')}</strong>
-          <div className="row" style={{ gap: 6 }}>
-            {STATE_FILTERS.map((state) => {
-              const on = draft.states.includes(state)
-              return (
-                <button
-                  key={state}
-                  type="button"
-                  className={`chip${on ? ' on' : ''}`}
-                  aria-pressed={on}
-                  onClick={() => setDraft((prev) => ({
-                    ...prev,
-                    states: prev.states.includes(state)
-                      ? prev.states.filter((item) => item !== state)
-                      : [...prev.states, state],
-                  }))}
-                >
-                  {t(`teacher.home.stateFilter.${state}`)}
-                </button>
-              )
-            })}
-          </div>
-        </div>
-
-        <div className="row" style={{ justifyContent: 'flex-end', gap: 8, marginTop: 12 }}>
-          <Button onClick={() => { clearFilters(); setFilterOpen(false) }}>{t('teacher.home.reset')}</Button>
-          <Button variant="primary" onClick={applyFilters}>{t('teacher.home.apply')}</Button>
-        </div>
-      </Modal>
-
-      <Modal
+      <ColumnPicker
         open={columnsOpen}
-        title={t('teacher.home.columnsTitle')}
-        onCancel={() => setColumnsOpen(false)}
-        footer={null}
-      >
-        <p className="muted">{t('teacher.home.columnsHint')}</p>
-        {prefs.order.map((key, index, list) => (
-          <div className="tl-col-row" key={key}>
-            <input
-              type="checkbox"
-              checked={!hidden.has(key)}
-              onChange={() => toggleColumn(key)}
-              aria-label={t(COLUMN_LABEL_KEY[key])}
-            />
-            <span className="grow">{t(COLUMN_LABEL_KEY[key])}</span>
-            <Button size="small" disabled={index === 0} onClick={() => moveColumn(key, -1)}>
-              {t('teacher.home.moveUp')}
-            </Button>
-            <Button size="small" disabled={index === list.length - 1} onClick={() => moveColumn(key, 1)}>
-              {t('teacher.home.moveDown')}
-            </Button>
-          </div>
-        ))}
-      </Modal>
+        onClose={() => setColumnsOpen(false)}
+        order={colPrefs.order}
+        hidden={colPrefs.hidden}
+        labels={Object.fromEntries(DEFAULT_ORDER.map((key) => [key, t(COLUMN_LABEL_KEY[key])]))}
+        onToggle={colPrefs.toggle}
+        onMove={colPrefs.move}
+      />
     </TeacherPage>
   )
 }

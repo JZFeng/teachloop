@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassSummaryView, ClassView, OfferingView } from '../api/types'
-import { DataTable, Segmented, useListState } from '../ui'
+import { DataTable, useListState, ViewTabs } from '../ui'
 import type { Column } from '../ui'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
 import {
@@ -28,7 +28,6 @@ export default function ClassSummaryPage() {
   const { t, i18n } = useTranslation('translation')
   const lang = i18n.language.startsWith('zh') ? 'zh-CN' : 'en'
   const { offeringId = '' } = useParams()
-  const navigate = useNavigate()
   const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
     { key: 'className', dir: 'asc' },
     10,
@@ -122,11 +121,6 @@ export default function ClassSummaryPage() {
 
   return (
     <TeacherPage>
-      <div className="breadcrumb">
-        <Link to="/grading">{t('teacher.grading.title')}</Link> /{' '}
-        <Link to={`/grading/${offeringId}`}>{offering?.paperTitle ?? offeringId}</Link> /{' '}
-        <b>{t('teacher.summary.title')}</b>
-      </div>
       <PageHeader
         title={t('teacher.summary.title')}
         sub={
@@ -136,20 +130,25 @@ export default function ClassSummaryPage() {
         }
       />
 
-      {/* AC-25.6：与批改详情同一组视图切换，两页互跳；这里不重复「汇总」按钮 */}
-      <div className="row" style={{ marginBottom: 12 }}>
-        <Segmented
-          size="small"
-          value="summary"
-          onChange={(value) => {
-            if (value === 'submissions') navigate(`/grading/${offeringId}`)
-          }}
-          options={[
-            { value: 'submissions', label: t('teacher.detail.viewSubmissions') },
-            { value: 'summary', label: t('teacher.detail.viewSummary') },
-          ]}
-        />
-      </div>
+      {/* AC-25.6（2026-10-26 修订）：与批改详情同一组真页签，两页互跳；未公布时用角标标「预览」。 */}
+      <ViewTabs
+        selected="summary"
+        items={[
+          {
+            key: 'submissions',
+            label: t('teacher.detail.viewSubmissions'),
+            to: `/grading/${offeringId}?tab=submissions`,
+          },
+          {
+            key: 'summary',
+            label: t('teacher.detail.viewSummary'),
+            to: `/offerings/${offeringId}/summary`,
+            badge: offering?.publishScores
+              ? <span className="tl-tab-badge ok">{t('teacher.detail.publishedScores')}</span>
+              : <span className="tl-tab-badge">{t('teacher.detail.summaryPreview')}</span>,
+          },
+        ]}
+      />
 
       {loading && <Loading label={t('teacher.common.loading')} />}
       {error && <ErrorState error={error} onRetry={reload} />}

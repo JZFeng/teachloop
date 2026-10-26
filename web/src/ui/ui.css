@@ -193,6 +193,44 @@
 .tl-filter-group > strong { display: block; margin-bottom: 8px; font-size: 13px; }
 .tl-col-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
 .tl-col-row .grow { flex: 1; }
+.tl-toolbar-summary { margin-left: auto; }
+/* 页内视图切换（2026-10-26）：带下划线的真页签。
+   用户反馈 Segmented 那两个标签「像副标题的灰字，等于没看到」——所以这里给足权重：
+   与内容同名的下划线页签 + 计数/角标，读一眼就知道是「两个视图」。 */
+.tl-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  margin: 2px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+.tl-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: none;
+  transition: color 0.12s, border-color 0.12s;
+}
+.tl-tab:hover { color: var(--text); }
+.tl-tab.on { color: var(--accent-text); border-bottom-color: var(--accent); }
+.tl-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 4px; }
+.tl-tab-count { font-size: 12px; font-weight: 650; color: var(--muted-2); }
+.tl-tab-badge {
+  padding: 0 7px;
+  border-radius: 999px;
+  background: var(--amber-weak);
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1.7;
+}
+.tl-tab-badge.ok { background: var(--green-weak); color: var(--green); }
 .tl-table-select { width: 34px; }
 .tl-table-sort {
   display: inline-flex;
@@ -225,6 +263,8 @@
 .tl-table-size { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 12px; }
 .tl-table-size select { width: auto; padding: 2px 6px; }
 .tl-table-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding-bottom: 10px; }
+/* 常驻搜索框：占掉剩余宽度，窄屏下换行到下一排（与词库页同一套观感）。 */
+.tl-table-toolbar .tl-table-search { flex: 1 1 260px; min-width: 200px; }
 .tl-table-batch {
   display: flex;
   flex-wrap: wrap;
