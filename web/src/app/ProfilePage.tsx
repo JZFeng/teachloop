@@ -176,7 +176,7 @@ export default function ProfilePage() {
 
       <div className="card" style={{ maxWidth: 760, marginTop: 16 }}>
         <h2>{t('profile.preferences')}</h2>
-        <Field label={t('profile.language')} hint={t('profile.languageHint')} htmlFor="profile-language">
+        <Field label={t('profile.language')} info={t('profile.languageHint')} htmlFor="profile-language">
           <select id="profile-language" value={i18n.language} onChange={(e) => void changeLanguage(e.target.value)}>
             {LANGUAGES.map((language) => (
               <option key={language.code} value={language.code}>{language.label}</option>
@@ -227,7 +227,7 @@ export default function ProfilePage() {
           </Field>
           {gradingMode === 'FIXED_TIME' ? (
             <>
-              <Field label={t('profile.gradingTime')} hint={t('profile.gradingFixedHint')} htmlFor="grading-time">
+              <Field label={t('profile.gradingTime')} info={t('profile.gradingFixedHint')} htmlFor="grading-time">
                 <Input id="grading-time" type="time" value={fixedTime} onChange={(e) => setFixedTime(e.target.value)} />
               </Field>
               <Field label={t('profile.gradingZone')} htmlFor="grading-zone">

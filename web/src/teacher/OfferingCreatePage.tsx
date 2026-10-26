@@ -238,7 +238,6 @@ export default function OfferingCreatePage() {
                     ))}
                   </div>
                 )}
-                <div className="hint">{t('teacher.offering.classesHint')}</div>
               </div>
 
               <div className="form-grid">
@@ -269,7 +268,6 @@ export default function OfferingCreatePage() {
                     onChange={(e) => setDuration(e.target.value)}
                     placeholder={t('teacher.offering.durationPlaceholder')}
                   />
-                  <div className="hint">{t('teacher.offering.durationHint')}</div>
                 </label>
                 <label className="f">
                   <b>{t('teacher.offering.timingMode')}</b>
@@ -280,7 +278,11 @@ export default function OfferingCreatePage() {
                     <option value="INDIVIDUAL">{t('teacher.timing.INDIVIDUAL')}</option>
                     <option value="FIXED_WINDOW">{t('teacher.timing.FIXED_WINDOW')}</option>
                   </select>
-                  <div className="hint">{t('teacher.offering.timingHint')}</div>
+                  {timingMode === 'FIXED_WINDOW' && (
+                    <InlineNote tone="warning" className="compact" style={{ marginTop: 6 }}>
+                      {t('teacher.offering.timingHint')}
+                    </InlineNote>
+                  )}
                 </label>
               </div>
 

@@ -43,7 +43,6 @@
       "providerId": "Model ID",
       "providerIdHint": "Example: deepseek; start with a lowercase letter and use only a-z, 0-9, dot, underscore or hyphen.",
       "displayName": "Display name",
-      "displayNameHint": "The name shown in this list, for example DeepSeek.",
       "baseUrl": "API address",
       "baseUrlHint": "Stop at /v1 — do not include /chat/completions (e.g. https://api.deepseek.com/v1, http://192.168.68.101:8080/v1). The request comes from the backend host.",
       "protocol": "API protocol",
@@ -973,11 +972,9 @@
     },
     "offering": {
       "classes": "Classes",
-      "classesHint": "Select one or more. Each selected class creates one assignment-class record; the paper stays single.",
       "createPaper": "Create a paper",
       "dueAt": "Due at",
       "duration": "Duration (minutes)",
-      "durationHint": "Defaults to the paper default duration; this session can override it.",
       "durationPlaceholder": "Inherit the paper default",
       "errors": {
         "classes": "Select at least one class.",

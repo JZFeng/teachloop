@@ -305,31 +305,31 @@ export default function AdminAiPage() {
           <h2>{editingId ? t('app.ai.editProvider') : t('app.ai.addProvider')}</h2>
           <p className="small muted">{t('app.ai.providerFormHint')}</p>
 
-          <Field label={t('app.ai.providerId')} hint={t('app.ai.providerIdHint')} htmlFor="provider-key">
+          <Field label={t('app.ai.providerId')} info={t('app.ai.providerIdHint')} htmlFor="provider-key">
             <Input id="provider-key" value={form.providerId} placeholder="qwen3.8local"
               onChange={(e) => change({ providerId: e.target.value })} />
           </Field>
-          <Field label={t('app.ai.displayName')} hint={t('app.ai.displayNameHint')} htmlFor="provider-name">
+          <Field label={t('app.ai.displayName')} htmlFor="provider-name">
             <Input id="provider-name" value={form.displayName} placeholder="qwen3.8"
               onChange={(e) => change({ displayName: e.target.value })} />
           </Field>
-          <Field label={t('app.ai.baseUrl')} hint={t('app.ai.baseUrlHint')} htmlFor="provider-base-url">
+          <Field label={t('app.ai.baseUrl')} info={t('app.ai.baseUrlHint')} htmlFor="provider-base-url">
             <Input id="provider-base-url" value={form.baseUrl} placeholder="http://192.168.68.101:8080/v1"
               onChange={(e) => change({ baseUrl: e.target.value })} />
           </Field>
-          <Field label={t('app.ai.protocol')} hint={t('app.ai.protocolHint')} htmlFor="provider-protocol">
+          <Field label={t('app.ai.protocol')} info={t('app.ai.protocolHint')} htmlFor="provider-protocol">
             <select id="provider-protocol" value={form.protocol}
               onChange={(e) => change({ protocol: e.target.value })}>
               <option value="openai">{t('app.ai.protocolOpenai')}</option>
               <option value="anthropic" disabled>{t('app.ai.protocolAnthropic')}</option>
             </select>
           </Field>
-          <Field label={t('app.ai.apiKey')} hint={t('app.ai.apiKeyHint')} htmlFor="provider-key-secret">
+          <Field label={t('app.ai.apiKey')} info={t('app.ai.apiKeyHint')} htmlFor="provider-key-secret">
             <Input id="provider-key-secret" type="password" value={form.apiKey}
               placeholder={t('app.ai.keyOptionalPlaceholder')} autoComplete="off"
               onChange={(e) => change({ apiKey: e.target.value })} />
           </Field>
-          <Field label={t('app.ai.extraHeaders')} hint={t('app.ai.extraHeadersHint')} htmlFor="provider-extra-headers">
+          <Field label={t('app.ai.extraHeaders')} info={t('app.ai.extraHeadersHint')} htmlFor="provider-extra-headers">
             <TextArea
               id="provider-extra-headers"
               rows={3}
@@ -339,7 +339,7 @@ export default function AdminAiPage() {
             />
           </Field>
 
-          <Field label={t('app.ai.models')} hint={t('app.ai.modelsHint')}
+          <Field label={t('app.ai.models')} info={t('app.ai.modelsHint')}
             extra={<Button size="small" onClick={() => void loadModels()} busy={busy}>{t('app.ai.loadModels')}</Button>}>
             {availableModels.length > 0 && (
               <div className="row" style={{ flexDirection: 'column', alignItems: 'stretch', gap: 6, marginBottom: 8 }}>

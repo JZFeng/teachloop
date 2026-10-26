@@ -43,7 +43,6 @@
       "providerId": "模型 ID",
       "providerIdHint": "例子：deepseek；小写字母开头，只含 a-z、0-9、点、下划线、连字符。",
       "displayName": "显示名称",
-      "displayNameHint": "列表里显示的名字，例如 DeepSeek。",
       "baseUrl": "API 地址",
       "baseUrlHint": "填到 /v1 为止，不要带 /chat/completions（示例：https://api.deepseek.com/v1、http://192.168.68.101:8080/v1）。从后端服务器发起连接；localhost 指后端所在机器。",
       "protocol": "API 协议",
@@ -973,11 +972,9 @@
     },
     "offering": {
       "classes": "参与班级",
-      "classesHint": "可多选。勾几个班，就生成几条「参与班级」记录，试卷只有一份。",
       "createPaper": "新建试卷",
       "dueAt": "截止时间",
       "duration": "时长（分钟）",
-      "durationHint": "默认取试卷的默认时长，本场可改。",
       "durationPlaceholder": "继承试卷默认时长",
       "errors": {
         "classes": "至少要选一个班级。",
