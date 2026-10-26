@@ -214,6 +214,22 @@ public final class ContentView {
         if (image != null) {
             out.put("mentalImage", image);
         }
+        String art = text(core, "image");
+        if (art != null && isSafeSvg(art)) {
+            out.put("image", art.strip());
+        }
+    }
+
+    /** 只放行最朴素的 inline SVG：≤2KB、无脚本、无事件属性、无外链。 */
+    static boolean isSafeSvg(String image) {
+        String value = image.strip();
+        if (value.length() > 2000 || !value.startsWith("<svg")) {
+            return false;
+        }
+        String lowered = value.toLowerCase(java.util.Locale.ROOT);
+        return !lowered.contains("<script") && !lowered.contains("foreignobject")
+                && !lowered.contains("href") && !java.util.regex.Pattern
+                .compile("\\son[a-z]+\\s*=").matcher(lowered).find();
     }
 
     /** v2 的 parts / chain 原样带出，供前端渲染「构词与派生」；v2.3 之前没有这两个字段就跳过。 */

@@ -47,6 +47,8 @@ export interface ReviewCardCoreSemantics {
   core?: string
   notThis?: string
   mentalImage?: string
+  /** 实验：模型生成的小 SVG（后端已做安全过滤） */
+  image?: string
 }
 
 export interface ReviewCardContent {
@@ -218,14 +220,23 @@ export function VocabReviewCard({
           <div className="review-back">
             {content?.coreSemantics && (
               <div className="core-semantics">
-                {content.coreSemantics.core && (
-                  <p className="core-semantics-core">{content.coreSemantics.core}</p>
-                )}
-                {content.coreSemantics.notThis && (
-                  <p className="core-semantics-not muted">{content.coreSemantics.notThis}</p>
-                )}
-                {content.coreSemantics.mentalImage && (
-                  <p className="core-semantics-image">{content.coreSemantics.mentalImage}</p>
+                <div className="core-semantics-text">
+                  {content.coreSemantics.core && (
+                    <p className="core-semantics-core">{content.coreSemantics.core}</p>
+                  )}
+                  {content.coreSemantics.notThis && (
+                    <p className="core-semantics-not muted">{content.coreSemantics.notThis}</p>
+                  )}
+                  {content.coreSemantics.mentalImage && (
+                    <p className="core-semantics-image">{content.coreSemantics.mentalImage}</p>
+                  )}
+                </div>
+                {content.coreSemantics.image && (
+                  <div
+                    className="core-semantics-art"
+                    aria-hidden="true"
+                    dangerouslySetInnerHTML={{ __html: content.coreSemantics.image }}
+                  />
                 )}
               </div>
             )}

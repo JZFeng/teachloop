@@ -1,0 +1,551 @@
+{
+  "justify": {
+    "schemaVersion": 2,
+    "word": "justify",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/ˈdʒʌstɪfaɪ/",
+        "us": "/ˈdʒʌstəfaɪ/"
+      },
+      "partOfSpeech": [
+        "verb"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "证明……正当；为……辩护；使合理化；【排版】使（文本）两端对齐",
+      "en": "to show or prove to be right or reasonable; to be a good reason for; to adjust (text) so that the lines are even at both margins"
+    },
+    "coreSemantics": {
+      "core": "证明合理，为行为找理由",
+      "notThis": "不是简单说'解释'，而是'证明其正当性'",
+      "mentalImage": "一个人站在法官面前，指着证据为自己辩解",
+      "image": "<svg viewBox=\"0 0 96 96\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"10\" y=\"20\" width=\"76\" height=\"56\" rx=\"4\" fill=\"#e8eef7\"/><rect x=\"20\" y=\"30\" width=\"56\" height=\"36\" fill=\"#fff\" stroke=\"#4a6fa5\" stroke-width=\"2\"/><circle cx=\"48\" cy=\"48\" r=\"10\" fill=\"#4a6fa5\"/><path d=\"M48 58 L48 66\" stroke=\"#4a6fa5\" stroke-width=\"3\"/><path d=\"M40 66 L56 66\" stroke=\"#4a6fa5\" stroke-width=\"3\"/><circle cx=\"30\" cy=\"40\" r=\"4\" fill=\"#f0a030\"/><circle cx=\"66\" cy=\"40\" r=\"4\" fill=\"#f0a030\"/></svg>"
+    },
+    "examples": [
+      {
+        "text": "How can you justify spending so much money on a car?",
+        "translations": {
+          "zh": "你怎么能为花这么多钱买一辆车辩解呢？"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "justify doing something",
+        "popularity": 1
+      },
+      {
+        "text": "The end does not justify the means.",
+        "translations": {
+          "zh": "目的不能证明手段正当。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "justify the means",
+        "popularity": 2
+      },
+      {
+        "text": "Nothing can justify such rude behavior.",
+        "translations": {
+          "zh": "没有什么能为这种粗鲁行为辩护。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "justify something",
+        "popularity": 3
+      },
+      {
+        "text": "She was justified in complaining about the service.",
+        "translations": {
+          "zh": "她抱怨服务差是有道理的。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "be justified in doing something",
+        "popularity": 4
+      },
+      {
+        "text": "The results justify our confidence in the new method.",
+        "translations": {
+          "zh": "结果证明我们对新方法的信心是合理的。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "justify something",
+        "popularity": 5
+      },
+      {
+        "text": "Please justify the text so the margins are even.",
+        "translations": {
+          "zh": "请将文本两端对齐，使页边距均匀。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "justify the text",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "来自拉丁语 justus（公正的）+ -ificare（使……），经古法语 justifier 进入英语。",
+      "parts": [
+        {
+          "text": "just",
+          "type": "root",
+          "meaning": "公正的",
+          "origin": "Latin justus"
+        },
+        {
+          "text": "-ify",
+          "type": "suffix",
+          "meaning": "使……化，使成为",
+          "origin": "Latin -ificare"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "just",
+            "-ify"
+          ],
+          "to": "justify",
+          "partOfSpeech": "verb",
+          "meaning": "证明……正当"
+        }
+      ],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "defend",
+          "partOfSpeech": "verb",
+          "nuance": "强调为某人或某观点辩护，抵御批评"
+        },
+        {
+          "word": "explain",
+          "partOfSpeech": "verb",
+          "nuance": "只说明原因，不强调证明其正当性"
+        },
+        {
+          "word": "rationalize",
+          "partOfSpeech": "verb",
+          "nuance": "常指为不合理行为找看似合理的借口"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "condemn",
+          "partOfSpeech": "verb",
+          "nuance": "谴责，判定为错误"
+        },
+        {
+          "word": "blame",
+          "partOfSpeech": "verb",
+          "nuance": "责备，认为有过错"
+        }
+      ],
+      "supplement": "常用搭配：justify doing sth；be justified in doing sth；the end justifies the means。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "justification",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "正当理由；辩护",
+            "en": "a good reason or explanation for something"
+          }
+        },
+        {
+          "word": "justified",
+          "partOfSpeech": [
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "有正当理由的",
+            "en": "having a good reason"
+          }
+        },
+        {
+          "word": "justifiable",
+          "partOfSpeech": [
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "可证明为正当的",
+            "en": "able to be shown to be right or reasonable"
+          }
+        },
+        {
+          "word": "just",
+          "partOfSpeech": [
+            "adjective",
+            "adverb"
+          ],
+          "meanings": {
+            "zh": "公正的；仅仅",
+            "en": "fair; only"
+          }
+        },
+        {
+          "word": "justice",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "正义；公正",
+            "en": "fairness"
+          }
+        }
+      ]
+    }
+  },
+  "struggle": {
+    "schemaVersion": 2,
+    "word": "struggle",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/ˈstrʌɡl/",
+        "us": "/ˈstrʌɡəl/"
+      },
+      "partOfSpeech": [
+        "verb",
+        "noun"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "v. 挣扎；努力；艰难地做；n. 斗争；努力；难事",
+      "en": "v. to try hard against difficulty; to move with great effort; n. a hard fight or effort; something difficult"
+    },
+    "coreSemantics": {
+      "core": "困难 + 努力，在阻力中持续用力",
+      "notThis": "不是泛指“努力”，而是“努力应对具体阻力”",
+      "mentalImage": "一个人使劲推一扇卡住的门，门几乎纹丝不动",
+      "image": "<svg viewBox=\"0 0 96 96\" xmlns=\"http://www.w3.org/2000/svg\"><rect x=\"20\" y=\"20\" width=\"56\" height=\"56\" rx=\"4\" fill=\"#8B5A2B\"/><circle cx=\"48\" cy=\"48\" r=\"6\" fill=\"#FFD700\"/><line x1=\"48\" y1=\"48\" x2=\"48\" y2=\"76\" stroke=\"#FFD700\" stroke-width=\"4\"/><path d=\"M30 76 L48 60 L66 76\" fill=\"none\" stroke=\"#FFD700\" stroke-width=\"4\"/></svg>"
+    },
+    "examples": [
+      {
+        "text": "She struggled to open the jar.",
+        "translations": {
+          "zh": "她费力地打开罐子。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "struggle to do something",
+        "popularity": 1
+      },
+      {
+        "text": "He struggled with the heavy box.",
+        "translations": {
+          "zh": "他费力地搬着那个重箱子。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "struggle with something",
+        "popularity": 2
+      },
+      {
+        "text": "The fish struggled in the net.",
+        "translations": {
+          "zh": "鱼在网里挣扎。"
+        },
+        "partOfSpeech": "verb",
+        "usagePattern": "struggle in something",
+        "popularity": 3
+      },
+      {
+        "text": "It was a struggle to finish the race.",
+        "translations": {
+          "zh": "完成比赛是件很费力的事。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "a struggle to do something",
+        "popularity": 4
+      },
+      {
+        "text": "The struggle for freedom continues.",
+        "translations": {
+          "zh": "争取自由的斗争仍在继续。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "the struggle for something",
+        "popularity": 5
+      },
+      {
+        "text": "He had a struggle with his conscience.",
+        "translations": {
+          "zh": "他内心进行了一番良心挣扎。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "a struggle with something",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "struggle 由中古英语 struglen 演变而来，可能源自未知词根 strug- 加频繁动作后缀 -le，与“用力扭动、挣扎”有关；词源不完全确定。",
+      "parts": [
+        {
+          "text": "strug-",
+          "type": "root",
+          "meaning": "用力扭动、挣扎（词源不确定）",
+          "origin": "uncertain"
+        },
+        {
+          "text": "-le",
+          "type": "suffix",
+          "meaning": "表示反复或频繁动作",
+          "origin": "Old English"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "strug-",
+            "-le"
+          ],
+          "to": "struggle",
+          "partOfSpeech": "verb",
+          "meaning": "挣扎；努力"
+        }
+      ],
+      "confidence": "medium"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "strive",
+          "partOfSpeech": "verb",
+          "nuance": "更正式，强调为达成目标而持续努力，不一定有身体挣扎"
+        },
+        {
+          "word": "fight",
+          "partOfSpeech": "verb",
+          "nuance": "强调对抗或战斗，语气更强"
+        },
+        {
+          "word": "labor",
+          "partOfSpeech": "verb",
+          "nuance": "强调艰苦劳动，常指体力或脑力上的长期辛苦"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "succeed",
+          "partOfSpeech": "verb",
+          "nuance": "表示成功，与 struggle 的艰难过程相对"
+        },
+        {
+          "word": "relax",
+          "partOfSpeech": "verb",
+          "nuance": "表示放松，与 struggle 的用力状态相反"
+        }
+      ],
+      "mnemonic": "",
+      "supplement": "struggle 常与 with、to do、for 搭配；名词形式常与 a、the 连用。"
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "struggles",
+          "partOfSpeech": [
+            "verb",
+            "noun"
+          ],
+          "meanings": {
+            "zh": "挣扎（第三人称单数或复数名词）",
+            "en": "third-person singular of struggle; plural of struggle"
+          }
+        },
+        {
+          "word": "struggled",
+          "partOfSpeech": [
+            "verb"
+          ],
+          "meanings": {
+            "zh": "挣扎了（过去式/过去分词）",
+            "en": "past tense and past participle of struggle"
+          }
+        },
+        {
+          "word": "struggling",
+          "partOfSpeech": [
+            "verb",
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "正在挣扎的；奋斗的",
+            "en": "present participle of struggle; making great efforts"
+          }
+        }
+      ]
+    }
+  },
+  "hierarchy": {
+    "schemaVersion": 2,
+    "word": "hierarchy",
+    "language": "en",
+    "basicInfo": {
+      "pronunciation": {
+        "uk": "/ˈhaɪərɑːki/",
+        "us": "/ˈhaɪərɑːrki/"
+      },
+      "partOfSpeech": [
+        "noun"
+      ],
+      "image": null
+    },
+    "meanings": {
+      "zh": "等级制度；层级体系；统治集团",
+      "en": "A system in which people or things are ranked one above another; a body of people ranked in order of authority."
+    },
+    "coreSemantics": {
+      "core": "按等级排列的层级体系",
+      "notThis": "不是泛指'顺序'或'分类'，而是有上下级权力关系的等级结构",
+      "mentalImage": "一座金字塔，每层站着不同的人，越往上人越少",
+      "image": "<svg viewBox=\"0 0 96 96\" xmlns=\"http://www.w3.org/2000/svg\"><polygon points=\"48,12 88,80 8,80\" fill=\"#e8e8e8\" stroke=\"#333\" stroke-width=\"3\"/><line x1=\"28\" y1=\"52\" x2=\"68\" y2=\"52\" stroke=\"#333\" stroke-width=\"2\"/><line x1=\"18\" y1=\"66\" x2=\"78\" y2=\"66\" stroke=\"#333\" stroke-width=\"2\"/><circle cx=\"48\" cy=\"32\" r=\"5\" fill=\"#333\"/><circle cx=\"38\" cy=\"46\" r=\"4\" fill=\"#333\"/><circle cx=\"58\" cy=\"46\" r=\"4\" fill=\"#333\"/><circle cx=\"28\" cy=\"60\" r=\"3\" fill=\"#333\"/><circle cx=\"48\" cy=\"60\" r=\"3\" fill=\"#333\"/><circle cx=\"68\" cy=\"60\" r=\"3\" fill=\"#333\"/></svg>"
+    },
+    "examples": [
+      {
+        "text": "She quickly climbed the corporate hierarchy.",
+        "translations": {
+          "zh": "她迅速攀上了公司的等级阶梯。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "climb the hierarchy",
+        "popularity": 1
+      },
+      {
+        "text": "The church has a strict hierarchy of authority.",
+        "translations": {
+          "zh": "教会有严格的权力等级制度。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "a hierarchy of authority",
+        "popularity": 2
+      },
+      {
+        "text": "In the animal hierarchy, the alpha male dominates.",
+        "translations": {
+          "zh": "在动物等级体系中，首领雄性占主导地位。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "in the hierarchy",
+        "popularity": 3
+      },
+      {
+        "text": "The company flattened its management hierarchy last year.",
+        "translations": {
+          "zh": "公司去年精简了管理层的等级结构。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "management hierarchy",
+        "popularity": 4
+      },
+      {
+        "text": "There is a clear hierarchy of needs in psychology.",
+        "translations": {
+          "zh": "心理学中有一个清晰的需求层次。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "a hierarchy of needs",
+        "popularity": 5
+      },
+      {
+        "text": "He refused to accept the social hierarchy of his time.",
+        "translations": {
+          "zh": "他拒绝接受当时的社会等级制度。"
+        },
+        "partOfSpeech": "noun",
+        "usagePattern": "social hierarchy",
+        "popularity": 6
+      }
+    ],
+    "wordFormation": {
+      "analysis": "From Greek hieros 'sacred' + arkhein 'to rule', via medieval Latin hierarchia 'rule of a high priest'. The -y is a noun-forming suffix from Latin -ia.",
+      "parts": [
+        {
+          "text": "hier-",
+          "type": "combining form",
+          "meaning": "sacred, holy",
+          "origin": "Greek"
+        },
+        {
+          "text": "-archy",
+          "type": "combining form",
+          "meaning": "rule, government",
+          "origin": "Greek"
+        },
+        {
+          "text": "-y",
+          "type": "suffix",
+          "meaning": "forming abstract nouns",
+          "origin": "Latin"
+        }
+      ],
+      "chain": [
+        {
+          "from": [
+            "hier-",
+            "-archy"
+          ],
+          "to": "hierarchy",
+          "partOfSpeech": "noun",
+          "meaning": "等级制度"
+        }
+      ],
+      "confidence": "high"
+    },
+    "memoryAids": {
+      "synonyms": [
+        {
+          "word": "ranking",
+          "partOfSpeech": "noun",
+          "nuance": "更强调排列顺序，不一定含权力上下级"
+        },
+        {
+          "word": "pecking order",
+          "partOfSpeech": "noun",
+          "nuance": "口语化，常指群体中的实际地位高低"
+        }
+      ],
+      "antonyms": [
+        {
+          "word": "equality",
+          "partOfSpeech": "noun",
+          "nuance": "强调地位平等，无上下级之分"
+        }
+      ],
+      "supplement": "常见搭配：corporate hierarchy, social hierarchy, hierarchy of needs, climb the hierarchy."
+    },
+    "wordFamily": {
+      "items": [
+        {
+          "word": "hierarchical",
+          "partOfSpeech": [
+            "adjective"
+          ],
+          "meanings": {
+            "zh": "等级制度的；按等级划分的",
+            "en": "relating to a hierarchy; arranged in ranks"
+          }
+        },
+        {
+          "word": "hierarchically",
+          "partOfSpeech": [
+            "adverb"
+          ],
+          "meanings": {
+            "zh": "按等级地",
+            "en": "in a hierarchical manner"
+          }
+        },
+        {
+          "word": "hierarch",
+          "partOfSpeech": [
+            "noun"
+          ],
+          "meanings": {
+            "zh": "教主；高级教士；等级体系中的高层",
+            "en": "a chief priest; a high-ranking person in a hierarchy"
+          }
+        }
+      ]
+    }
+  }
+}
