@@ -143,9 +143,6 @@ export function Shell({ children }: { children: ReactNode }) {
               {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
             </Button>
           </div>
-          <NavLink to="/profile" className="topbar-user" title={t('nav.profile')}>
-            {me?.displayName} · {me?.email}
-          </NavLink>
         </header>
         <main className="app-main">{children}</main>
       </div>

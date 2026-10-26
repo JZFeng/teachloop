@@ -23,6 +23,7 @@ const EMPTY: FormState = {
  * 管理员 AI 设置（决策 010，2026-10-24 修订）：维护 provider 列表、默认 provider 与当前全站模型。
  * 教师页不再有 AI 入口；全站模型只在这里切换（每个模型行的「设为当前」）。
  * 多个 provider 时用「设为默认」切默认 provider；只有一个 provider 时它天然就是默认。
+ * 2026-10-25：去掉列表里的「上移/下移」，故障转移顺序只由新增时的 priority（+10 递增）决定。
  */
 export default function AdminAiPage() {
   const { t } = useTranslation('translation')
@@ -70,21 +71,6 @@ export default function AdminAiPage() {
 
   // 新 provider 排到最后：取现有最大优先级 +10。
   const nextPriority = () => providers.reduce((max, p) => Math.max(max, p.priority), 0) + 10
-
-  // 决策 022 D1：上移/下移通过与相邻项交换 priority 实现，顺序立刻可见。
-  const move = async (index: number, delta: number) => {
-    const target = providers[index]
-    const neighbour = providers[index + delta]
-    if (!target || !neighbour) return
-    setBusy(true)
-    try {
-      await api.put(`/api/admin/ai-providers/${target.id}/priority`, { priority: neighbour.priority })
-      await api.put(`/api/admin/ai-providers/${neighbour.id}/priority`, { priority: target.priority })
-      await load()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally { setBusy(false) }
-  }
 
   const openAdd = () => {
     setEditingId(null)
@@ -247,14 +233,13 @@ export default function AdminAiPage() {
             })}
           </div>
         )}
-        <p className="small muted">{t('app.ai.temperatureNote')}</p>
         <Button variant="primary" onClick={openAdd}>{t('app.ai.addProvider')}</Button>
       </div>
 
       <div className="card" style={{ maxWidth: 900, marginTop: 16 }}>
         <h2>{t('app.ai.providers')}</h2>
         {providers.length === 0 && <div className="inline-note">{t('app.ai.noProvider')}</div>}
-        {providers.map((p, index) => (
+        {providers.map((p) => (
           <div key={p.id} className="card" style={{ marginTop: 10 }}>
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div className="grow">
@@ -281,12 +266,6 @@ export default function AdminAiPage() {
                 </div>
               </div>
               <div className="row" style={{ gap: 6 }}>
-                <Button size="small" disabled={index === 0} onClick={() => void move(index, -1)}>
-                  {t('app.ai.moveUp')}
-                </Button>
-                <Button size="small" disabled={index === providers.length - 1} onClick={() => void move(index, 1)}>
-                  {t('app.ai.moveDown')}
-                </Button>
                 {providers.length > 1 && !p.active && (
                   <Button size="small" variant="primary" busy={busy} onClick={() => void setDefault(p)}>
                     {t('app.ai.setDefault')}

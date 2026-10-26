@@ -37,7 +37,12 @@
 ### D1 · provider 有序，不靠列表顺序
 
 `ai_providers` 增 `priority int not null default 100`（迁移 V066）；数值小者优先，同值按 `created_at`。
-管理员在 `/admin/ai` 能上下移动。**没有 priority 的顺序不算顺序**——靠 `created_at` 隐含排序，删一个加一个就会变。
+**没有 priority 的顺序不算顺序**——靠 `created_at` 隐含排序，删一个加一个就会变。
+
+**2026-10-25 用户拍板：`/admin/ai` 去掉列表里的「上移 / 下移」按钮。** 顺序只由新增时的
+priority 决定（`nextPriority()` = 现有最大值 + 10，见 `web/src/app/AdminAiPage.tsx`），列表上仍显示
+「故障转移顺序 N」。后端 `PUT /api/admin/ai-providers/{id}/priority` 保留（无 UI 入口），
+需要改顺序时走接口。
 
 ### D2 · 触发条件是熔断打开，不是单份失败
 
