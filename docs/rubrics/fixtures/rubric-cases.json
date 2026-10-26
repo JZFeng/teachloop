@@ -40,6 +40,24 @@
       "ignored": ["内容与结构"]
     },
     {
+      "name": "assignment-template-doc",
+      "file": "docs/templates/assignment-rubric.md",
+      "totalPoints": 15,
+      "valid": true,
+      "issues": [],
+      "parsed": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 }
+      ],
+      "allocated": [
+        { "name": "表达理解", "points": 5 },
+        { "name": "给出建议", "points": 5 },
+        { "name": "语法与拼写", "points": 5 }
+      ],
+      "ignored": []
+    },
+    {
       "name": "ordered-list-without-dot-vditor",
       "rubric": "1 表达理解（5 分）\n2 给出建议（5 分）\n3 语法与拼写（5 分）\n",
       "totalPoints": 15,

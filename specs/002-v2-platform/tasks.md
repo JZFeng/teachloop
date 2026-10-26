@@ -571,6 +571,7 @@ AI 只是可选草稿；AI 晚到不得覆盖人工分。
 | T470 | **有序列表行接受无点形式**（决策 005 追记）：`NUMBERED` 放宽为 `^\s{0,3}\d+(?:[.)、]\s+|\s+)(.+?)\s*$`，`RubricValidator` / `RubricCriteria` / `web/src/components/rubric.ts` 三处同步；夹具新增 `ordered-list-without-dot-vditor` | T469 | 同一段「1 要点（5 分）×3」在三处都解析成 3 项、合计 15；`RubricValidatorCasesTest` 8/8、`RubricCriteriaTest` 6/6、`web/tests/rubric-summary.test.mjs` 85/85 全绿；浏览器里手打「1. 要点」也能看到合计 15/15 |
 | T471 | **删除「同步并校验」**（AC-4.29③ 追记）：删 `sync()`、按钮、`busy='sync'` 与 `syncHint`/`synced` 文案；发布前校验仍由 `publishCheck` + 服务端承担 | T469 | 第 4 步只剩「发布试卷」；`grep -r "teacher.wizard.sync" web/src` 为空；发布按钮在缺答案/目标不一致时仍置灰 |
 | T472 | **解析不出 = 没填**（AC-4.28⑨）：`essayRubricCheck` 增 `unparsed`（有字但 0 条评分项），`rubricGate.blocked` 一并拦；提示分开说「没填 / 一行都没解析出来」，并把分隔线颜色做到「拦人红、只提醒琥珀」 | T471 | 「评分标准：+ 无编号行」会被拦在 step 3 并切到该题；`1. ` 开头则放行；`pnpm test` 87/87；`check-i18n` 通过 |
+| T473 | **试卷 / 作业 Markdown 模板 + 防漂移测试**：`docs/templates/README.md`（规则、变体、静默失效写法、维护者须知）、`paper.md`、`assignment-rubric.md`；新增 `PaperTemplateDocTest` 读真实文档跑解析器；夹具加 `assignment-template-doc`（`file` 指模板）被三套测试共用 | T472 | 模板跑出来是 4 题（3 客观 + 1 写作，写作自动编号 4）且 rubric 自动预填 3 条；sitting 9/9、grading 7/7、web 88/88；改解析器后这两处测试先红 |
 
 ---
 

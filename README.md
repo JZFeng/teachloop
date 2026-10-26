@@ -49,6 +49,7 @@
 3. 界面长什么样，直接用浏览器打开 [`specs/002-v2-platform/mockups/interface.html`](specs/002-v2-platform/mockups/interface.html)（单文件，无需构建）。
 4. 「为什么这样做」在 [`docs/decisions/`](docs/decisions/)（001–008）；当前进度与剩余看 [`docs/PROGRESS.md`](docs/PROGRESS.md)，已知偏差看 [`docs/DELIVERY-STATUS.md`](docs/DELIVERY-STATUS.md)。
 5. 品牌源图与重新生成方式见 [`docs/brand/README.md`](docs/brand/README.md)。
+6. 老师要照着写的 Markdown 模板（试卷原文、作业评分标准）见 [`docs/templates/README.md`](docs/templates/README.md)。
 
 ## 技术栈
 
