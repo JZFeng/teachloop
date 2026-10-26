@@ -48,6 +48,10 @@ public class AiProviderEntity {
     @Column(name = "updated_by")
     private UUID updatedBy;
 
+    /** 决策 022 D1：故障转移顺序，数值小者优先；同值按 created_at。 */
+    @Column(nullable = false)
+    private int priority = 100;
+
     protected AiProviderEntity() {
     }
 
@@ -87,4 +91,6 @@ public class AiProviderEntity {
     public void setModelsJson(String v) { this.modelsJson = v; }
     public void setUpdatedAt(Instant v) { this.updatedAt = v; }
     public void setUpdatedBy(UUID v) { this.updatedBy = v; }
+    public int getPriority() { return priority; }
+    public void setPriority(int v) { this.priority = v; }
 }

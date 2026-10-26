@@ -434,4 +434,19 @@ public final class Ports {
 
         CircuitSnapshot snapshot(String providerKey);
     }
+
+    /**
+     * 决策 022：provider 故障转移与自动回切。
+     *
+     * <p>由熔断状态机在「打开」与「一份成功」时调用；实现方负责改 active provider、
+     * 写审计与通知。开关判定放在实现方，熔断机只负责告知事实。
+     */
+    public interface AiProviderFailover {
+
+        /** 某条 provider 的熔断刚被打开。 */
+        void onCircuitOpen(String failedProviderKey, Instant now);
+
+        /** 一份判分成功（用于累计成功连续数并判断能否回切主 provider）。 */
+        void onGradingSuccess(String providerKey, Instant now);
+    }
 }

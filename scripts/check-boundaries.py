@@ -31,6 +31,7 @@ TABLE_OWNER: dict[str, str] = {
     "ai_settings": "identity",
     "ai_providers": "identity",
     "ai_circuit_state": "identity",
+    "ai_usage_daily": "identity",
     "user_ai_settings": "identity",
 
     "classes": "classroom",

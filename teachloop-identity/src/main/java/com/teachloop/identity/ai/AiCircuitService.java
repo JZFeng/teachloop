@@ -3,6 +3,8 @@ package com.teachloop.identity.ai;
 import com.teachloop.shared.port.Ports;
 import java.time.Duration;
 import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,12 +23,16 @@ import org.springframework.transaction.annotation.Transactional;
 @Component
 public class AiCircuitService implements Ports.AiCircuit {
 
+    private static final Logger log = LoggerFactory.getLogger(AiCircuitService.class);
+
     private final AiCircuitStateRepository repo;
+    private final Ports.AiProviderFailover failover;
     private final int failureThreshold;
     private final Duration openDuration;
     private final Duration probeTimeout;
 
     public AiCircuitService(AiCircuitStateRepository repo,
+                            Ports.AiProviderFailover failover,
                             @Value("${teachloop.ai.circuit.failure-threshold:5}") int failureThreshold,
                             @Value("${teachloop.ai.circuit.open-ms:300000}") long openMs,
                             @Value("${teachloop.ai.circuit.probe-timeout-ms:300000}") long probeTimeoutMs) {
@@ -37,6 +43,7 @@ public class AiCircuitService implements Ports.AiCircuit {
             throw new IllegalArgumentException("teachloop.ai.circuit 的冷却/试探超时必须 > 0");
         }
         this.repo = repo;
+        this.failover = failover;
         this.failureThreshold = failureThreshold;
         this.openDuration = Duration.ofMillis(openMs);
         this.probeTimeout = Duration.ofMillis(probeTimeoutMs);
@@ -82,8 +89,17 @@ public class AiCircuitService implements Ports.AiCircuit {
             // OPEN 期间仍在跑的那份成功不作为试探结论：只有半开试探能关闭熔断。
             return false;
         }
+        state.setSuccessStreak(state.getSuccessStreak() + 1);
         state.setUpdatedAt(now);
         repo.save(state);
+        if (failover != null) {
+            try {
+                failover.onGradingSuccess(providerKey, now);
+            } catch (RuntimeException ex) {
+                // 回切判定失败不影响判分结果
+                log.warn("AI 回切判定失败（判分不受影响）：{}", ex.getMessage());
+            }
+        }
         return closedFromHalfOpen;
     }
 
@@ -108,8 +124,17 @@ public class AiCircuitService implements Ports.AiCircuit {
             state.setOpenedAt(now);
             opened = true;
         }
+        state.setSuccessStreak(0);
         state.setUpdatedAt(now);
         repo.save(state);
+        if (opened && failover != null) {
+            try {
+                failover.onCircuitOpen(providerKey, now);
+            } catch (RuntimeException ex) {
+                // 转移失败不影响熔断本身：熔断已打开，派发仍会暂停
+                log.warn("AI 故障转移失败（熔断已打开）：{}", ex.getMessage());
+            }
+        }
         return new Ports.CircuitOpenEvent(opened, state.getOpenedAt(), state.getStreakStartedAt());
     }
 

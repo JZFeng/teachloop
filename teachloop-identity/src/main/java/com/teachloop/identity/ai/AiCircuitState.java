@@ -43,6 +43,10 @@ public class AiCircuitState {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /** 决策 022 D5：连续成功份数（成功 +1、失败清零），回切主 provider 的判定依据。 */
+    @Column(name = "success_streak", nullable = false)
+    private int successStreak = 0;
+
     protected AiCircuitState() {
     }
 
@@ -117,5 +121,13 @@ public class AiCircuitState {
 
     public void setUpdatedAt(Instant updatedAt) {
         this.updatedAt = updatedAt;
+    }
+
+    public int getSuccessStreak() {
+        return successStreak;
+    }
+
+    public void setSuccessStreak(int successStreak) {
+        this.successStreak = successStreak;
     }
 }
