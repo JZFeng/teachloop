@@ -243,10 +243,29 @@ export default function ReviewPage() {
   }
 
   const columns: Column<ReviewView>[] = [
-    { key: 'submissionId', title: t('review.submissionId'), value: (r) => r.submissionId, sortable: true, render: (r) => <span className="mono small">{r.submissionId.slice(0, 8)}</span> },
+    {
+      key: 'submissionId',
+      title: t('review.submissionId'),
+      value: (r) => r.submissionId,
+      sortable: true,
+      // AC-25.1：目的地与「点行」相同的动作不再做成按钮；主标识做成链接样式的按钮，
+      // 保证看得见、可 Tab、可读屏（点行同样能打开）。
+      render: (r) => (
+        <button
+          type="button"
+          className="tl-row-link tl-link-button mono small"
+          title={t('review.open')}
+          onClick={(event) => {
+            event.stopPropagation()
+            openSubmission(r.submissionId)
+          }}
+        >
+          {r.submissionId.slice(0, 8)}
+        </button>
+      ),
+    },
     { key: 'status', title: t('review.status'), value: (r) => r.status, sortable: true, render: (r) => <span className="tag amber">{t(`review.status_${r.status}`)}</span> },
     { key: 'createdAt', title: t('review.queuedAt'), value: (r) => r.createdAt, sortable: true, render: (r) => <span className="small">{fmtDateTime(r.createdAt)}</span> },
-    { key: 'actions', title: t('review.open'), value: () => '', render: (r) => <Button size="small" onClick={() => openSubmission(r.submissionId)}>{t('review.open')}</Button> },
   ]
 
   const reviewRows = detail ? reviewRowsOf(detail) : []

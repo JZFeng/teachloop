@@ -2,7 +2,7 @@ import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import type { PaperView } from '../api/types'
-import { Button, DataTable, Empty, ErrorState, Loading, PageHeader } from '../ui'
+import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, RowActions } from '../ui'
 import type { Column } from '../ui'
 import { useListState } from '../ui'
 import { Tag, TeacherPage, useApiData } from './common'
@@ -29,7 +29,11 @@ export default function PapersPage() {
       title: t('teacher.papers.colTitle'),
       value: (row) => row.title,
       sortable: true,
-      render: (row) => <b>{row.title}</b>,
+      render: (row) => (
+        <Link className="tl-row-link" to={`/papers/${row.id}`} onClick={(event) => event.stopPropagation()}>
+          {row.title}
+        </Link>
+      ),
     },
     {
       key: 'totalPoints',
@@ -78,28 +82,32 @@ export default function PapersPage() {
     {
       key: 'actions',
       title: t('teacher.common.actions'),
-      width: '320px',
+      // 120px = 1 个主按钮 + 「⋯」；原来的 4 个按钮要 320px，且加一个动作就再折行（AC-25.1）。
+      width: '120px',
       value: () => '',
       render: (row) => (
-        <div className="row" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
-          <Button size="small" variant="text" onClick={() => navigate(`/papers/${row.id}`)}>
-            {t('teacher.common.edit')}
-          </Button>
-          <Button size="small" variant="text" onClick={() => navigate(`/offerings/new?paperId=${row.id}`)}>
-            {t('teacher.papers.assign')}
-          </Button>
-          <Button size="small" variant="text" onClick={() => void api.post(`/api/papers/${row.id}/copy`).then(reload)}>
-            {t('teacher.papers.copy')}
-          </Button>
-          <Button
-            size="small"
-            variant="text"
-            disabled={row.status === 'ARCHIVED'}
-            onClick={() => void api.post(`/api/papers/${row.id}/archive`).then(reload)}
-          >
-            {t('teacher.papers.archive')}
-          </Button>
-        </div>
+        <RowActions
+          primary={{
+            key: 'assign',
+            label: t('teacher.papers.assign'),
+            onClick: () => navigate(`/offerings/new?paperId=${row.id}`),
+          }}
+          items={[
+            {
+              key: 'copy',
+              label: t('teacher.papers.copy'),
+              onClick: () => void api.post(`/api/papers/${row.id}/copy`).then(reload),
+            },
+            {
+              key: 'archive',
+              label: t('teacher.papers.archive'),
+              disabled: row.status === 'ARCHIVED',
+              // AC-25.5：禁用原因必须在菜单里看得见。
+              reason: row.status === 'ARCHIVED' ? t('teacher.papers.archivedHint') : undefined,
+              onClick: () => void api.post(`/api/papers/${row.id}/archive`).then(reload),
+            },
+          ]}
+        />
       ),
     },
   ]

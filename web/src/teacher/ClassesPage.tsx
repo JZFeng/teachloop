@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import type { ClassMemberView, ClassView } from '../api/types'
-import { DataTable, InlineNote, useListState } from '../ui'
+import { DataTable, InlineNote, RowActions, useListState } from '../ui'
 import type { Column } from '../ui'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
 import {
@@ -134,23 +134,28 @@ export default function ClassesPage() {
   const actionColumn: Column<ClassView> = {
     key: 'actions',
     title: t('teacher.common.actions'),
+    width: '120px',
     value: () => '',
+    // 成员是「行内展开」的主操作，轮换邀请码是低频动作 → 收进「⋯」（AC-25.1）。
     render: (row) => (
-      <div className="row" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
-        <button type="button" className="btn sm" disabled={busy} onClick={() => void showMembers(row.id)}>
-          {membersClassId === row.id
+      <RowActions
+        primary={{
+          key: 'members',
+          label: membersClassId === row.id
             ? t('teacher.classes.hideMembers')
-            : t('teacher.classes.members')}
-        </button>
-        <button
-          type="button"
-          className="btn sm"
-          disabled={busy}
-          onClick={() => void regenerateInvite(row.id)}
-        >
-          {t('teacher.classes.regenerate')}
-        </button>
-      </div>
+            : t('teacher.classes.members'),
+          disabled: busy,
+          onClick: () => void showMembers(row.id),
+        }}
+        items={[
+          {
+            key: 'regenerate',
+            label: t('teacher.classes.regenerate'),
+            disabled: busy,
+            onClick: () => void regenerateInvite(row.id),
+          },
+        ]}
+      />
     ),
   }
 

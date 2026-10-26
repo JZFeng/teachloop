@@ -243,7 +243,7 @@ web/src/teacher/AssignmentsPage.tsx|ANTD_DIRECT|0
 web/src/teacher/AssignmentsPage.tsx|COLOR_LITERAL|0
 web/src/teacher/AssignmentsPage.tsx|EMOJI_ICON|0
 web/src/teacher/AssignmentsPage.tsx|INLINE_STYLE|0
-web/src/teacher/AssignmentsPage.tsx|LEGACY_BTN_CLASS|2
+web/src/teacher/AssignmentsPage.tsx|LEGACY_BTN_CLASS|1
 web/src/teacher/AssignmentsPage.tsx|RAW_TABLE|0
 web/src/teacher/ClassSummaryPage.tsx|ANTD_DIRECT|0
 web/src/teacher/ClassSummaryPage.tsx|COLOR_LITERAL|0
@@ -254,8 +254,8 @@ web/src/teacher/ClassSummaryPage.tsx|RAW_TABLE|2
 web/src/teacher/ClassesPage.tsx|ANTD_DIRECT|0
 web/src/teacher/ClassesPage.tsx|COLOR_LITERAL|0
 web/src/teacher/ClassesPage.tsx|EMOJI_ICON|0
-web/src/teacher/ClassesPage.tsx|INLINE_STYLE|2
-web/src/teacher/ClassesPage.tsx|LEGACY_BTN_CLASS|4
+web/src/teacher/ClassesPage.tsx|INLINE_STYLE|0
+web/src/teacher/ClassesPage.tsx|LEGACY_BTN_CLASS|2
 web/src/teacher/ClassesPage.tsx|RAW_TABLE|0
 web/src/teacher/GradingDetailPage.tsx|ANTD_DIRECT|0
 web/src/teacher/GradingDetailPage.tsx|COLOR_LITERAL|0
@@ -275,12 +275,6 @@ web/src/teacher/HomePage.tsx|EMOJI_ICON|0
 web/src/teacher/HomePage.tsx|INLINE_STYLE|0
 web/src/teacher/HomePage.tsx|LEGACY_BTN_CLASS|0
 web/src/teacher/HomePage.tsx|RAW_TABLE|0
-web/src/teacher/ImportPaperPage.tsx|ANTD_DIRECT|0
-web/src/teacher/ImportPaperPage.tsx|COLOR_LITERAL|0
-web/src/teacher/ImportPaperPage.tsx|EMOJI_ICON|0
-web/src/teacher/ImportPaperPage.tsx|INLINE_STYLE|0
-web/src/teacher/ImportPaperPage.tsx|LEGACY_BTN_CLASS|5
-web/src/teacher/ImportPaperPage.tsx|RAW_TABLE|1
 web/src/teacher/OfferingCreatePage.tsx|ANTD_DIRECT|0
 web/src/teacher/OfferingCreatePage.tsx|COLOR_LITERAL|0
 web/src/teacher/OfferingCreatePage.tsx|EMOJI_ICON|0

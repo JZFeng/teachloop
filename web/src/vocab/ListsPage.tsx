@@ -11,6 +11,7 @@ import {
   Loading,
   Modal,
   PageHeader,
+  RowActions,
   TextArea,
   useConfirm,
   useListState,
@@ -237,23 +238,23 @@ export default function VocabListsPage() {
       value: () => '',
       render: (list) => {
         const count = reviewableOf(list)
+        // AC-25.1：行内只留 1 个主操作（开始复习），编辑 / 删除收进「⋯」。
         return (
-          <span className="row" style={{ gap: 6, flexWrap: 'wrap' }}>
-            <Button
-              size="small"
-              variant={count > 0 ? 'primary' : 'default'}
-              disabled={count === 0 || startingId === list.id}
-              busy={startingId === list.id}
-              title={count === 0 ? t('vocab.lists.reviewNoneHint') : undefined}
-              onClick={() => void startReview(list)}
-            >
-              {t('vocab.lists.startReview', { count })}
-            </Button>
-            <Button size="small" onClick={() => openEdit(list)}>{t('vocab.lists.edit')}</Button>
-            <Button size="small" variant="danger" onClick={() => void remove(list)}>
-              {t('vocab.lists.delete')}
-            </Button>
-          </span>
+          <RowActions
+            primary={{
+              key: 'review',
+              label: t('vocab.lists.startReview', { count }),
+              variant: count > 0 ? 'primary' : 'default',
+              disabled: count === 0 || startingId === list.id,
+              busy: startingId === list.id,
+              reason: count === 0 ? t('vocab.lists.reviewNoneHint') : undefined,
+              onClick: () => void startReview(list),
+            }}
+            items={[
+              { key: 'edit', label: t('vocab.lists.edit'), onClick: () => openEdit(list) },
+              { key: 'delete', label: t('vocab.lists.delete'), danger: true, onClick: () => void remove(list) },
+            ]}
+          />
         )
       },
     },

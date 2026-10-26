@@ -16,7 +16,7 @@ import { AuditDrawer } from '../components/AuditDrawer'
 import { AiCircuitBanner } from '../components/AiCircuitBanner'
 import { useListState } from '../ui'
 import { useAiReadiness } from '../components/useAiReadiness'
-import { Alert, Button, DataTable, Empty, ErrorState, Field, Input, Loading, PageHeader, StatCard, Segmented } from '../ui'
+import { Alert, Button, DataTable, Empty, ErrorState, Field, Input, Loading, PageHeader, RowActions, StatCard, Segmented } from '../ui'
 import type { Column } from '../ui'
 import {
   errorMessage,
@@ -349,41 +349,49 @@ export default function GradingDetailPage() {
     {
       key: 'actions',
       title: t('teacher.common.actions'),
-      width: '250px',
+      // 120px = 1 个主按钮 + 「⋯」；250px 时 4 个按钮会折成两行（AC-25.1 / T489）。
+      width: '120px',
       value: () => '',
       render: (row) => {
         // D-15：已交卷且未拒收的提交（无论 AI 有没有派发/失败）都能直接进复核页人工判分。
         const canReject = Boolean(row.submittedAt) && !row.rejectedAt
         const canGrade = canReject
+        const aiDispatchable = canAiDispatch(row)
         return (
           <div>
-            <div className="row" style={{ gap: 6 }}>
-              {canGrade && (
-                <Button size="small" variant="primary" onClick={() => navigate(`/review?submissionId=${row.submissionId}`)}>
-                  {t('teacher.detail.grade')}
-                </Button>
-              )}
-              <Button
-                size="small"
-                disabled={!canAiDispatch(row) || aiDispatchingId === row.submissionId}
-                title={canAiDispatch(row) ? t('teacher.detail.aiDispatchHint') : t('teacher.detail.aiDispatchDisabled')}
-                onClick={() => void dispatchOneSubmission(row)}
-              >
-                {aiDispatchingId === row.submissionId ? t('teacher.detail.aiDispatching') : t('teacher.detail.aiDispatch')}
-              </Button>
-              <Button
-                size="small"
-                variant="text"
-                disabled={!canReject}
-                title={canReject ? undefined : t('teacher.detail.rejectDisabled')}
-                onClick={() => startReject(row)}
-              >
-                {t('teacher.detail.reject')}
-              </Button>
-              <Button size="small" variant="text" onClick={() => setAuditTarget(row)}>
-                {t('teacher.common.audit')}
-              </Button>
-            </div>
+            <RowActions
+              primary={canGrade ? {
+                key: 'grade',
+                label: t('teacher.detail.grade'),
+                variant: 'primary',
+                onClick: () => navigate(`/review?submissionId=${row.submissionId}`),
+              } : undefined}
+              items={[
+                {
+                  key: 'ai',
+                  label: aiDispatchingId === row.submissionId
+                    ? t('teacher.detail.aiDispatching')
+                    : t('teacher.detail.aiDispatch'),
+                  disabled: !aiDispatchable || aiDispatchingId === row.submissionId,
+                  // AC-25.5：禁用原因写在菜单文案里，不能只靠 title 悬停。
+                  reason: aiDispatchable ? undefined : t('teacher.detail.aiDispatchDisabled'),
+                  onClick: () => void dispatchOneSubmission(row),
+                },
+                {
+                  key: 'reject',
+                  label: t('teacher.detail.reject'),
+                  disabled: !canReject,
+                  reason: canReject ? undefined : t('teacher.detail.rejectDisabled'),
+                  danger: true,
+                  onClick: () => startReject(row),
+                },
+                {
+                  key: 'audit',
+                  label: t('teacher.common.audit'),
+                  onClick: () => setAuditTarget(row),
+                },
+              ]}
+            />
             {rejectingId === row.submissionId && (
               <div style={{ marginTop: 10 }}>
                 <Field
@@ -466,9 +474,6 @@ export default function GradingDetailPage() {
                     {t('teacher.detail.publishScores')}
                   </Button>
                 )}
-                <Button size="small" variant="text" onClick={() => navigate(`/offerings/${offering.id}/summary`)}>
-                  {t('teacher.common.summary')}
-                </Button>
                 <Button
                   variant="primary"
                   onClick={() => void dispatch()}
@@ -480,6 +485,21 @@ export default function GradingDetailPage() {
               </>
             }
           />
+
+          {/* AC-25.6：汇总是同一场作业的另一个视图，不是「对这批发操作」，所以放标题下做切换（T491）。 */}
+          <div className="row" style={{ marginBottom: 12 }}>
+            <Segmented
+              size="small"
+              value="submissions"
+              onChange={(value) => {
+                if (value === 'summary') navigate(`/offerings/${offering.id}/summary`)
+              }}
+              options={[
+                { value: 'submissions', label: t('teacher.detail.viewSubmissions') },
+                { value: 'summary', label: t('teacher.detail.viewSummary') },
+              ]}
+            />
+          </div>
 
           <AiCircuitBanner />
 

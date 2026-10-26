@@ -278,10 +278,10 @@ T456–T466 覆盖）。287 条验收标准在各自用户故事的任务里被�
 | US-13 | T112、T113、T211 | US-14 | T120–T124 |
 | US-15 | T130–T132、T264 | US-16 | T105、T140–T143、T184 |
 | US-17 | T150–T152、T192、T215、T216 | US-18 | T056、T086–T088、T115 |
-| US-19 | T180 | US-20 | T181、T182 |
+| US-19 | T180、T495 | US-20 | T181、T182 |
 | US-21 | T187–T189、T195、T197、T199、T200 | US-22 | T190、T238、T240、T241 |
 | US-23 | T191 | US-24 | T183 |
-| US-25 | T184 | US-26 | T198–T201、T202、T212、T237–T239、T241 |
+| US-25 | T184、T486–T494 | US-26 | T198–T201、T202、T212、T237–T239、T241 |
 | US-27 | T255–T267 | US-28 | T258、T265、T268 |
 
 ### 功能需求 → 任务
@@ -630,6 +630,41 @@ AC-4.23④ / AC-4.24–4.29、FR-146–150、plan §20。
 
 ---
 
+## 阶段 33 — 2026-10-25 行内动作收敛 +「汇总」入口归位 + 首页表格改造（T486–T495）
+
+上游：`spec.md` US-25（AC-25.1 改写、新增 AC-25.5 / AC-25.6）与 US-19（AC-19.3 修订、新增 AC-19.7 / AC-19.8），2026-10-25 用户拍板。
+背景：批改详情 4 个行内动作折行；同一「成绩汇总」有 3 个入口（首页行 / 批改总览行 / 批改详情头部），
+而汇总页自己的面包屑写着「批改 / 作业 / 汇总」——它自认是详情子页，入口却画成了并列动作。
+首页另有两个问题：一张班级筛选大卡片把班级顶成入口层级；「最近作业」首列是班级而不是作业。
+用户拍板口径：**行点击=详情；行内常驻至多 1 个一级按钮，其余进「⋯」；>3 由 check-ui 拦**；
+**首页只做 overview，班级筛进工具栏，列序作业第一，列配置存本地**。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T486 | **规范落盘**：AC-25.1 改写、新增 AC-25.5 / AC-25.6、AC-19.3 修订、新增 AC-19.7 / AC-19.8、本阶段任务表 | — | `grep -ho '^- \[[ x]\] AC-25\.[0-9]*'` 无重号；spec 计数与本文件一致；`uniq -d` 只余已知的 AC-27/28 存量 |
+| T487 | **组件层**：`ui/RowActions`（主操作 + ⋯，禁用原因写进文案）、`MoreOutlined` 登记、`ui.css` 删掉不命中嵌套容器的 `td > .row` 规则并改成 `.tl-actions` | T486 | `pnpm typecheck` 绿；`/profile?panel=ui-kit` 能渲染演示；菜单可 Esc 关闭、可 Tab 聚焦 |
+| T488 | **删冗余**：批改总览「详情」、作业「去批改」、复核「打开」三处按钮删除（目的地 = 行点击），主标识单元格改链接 | T487 | 三页操作列不再出现与行点击相同的动作；`grep -rn "common.detail" web/src` 为 0；键盘 Tab 能聚焦到链接 |
+| T489 | **批改详情**：4 个动作 → `批改` + `⋯{AI 批改, 拒收, 审阅}`，操作列 250px → 120px；拒收内联表单与审计弹窗逻辑不变 | T487 | `/grading/:id` 行高单行、无横向滚动；禁用项原因可见；⋯→拒收→输入→确认链路通 |
+| T490 | **其余三表**：试卷 `布置考试` + `⋯{复制, 归档}`（标题=编辑）、词单 `开始复习` + `⋯{编辑, 删除}`、班级 `成员` + `⋯{轮换邀请码}`（原生 button 换 `Button`） | T487 | 归档态菜单项禁用且写原因；`check-ui` 的 `LEGACY_BTN` 基线下降 |
+| T491 | **汇总入口归位**：删详情页头部「汇总」，改为「提交明细 ↔ 成绩汇总」`Segmented`（两页同一组）；首页行内不再有「汇总」（随操作列整列删除），`/grading` 行内保留唯一一个 | T487 | `grep -rn "/summary" web/src --include=*.tsx` 只剩视图切换与 `/grading` 行两处；双向跳转通；汇总页深链仍可打开 |
+| T495 | **首页表格改造**：删班级筛选卡片与行内动作列；列序改「作业 / 班级 / 截止 / 提交 / 状态」；工具栏加「筛选 · N」「列」「清空」；筛选＝班级（多选，默认全部）+ 状态（四档多选，默认全部），写 URL `classes` / `state`；「列」弹层可显隐与上下移，存 localStorage | T487 | `/` 无筛选卡片；首列是作业；筛「待公布」后 URL 带 `state=to_publish` 且行数变化；刷新后列配置保持；`pnpm typecheck` 绿 |
+| T492 | **守卫与文案**：`check-ui` 第 8 条 `ROW_ACTION_OVERFLOW`（操作列块内动作 >3 失败）+ 基线收紧；i18n 增 `common.moreActions`、`teacher.detail.viewSubmissions`、`teacher.detail.viewSummary`、首页筛选/列弹层文案，删无引用的 `teacher.common.detail` | T488–T491, T495 | `make check-ui` / `make check-i18n` 绿；zh/en 键集合相等 |
+| T493 | **实测**：5174 逐页（`/`、`/grading`、`/grading/:id`、`/papers`、`/assignments`、`/review`、`/vocab/lists`、`/classes`、`/offerings/:id/summary`）+ 暗色 + 窄屏 | T492 | 每页有结论；未跑到的项在报告里标明「未验证」 |
+| T494 | **收尾**：`docs/reports/2026-10-25-row-actions/`、`docs/PROGRESS.md`、执行记录、只提交本次改动 | T493 | `make test` 退出码 0；报告含截图清单与未验证项 |
+
+### 编号取号记录（2026-10-25 第三次）
+
+- 落笔前实测：`T` 最大 485（T482–T485 已占用）→ 本阶段 `T486–T495`（T495 为首页表格改造补入）；`AC` 最大 69、`US` 最大 69、`FR` 最大 150 → 本阶段**不新增 US/FR**，只在既有 US-25 / US-19 下改写/新增 AC（`AC-25.1/25.5/25.6`、`AC-19.3`、`AC-19.7/19.8`）。
+- 无迁移号、无新接口（首页筛选为前端本地计算，列配置存 localStorage）。
+
+### 本次拍板的「不做」（避免下一轮又被当成缺口提出来）
+
+- **不把汇总做成 tab**：详情页与汇总表同路由会出现两个 `useListState` 抢同一组 `sort/dir/page/size`（`web/src/ui/listState.ts` 固定参数名，见 AC-24.4 / AC-68.3），要改 URL 前缀并连带改两条 AC，成本远大于收益；保留 `?` 独立路由 + 视图切换。
+- **不加宽操作列**：加宽只是把折行换成横向滚动条（批改详情 9 列固定宽已 960px），不解决「动作会继续变多」。
+- **不动后端**、不动路由表、不引入视觉回归自动化（T308 仍缺 Playwright）。
+
+---
+
 ## 未实现声明（v2 不做）
 
 - **阅读理解文章分栏（sticky 左文章 / 右题目）**：托福 2023 改版采用此布局，但会与「单一滚动区 + 目录树滚动联动」冲突，V1 保持纵向排列；见 `.docs/research/2026-10-19-toefl-ibt-interface.md`。
@@ -843,3 +878,4 @@ AC-4.23④ / AC-4.24–4.29、FR-146–150、plan §20。
 | 2026-10-25 | T459–T462 后端：迁移 V065 + meta + 生成考题（replace/快照/原文）+ 发布复校验 | 完成（接口层） | `V065__paper_meta_and_content.sql`（papers 四列 + `paper_content_snapshots`）；`PUT /api/papers/{id}/meta`（全量替换、PUBLISHED 允许改 + 审计）；`import`/`import/text` 增 `replace`/`confirm`，同事务内快照 → 删 criteria/items/sections → 重建 → `content_markdown` → `recalcTotal`（单部分文档先建「综合」）；`PaperHeaderMeta` 从原文头部取命题人/审题人/总分；publish 三条复校验（400 + detail）；copy 复制原文与目标、命题人=当前教师；生成与发布补 `requireAuthor`。测试：`PaperGenerateEndpointTest` 8、`PaperMetaAndPublishEndpointTest` 18、`PaperHeaderMetaTest` 5，paper 模块 **123 用例** 0 失败（`./mvnw -pl teachloop-paper -am test`）；V065 在 Postgres 16 上按版本序全量跑通（58 个迁移） |
 | 2026-10-25 | T463–T465 前端：四步向导 + 纯函数 + 入口清理 | 完成（界面入口） | `PaperWizardPage.tsx` 重写（2374 → 约 800 行；删三张卡/第 3 步/批量改题型/参考范文/补建逻辑）；`paperFlow.ts` 纯函数 + `web/tests/paper-flow.test.mjs`；试卷库去「导入考卷」、删 `/papers/import` 与 `ImportPaperPage.tsx`、删 `teacher.import.*` 文案；i18n zh/en 各 1663 键对齐。E2E 期间修掉 `VditorMarkdown` 两个既有缺陷（外部改值改用重建、只读态在 `after` 里补 `disabled()`），作业页同样受益 |
 | 2026-10-25 | T466 验证与收尾：全量回归 + 浏览器端到端 + 状态文档 | 完成（含浏览器验收） | `make test` **EXIT=0**（Maven 513 测试 / 111 类，0 失败 0 错误 1 跳过；四个守卫通过；前端 80/80）；`pnpm typecheck` 通过；浏览器（dev 5173 + 8010，真实卷）走完四步并发布：预览 77 题/150 分/缺答案 0、两 tab 各存一份 rubric、目标改 140 时发布置灰且 API 400（detail `total=150,target=140`）、发布后生成被 409 拦、已发布卷编辑器只读；12 张截图 + 报告 `docs/reports/paper-authoring-2026-10-25/README.md`；对等性审计 `docs/reports/mockup-parity/03-paper-flow.md` |
+| 2026-10-25 | T486–T495 行内动作收敛 + 汇总入口归位 + 首页表格改造 | 完成（含浏览器验收） | 组件：新增 `ui/RowActions`（1 主按钮 + ⋯，禁用原因写进菜单文案）；`ui.css` 把 `td > .row` 改成 `td .row`（折行真因：批改详情多包一层 div）。表格：批改总览删「详情」只留「汇总」、作业/复核删操作列、批改详情 4→`判分/复核`+`⋯{AI 批改,拒收,审计}`（250→120px）、试卷 4→`布置考试`+`⋯{复制,归档}`（320→120px）、词单 3→`开始复习`+`⋯{编辑,删除}`、班级 2→`成员`+`⋯{轮换邀请码}`。汇总：删详情页头部按钮，改「提交明细 ↔ 成绩汇总」视图切换（两页同一组）。首页：删班级筛选卡片与动作列、列序作业第一、工具栏「筛选·N/列/清空」、列配置存 localStorage。守卫：check-ui **第 8 条** `ROW_ACTION_OVERFLOW`（旧试卷页 4、旧批改详情 6 均命中，新代码 0）；基线收紧（删 6 行失效文件条目 + 下调 3 处）。验证：`typecheck`/`build`/`pnpm test` 108/108/`check-i18n` 1711 键/`check-ui` 0 新增；浏览器 5177→8011 逐页实测（批改详情 1280 与 1024 宽均无横向滚动、行高 59–61px、菜单禁用原因可见、拒收内联表单、审计抽屉、视图切换双向、词单新建→删除全流程）。报告 `docs/reports/2026-10-25-row-actions/`（6 张截图）。**未验证**：复核队列（空）、ARCHIVED 试卷的归档禁用原因、菜单「让 AI 先批」可执行路径、768/手机宽度、英文界面。**5174 QA 快照未更新**（需 `./scripts/env.sh deploy qa`）。**全量 `make test` 红**：`VocabWordListTest`（due_at 差 1ms）、`AiSetupTest`（provider 期望 local 实得 null）、`AiReadinessTest`（INTERNAL 500）3 个失败，均为既有后端测试（本次 diff 中 `.java`/`.sql` 改动为 0，T466 之后进了 8 个提交未再跑全量），见报告 §5，需单独立项排查 |

@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime } from '../api/client'
 import type { ClassView, OfferingView } from '../api/types'
-import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, StatCard, Segmented } from '../ui'
+import { Button, DataTable, Empty, ErrorState, Loading, PageHeader, RowActions, StatCard, Segmented } from '../ui'
 import type { Column } from '../ui'
 import { useListState } from '../ui'
 import { AiCircuitBanner } from '../components/AiCircuitBanner'
@@ -106,7 +106,9 @@ export default function GradingOverviewPage() {
       sortable: true,
       render: (o) => (
         <div>
-          <b>{o.paperTitle}</b>
+          <Link className="tl-row-link" to={`/grading/${o.id}`} onClick={(event) => event.stopPropagation()}>
+            {o.paperTitle}
+          </Link>
           <div className="small muted">
             {classNamesText(
               o.classes.map((c) => c.classId),
@@ -205,17 +207,17 @@ export default function GradingOverviewPage() {
     {
       key: 'actions',
       title: t('teacher.common.actions'),
-      width: '132px',
+      width: '92px',
       value: () => '',
+      // AC-25.6：整个产品只在「作业台账」这一处保留「汇总」入口（详情页另有视图切换）。
       render: (o) => (
-        <div className="row" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
-          <Button size="small" onClick={() => navigate(`/grading/${o.id}`)}>
-            {t('teacher.common.detail')}
-          </Button>
-          <Button size="small" variant="text" onClick={() => navigate(`/offerings/${o.id}/summary`)}>
-            {t('teacher.common.summary')}
-          </Button>
-        </div>
+        <RowActions
+          primary={{
+            key: 'summary',
+            label: t('teacher.common.summary'),
+            onClick: () => navigate(`/offerings/${o.id}/summary`),
+          }}
+        />
       ),
     },
   ]

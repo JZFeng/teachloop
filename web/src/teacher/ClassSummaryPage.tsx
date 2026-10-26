@@ -1,8 +1,8 @@
 import { useTranslation } from 'react-i18next'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
 import type { ClassSummaryView, ClassView, OfferingView } from '../api/types'
-import { DataTable, useListState } from '../ui'
+import { DataTable, Segmented, useListState } from '../ui'
 import type { Column } from '../ui'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
 import {
@@ -28,6 +28,7 @@ export default function ClassSummaryPage() {
   const { t, i18n } = useTranslation('translation')
   const lang = i18n.language.startsWith('zh') ? 'zh-CN' : 'en'
   const { offeringId = '' } = useParams()
+  const navigate = useNavigate()
   const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(
     { key: 'className', dir: 'asc' },
     10,
@@ -134,6 +135,21 @@ export default function ClassSummaryPage() {
             : t('teacher.summary.subLoading')
         }
       />
+
+      {/* AC-25.6：与批改详情同一组视图切换，两页互跳；这里不重复「汇总」按钮 */}
+      <div className="row" style={{ marginBottom: 12 }}>
+        <Segmented
+          size="small"
+          value="summary"
+          onChange={(value) => {
+            if (value === 'submissions') navigate(`/grading/${offeringId}`)
+          }}
+          options={[
+            { value: 'submissions', label: t('teacher.detail.viewSubmissions') },
+            { value: 'summary', label: t('teacher.detail.viewSummary') },
+          ]}
+        />
+      </div>
 
       {loading && <Loading label={t('teacher.common.loading')} />}
       {error && <ErrorState error={error} onRetry={reload} />}

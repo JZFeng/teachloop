@@ -41,7 +41,11 @@ export default function AssignmentsPage() {
       title: t('teacher.assignments.colTitle'),
       value: (row) => row.paperTitle,
       sortable: true,
-      render: (row) => <b>{row.paperTitle}</b>,
+      render: (row) => (
+        <Link className="tl-row-link" to={`/grading/${row.id}`} onClick={(event) => event.stopPropagation()}>
+          {row.paperTitle}
+        </Link>
+      ),
     },
     {
       key: 'classes',
@@ -93,18 +97,6 @@ export default function AssignmentsPage() {
         <Tag tone={row.status === 'PUBLISHED' ? 'green' : 'gray'}>
           {t(`teacher.offeringStatus.${row.status}`)}
         </Tag>
-      ),
-    },
-    {
-      key: 'actions',
-      title: t('teacher.common.actions'),
-      value: () => '',
-      render: (row) => (
-        <div className="row" style={{ gap: 6 }} onClick={(e) => e.stopPropagation()}>
-          <Link className="btn sm" to={`/grading/${row.id}`}>
-            {t('teacher.assignments.grade')}
-          </Link>
-        </div>
       ),
     },
   ]

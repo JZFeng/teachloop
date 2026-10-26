@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """UI 标准守卫（check-ui）：让「样式随手一写」这件事在 CI 里直接失败。
 
-规则（与 spec/003 的 AC 对应）：
+规则（与 spec 的 AC 对应）：
   1. COLOR_LITERAL     颜色字面量只允许出现在 ui/tokens.ts 与 styles/tokens.css
   2. INLINE_STYLE      内联 style 里禁止写颜色/字号/圆角/阴影（允许布局）
   3. ANTD_DIRECT       页面禁止直接 import antd / @ant-design/icons，只能从 ui/ 引
   4. LEGACY_BTN_CLASS  禁止手写 className="btn…"（应使用组件层 Button）
   5. EMOJI_ICON        禁止用 emoji 当图标（应使用 @ant-design/icons，经 ui/ 引出）
   6. RAW_TABLE         页面不得新写 <table>（列表表格统一由 ui/DataTable 渲染，T441/US-68）
+  7. MUTED_FAILURE     失败/阻断不许用灰字表达（决策 026 / AC-70.2）
+  8. ROW_ACTION_OVERFLOW 操作列一级动作最多 3 个（AC-25.1 / T492）：留 1 个主操作，其余进「⋯」
 
 存量用基线文件 `scripts/ui-baseline.txt`（格式 `路径|规则|数量`）冻结：
   - 基线内的数量可以下降，不能上升；
@@ -55,6 +57,38 @@ TONED_CONTAINER = re.compile(
     r"inline-note\s+(?:ok|warn|err|info)\b|chip\s+(?:ok|warn|err|info)\b"
 )
 
+# 第八条（AC-25.1 / T492）：操作列一级动作最多 3 个。
+# 「操作列」= 从 `key: 'actions'` 起到下一个列对象或列数组结尾 `\n  ]` 为止的片段；
+# 片段内 <Button> / <button> / <Link> 都算一级动作（<RowActions> 内部的菜单项不算）。
+ACTIONS_COLUMN = re.compile(r"key: 'actions'")
+NEXT_COLUMN = re.compile(r"\n    \{\n      key: '")
+ACTION_TAG = re.compile(r"<(?:Button|button|Link)\b")
+MAX_ROW_ACTIONS = 3
+
+
+def actions_block(text: str, start: int) -> str:
+    ends: list[int] = []
+    nxt = NEXT_COLUMN.search(text, start + 1)
+    if nxt:
+        ends.append(nxt.start())
+    close = text.find("\n  ]", start)
+    if close != -1:
+        ends.append(close)
+    end = min(ends) if ends else min(len(text), start + 2000)
+    return text[start:end]
+
+
+def row_action_overflows(text: str) -> list[str]:
+    """返回超过 3 个一级动作的操作列片段，用于报错定位。"""
+    hits: list[str] = []
+    for match in ACTIONS_COLUMN.finditer(text):
+        block = actions_block(text, match.start())
+        count = len(ACTION_TAG.findall(block))
+        if count > MAX_ROW_ACTIONS:
+            first = next((line.strip() for line in block.splitlines() if "<" in line), "")
+            hits.append(f"{count} 个动作：{first[:60]}…")
+    return hits
+
 RULE_HINT = {
     "COLOR_LITERAL": "颜色只能来自 web/src/ui/tokens.ts 或 web/src/styles/tokens.css",
     "INLINE_STYLE": "内联 style 只写布局（flex/grid/width/margin），颜色/字号/圆角走令牌或组件",
@@ -64,6 +98,7 @@ RULE_HINT = {
     "RAW_TABLE": "列表表格用 ui 的 DataTable；页面不再新写 <table>（T441）",
     "MUTED_FAILURE": "错误/警告不能用灰字：改用 <InlineNote tone=\"error|warning\"> 或 <Alert type=\"error|warning\">"
                    "（决策 026 / AC-70.2）",
+    "ROW_ACTION_OVERFLOW": "操作列最多 3 个一级动作（AC-25.1）：留 1 个主操作，其余收进 <RowActions items> 的「⋯」",
 }
 
 
@@ -110,6 +145,7 @@ def scan() -> dict[str, dict[str, int]]:
                 counts[rel]["INLINE_STYLE"] += len(INLINE_COLOR_KEY.findall(body))
             if path.suffix == ".tsx":
                 counts[rel]["MUTED_FAILURE"] += len(muted_failures(text))
+                counts[rel]["ROW_ACTION_OVERFLOW"] += len(row_action_overflows(text))
             if not is_ui_layer(rel):
                 counts[rel]["ANTD_DIRECT"] += len(ANTD_IMPORT.findall(text))
                 counts[rel]["LEGACY_BTN_CLASS"] += len(LEGACY_BTN.findall(text))
@@ -190,6 +226,10 @@ def main() -> int:
             # 这条规则最需要看到具体那一行，否则不知道改哪。
             text = (ROOT / path).read_text(encoding="utf-8")
             for snippet in muted_failures(text)[:3]:
+                print(f"    命中：{snippet}")
+        if rule == "ROW_ACTION_OVERFLOW":
+            text = (ROOT / path).read_text(encoding="utf-8")
+            for snippet in row_action_overflows(text)[:3]:
                 print(f"    命中：{snippet}")
     print(f"\n共 {len(offenders)} 处新增。改完再跑一次；确实要放宽请改基线文件并在 PR 里说明理由。")
     return 1

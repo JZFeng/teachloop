@@ -159,8 +159,23 @@
 .tl-table tbody tr.is-selected { background: var(--panel-2); }
 .tl-table tbody tr[tabindex] { cursor: pointer; }
 .tl-table tbody tr[tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-/* 操作列按钮不折行：折了行高会翻倍，一屏少看好几行 */
-.tl-table td > .row { flex-wrap: nowrap; }
+/* 操作列：动作容器不折行——折了行高会翻倍，一屏少看好几行。
+   用后代选择器而不是 `td > .row`：批改详情为了放「拒收原因」内联表单多包了一层 div，
+   直接子选择器命中不到，4 个按钮照样折行（2026-10-25 实测）。 */
+.tl-table td .row { flex-wrap: nowrap; }
+.tl-actions { display: inline-flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+/* 行内主标识做链接（AC-25.1）：行本身可点，但「看得见、可键盘、可右键新开」要靠真链接。
+   颜色继承单元格，只加字重与下划线，避免整张表变成一片彩色链接。 */
+.tl-row-link { color: inherit; font-weight: 650; text-decoration: none; }
+.tl-row-link:hover { text-decoration: underline; }
+.tl-row-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+/* 有些主标识是「就地跑一段逻辑」（复核队列选中提交），用 button 但长得像链接。 */
+.tl-link-button { border: 0; background: none; padding: 0; font: inherit; cursor: pointer; text-align: left; }
+/* 工具栏筛选弹层 / 列配置弹层（AC-19.7 / AC-19.8）：与词库同一套交互，样式收在组件层。 */
+.tl-filter-group { margin-bottom: 14px; }
+.tl-filter-group > strong { display: block; margin-bottom: 8px; font-size: 13px; }
+.tl-col-row { display: flex; align-items: center; gap: 8px; padding: 4px 0; }
+.tl-col-row .grow { flex: 1; }
 .tl-table-select { width: 34px; }
 .tl-table-sort {
   display: inline-flex;
