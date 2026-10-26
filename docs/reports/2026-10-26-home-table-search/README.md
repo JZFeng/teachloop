@@ -65,3 +65,41 @@
 - 作业列表的「清空筛选」现在会把搜索关键字一起清掉（改前只清筛选组，关键字留在框里）。
 
 截图：`before-1280.png`（改前）/ `after-toolbar-1280.png` / `after-filter-and-search-1280.png` / `after-dark-1280.png`。
+
+## 追加：批改详情「提交明细」也加搜索（同一轮，用户拍板）
+
+用户在追问里选了两条：①「清空筛选」保持「关键字 + 筛选一起清」；②「一起加：按学生姓名/学号搜索」（指提交明细表）。
+
+**但平台没有「学号」这个字段**，查证如下：
+
+| 依据 | 结论 |
+| --- | --- |
+| `web/src/api/types.ts:194` `OfferingSubmissionView` | 只有 `studentId` / `studentName`，没有 `studentNo` |
+| `teachloop-report/.../OfferingExportService.java:101` | 注释原文：「没有单独的『学号』列，重名时用学生 id 前 8 位做区分后缀」 |
+| `GradingDetailPage.tsx` 学生列渲染 | 姓名下面那行 `studentId.slice(0, 8)` 就是 ID 前缀 |
+
+所以搜索匹配 **学生姓名** 或 **学生 ID**（8 位前缀可直接粘进来），placeholder 写「搜索学生姓名或 ID」——
+没有把不存在的能力写进文案。真要有「学号」，那是 identity 的字段与迁移，另开一轮。
+
+实现：`GradingDetailPage.tsx` 的 `filtered` 从「只按状态筛」改成「关键字 && 状态」；`writeSearch` 写 URL `q`（本地态 + URL 双轨）；
+`TableToolbar` 传 `onReset`，清空 = `q` + `state` + `page`；空态分档（`teacher.detail.noMatch` 新增）。
+
+验证（5174，TESOL 一页 3 份提交：学生02 / 学生01 attempt 2 / 学生01 attempt 1）：
+
+| 做什么 | 结果 |
+| --- | --- |
+| 搜「学生02」 | 1 行，`显示 1 / 3 条`，URL `?tab=submissions&q=学生02` |
+| 搜 `aa46`（学生02 的 ID 前缀） | 1 行，`显示 1 / 3 条` |
+| 搜 `zz` | 0 行，空态「没有匹配的提交。」，`显示 0 / 3 条`，清空按钮仍可点 |
+| 筛「已完成」+ 搜「学生01」 | 1 行（attempt 1 已完成），URL `?tab=submissions&state=done&q=学生01`，截图 `grading-detail-search-filtered-1280.png` |
+| 点「清空筛选」 | 3 行、输入框空、URL 回 `?tab=submissions` |
+
+截图：`grading-detail-search-1280.png`（搜索框在位）、`grading-detail-search-filtered-1280.png`（筛选 + 搜索叠加）。
+
+### 并发提示（这一轮又踩到了）
+
+截图期间另一会话把**同一个 agent 浏览器**切到 `http://127.0.0.1:5173/` 并以「示例老师」登录。
+`127.0.0.1` 的 cookie 不分端口，于是 5174 的 QA 登录态被顶掉、我的 `?state=done&q=学生01` 读表那次直接落到 5173。
+处理：用**单次** `ego_script`（goto → fill → click → wait）原子地重登回 5174（JZ · TEACHER），避免再被中途插进来。
+另：提交这一轮时 `web/src/locales/*.json` 里有另一会话未提交的改动（删 `eyebrow.*`、加 `common.pageInfoPending`、改 `review.title`、`brandNote` 去 eyebrow），
+所以 locale 的索引内容是用「HEAD 版本 + 我这两处键」重新构造后再 `update-index` 的，没有把别人的半成品带进提交。

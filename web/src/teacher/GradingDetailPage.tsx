@@ -28,6 +28,7 @@ import {
   Loading,
   PageHeader,
   RowActions,
+  Search,
   StatCard,
   TableToolbar,
   ViewTabs,
@@ -140,6 +141,26 @@ export default function GradingDetailPage() {
     .getAll('state')
     .filter((value): value is FilterKey => (FILTERS as string[]).includes(value))
 
+  /**
+   * 2026-10-26（用户要求）：提交明细也照首页 / 词库那套摆一个常驻搜索框。
+   * 平台没有单独的「学号」列（`OfferingExportService.java:101` 记着这件事：重名时用学生 id 前 8 位做后缀），
+   * 所以搜索匹配**学生姓名**或**学生 ID**（表格姓名下面那行 8 位就是 ID 前缀，可以直接粘）。
+   */
+  const q = params.get('q') ?? ''
+  const [search, setSearch] = useState(q)
+  useEffect(() => { setSearch(q) }, [q])
+  const keyword = search.trim().toLowerCase()
+
+  const writeSearch = (value: string) => {
+    setSearch(value)
+    setParams((prev) => {
+      const updated = new URLSearchParams(prev)
+      if (value.trim()) updated.set('q', value)
+      else updated.delete('q')
+      return updated
+    }, { replace: true })
+  }
+
   const toggleFilter = (next: FilterKey) => {
     setParams((prev) => {
       const current = prev.getAll('state').filter((value) => (FILTERS as string[]).includes(value))
@@ -177,12 +198,26 @@ export default function GradingDetailPage() {
   ).size
   const unsubmitted = Math.max(0, expected - submittedStudents)
 
-  const filtered = activeStates.length === 0
-    ? submissions
-    : submissions.filter((row) => {
-      const bucket = bucketOf(row)
-      return bucket !== null && activeStates.includes(bucket)
-    })
+  const filtered = submissions.filter((row) => {
+    if (keyword) {
+      const hit = row.studentName.toLowerCase().includes(keyword)
+        || row.studentId.toLowerCase().includes(keyword)
+      if (!hit) return false
+    }
+    if (activeStates.length === 0) return true
+    const bucket = bucketOf(row)
+    return bucket !== null && activeStates.includes(bucket)
+  })
+
+  /** 「清空筛选」= 回到全量：关键字与批改状态筛选一起清（与首页 / 作业列表 / 词库同一个语义）。 */
+  const resetAll = () => {
+    setSearch('')
+    setParams((prev) => {
+      const updated = new URLSearchParams(prev)
+      ;['q', 'state', 'page'].forEach((key) => updated.delete(key))
+      return updated
+    }, { replace: true })
+  }
 
   const submittedCount = submissions.filter((row) => Boolean(row.submittedAt)).length
   const rejectedCount = submissions.filter((row) => Boolean(row.rejectedAt)).length
@@ -803,19 +838,36 @@ export default function GradingDetailPage() {
               onPageChange={setPage}
               onPageSizeChange={setPageSize}
               toolbar={(
-                <TableToolbar
-                  groups={[{
-                    key: 'state',
-                    label: t('teacher.detail.filterStates'),
-                    options: FILTERS.map((key) => ({ value: key, label: t(`teacher.detail.filters.${key}`) })),
-                  }]}
-                  value={{ state: activeStates }}
-                  onChange={applyFilters}
-                  columnPicker={<Button onClick={() => setColumnsOpen(true)}>{t('common.columns')}</Button>}
-                  summary={t('teacher.detail.filteredCount', { shown: filtered.length, total: submissions.length })}
-                />
+                <>
+                  <Search
+                    className="tl-table-search"
+                    value={search}
+                    allowClear
+                    placeholder={t('teacher.detail.searchPlaceholder')}
+                    onChange={(event) => writeSearch(event.target.value)}
+                    onSearch={(value) => writeSearch(value)}
+                  />
+                  <TableToolbar
+                    groups={[{
+                      key: 'state',
+                      label: t('teacher.detail.filterStates'),
+                      options: FILTERS.map((key) => ({ value: key, label: t(`teacher.detail.filters.${key}`) })),
+                    }]}
+                    value={{ state: activeStates }}
+                    onChange={applyFilters}
+                    onReset={resetAll}
+                    columnPicker={<Button onClick={() => setColumnsOpen(true)}>{t('common.columns')}</Button>}
+                    summary={t('teacher.detail.filteredCount', { shown: filtered.length, total: submissions.length })}
+                  />
+                </>
               )}
-              empty={activeStates.length > 0 ? t('teacher.detail.filteredEmpty') : t('teacher.detail.empty')}
+              empty={
+                keyword
+                  ? t('teacher.detail.noMatch')
+                  : activeStates.length > 0
+                    ? t('teacher.detail.filteredEmpty')
+                    : t('teacher.detail.empty')
+              }
             />
           )}
 
