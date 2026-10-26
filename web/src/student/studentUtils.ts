@@ -2,6 +2,12 @@
 // 学生只能看到自己参与的场次（后端已按参与班过滤），这里只做组合，不做权限判断。
 import { api } from '../api/client'
 import type { AttemptView, EntryView, MyAttemptsView, OfferingView } from '../api/types'
+import {
+  latestAttemptOf,
+  studentRowRejected,
+  studentRowState,
+  type StudentRowState,
+} from './rowState'
 
 export interface StudentRow {
   offering: OfferingView
@@ -21,26 +27,25 @@ export async function loadStudentRows(): Promise<StudentRow[]> {
 }
 
 export function latestOf(attempts: MyAttemptsView | null): AttemptView | null {
-  const list = attempts?.attempts ?? []
-  if (!list.length) return null
-  return [...list].sort((a, b) => a.attemptNo - b.attemptNo)[list.length - 1]
+  return latestAttemptOf(attempts)
 }
 
 export function latestAttempt(row: StudentRow): AttemptView | null {
   return latestOf(row.attempts)
 }
 
-export type RowStatusKey = 'not_started' | 'in_progress' | 'submitted' | 'graded' | 'rejected'
+/**
+ * 决策 025：学生只看三个词——未完成 / 已交卷 / 已公布；
+ * 被拒收是「要重交」，做成角标（`rowRejected`），不占状态位。
+ */
+export type RowStatusKey = StudentRowState
 
 export function rowStatus(row: StudentRow): RowStatusKey {
-  const attempt = latestAttempt(row)
-  if (attempt?.rejectedAt) return 'rejected'
-  if (!attempt) return 'not_started'
-  if (!attempt.submittedAt) return 'in_progress'
-  // 决策 025：「AI 判完」不等于「老师公布」。分数没露出来就是「已交卷」，
-  // 只有后端给了分（整场公布成绩或这一份复核已发布）才显示「已批改」。
-  if (attempt.gradingState === 'DONE' && attempt.totalScore != null) return 'graded'
-  return 'submitted'
+  return studentRowState(row.attempts)
+}
+
+export function rowRejected(row: StudentRow): boolean {
+  return studentRowRejected(row.attempts)
 }
 
 export function rowScore(row: StudentRow): number | null {
@@ -53,9 +58,13 @@ export function rowSubmittedAt(row: StudentRow): string | null {
   return latestAttempt(row)?.submittedAt ?? null
 }
 
+/**
+ * 「有反馈」只在成绩可见之后亮：决策 025 把交付门放在老师公布上，
+ * 判分完成但没公布时既没有分数也没有错题，亮这个角标会骗人。
+ */
 export function rowHasFeedback(row: StudentRow): boolean {
   const attempt = latestAttempt(row)
-  return !!attempt && !!attempt.submittedAt && attempt.gradingState === 'DONE'
+  return !!attempt && !!attempt.submittedAt && attempt.totalScore != null
 }
 
 export function rowIsExam(row: StudentRow): boolean {
@@ -64,12 +73,8 @@ export function rowIsExam(row: StudentRow): boolean {
 
 export function statusTagClass(status: RowStatusKey): string {
   switch (status) {
-    case 'in_progress':
-      return 'blue'
-    case 'graded':
+    case 'published':
       return 'green'
-    case 'rejected':
-      return 'red'
     case 'submitted':
       return 'amber'
     default:

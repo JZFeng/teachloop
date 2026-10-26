@@ -1,6 +1,6 @@
 # 决策 025 — 作业状态按「角色责任」划分；分数以老师公布为准
 
-日期：2026-10-25　状态：口径已拍板；分数可见性**已实现**，状态显示重排**待评审**
+日期：2026-10-25　状态：**已实现**（分数可见性 + 状态显示重排）
 相关：AC-12.3（已改写）、D-5（已改写）、AC-17.11 / AC-19.4、
 `docs/decisions/025` 依赖的 `specs/002-v2-platform/tasks.md:670`（被推翻的旧口径）
 代码锚点：`teachloop-sitting/src/main/java/com/teachloop/sitting/api/ExamSessionEndpoint.java`、
@@ -56,25 +56,35 @@ D-5「不隐藏，学生永远可见自己的具体分」。本次是**推翻旧
 就能看到进度，并且详情页已经有按钮可以自己推一把（`GradingDetailPage.tsx:444` 整场派发、
 `:350` 单份「让 AI 先批」）。
 
-### 老师端：3 个主状态
+### 老师端：3 个待办 + 1 个终态（行内状态）
+
+实现时发现原表漏了一格：**「交齐了但还没批完」既不是待公布（不能发），也不是未交齐（都交了）**，
+必须单独一格，否则这类行会被错标。于是行内是 4 个标签，但语义仍是「3 个待办 + 已公布（终态）」：
 
 | 状态 | 谁欠动作 | 判定 | 原状态里被吸收的 |
 | :-- | :-- | :-- | :-- |
-| 待复核 | 老师 | 复核队列条数（`/api/grading/queue`） | 待复核（原样保留） |
-| 待公布 | 老师 | `done > 0 && !publishScores` | 待发布 / 可发布 |
-| 未交齐 | 学生 | `unsubmitted > 0` | 未提交 / 待提交 / 无提交 / 进行中 |
-| （删除） | — | — | 批改中、待处理、有失败 → 移入作业详情页，见下 |
+| 未交齐 {{n}} | 学生 | `unsubmitted > 0` | 未提交 / 待提交 / 无提交 / 进行中 |
+| 待批改 12/30 | 老师（可以自己推一把） | 交齐但 `done + rejected < total` | 批改中 / 待处理 |
+| 待公布 | 老师 | 交齐且 `done + rejected >= total`，`!publishScores` | 待发布 / 可发布 |
+| 已公布 | 没人欠动作 | `publishScores` | 成绩已公布 |
+| （角标）{{n}} 份失败 | 老师 | `failed > 0`，与上面任意状态并存 | 有失败 |
+
+判定写在 `web/src/teacher/offeringState.ts`（纯函数），标签渲染在 `common.tsx` 的 `OfferingStateTag`。
+
+**「待复核」不在行内状态里**：它是全局复核队列（`/api/grading/queue`），属于首页统计卡，不是某一份作业的属性。
 
 措辞：**去掉「我」**——账号下所有行为都是老师自己的，「待我公布」是赘字，用「待公布」。
 
-### 学生端：3 个主状态
+### 学生端：3 个状态 + 1 个角标
 
 | 状态 | 判定 | 合并了 |
 | :-- | :-- | :-- |
-| 未完成 | 无答卷，或有未交草稿 | `not_started` + `in_progress` |
+| 未完成 | 无答卷、有未交草稿，**或被拒收（要重交）** | `not_started` + `in_progress` + `rejected` |
 | 已交卷 | 已交、成绩未公布 | `submitted`（并吸收原来过早出现的 `graded`） |
-| 已公布 | 已交，且分数可见 | `graded` |
-| （角标）被拒收 | `rejectedAt` | `rejected`：异常不占主状态位 |
+| 已公布 | 分数可见 | `graded` |
+| （角标）已拒收 · 需重交 | `rejectedAt` | 异常不占主状态位 |
+
+判定写在 `web/src/student/rowState.ts`（纯函数），`studentUtils.ts` 转出 `rowStatus` / `rowRejected`。
 
 ### 分数的可见性（本次已实现）
 
@@ -105,12 +115,22 @@ D-5「不隐藏，学生永远可见自己的具体分」。本次是**推翻旧
 永远停在 `false`，学生就永远看不到任何分数。所以「补按钮」不是顺手加的功能，是这个改动能成立的
 前提。
 
-### 待评审、本次未做（等本文件过 review）
+### 第二轮（2026-10-25 晚，用户确认「全部开工」）已做
 
-- 老师端 8 档 → 3 档的判定链重排（`web/src/teacher/common.tsx:230`-`243`）
-- 老师首页 4 张统计卡删掉「批中」（`web/src/teacher/HomePage.tsx:190`-`200`）
-- 学生端 5 个词 → 3 个词的合并（`web/src/student/studentUtils.ts:33`）
-- AI 进度（已批 x/y、失败 n）下沉到作业详情页头部
+| 改动 | 位置 |
+| :-- | :-- |
+| 状态判定抽成纯函数，8 档 → 4 个标签 | **新建** `web/src/teacher/offeringState.ts`；`common.tsx` 的 `OfferingStateTag` |
+| 首页统计卡 4 → 3（删掉「批中」这张 AI 工具卡） | `web/src/teacher/HomePage.tsx` |
+| 学生端 5 词 → 3 词 + 拒收角标 | **新建** `web/src/student/rowState.ts`；`studentUtils.ts` 转出 |
+| 学生首页汇总改「未完成 / 待公布 / 已公布」 | `web/src/student/HomePage.tsx` |
+| 批改总览页 `pending` + `running` 合并成 `grading`（旧 URL `state=pending`/`running` 仍能打开） | `web/src/teacher/GradingOverviewPage.tsx` |
+| 详情页 4 张工具卡（已批改 / 批改中 / 待派发 / 失败）保留——AI 进度就该在这个控制台，只把「待处理」改名为「待派发」 | `web/src/teacher/GradingDetailPage.tsx` |
+| 文案：删旧状态词、加 `teacher.offeringState.*`、统一「未交齐 / 待公布」 | `web/src/locales/{zh-CN,en}.json` |
+
+### 表格排序
+
+`offeringStateRank`：有失败的一律排最前（异常不该被「已公布」盖住），其余按
+未交齐 → 待批改 → 待公布 → 已公布。
 
 ## 验收
 
@@ -118,8 +138,11 @@ D-5「不隐藏，学生永远可见自己的具体分」。本次是**推翻旧
 - 接口级测试：`Phase2ExamTimingTest`（未公布时提交回执与 `my-submissions` 都给 `null`、
   公布后给分、错题与快照答案）、`T196QuestionTypeTest`、`ObjectiveRecomputeTest`、
   `ManualGradingTest`（逐份复核发布后学生能看到主观分 17.5）——`10 tests / 0 failures`。
-- 前端：`tsc --noEmit` 通过；`pnpm test` 94 通过；`scripts/check-i18n.py` 1699 键对齐。
-- **未做浏览器验收**：本轮只到接口与类型层，界面视觉与点击流未在浏览器里点过。
+- 状态词表驱动测试：**新增** `web/tests/status-vocabulary.test.mjs`，14 个用例覆盖老师端
+  4 个状态、拒收算批完、失败角标与排序、学生端 3 个状态与多次尝试取值——`14 / 14` 通过。
+- 前端：`tsc --noEmit`、`pnpm test`（108 通过）、`pnpm build`、`check-i18n`（1693 键对齐）、
+  `check-ui`（无新增违规）全绿。
+- **未做浏览器验收**：两轮都只到接口 / 纯函数 / 类型层，界面视觉与点击流未在浏览器里点过。
 
 ## 影响与代价
 
@@ -132,6 +155,6 @@ D-5「不隐藏，学生永远可见自己的具体分」。本次是**推翻旧
 
 1. 作答中的自动保存 `PUT /answers` 仍返回 `objectiveScore`（`AnswerSaveResponse`）；前端没有渲染
    这个字段，所以界面上不泄漏，但接口还在给。是否掩码待定。
-2. 老师端 8 档 → 3 档未改（见「待评审」），所以本文件生效前，首页仍会显示「批改中 / 待处理 /
-   有失败」这些工具状态。
+2. 历史数据不迁移（用户 2026-10-25：「历史数据直接都扔掉不要了」）：老记录 `publish_scores=false`
+   保持原样，不批量置 true；需要清库时由用户给范围（表 / 环境）后再做，删除前先备份。
 3. `publish_scores` 只影响本人分数可见性；导出（ZIP/PDF）与班级平均分早已按此门控，不受本次影响。

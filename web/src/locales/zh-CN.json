@@ -398,6 +398,28 @@
     "windowValue": "{{start}} 起，{{due}} 前必须开始",
     "working": "处理中…"
   },
+  "eyebrow": {
+    "home": "DASHBOARD",
+    "classes": "CLASSES",
+    "papers": "CREATE · 组卷",
+    "assignments": "CREATE · 作业",
+    "assignmentCreate": "CREATE · 布置",
+    "grading": "ASSESS · 批改",
+    "review": "ASSESS · 复核",
+    "reports": "INSIGHTS · 报表",
+    "summary": "INSIGHTS · 汇总",
+    "feedback": "ASSESS · 反馈",
+    "exam": "ASSESS · 作答",
+    "profile": "ACCOUNT",
+    "notifications": "INBOX",
+    "adminAi": "ADMIN",
+    "vocabLibrary": "PRACTICE · 词库",
+    "vocabReview": "PRACTICE · 复习",
+    "vocabSets": "PRACTICE · 词集",
+    "vocabAssign": "PRACTICE · 发词",
+    "vocabAssignment": "PRACTICE · 预习",
+    "vocabAdd": "PRACTICE · 加词"
+  },
   "language": {
     "en": "English",
     "zh": "中文"
@@ -619,7 +641,7 @@
     "hasFeedback": "有反馈",
     "homeEmpty": "还没有布置给你的考试或作业。",
     "homeSub": "考试、作业与反馈；成绩由老师公布后可见",
-    "homeSummary": "共 {{total}} 场 · 作答中 {{active}} · 未开始 {{todo}} · 有反馈 {{feedback}}",
+    "homeSummary": "共 {{total}} 场 · 未完成 {{todo}} · 待公布 {{pending}} · 已公布 {{published}}",
     "homeTitle": "我的学习",
     "lateTag": "迟交",
     "loadingComment": "正在读取评语…",
@@ -642,16 +664,15 @@
     "pendingGrade": "待批改",
     "prevPage": "上一页",
     "questionMeta": "第 {{number}} 题 · {{points}} 分",
+    "rejectedBadge": "已拒收 · 需重交",
     "rejectedNoReason": "教师未填写理由",
     "rejectedReason": "拒收理由：{{reason}}",
     "score": "我的分数",
     "scoreBreakdown": "客观 {{objective}} · 主观 {{subjective}}",
     "scorePending": "待老师公布",
-    "status_graded": "已批改",
-    "status_in_progress": "作答中",
-    "status_not_started": "未开始",
-    "status_rejected": "被拒收",
+    "status_published": "已公布",
     "status_submitted": "已交卷",
+    "status_todo": "未完成",
     "strengthsLabel": "优点：",
     "subjective": "主观题",
     "submittedAt": "提交于",
@@ -862,9 +883,9 @@
       "statUnsubmitted": "未提交 {{n}}",
       "stats": {
         "done": "已批改",
-        "running": "批改中",
-        "pending": "待批改",
-        "failed": "失败"
+        "failed": "失败",
+        "pending": "待派发",
+        "running": "批改中"
       },
       "sub": "{{classes}} · {{count}} 人 · 逐份提交",
       "submittedSummary": "已交 {{submitted}} / 应交 {{expected}}",
@@ -891,8 +912,7 @@
         "all": "全部",
         "done": "已完成",
         "failed": "失败",
-        "pending": "待处理",
-        "running": "批改中",
+        "grading": "等 AI 批",
         "unpublished": "待发布",
         "unsubmitted": "未提交"
       },
@@ -902,9 +922,9 @@
         "done": "已完成",
         "failed": "失败",
         "failedSub": "需人工处理",
-        "pending": "待处理",
+        "grading": "等 AI 批",
         "runningSub": "另有 {{n}} 份正在判分",
-        "unsubmitted": "未提交",
+        "unsubmitted": "未交齐",
         "unsubmittedSub": "应交未交"
       },
       "sub": "我名下全部班级 · 点数字过滤下表，点行进作业详情",
@@ -928,13 +948,11 @@
       "recent": "最近作业",
       "recentSub": "默认按截止时间倒序",
       "stats": {
-        "publish": "待发布",
+        "publish": "待公布",
         "publishSub": "已批改、成绩未公布",
         "review": "待复核",
         "reviewSub": "待人工判断",
-        "running": "批改中",
-        "runningSub": "已派发、正在判分",
-        "unsubmitted": "未提交",
+        "unsubmitted": "未交齐",
         "unsubmittedSub": "按班统计的应交未交"
       },
       "sub": "我教的所有班级汇总在一起 · 不需要先选班级",
@@ -986,6 +1004,13 @@
       "timingHint": "统一开考意味着未到场的学生也在掉时长，只给统一监考的场景用。",
       "timingMode": "计时模式",
       "title": "布置考试（基于试卷）"
+    },
+    "offeringState": {
+      "failedBadge": "{{n}} 份失败",
+      "grading": "待批改 {{done}}/{{total}}",
+      "published": "已公布",
+      "toPublish": "待公布",
+      "uncollected": "未交齐 {{n}}"
     },
     "offeringStatus": {
       "CLOSED": "已关闭",
@@ -1066,20 +1091,13 @@
       "done": "已完成",
       "draft": "未提交",
       "failed": "失败",
-      "grading": "批改中",
-      "hasFailed": "有失败",
-      "inProgress": "进行中",
-      "noSubmission": "无提交",
       "pending": "待处理",
-      "publishable": "可发布",
       "queued": "待派发",
       "rejected": "已拒收",
       "running": "批改中",
-      "scoresPublished": "成绩已公布",
       "skipped": "已跳过",
       "unknown": "未知",
-      "unsubmitted": "未提交",
-      "waitingSubmissions": "待提交"
+      "unsubmitted": "未提交"
     },
     "summary": {
       "accuracyAnswered": "作答人数",
@@ -1417,28 +1435,6 @@
       "tableHint": "点表头排序、点页码翻页、改「每页」条数、勾选后出现批量条——表格只有这一个实现（T441）。",
       "tableSelected": "已选 {{count}} 项"
     }
-  },
-  "eyebrow": {
-    "home": "DASHBOARD",
-    "classes": "CLASSES",
-    "papers": "CREATE · 组卷",
-    "assignments": "CREATE · 作业",
-    "assignmentCreate": "CREATE · 布置",
-    "grading": "ASSESS · 批改",
-    "review": "ASSESS · 复核",
-    "reports": "INSIGHTS · 报表",
-    "summary": "INSIGHTS · 汇总",
-    "feedback": "ASSESS · 反馈",
-    "exam": "ASSESS · 作答",
-    "profile": "ACCOUNT",
-    "notifications": "INBOX",
-    "adminAi": "ADMIN",
-    "vocabLibrary": "PRACTICE · 词库",
-    "vocabReview": "PRACTICE · 复习",
-    "vocabSets": "PRACTICE · 词集",
-    "vocabAssign": "PRACTICE · 发词",
-    "vocabAssignment": "PRACTICE · 预习",
-    "vocabAdd": "PRACTICE · 加词"
   },
   "vocab": {
     "nav": {

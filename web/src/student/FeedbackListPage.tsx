@@ -11,6 +11,7 @@ import {
   latestAttempt,
   loadStudentRows,
   rowIsExam,
+  rowRejected,
   rowStatus,
   sortRowsByDue,
   statusTagClass,
@@ -128,7 +129,12 @@ export default function FeedbackListPage() {
       value: (item) => rowStatus(item.row),
       render: (item) => {
         const status = rowStatus(item.row)
-        return <span className={`tag ${statusTagClass(status)}`}>{t(`student.status_${status}`)}</span>
+        return (
+          <>
+            <span className={`tag ${statusTagClass(status)}`}>{t(`student.status_${status}`)}</span>
+            {rowRejected(item.row) && <span className="tag red">{t('student.rejectedBadge')}</span>}
+          </>
+        )
       },
       sortable: false,
     },
@@ -210,6 +216,7 @@ export default function FeedbackListPage() {
                   <div className="row">
                     <span className={`tag ${rowIsExam(row) ? 'blue' : 'gray'}`}>{kindLabel(row.offering.kind)}</span>
                     <span className={`tag ${statusTagClass(status)}`}>{t(`student.status_${status}`)}</span>
+                    {rowRejected(row) && <span className="tag red">{t('student.rejectedBadge')}</span>}
                     {attempt.totalScore != null && (
                       <span className="tag gray">
                         {t('student.scoreBreakdown', {

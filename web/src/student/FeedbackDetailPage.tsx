@@ -97,12 +97,12 @@ export default function FeedbackDetailPage() {
               </div>
             </div>
             <div className="row" style={{ marginTop: 12 }}>
-              {attempt.gradingState === 'DONE' && attempt.totalScore != null
-                ? <span className="tag green">{t('student.status_graded')}</span>
+              {attempt.totalScore != null
+                ? <span className="tag green">{t('student.status_published')}</span>
                 : <span className="tag amber">{t('student.pendingGrade')}</span>}
               {attempt.autoSubmitted && <span className="tag gray">{t('student.autoSubmitted')}</span>}
               {attempt.lateBySeconds > 0 && <span className="tag amber">{t('student.lateTag')}</span>}
-              {attempt.rejectedAt && <span className="tag red">{t('student.status_rejected')}</span>}
+              {attempt.rejectedAt && <span className="tag red">{t('student.rejectedBadge')}</span>}
               {!feedback.feedbackPublished && <span className="tag gray">{feedback.feedbackMessage}</span>}
             </div>
             {attempt.rejectedAt && (

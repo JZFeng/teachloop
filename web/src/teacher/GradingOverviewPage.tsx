@@ -14,6 +14,7 @@ import {
   TeacherPage,
   useApiData,
 } from './common'
+import { offeringState, offeringStateRank } from './offeringState'
 import type { OfferingAggregate } from './common'
 
 interface OverviewData {
@@ -22,7 +23,9 @@ interface OverviewData {
   aggregates: Record<string, OfferingAggregate>
 }
 
-const FILTERS = ['all', 'done', 'failed', 'pending', 'unsubmitted'] as const
+// 决策 025：pending（排到队里）与 running（在跑）对老师是同一个动作——去作业详情页推一把，
+// 所以并成一档「等 AI 批」，不再让老师区分工具内部的两种状态。
+const FILTERS = ['all', 'done', 'failed', 'grading', 'unsubmitted'] as const
 type Filter = (typeof FILTERS)[number]
 
 /**
@@ -50,7 +53,7 @@ export default function GradingOverviewPage() {
   }, [])
 
   const filter = normalizeFilter(params.get('state'))
-  const setFilter = (next: Filter | 'running' | 'unpublished') => {
+  const setFilter = (next: Filter | 'unpublished') => {
     setParams((prev) => {
       const updated = new URLSearchParams(prev)
       if (next === 'all') updated.delete('state')
@@ -72,7 +75,7 @@ export default function GradingOverviewPage() {
 
   const totalDone = sum((a) => a.progress.done)
   const totalFailed = sum((a) => a.progress.failed)
-  const totalPending = sum((a) => a.progress.pending)
+  const totalPending = sum((a) => a.progress.pending + a.progress.running)
   const totalRunning = sum((a) => a.progress.running)
   const totalUnsubmitted = sum((a) => a.unsubmitted)
 
@@ -84,12 +87,10 @@ export default function GradingOverviewPage() {
         return agg.progress.done > 0
       case 'failed':
         return agg.progress.failed > 0
-      case 'pending':
-        return agg.progress.pending > 0
+      case 'grading':
+        return agg.progress.pending + agg.progress.running > 0
       case 'unsubmitted':
         return agg.unsubmitted > 0
-      case 'running':
-        return agg.progress.running > 0
       case 'unpublished':
         return agg.progress.done > 0 && !o.publishScores
       default:
@@ -172,7 +173,19 @@ export default function GradingOverviewPage() {
     {
       key: 'state',
       title: t('teacher.grading.colState'),
-      value: (o) => stateRank(aggregates[o.id]),
+      value: (o) => {
+        const agg = aggregates[o.id]
+        if (!agg) return 99
+        return offeringStateRank(
+          offeringState({
+            progress: agg.progress,
+            publishScores: o.publishScores,
+            expected: agg.expected,
+            unsubmitted: agg.unsubmitted,
+            rejected: agg.rejected,
+          }),
+        )
+      },
       width: '120px',
       sortable: true,
       render: (o) => {
@@ -183,6 +196,7 @@ export default function GradingOverviewPage() {
             progress={agg.progress}
             publishScores={o.publishScores}
             expected={agg.expected}
+            unsubmitted={agg.unsubmitted}
             rejected={agg.rejected}
           />
         )
@@ -235,9 +249,9 @@ export default function GradingOverviewPage() {
             />
             <StatCard
               value={totalPending}
-              label={t('teacher.grading.stats.pending')}
-              active={filter === 'pending'}
-              onClick={() => setFilter(filter === 'pending' ? 'all' : 'pending')}
+              label={t('teacher.grading.stats.grading')}
+              active={filter === 'grading'}
+              onClick={() => setFilter(filter === 'grading' ? 'all' : 'grading')}
             />
             <StatCard
               value={totalUnsubmitted}
@@ -261,7 +275,7 @@ export default function GradingOverviewPage() {
               <Segmented
                 size="small"
                 value={filter}
-                onChange={(value) => setFilter(value as Filter | 'running' | 'unpublished')}
+                onChange={(value) => setFilter(value as Filter | 'unpublished')}
                 options={FILTERS.map((key) => ({ value: key, label: filterLabel(key) }))}
               />
               <span className="small muted" style={{ marginLeft: 'auto' }}>
@@ -298,18 +312,12 @@ export default function GradingOverviewPage() {
   )
 }
 
-function normalizeFilter(raw: string | null): Filter | 'running' | 'unpublished' {
-  if (raw === 'running' || raw === 'unpublished') return raw
-  if (raw === 'done' || raw === 'failed' || raw === 'pending' || raw === 'unsubmitted') return raw
+function normalizeFilter(raw: string | null): Filter | 'unpublished' {
+  // 旧链接（首页「批中」卡曾经跳 ?state=running）与旧书签仍然要能打开：
+  // pending / running 都归到合并后的 grading。
+  if (raw === 'pending' || raw === 'running') return 'grading'
+  if (raw === 'unpublished') return raw
+  if (raw === 'done' || raw === 'failed' || raw === 'grading' || raw === 'unsubmitted') return raw
   return 'all'
 }
 
-function stateRank(agg: OfferingAggregate | undefined): number {
-  if (!agg) return 99
-  if (agg.progress.failed > 0) return 0
-  if (agg.progress.running > 0) return 1
-  if (agg.progress.pending > 0) return 2
-  if (agg.progress.total === 0) return 5
-  if (agg.progress.done >= agg.progress.total) return 3
-  return 4
-}

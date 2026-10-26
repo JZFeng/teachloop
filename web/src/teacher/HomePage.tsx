@@ -13,6 +13,7 @@ import {
   useApiData,
 } from './common'
 import type { OfferingAggregate } from './common'
+import { offeringState, offeringStateRank } from './offeringState'
 
 interface HomeData {
   offerings: OfferingView[]
@@ -74,7 +75,6 @@ export default function TeacherHomePage() {
       return agg ? acc + pick(agg) : acc
     }, 0)
 
-  const running = sum((a) => a.progress.running)
   const pendingPublish = offerings.reduce((acc, o) => {
     const agg = aggregates[o.id]
     return agg && !o.publishScores ? acc + agg.progress.done : acc
@@ -140,7 +140,19 @@ export default function TeacherHomePage() {
     {
       key: 'state',
       title: t('teacher.home.colStatus'),
-      value: (o) => aggregateStateRank(aggregates[o.id]),
+      value: (o) => {
+        const agg = aggregates[o.id]
+        if (!agg) return 99
+        return offeringStateRank(
+          offeringState({
+            progress: agg.progress,
+            publishScores: o.publishScores,
+            expected: agg.expected,
+            unsubmitted: agg.unsubmitted,
+            rejected: agg.rejected,
+          }),
+        )
+      },
       sortable: true,
       render: (o) => {
         const agg = aggregates[o.id]
@@ -150,6 +162,7 @@ export default function TeacherHomePage() {
             progress={agg.progress}
             publishScores={o.publishScores}
             expected={agg.expected}
+            unsubmitted={agg.unsubmitted}
             rejected={agg.rejected}
           />
         )
@@ -188,12 +201,6 @@ export default function TeacherHomePage() {
               label={t('teacher.home.stats.review')}
               sub={t('teacher.home.stats.reviewSub')}
               onClick={() => navigate('/review?status=PENDING')}
-            />
-            <StatCard
-              value={running}
-              label={t('teacher.home.stats.running')}
-              sub={t('teacher.home.stats.runningSub')}
-              onClick={() => navigate('/grading?state=running')}
             />
             <StatCard
               value={pendingPublish}
@@ -263,15 +270,4 @@ export default function TeacherHomePage() {
       )}
     </TeacherPage>
   )
-}
-
-/** 排序用：把派生状态映射成可比较的等级，避免按字符串排出来反直觉。 */
-function aggregateStateRank(agg: OfferingAggregate | undefined): number {
-  if (!agg) return 99
-  if (agg.progress.failed > 0) return 0
-  if (agg.progress.running > 0) return 1
-  if (agg.progress.pending > 0) return 2
-  if (agg.progress.total === 0) return 5
-  if (agg.progress.done >= agg.progress.total) return 3
-  return 4
 }

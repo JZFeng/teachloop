@@ -398,6 +398,28 @@
     "windowValue": "Opens {{start}}; you must start before {{due}}",
     "working": "Working…"
   },
+  "eyebrow": {
+    "home": "DASHBOARD",
+    "classes": "CLASSES",
+    "papers": "CREATE · Papers",
+    "assignments": "CREATE · Assignments",
+    "assignmentCreate": "CREATE · Assign",
+    "grading": "ASSESS · Grading",
+    "review": "ASSESS · Review",
+    "reports": "INSIGHTS · Reports",
+    "summary": "INSIGHTS · Summary",
+    "feedback": "ASSESS · Feedback",
+    "exam": "ASSESS · Answer",
+    "profile": "ACCOUNT",
+    "notifications": "INBOX",
+    "adminAi": "ADMIN",
+    "vocabLibrary": "PRACTICE · Library",
+    "vocabReview": "PRACTICE · Review",
+    "vocabSets": "PRACTICE · Word sets",
+    "vocabAssign": "PRACTICE · Send words",
+    "vocabAssignment": "PRACTICE · Preview",
+    "vocabAdd": "PRACTICE · Add words"
+  },
   "language": {
     "en": "English",
     "zh": "中文"
@@ -619,7 +641,7 @@
     "hasFeedback": "Feedback available",
     "homeEmpty": "No exam or assignment has been set for you yet.",
     "homeSub": "Exams, assignments and feedback. Scores appear once your teacher publishes them.",
-    "homeSummary": "{{total}} in total · {{active}} in progress · {{todo}} not started · {{feedback}} with feedback",
+    "homeSummary": "{{total}} in total · {{todo}} to do · {{pending}} awaiting publication · {{published}} published",
     "homeTitle": "My learning",
     "lateTag": "Late",
     "loadingComment": "Loading feedback comment…",
@@ -642,16 +664,15 @@
     "pendingGrade": "Awaiting grading",
     "prevPage": "Previous",
     "questionMeta": "Question {{number}} · {{points}} pts",
+    "rejectedBadge": "Rejected · resubmit",
     "rejectedNoReason": "The teacher did not give a reason",
     "rejectedReason": "Reason: {{reason}}",
     "score": "My score",
     "scoreBreakdown": "Objective {{objective}} · Written {{subjective}}",
     "scorePending": "Waiting for your teacher to publish",
-    "status_graded": "Graded",
-    "status_in_progress": "In progress",
-    "status_not_started": "Not started",
-    "status_rejected": "Rejected",
+    "status_published": "Published",
     "status_submitted": "Submitted",
+    "status_todo": "To do",
     "strengthsLabel": "Strengths: ",
     "subjective": "Written",
     "submittedAt": "Submitted",
@@ -862,9 +883,9 @@
       "statUnsubmitted": "Not submitted {{n}}",
       "stats": {
         "done": "Graded",
-        "running": "Grading",
-        "pending": "Pending",
-        "failed": "Failed"
+        "failed": "Failed",
+        "pending": "Not dispatched",
+        "running": "Grading"
       },
       "sub": "{{classes}} · {{count}} students · per submission",
       "submittedSummary": "Submitted {{submitted}} of {{expected}}",
@@ -891,8 +912,7 @@
         "all": "All",
         "done": "Completed",
         "failed": "Failed",
-        "pending": "Pending",
-        "running": "Grading",
+        "grading": "Waiting for AI",
         "unpublished": "To publish",
         "unsubmitted": "Not submitted"
       },
@@ -902,7 +922,7 @@
         "done": "Completed",
         "failed": "Failed",
         "failedSub": "Needs manual work",
-        "pending": "Pending",
+        "grading": "Waiting for AI",
         "runningSub": "{{n}} more being scored",
         "unsubmitted": "Not submitted",
         "unsubmittedSub": "Expected but missing"
@@ -932,8 +952,6 @@
         "publishSub": "Graded, scores not published",
         "review": "To review",
         "reviewSub": "Waiting for your decision",
-        "running": "Grading now",
-        "runningSub": "Dispatched and scoring",
         "unsubmitted": "Not submitted",
         "unsubmittedSub": "Expected but missing, per class"
       },
@@ -986,6 +1004,13 @@
       "timingHint": "Fixed window means absent students also lose time; use it only for proctored exams.",
       "timingMode": "Timing mode",
       "title": "Assign an exam (from a paper)"
+    },
+    "offeringState": {
+      "failedBadge": "{{n}} failed",
+      "grading": "{{done}}/{{total}} graded",
+      "published": "Published",
+      "toPublish": "To publish",
+      "uncollected": "{{n}} not submitted"
     },
     "offeringStatus": {
       "CLOSED": "Closed",
@@ -1066,20 +1091,13 @@
       "done": "Done",
       "draft": "Not submitted",
       "failed": "Failed",
-      "grading": "Grading",
-      "hasFailed": "Has failures",
-      "inProgress": "In progress",
-      "noSubmission": "No submissions",
       "pending": "Pending",
-      "publishable": "Ready to publish",
       "queued": "Queued",
       "rejected": "Rejected",
       "running": "Grading",
-      "scoresPublished": "Scores published",
       "skipped": "Skipped",
       "unknown": "Unknown",
-      "unsubmitted": "Not submitted",
-      "waitingSubmissions": "Awaiting submissions"
+      "unsubmitted": "Not submitted"
     },
     "summary": {
       "accuracyAnswered": "Answered",
@@ -1417,28 +1435,6 @@
       "tableHint": "Sort by clicking a header, page with the footer, change rows per page, tick rows to show the batch bar — one table implementation for the whole app (T441).",
       "tableSelected": "{{count}} selected"
     }
-  },
-  "eyebrow": {
-    "home": "DASHBOARD",
-    "classes": "CLASSES",
-    "papers": "CREATE · Papers",
-    "assignments": "CREATE · Assignments",
-    "assignmentCreate": "CREATE · Assign",
-    "grading": "ASSESS · Grading",
-    "review": "ASSESS · Review",
-    "reports": "INSIGHTS · Reports",
-    "summary": "INSIGHTS · Summary",
-    "feedback": "ASSESS · Feedback",
-    "exam": "ASSESS · Answer",
-    "profile": "ACCOUNT",
-    "notifications": "INBOX",
-    "adminAi": "ADMIN",
-    "vocabLibrary": "PRACTICE · Library",
-    "vocabReview": "PRACTICE · Review",
-    "vocabSets": "PRACTICE · Word sets",
-    "vocabAssign": "PRACTICE · Send words",
-    "vocabAssignment": "PRACTICE · Preview",
-    "vocabAdd": "PRACTICE · Add words"
   },
   "vocab": {
     "nav": {

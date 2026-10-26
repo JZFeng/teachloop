@@ -10,6 +10,7 @@ import {
   loadStudentRows,
   rowHasFeedback,
   rowIsExam,
+  rowRejected,
   rowScore,
   rowStatus,
   sortRowsByDue,
@@ -41,9 +42,9 @@ export default function StudentHomePage() {
     const list = rows ?? []
     return {
       total: list.length,
-      active: list.filter((row) => rowStatus(row) === 'in_progress').length,
-      todo: list.filter((row) => rowStatus(row) === 'not_started').length,
-      feedback: list.filter((row) => rowHasFeedback(row)).length,
+      todo: list.filter((row) => rowStatus(row) === 'todo').length,
+      pending: list.filter((row) => rowStatus(row) === 'submitted').length,
+      published: list.filter((row) => rowStatus(row) === 'published').length,
     }
   }, [rows])
 
@@ -101,6 +102,9 @@ export default function StudentHomePage() {
                   </div>
                   <div className="row" style={{ marginTop: 8 }}>
                     <span className={`tag ${statusTagClass(status)}`}>{t(`student.status_${status}`)}</span>
+                    {rowRejected(row) && (
+                      <span className="tag red">{t('student.rejectedBadge')}</span>
+                    )}
                     {score !== null && (
                       <span className="small">
                         {t('student.score')} <b className="mono">{fmtScore(score)}</b>

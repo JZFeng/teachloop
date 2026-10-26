@@ -7,6 +7,7 @@ import type {
   OfferingView,
   ProgressView,
 } from '../api/types'
+import { offeringState } from './offeringState'
 import './teacher.css'
 
 /** 所有教师端页面共用的外壳：补上 mockup.css 里未抽出的教师端展示类。 */
@@ -219,26 +220,39 @@ export function OfferingStateTag({
   progress,
   publishScores,
   expected,
+  unsubmitted,
   rejected = 0,
 }: {
   progress: ProgressView
   publishScores: boolean
   expected: number
+  unsubmitted: number
   rejected?: number
 }) {
   const { t } = useTranslation('translation')
-  if (progress.failed > 0) return <Tag tone="red">{t('teacher.status.hasFailed')}</Tag>
-  if (progress.running > 0) return <Tag tone="amber">{t('teacher.status.grading')}</Tag>
-  if (progress.pending > 0) return <Tag tone="amber">{t('teacher.status.pending')}</Tag>
-  if (progress.total === 0) return <Tag tone="gray">{t('teacher.status.noSubmission')}</Tag>
-  // progress.total 含已拒收（SKIPPED）与未交卷草稿；已拒收也算处理完毕。
-  if (progress.done + rejected >= progress.total) {
-    return publishScores ? (
-      <Tag tone="green">{t('teacher.status.scoresPublished')}</Tag>
-    ) : (
-      <Tag tone="green">{t('teacher.status.publishable')}</Tag>
-    )
-  }
-  if (expected > progress.total) return <Tag tone="gray">{t('teacher.status.waitingSubmissions')}</Tag>
-  return <Tag tone="gray">{t('teacher.status.inProgress')}</Tag>
+  // 决策 025：一份作业的状态 = 现在卡在谁手里。3 个待办 + 1 个终态，
+  // AI 的派发/在跑/排队不再是状态；失败单独做角标，因为它能和任何主状态并存。
+  const view = offeringState({ progress, publishScores, expected, unsubmitted, rejected })
+  const tone: Tone =
+    view.state === 'uncollected'
+      ? 'gray'
+      : view.state === 'grading'
+        ? 'amber'
+        : 'green'
+  const label =
+    view.state === 'uncollected'
+      ? t('teacher.offeringState.uncollected', { n: unsubmitted })
+      : view.state === 'grading'
+        ? t('teacher.offeringState.grading', { done: view.gradedCount, total: view.total })
+        : view.state === 'to_publish'
+          ? t('teacher.offeringState.toPublish')
+          : t('teacher.offeringState.published')
+  return (
+    <>
+      <Tag tone={tone}>{label}</Tag>
+      {view.failedCount > 0 && (
+        <Tag tone="red">{t('teacher.offeringState.failedBadge', { n: view.failedCount })}</Tag>
+      )}
+    </>
+  )
 }
