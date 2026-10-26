@@ -192,6 +192,25 @@
 .rubric-row p { margin: 0; color: var(--muted); font-size: 12.5px; }
 .assign-meta { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 
+/* 交卷后可折叠的分区：标题整行可点，右侧向下箭头，展开后箭头翻转（用户 2026-10-26） */
+.fold-head {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  padding: 0; border: 0; background: none; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.fold-title { flex: 1 1 auto; font-family: var(--font-head); font-size: 14px; font-weight: 650; }
+.fold-caret { flex: 0 0 auto; color: var(--muted); transition: transform .15s ease; }
+.fold-caret.is-open { transform: rotate(180deg); }
+.fold-body { margin-top: 14px; }
+
+/* 已提交卡片：标题行的状态 chip 与「分数槽 / 事实 / 动作」三段（用户 2026-10-26 重排） */
+.submission-card > h2 .tag { margin-left: 8px; }
+.score-pending {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 15px; font-weight: 650; color: var(--text);
+}
+.grace-label { display: inline-flex; align-items: center; gap: 4px; }
+
 @media (max-width: 1023px) {
   .exam-tree-toggle { display: inline-flex; }
   .exam-tree { padding-right: 0; }

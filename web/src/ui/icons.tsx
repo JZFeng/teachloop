@@ -18,6 +18,7 @@ export {
   CommentOutlined,
   CompressOutlined,
   DeleteOutlined,
+  DownOutlined,
   EditOutlined,
   ExpandAltOutlined,
   FileTextOutlined,

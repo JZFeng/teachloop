@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError, csrfHeaders, fmtDateTime } from '../api/client'
@@ -15,7 +16,7 @@ import type {
 import { RichTextEditor } from '../components/RichTextEditor'
 import { Markdown } from '../components/Markdown'
 import { ErrorState, Loading, PageHeader } from '../components/States'
-import { Button, InlineNote } from '../ui'
+import { Button, DownOutlined, InfoHint, InlineNote } from '../ui'
 import { countWrittenWords, fmtScore } from './examUtils'
 import './exam.css'
 
@@ -96,6 +97,10 @@ export default function AssignmentPage() {
   const [richHtml, setRichHtml] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
+  // 题目要求 / 评分标准是否展开：null = 还没手动点过，跟随「是否已交卷」。
+  // 已交卷的学生进页面默认看到收起的两行标题（用户 2026-10-26 要求：做完以后页面只留重要信息）。
+  const [promptsOverride, setPromptsOverride] = useState<boolean | null>(null)
+  const [rubricOverride, setRubricOverride] = useState<boolean | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -146,6 +151,10 @@ export default function AssignmentPage() {
   const hasDraft = !!latest && latest.active && !latest.submittedAt && !latest.rejectedAt
   const rejected = !!latest?.rejectedAt
   const submitted = !rejected && (entry?.submitted ?? false)
+  // 决策 025：未公布成绩时后端把三个分数都置空，所以 totalScore == null 就是「还没有结果」。
+  // 「查看结果」只在这个口径下可点——学生点进去只会看到「待老师公布」，那不算结果。
+  const graded = latest?.gradingState === 'DONE'
+  const published = latest != null && latest.totalScore !== null
   const canStart = !!attempts?.canRetry && !hasDraft && !submitted
   const attemptsLeft = attempts ? Math.max(0, attempts.maxAttempts - attempts.attemptsUsed) : null
 
@@ -252,7 +261,6 @@ export default function AssignmentPage() {
 
   const words = countWrittenWords(content)
   const pastDue = Date.parse(entry.dueAt) < Date.now()
-  const showResult = submitResult ?? null
   // 已提交正文：后端 /my-submissions 回传（刷新后仍在）；本次刚交的这份先用提交时的正文副本兜底。
   const submittedHtml = latest?.contentHtml ?? submittedSnapshot?.html ?? null
   const submittedText = latest?.contentText ?? submittedSnapshot?.text ?? null
@@ -261,6 +269,96 @@ export default function AssignmentPage() {
     paper && paper.items.length === 1 && paper.items[0].questionType === 'ESSAY'
       ? paper.items[0]
       : null
+  // 交卷后题目要求 / 评分标准只剩回查价值：默认收起，标题整行可点；未交卷时默认展开，别多一次点击。
+  const promptsOpen = promptsOverride ?? !submitted
+  const rubricOpen = rubricOverride ?? !submitted
+
+  const promptsCard = paper && paper.items.length > 0 ? (
+    <SectionCard
+      title={t('exam.assignmentPrompts')}
+      open={promptsOpen}
+      onToggle={() => setPromptsOverride(!promptsOpen)}
+    >
+      {singleEssay ? (
+        <div>
+          <div className="small muted">
+            {t('exam.points', { points: singleEssay.points })}
+            {singleEssay.sectionTitle ? ` · ${singleEssay.sectionTitle}` : ''}
+          </div>
+          {singleEssay.stem?.trim() ? (
+            <Markdown className="md-body" text={singleEssay.stem} />
+          ) : (
+            <div className="inline-note">{t('exam.noStem')}</div>
+          )}
+        </div>
+      ) : (
+        <ol className="assign-prompts" style={{ paddingLeft: 20, margin: 0 }}>
+          {paper.items.map((item) => (
+            <li key={item.number} style={{ marginBottom: 14 }}>
+              <div className="small muted">
+                {t('exam.points', { points: item.points })}
+                {item.sectionTitle ? ` · ${item.sectionTitle}` : ''}
+              </div>
+              <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.75 }}>
+                {item.stem?.trim() || t('exam.noStem')}
+              </div>
+            </li>
+          ))}
+        </ol>
+      )}
+    </SectionCard>
+  ) : null
+
+  const rubricCard = (
+    <SectionCard
+      title={t('exam.assignmentRubric')}
+      open={rubricOpen}
+      onToggle={() => setRubricOverride(!rubricOpen)}
+    >
+      {entry.rubric && entry.rubric.trim() ? (
+        <Markdown className="md-body" text={entry.rubric} />
+      ) : (
+        <InlineNote tone="warning">{t('exam.rubricMissing')}</InlineNote>
+      )}
+    </SectionCard>
+  )
+
+  // 作业说明只留一眼要用的事实：种类、截止、宽限期、还能交几次、是否算迟交。
+  // 「没有倒计时、过了截止仍可交」那句留在后端 notice 里，页面不再重复（用户 2026-10-26 要求删）。
+  const notesCard = (
+    <div className="card">
+      <h2>{t('exam.assignmentNotes')}</h2>
+      {/* entry.notes 是「考试计时」的通用说明，作业页不适用，这里不显示 */}
+      <div className="assign-meta">
+        <span className="tag gray">{t('exam.assignmentKind')}</span>
+        <span className="small muted">{t('exam.dueAtLabel')} {fmtDateTime(entry.dueAt)}</span>
+        {offering && (
+          <span className="grace-label small muted">
+            {t('exam.graceLabel', { hours: offering.graceHours })}
+            <InfoHint label={t('common.moreInfo')}>
+              <p>{t('exam.graceHint')}</p>
+            </InfoHint>
+          </span>
+        )}
+        {attemptsLeft !== null && (
+          <span className="tag blue">
+            {t('exam.attemptsLeft', { left: attemptsLeft, max: attempts?.maxAttempts ?? 0 })}
+          </span>
+        )}
+        {pastDue && <span className="tag amber">{t('exam.lateHint')}</span>}
+      </div>
+    </div>
+  )
+
+  // 我交上去的正文单独一张卡：交卷后顺序是 结果 → 题目要求▽ → 评分标准▽ → 我提交的内容 → 作业说明。
+  const submittedContentCard = (
+    <SubmittedContentCard
+      html={submittedHtml}
+      text={submittedText}
+      attachmentName={latest?.attachmentName ?? submitResult?.attachmentName ?? null}
+      attachmentHref={latest?.submissionId ? `/api/submissions/${latest.submissionId}/attachment` : null}
+    />
+  )
 
   return (
     <>
@@ -272,69 +370,67 @@ export default function AssignmentPage() {
         )}
       />
 
-      {paper && paper.items.length > 0 && (
-        <div className="card">
-          <h2>{t('exam.assignmentPrompts')}</h2>
-          {singleEssay ? (
-            <div>
-              <div className="small muted">
-                {t('exam.points', { points: singleEssay.points })}
-                {singleEssay.sectionTitle ? ` · ${singleEssay.sectionTitle}` : ''}
+      {/*
+       * 已提交：先给「结果到哪一步了 + 我交了什么 + 下一步动作」，题目要求与评分标准退到后面折叠。
+       * 用户 2026-10-26：这块信息乱——分数、状态、时间、两个按钮挤在一行，长解释悬在半空。
+       */}
+      {submitted && latest && (
+        <div className="card submission-card">
+          <h2>
+            {t('exam.assignmentSubmitted')}
+            {published
+              ? <span className="tag green">{t('exam.scorePublished')}</span>
+              : !graded && <span className="tag amber">{t('exam.pendingGrade')}</span>}
+            {latest.lateBySeconds > 0 && <span className="tag amber">{t('exam.lateTag')}</span>}
+            {latest.autoSubmitted && <span className="tag gray">{t('exam.submittedAuto')}</span>}
+            {submitResult?.unreadable && <span className="tag red">{t('exam.unreadable')}</span>}
+          </h2>
+          <div className="exam-result-score">
+            {published ? (
+              <div className="score-big">
+                {fmtScore(latest.totalScore)}
+                <small> / {fmtScore(entry.totalPoints)}</small>
               </div>
-              {singleEssay.stem?.trim() ? (
-                <Markdown className="md-body" text={singleEssay.stem} />
-              ) : (
-                <div className="inline-note">{t('exam.noStem')}</div>
+            ) : (
+              // 分数槽位：还没结果时这里只说一句「待老师公布」，规则收进 ⓘ（不再是行间那段悬空说明）
+              <div className="score-pending">
+                {t('exam.scorePending')}
+                <InfoHint label={t('common.moreInfo')}>
+                  <p>{t('exam.scorePendingHint')}</p>
+                </InfoHint>
+              </div>
+            )}
+            <div className="result-facts">
+              {published && (
+                <>
+                  <div className="kv"><span>{t('exam.resultObjective')}</span><span className="mono">{fmtScore(latest.objectiveScore)}</span></div>
+                  <div className="kv"><span>{t('exam.resultSubjective')}</span><span className="mono">{fmtScore(latest.subjectiveScore)}</span></div>
+                </>
+              )}
+              {latest.submittedAt && (
+                <div className="kv"><span>{t('exam.submittedAtLabel')}</span><span className="mono">{fmtDateTime(latest.submittedAt)}</span></div>
               )}
             </div>
-          ) : (
-            <ol className="assign-prompts" style={{ paddingLeft: 20, margin: 0 }}>
-              {paper.items.map((item) => (
-                <li key={item.number} style={{ marginBottom: 14 }}>
-                  <div className="small muted">
-                    {t('exam.points', { points: item.points })}
-                    {item.sectionTitle ? ` · ${item.sectionTitle}` : ''}
-                  </div>
-                  <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.75 }}>
-                    {item.stem?.trim() || t('exam.noStem')}
-                  </div>
-                </li>
-              ))}
-            </ol>
-          )}
+          </div>
+          <div className="result-actions">
+            {/* 有结果才可点：未公布时学生点进去只看到「待老师公布」，等于死胡同（用户 2026-10-26 要求） */}
+            <span title={published ? undefined : t('exam.viewResultLocked')}>
+              <Button
+                variant="primary"
+                disabled={!published}
+                onClick={() => navigate(`/feedback/${offeringId}`)}
+              >
+                {t('exam.viewResult')}
+              </Button>
+            </span>
+            {attempts?.canRetry && (
+              <Button disabled={busy} onClick={() => void startAttempt()}>
+                {t('exam.retrySubmit')}
+              </Button>
+            )}
+          </div>
         </div>
       )}
-
-      <div className="card">
-        <h2>{t('exam.assignmentNotes')}</h2>
-        {/* notice 已包含「这是作业、无倒计时」的说明，别再重复一行 */}
-        {entry.notice && <div className="inline-note">{entry.notice}</div>}
-        {/* entry.notes 是「考试计时」的通用说明，作业页不适用，这里不显示 */}
-        <div className="assign-meta" style={{ marginTop: 12 }}>
-          <span className="tag gray">{t('exam.assignmentKind')}</span>
-          <span className="small muted">{t('exam.dueAtLabel')} {fmtDateTime(entry.dueAt)}</span>
-          {offering && (
-            <span className="small muted">
-              {t('exam.graceLabel', { hours: offering.graceHours })}
-            </span>
-          )}
-          {attemptsLeft !== null && (
-            <span className="tag blue">
-              {t('exam.attemptsLeft', { left: attemptsLeft, max: attempts?.maxAttempts ?? 0 })}
-            </span>
-          )}
-          {pastDue && <span className="tag amber">{t('exam.lateHint')}</span>}
-        </div>
-      </div>
-
-      <div className="card">
-        <h2>{t('exam.assignmentRubric')}</h2>
-        {entry.rubric && entry.rubric.trim() ? (
-          <Markdown className="md-body" text={entry.rubric} />
-        ) : (
-          <InlineNote tone="warning">{t('exam.rubricMissing')}</InlineNote>
-        )}
-      </div>
 
       {rejected && latest && (
         <div className="card">
@@ -351,97 +447,23 @@ export default function AssignmentPage() {
         </div>
       )}
 
-      {showResult && (
-        <div className="card">
-          <h2>{t('exam.assignmentSubmitted')}</h2>
-          <div className="row" style={{ alignItems: 'flex-end', gap: 24 }}>
-            <div className="score-big">
-              {showResult.objectiveScore == null ? (
-                <span className="small muted">{t('exam.scorePending')}</span>
-              ) : (
-                <>
-                  {fmtScore(showResult.objectiveScore)}
-                  <small> / {fmtScore(showResult.totalPoints)}</small>
-                </>
-              )}
-            </div>
-            <div className="small muted">
-              {showResult.objectiveScore == null ? (
-                <div>{t('exam.scorePendingHint')}</div>
-              ) : (
-                <>
-                  <div>{t('exam.resultObjective')}: {fmtScore(showResult.objectiveScore)}</div>
-                  <div>{t('exam.resultSubjective')}: {t('exam.pendingGrade')}</div>
-                </>
-              )}
-            </div>
-          </div>
-          <div className="row" style={{ marginTop: 12 }}>
-            {showResult.unreadable
-              ? <span className="tag red">{t('exam.unreadable')}</span>
-              : <span className="tag amber">{t('exam.pendingGrade')}</span>}
-            {showResult.lateBySeconds > 0 && <span className="tag amber">{t('exam.lateTag')}</span>}
-            <button type="button" className="btn" onClick={() => navigate(`/feedback/${offeringId}`)}>
-              {t('exam.viewResult')}
-            </button>
-          </div>
-          <SubmittedContentSection
-            html={submittedHtml}
-            text={submittedText}
-            attachmentName={showResult.attachmentName ?? null}
-            attachmentHref={`/api/submissions/${showResult.submissionId}/attachment`}
-          />
-        </div>
-      )}
-
-      {!rejected && submitted && !showResult && latest && (
-        <div className="card">
-          <h2>{t('exam.assignmentSubmitted')}</h2>
-          <div className="row" style={{ alignItems: 'flex-end', gap: 24 }}>
-            <div className="score-big">
-              {latest.totalScore == null ? (
-                <span className="small muted">{t('exam.scorePending')}</span>
-              ) : (
-                <>
-                  {fmtScore(latest.totalScore)}
-                  <small> / {fmtScore(entry.totalPoints)}</small>
-                </>
-              )}
-            </div>
-            <div className="small muted">
-              {latest.totalScore == null ? (
-                <div>{t('exam.scorePendingHint')}</div>
-              ) : (
-                <>
-                  <div>{t('exam.resultObjective')}: {fmtScore(latest.objectiveScore)}</div>
-                  <div>{t('exam.resultSubjective')}: {fmtScore(latest.subjectiveScore)}</div>
-                </>
-              )}
-              <div>{t('exam.submittedAtLabel')}: {fmtDateTime(latest.submittedAt)}</div>
-            </div>
-          </div>
-          <div className="row" style={{ marginTop: 12 }}>
-            {latest.totalScore != null && latest.gradingState === 'DONE'
-              ? <span className="tag green">{t('exam.resultGraded')}</span>
-              : <span className="tag amber">{t('exam.pendingGrade')}</span>}
-            {latest.lateBySeconds > 0 && <span className="tag amber">{t('exam.lateTag')}</span>}
-            {latest.autoSubmitted && <span className="tag gray">{t('exam.submittedAuto')}</span>}
-            {attempts?.canRetry && (
-              <button type="button" className="btn" disabled={busy} onClick={() => void startAttempt()}>
-                {t('exam.retrySubmit')}
-              </button>
-            )}
-            <button type="button" className="btn" onClick={() => navigate(`/feedback/${offeringId}`)}>
-              {t('exam.viewResult')}
-            </button>
-          </div>
-          <SubmittedContentSection
-            html={submittedHtml}
-            text={submittedText}
-            attachmentName={latest.attachmentName}
-            attachmentHref={latest.submissionId ? `/api/submissions/${latest.submissionId}/attachment` : null}
-          />
-        </div>
+      {/*
+       * 交完卷：题目要求与评分标准收成两行标题（箭头向下，点开看），作业说明最后。
+       * 还没交：题目要求与评分标准展开，作业说明夹在中间——和改版前一样。
+       */}
+      {submitted ? (
+        <>
+          {promptsCard}
+          {rubricCard}
+          {submittedContentCard}
+          {notesCard}
+        </>
+      ) : (
+        <>
+          {promptsCard}
+          {notesCard}
+          {rubricCard}
+        </>
       )}
 
       {hasDraft && !rejected && (
@@ -530,10 +552,33 @@ function latestOf(attempts: MyAttemptsView | null): AttemptView | null {
 }
 
 /**
- * 已提交正文直接回显（T248）：学生交完就在本页看到自己交了什么，不用再点按钮跳走。
- * html 是后端写入时已消毒的 content_html，可直接渲染；纯文本按原样换行。
+ * 可折叠的分区卡片（用户 2026-10-26）：标题整行可点，右侧向下箭头，展开后箭头翻转。
+ * 交卷后题目要求 / 评分标准默认收起——学生已经做完，页面留给分数、提交正文与动作。
+ * 未交卷时默认展开，避免为了看一眼题目再多点一次。
  */
-function SubmittedContentSection({ html, text, attachmentName, attachmentHref }: {
+function SectionCard({ title, open, onToggle, children }: {
+  title: string
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="card">
+      <button type="button" className="fold-head" aria-expanded={open} onClick={onToggle}>
+        <span className="fold-title">{title}</span>
+        <DownOutlined className={open ? 'fold-caret is-open' : 'fold-caret'} aria-hidden="true" />
+      </button>
+      {open && <div className="fold-body">{children}</div>}
+    </div>
+  )
+}
+
+/**
+ * 已提交正文单独一张卡（T248）：学生交完就在本页看到自己交了什么，不用再点按钮跳走。
+ * html 是后端写入时已消毒的 content_html，可直接渲染；纯文本按原样换行。
+ * 放在结果与两份参考资料之后——正文通常很长，不该把分数和动作挤到屏幕外。
+ */
+function SubmittedContentCard({ html, text, attachmentName, attachmentHref }: {
   html: string | null
   text: string | null
   attachmentName: string | null
@@ -544,8 +589,8 @@ function SubmittedContentSection({ html, text, attachmentName, attachmentHref }:
   const plain = text && text.trim() ? text : null
   if (!rich && !plain && !attachmentName) return null
   return (
-    <div style={{ marginTop: 16 }}>
-      <h3 style={{ margin: '0 0 6px' }}>{t('exam.submittedContent')}</h3>
+    <div className="card">
+      <h2>{t('exam.submittedContent')}</h2>
       {rich && <div className="submitted-body rich" dangerouslySetInnerHTML={{ __html: rich }} />}
       {!rich && plain && <div className="submitted-body">{plain}</div>}
       {attachmentName && attachmentHref && (
