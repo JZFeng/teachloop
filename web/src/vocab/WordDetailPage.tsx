@@ -93,6 +93,8 @@ export default function VocabWordDetailPage() {
   const [addToListOpen, setAddToListOpen] = useState(false)
   const [prep, setPrep] = useState<PrepareResult | null>(null)
   const [retrying, setRetrying] = useState(false)
+  // AC-60.1：查词页默认面**必须是反面**——查词 = 复习时选「不认识」，不认识就要看详细信息，
+  // 所以进页面直接落到 review-back，看正面才按空格 / 点卡片（2026-10-26 用户定死，别改成 false）。
   const [flipped, setFlipped] = useState(true)
 
   const refresh = useCallback(() => setReloadKey((value) => value + 1), [])
