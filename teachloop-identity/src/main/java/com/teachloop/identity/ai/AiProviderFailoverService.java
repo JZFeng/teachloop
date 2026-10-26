@@ -37,6 +37,7 @@ public class AiProviderFailoverService implements Ports.AiProviderFailover {
     private final AiProviderRepository providers;
     private final AiCircuitStateRepository circuits;
     private final AuditPort audit;
+    private final Ports.NotificationPort notifications;
     private final Clock clock;
     private final int failbackSuccessStreak;
     private final Duration failbackCooldown;
@@ -45,6 +46,7 @@ public class AiProviderFailoverService implements Ports.AiProviderFailover {
                                      AiProviderRepository providers,
                                      AiCircuitStateRepository circuits,
                                      AuditPort audit,
+                                     Ports.NotificationPort notifications,
                                      Clock clock,
                                      @Value("${teachloop.ai.failover.failback-success-streak:3}") int failbackSuccessStreak,
                                      @Value("${teachloop.ai.failover.failback-cooldown-ms:600000}") long failbackCooldownMs) {
@@ -58,6 +60,7 @@ public class AiProviderFailoverService implements Ports.AiProviderFailover {
         this.providers = providers;
         this.circuits = circuits;
         this.audit = audit;
+        this.notifications = notifications;
         this.clock = clock;
         this.failbackSuccessStreak = failbackSuccessStreak;
         this.failbackCooldown = Duration.ofMillis(failbackCooldownMs);
@@ -91,6 +94,11 @@ public class AiProviderFailoverService implements Ports.AiProviderFailover {
                         "to", target.getProviderKey(),
                         "reason", "circuit_open",
                         "at", now.toString()));
+        notifyAdmins("ai_provider_failover", Map.of(
+                "provider", failedProviderKey,
+                "toProvider", target.getProviderKey(),
+                "failures", String.valueOf(failureCount(settings, failedProviderKey)),
+                "streak", String.valueOf(failbackSuccessStreak)));
         log.warn("AI provider 故障转移：{} -> {}（原因 circuit_open）", failedProviderKey, target.getProviderKey());
     }
 
@@ -129,6 +137,10 @@ public class AiProviderFailoverService implements Ports.AiProviderFailover {
                         "reason", "auto_failback",
                         "streak", String.valueOf(streak),
                         "at", now.toString()));
+        notifyAdmins("ai_provider_failback", Map.of(
+                "provider", primary.get().getProviderKey(),
+                "toProvider", providerKey,
+                "streak", String.valueOf(streak)));
         log.info("AI provider 自动回切：{} -> {}（连续成功 {} 份）",
                 providerKey, primary.get().getProviderKey(), streak);
     }
@@ -185,5 +197,22 @@ public class AiProviderFailoverService implements Ports.AiProviderFailover {
     /** 仅供测试断言使用。 */
     Clock clock() {
         return clock;
+    }
+
+    /** 决策 022 D4：切换必须让人知道，只发给管理员（教师侧已有熔断通知）。 */
+    private void notifyAdmins(String kind, Map<String, String> payload) {
+        if (notifications == null) {
+            return;
+        }
+        try {
+            notifications.notifyAdmins(new Ports.NotificationMessage(
+                    null, kind, "provider", payload.get("provider"), null, null, payload));
+        } catch (RuntimeException ex) {
+            log.warn("AI 故障转移通知发送失败（切换已生效）：{}", ex.getMessage());
+        }
+    }
+
+    private int failureCount(AiSettingsEntity settings, String providerKey) {
+        return circuits.findById(providerKey).map(AiCircuitState::getConsecutiveFailures).orElse(0);
     }
 }

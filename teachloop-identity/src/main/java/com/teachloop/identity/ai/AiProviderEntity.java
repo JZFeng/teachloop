@@ -56,6 +56,7 @@ public class AiProviderEntity {
      * 决策 024：provider 级额外请求头（JSON 对象，值为 {@code $uuid} 时运行时生成）。
      * 典型用途：opencode go 网关要求的 {@code x-opencode-session}。
      */
+    @org.hibernate.annotations.JdbcTypeCode(org.hibernate.type.SqlTypes.JSON)
     @Column(name = "extra_headers", columnDefinition = "jsonb")
     private String extraHeadersJson;
 

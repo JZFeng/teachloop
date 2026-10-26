@@ -32,6 +32,27 @@ class AiProviderFailoverTest {
     private final AiCircuitStateRepository circuits = mock(AiCircuitStateRepository.class);
     private final List<AuditEvent> audits = new ArrayList<>();
     private final AuditPort audit = audits::add;
+    private final java.util.List<com.teachloop.shared.port.Ports.NotificationMessage> notes = new java.util.ArrayList<>();
+    private final com.teachloop.shared.port.Ports.NotificationPort notifications =
+            new com.teachloop.shared.port.Ports.NotificationPort() {
+                @Override
+                public void notifyOfferingPublished(java.util.UUID offeringId) {
+                }
+
+                @Override
+                public void notifyScoresPublished(java.util.UUID offeringId) {
+                }
+
+                @Override
+                public void notifyAdmins(com.teachloop.shared.port.Ports.NotificationMessage message) {
+                    notes.add(message);
+                }
+
+                @Override
+                public void notify(java.util.List<com.teachloop.shared.port.Ports.NotificationMessage> messages) {
+                    notes.addAll(messages);
+                }
+            };
 
     private AiSettingsEntity settings;
     private AiProviderEntity primary;
@@ -44,7 +65,7 @@ class AiProviderFailoverTest {
         settings.setActiveProviderId(providerId("primary"));
         primary = provider("primary", 10);
         backup = provider("backup", 20);
-        service = new AiProviderFailoverService(settingsRepo, providers, circuits, audit,
+        service = new AiProviderFailoverService(settingsRepo, providers, circuits, audit, notifications,
                 Clock.fixed(NOW, ZoneOffset.UTC), 3, 600_000L);
         when(settingsRepo.findAll()).thenReturn(List.of(settings));
         when(providers.findAllByOrderByPriorityAscCreatedAtAsc()).thenReturn(List.of(primary, backup));
@@ -64,6 +85,9 @@ class AiProviderFailoverTest {
         assertThat(audits).hasSize(1);
         assertThat(audits.get(0).action()).isEqualTo("ai:provider_failover");
         assertThat(audits.get(0).detail()).containsEntry("to", "backup");
+        assertThat(notes).hasSize(1);
+        assertThat(notes.get(0).kind()).isEqualTo("ai_provider_failover");
+        assertThat(notes.get(0).payload()).containsEntry("toProvider", "backup");
     }
 
     @Test
@@ -96,6 +120,8 @@ class AiProviderFailoverTest {
         assertThat(audits).hasSize(1);
         assertThat(audits.get(0).action()).isEqualTo("ai:provider_failback");
         assertThat(audits.get(0).detail()).containsEntry("streak", "3");
+        assertThat(notes).hasSize(1);
+        assertThat(notes.get(0).kind()).isEqualTo("ai_provider_failback");
     }
 
     @Test

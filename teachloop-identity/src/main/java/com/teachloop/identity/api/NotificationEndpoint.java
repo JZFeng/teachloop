@@ -52,7 +52,7 @@ public class NotificationEndpoint {
      */
     private static final List<String> ARG_KEYS = List.of("title", "score", "total", "count",
             "teacher", "className", "setName", "dueAt", "provider", "failures", "requeued",
-            "nextProbeAt", "errorKind", "waiting");
+            "nextProbeAt", "errorKind", "waiting", "toProvider", "streak");
 
     private static final ObjectMapper JSON = new ObjectMapper();
 
