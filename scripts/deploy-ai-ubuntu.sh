@@ -69,6 +69,12 @@ else
   echo "  完成：web/dist"
 fi
 [ -f web/dist/index.html ] || die "web/dist/index.html 不存在"
+# 校验产物自洽：index.html 引用的入口 JS 必须真的存在（构建被中断会留下半套文件，
+# 2026-10-25 实际踩到：线上 dist 只剩 7 个文件、首页白屏）
+ENTRY_JS="$(grep -oE 'assets/index-[A-Za-z0-9_-]+\.js' web/dist/index.html | head -1)"
+[ -n "$ENTRY_JS" ] || die "dist/index.html 里找不到入口 JS，产物不完整"
+[ -f "web/dist/$ENTRY_JS" ] || die "dist 产物不完整：$ENTRY_JS 缺失（重新 pnpm build）"
+echo "  入口 JS 校验通过：$ENTRY_JS"
 
 say "3/6 同步源码与部署文件到 ${HOST}:${REMOTE_DIR}"
 rssh "mkdir -p '${REMOTE_DIR}'"
@@ -79,8 +85,10 @@ rsync -az --delete \
   --exclude 'uploads' --exclude 'web/dist' --exclude '.dsh' --exclude 'fixtures-local' \
   ./ "${DEPLOY_USER}@${HOST}:${REMOTE_DIR}/src/"
 rsync -az deploy/app/docker-compose.yml deploy/app/nginx.conf "${DEPLOY_USER}@${HOST}:${REMOTE_DIR}/"
-rsync -az --delete web/dist/ "${DEPLOY_USER}@${HOST}:${REMOTE_DIR}/dist/"
-echo "  源码 / dist 已同步"
+# 原地同步：nginx 把 ./dist 作为 bind mount，换目录（mv）会让容器挂在旧 inode 上直接 403。
+# --delete-after：先传新文件再删旧的，中断不会留下「index.html 指向不存在的 JS」。
+rsync -az --delete-after web/dist/ "${DEPLOY_USER}@${HOST}:${REMOTE_DIR}/dist/"
+echo "  源码 / dist 已同步（原地，--delete-after）"
 
 say "4/6 远端构建镜像 teachloop:${TAG}（amd64 原生，首次约 5–10 分钟）"
 if [ "$NO_BUILD" = "1" ]; then
@@ -119,6 +127,8 @@ ENVEOF
   echo "  .env 已生成（随机密钥，Postgres 与 app 共用同一密码）"
 fi
 rssh "cd '${REMOTE_DIR}' && docker compose --env-file .env up -d" || die "compose 起服务失败"
+# 静态目录是 bind mount：重建 web 容器才会重新解析挂载点（否则可能挂在被删的旧目录上 → 403）
+rssh "cd '${REMOTE_DIR}' && docker compose --env-file .env up -d --force-recreate web" >/dev/null 2>&1 || true
 
 say "6/6 等 /healthz"
 for i in $(seq 1 60); do
