@@ -62,7 +62,7 @@ public class AiProviderService {
 
     public List<View> list() {
         UUID active = aiSettings.activeProviderId();
-        return repo.findAllByOrderByDisplayNameAsc().stream()
+        return repo.findAllByOrderByPriorityAscCreatedAtAsc().stream()
                 .map(p -> view(p, active != null && active.equals(p.getId())))
                 .toList();
     }
@@ -140,6 +140,20 @@ public class AiProviderService {
             }
         }
         return view(p, p.getId().equals(aiSettings.activeProviderId()));
+    }
+
+    /** 决策 022 D1：管理员调整故障转移顺序；返回按新顺序排好的列表。 */
+    @Transactional
+    public List<View> reorder(UUID actorId, UUID id, int priority) {
+        if (priority < 0 || priority > 9999) {
+            throw ApiException.badRequest("error.ai.priorityInvalid");
+        }
+        AiProviderEntity p = repo.findById(id).orElseThrow(() -> ApiException.notFound("error.ai.providerNotFound"));
+        p.setPriority(priority);
+        p.setUpdatedAt(clock.instant());
+        p.setUpdatedBy(actorId);
+        repo.save(p);
+        return list();
     }
 
     /**

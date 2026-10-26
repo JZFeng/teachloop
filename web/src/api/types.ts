@@ -510,6 +510,20 @@ export interface AiProviderView {
   apiKeyMasked: string | null
   active: boolean
   updatedAt: string
+  /** 决策 022：故障转移顺序，数值小者优先。 */
+  priority: number
+  /** 决策 024：provider 级额外请求头（JSON 文本）。 */
+  extraHeaders: string | null
+}
+
+/** 决策 022：当前是否处于故障转移（不含密钥）。 */
+export interface AiProviderStatus {
+  active: boolean
+  fromProviderKey: string | null
+  reason: string | null
+  since: string | null
+  activeProviderId: string | null
+  activeProviderKey: string | null
 }
 
 export interface AiProviderRequest {
@@ -520,6 +534,8 @@ export interface AiProviderRequest {
   apiKey: string | null
   model: string
   models: string[]
+  priority: number
+  extraHeaders: string | null
 }
 
 export interface AiModelOption {

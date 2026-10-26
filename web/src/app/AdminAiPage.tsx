@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import { Alert, Button, Field, Input, PageHeader } from '../ui'
-import type { AiModelsView, AiProviderRequest, AiProviderView, AiTestResult } from '../api/types'
+import { Alert, Button, Field, Input, PageHeader, TextArea } from '../ui'
+import type { AiModelsView, AiProviderRequest, AiProviderStatus, AiProviderView, AiTestResult } from '../api/types'
 
 interface ModelsResult { ok: boolean; models: string[]; message: string }
 
@@ -12,10 +12,11 @@ interface FormState {
   baseUrl: string
   protocol: string
   apiKey: string
+  extraHeaders: string
 }
 
 const EMPTY: FormState = {
-  providerId: '', displayName: '', baseUrl: '', protocol: 'openai', apiKey: '',
+  providerId: '', displayName: '', baseUrl: '', protocol: 'openai', apiKey: '', extraHeaders: '',
 }
 
 /**
@@ -26,6 +27,7 @@ const EMPTY: FormState = {
 export default function AdminAiPage() {
   const { t } = useTranslation('translation')
   const [providers, setProviders] = useState<AiProviderView[]>([])
+  const [status, setStatus] = useState<AiProviderStatus | null>(null)
   const [formOpen, setFormOpen] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(EMPTY)
@@ -40,12 +42,14 @@ export default function AdminAiPage() {
 
   const load = async () => {
     try {
-      const [list, current] = await Promise.all([
+      const [list, current, failover] = await Promise.all([
         api.get<AiProviderView[]>('/api/admin/ai-providers'),
         api.get<AiModelsView>('/api/ai-models'),
+        api.get<AiProviderStatus>('/api/admin/ai-providers/status'),
       ])
       setProviders(list)
       setCurrentModel(current.currentModel)
+      setStatus(failover)
     } catch (e) {
       setError((e as Error).message)
     }
@@ -54,6 +58,24 @@ export default function AdminAiPage() {
   useEffect(() => { void load() }, [])
 
   const active = providers.find((p) => p.active)
+
+  // 新 provider 排到最后：取现有最大优先级 +10。
+  const nextPriority = () => providers.reduce((max, p) => Math.max(max, p.priority), 0) + 10
+
+  // 决策 022 D1：上移/下移通过与相邻项交换 priority 实现，顺序立刻可见。
+  const move = async (index: number, delta: number) => {
+    const target = providers[index]
+    const neighbour = providers[index + delta]
+    if (!target || !neighbour) return
+    setBusy(true)
+    try {
+      await api.put(`/api/admin/ai-providers/${target.id}/priority`, { priority: neighbour.priority })
+      await api.put(`/api/admin/ai-providers/${neighbour.id}/priority`, { priority: target.priority })
+      await load()
+    } catch (e) {
+      setError((e as Error).message)
+    } finally { setBusy(false) }
+  }
 
   const openAdd = () => {
     setEditingId(null)
@@ -70,6 +92,7 @@ export default function AdminAiPage() {
     setForm({
       providerId: p.providerId, displayName: p.displayName, baseUrl: p.baseUrl,
       protocol: p.protocol || 'openai', apiKey: '',
+      extraHeaders: p.extraHeaders ?? '',
     })
     setAvailableModels([])
     setSelectedModels(p.models?.length ? p.models : [p.model])
@@ -123,6 +146,10 @@ export default function AdminAiPage() {
       apiKey: form.apiKey.trim() || null,
       model: selectedModels[0],
       models: selectedModels,
+      priority: editingId
+        ? (providers.find((p) => p.id === editingId)?.priority ?? 100)
+        : nextPriority(),
+      extraHeaders: form.extraHeaders.trim() || null,
     }
     try {
       if (editingId) await api.put<AiProviderView>(`/api/admin/ai-providers/${editingId}`, body)
@@ -193,6 +220,20 @@ export default function AdminAiPage() {
         {active && (
           <p className="small muted">{t('app.ai.globalHint')}</p>
         )}
+        {status?.active && (
+          <div className="inline-note" style={{ marginBottom: 12 }}>
+            <b>{t('app.ai.failoverBadge')}</b>{' '}
+            {t('app.ai.failoverActive', {
+              from: status.fromProviderKey ?? '—',
+              to: status.activeProviderKey ?? '—',
+            })}
+            {' · '}
+            {t('app.ai.failoverDetail', {
+              reason: status.reason ?? '—',
+              since: status.since ? new Date(status.since).toLocaleString() : '—',
+            })}
+          </div>
+        )}
         <p className="small muted">{t('app.ai.temperatureNote')}</p>
         <Button variant="primary" onClick={openAdd}>{t('app.ai.addProvider')}</Button>
       </div>
@@ -200,13 +241,17 @@ export default function AdminAiPage() {
       <div className="card" style={{ maxWidth: 900, marginTop: 16 }}>
         <h2>{t('app.ai.providers')}</h2>
         {providers.length === 0 && <div className="inline-note">{t('app.ai.noProvider')}</div>}
-        {providers.map((p) => (
+        {providers.map((p, index) => (
           <div key={p.id} className="card" style={{ marginTop: 10 }}>
             <div className="row" style={{ justifyContent: 'space-between', alignItems: 'flex-start' }}>
               <div className="grow">
                 <b>{p.displayName}</b>
                 {p.active && <span className="badge" style={{ marginLeft: 8 }}>{t('app.ai.defaultBadge')}</span>}
                 <div className="small muted mono">{p.providerId} · {p.baseUrl}</div>
+                <div className="small muted">
+                  {t('app.ai.priorityLabel', { n: p.priority })}
+                  {p.extraHeaders ? ` · ${t('app.ai.extraHeadersSet')}` : ''}
+                </div>
                 <div className="small muted">
                   {p.protocol === 'openai' ? t('app.ai.protocolOpenai') : p.protocol}
                   {p.apiKeyMasked ? ` · ${t('app.ai.keySet', { mask: p.apiKeyMasked })}` : ` · ${t('app.ai.keyOptional')}`}
@@ -223,6 +268,12 @@ export default function AdminAiPage() {
                 </div>
               </div>
               <div className="row" style={{ gap: 6 }}>
+                <Button size="small" disabled={index === 0} onClick={() => void move(index, -1)}>
+                  {t('app.ai.moveUp')}
+                </Button>
+                <Button size="small" disabled={index === providers.length - 1} onClick={() => void move(index, 1)}>
+                  {t('app.ai.moveDown')}
+                </Button>
                 {providers.length > 1 && !p.active && (
                   <Button size="small" variant="primary" busy={busy} onClick={() => void setDefault(p)}>
                     {t('app.ai.setDefault')}
@@ -265,6 +316,16 @@ export default function AdminAiPage() {
               placeholder={t('app.ai.keyOptionalPlaceholder')} autoComplete="off"
               onChange={(e) => change({ apiKey: e.target.value })} />
           </Field>
+          <Field label={t('app.ai.extraHeaders')} hint={t('app.ai.extraHeadersHint')} htmlFor="provider-extra-headers">
+            <TextArea
+              id="provider-extra-headers"
+              rows={3}
+              value={form.extraHeaders}
+              placeholder='{"x-opencode-session": "$uuid"}'
+              onChange={(e) => setForm({ ...form, extraHeaders: e.target.value })}
+            />
+          </Field>
+
           <Field label={t('app.ai.models')} hint={t('app.ai.modelsHint')}
             extra={<Button size="small" onClick={() => void loadModels()} busy={busy}>{t('app.ai.loadModels')}</Button>}>
             {availableModels.length > 0 && (

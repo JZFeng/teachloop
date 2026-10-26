@@ -12,9 +12,30 @@ import org.springframework.web.bind.annotation.*;
 public class AiProviderEndpoint {
 
     private final AiProviderService service;
+    private final AiSettingsService aiSettings;
 
-    public AiProviderEndpoint(AiProviderService service) {
+    public AiProviderEndpoint(AiProviderService service, AiSettingsService aiSettings) {
         this.service = service;
+        this.aiSettings = aiSettings;
+    }
+
+    /** 决策 022：是否处于故障转移、从哪条切来、什么时候、为什么（不含密钥）。 */
+    @GetMapping("/status")
+    public AiSettingsService.FailoverState status(@RequestAttribute("currentUser") CurrentUser me) {
+        requireAdmin(me);
+        return aiSettings.failoverState();
+    }
+
+    /** 决策 022 D1：调整故障转移顺序（数值小者优先）。 */
+    @PutMapping("/{id}/priority")
+    public List<AiProviderService.View> priority(@RequestAttribute("currentUser") CurrentUser me,
+                                                 @PathVariable UUID id,
+                                                 @RequestBody PriorityRequest body) {
+        requireAdmin(me);
+        return service.reorder(me.id(), id, body.priority());
+    }
+
+    public record PriorityRequest(int priority) {
     }
 
     @GetMapping

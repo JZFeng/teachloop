@@ -48,6 +48,11 @@ public class AiSettingsService {
         }
     }
 
+    /** 决策 022：管理端要看到的故障转移事实（不含任何密钥）。 */
+    public record FailoverState(boolean active, String fromProviderKey, String reason,
+                                String since, String activeProviderId, String activeProviderKey) {
+    }
+
     public record TestRequest(String baseUrl, String model, String apiKey) {
     }
 
@@ -113,6 +118,23 @@ public class AiSettingsService {
     /** v1 只有全局模型；保留 teacherId 参数是为了不改 grading 的端口调用。 */
     public Optional<Ports.AiSettings> resolve(UUID teacherId) {
         return lookup().filter(Ports.AiSettings::configured);
+    }
+
+    /** 决策 022：当前是否处于故障转移、从哪条切来、什么时候、为什么。 */
+    @Transactional(readOnly = true)
+    public FailoverState failoverState() {
+        AiSettingsEntity e = repo.findById(1).orElse(null);
+        if (e == null) {
+            return new FailoverState(false, null, null, null, null, null);
+        }
+        String activeKey = activeProvider(e).map(AiProviderEntity::getProviderKey).orElse(null);
+        return new FailoverState(
+                e.getFailoverFromProviderKey() != null && !"manual".equals(e.getFailoverReason()),
+                e.getFailoverFromProviderKey(),
+                e.getFailoverReason(),
+                e.getLastFailoverAt() == null ? null : e.getLastFailoverAt().toString(),
+                e.getActiveProviderId() == null ? null : e.getActiveProviderId().toString(),
+                activeKey);
     }
 
     public UUID activeProviderId() {

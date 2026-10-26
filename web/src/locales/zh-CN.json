@@ -61,7 +61,16 @@
       "providerSaved": "模型已保存。",
       "models": "可用模型",
       "modelsHint": "点“获取可用模型”列出该地址下的模型；勾选需要的，保存后可在列表里切换当前使用。",
-      "modelRequired": "至少选择一个模型。"
+      "modelRequired": "至少选择一个模型。",
+      "failoverBadge": "故障转移中",
+      "failoverActive": "已从 {{from}} 自动切到 {{to}}",
+      "failoverDetail": "原因 {{reason}} · 时间 {{since}}",
+      "priorityLabel": "故障转移顺序 {{n}}（数值小者优先）",
+      "extraHeadersSet": "已配置额外请求头",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "extraHeaders": "额外请求头（JSON）",
+      "extraHeadersHint": "例如 {\"x-opencode-session\": \"$uuid\"}。值为 $uuid 时每次请求生成一个新 UUID；留空表示不发送。"
     },
     "name": "TeachLoop",
     "setup": {

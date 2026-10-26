@@ -61,7 +61,16 @@
       "providerSaved": "Model saved.",
       "models": "Available models",
       "modelsHint": "Click \"Get available models\" to list models served at this address; check the ones you need, then switch the current one from the list.",
-      "modelRequired": "Choose at least one model."
+      "modelRequired": "Choose at least one model.",
+      "failoverBadge": "Failover active",
+      "failoverActive": "Switched automatically from {{from}} to {{to}}",
+      "failoverDetail": "Reason {{reason}} · at {{since}}",
+      "priorityLabel": "Failover order {{n}} (lower number wins)",
+      "extraHeadersSet": "extra headers configured",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "extraHeaders": "Extra request headers (JSON)",
+      "extraHeadersHint": "e.g. {\"x-opencode-session\": \"$uuid\"}. A value of $uuid generates a new UUID per request; leave empty to send none."
     },
     "name": "TeachLoop",
     "setup": {
