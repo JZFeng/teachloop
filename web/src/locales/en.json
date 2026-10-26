@@ -1449,7 +1449,8 @@
         "due": "Due today",
         "new": "New",
         "mastered": "Mastered",
-        "paused": "Paused"
+        "paused": "Paused",
+        "favorite": "Favourites"
       },
       "searchPlaceholder": "Search a word or meaning; press Enter for any word",
       "filter": "Filter",

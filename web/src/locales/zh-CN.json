@@ -1449,7 +1449,8 @@
         "due": "今天到期",
         "new": "新词",
         "mastered": "已掌握",
-        "paused": "已暂停"
+        "paused": "已暂停",
+        "favorite": "已收藏"
       },
       "searchPlaceholder": "搜索单词或释义，按 Enter 查任意词",
       "filter": "筛选",

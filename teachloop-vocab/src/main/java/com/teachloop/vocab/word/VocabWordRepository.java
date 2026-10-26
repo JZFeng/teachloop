@@ -162,7 +162,8 @@ public class VocabWordRepository {
         return affected;
     }
 
-    public record Stats(long total, long dueToday, long newWords, long mastered, long paused) {
+    public record Stats(long total, long dueToday, long newWords, long mastered, long paused,
+                        long favorite) {
     }
 
     public Stats stats(UUID userId, String language) {
@@ -171,12 +172,14 @@ public class VocabWordRepository {
                        count(*) filter (where p.due_at <= now() and w.removed = false) as due_today,
                        count(*) filter (where p.state = 'NEW') as new_words,
                        count(*) filter (where p.state = 'GRADUATED') as mastered,
-                       count(*) filter (where w.removed) as paused
+                       count(*) filter (where w.removed) as paused,
+                       count(*) filter (where w.favorite) as favorite
                   from vocab_words w
                   join vocab_progress p on p.word_id = w.id
                  where w.user_id = ? and w.language = ? and w.deleted = false
                 """, (rs, rowNumber) -> new Stats(
-                rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5)),
+                rs.getLong(1), rs.getLong(2), rs.getLong(3), rs.getLong(4), rs.getLong(5),
+                rs.getLong(6)),
                 userId, language);
     }
 

@@ -60,6 +60,7 @@ interface Stats {
   newWords: number
   mastered: number
   paused: number
+  favorite: number
 }
 
 interface PendingAssignment {
@@ -579,6 +580,13 @@ export default function VocabLibraryPage() {
             onClick={() => update((next) => {
               if (pausedFilter) next.delete('paused')
               else next.set('paused', 'true')
+              next.set('page', '1')
+            })} />
+          {/* AC-59.12（T512）：收藏是纯标记，入口只放这一张可点卡片；工具条不再加视图切换（AC-59.9） */}
+          <StatCard value={stats.favorite} label={t('vocab.library.stats.favorite')} active={favorite}
+            onClick={() => update((next) => {
+              if (favorite) next.delete('favorite')
+              else next.set('favorite', 'true')
               next.set('page', '1')
             })} />
         </div>
