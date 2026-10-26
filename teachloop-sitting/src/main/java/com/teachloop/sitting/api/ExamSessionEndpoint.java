@@ -202,7 +202,8 @@ public class ExamSessionEndpoint {
                 bestByStudent.put(s.getStudentId(), s);
             }
         }
-        BigDecimal myScore = base == null ? null
+        // 决策 025：未公布成绩时「我的分」也不返回，否则概览区会绕过成绩公布的门。
+        BigDecimal myScore = base == null || !published ? null
                 : base.getObjectiveTotal().add(base.getSubjectiveTotal());
         BigDecimal average = null;
         boolean peersVisible = o.isPublishScores() && o.isShowPeerOverview();
@@ -226,7 +227,7 @@ public class ExamSessionEndpoint {
 
         return new SittingDtos.MyFeedbackView(o.getId().toString(), snap.title(),
                 BigDecimal.valueOf(snap.totalPoints()), published, message,
-                base == null ? null : attemptView(base), wrong, review, overview, objectiveMax);
+                base == null ? null : attemptView(base, !published), wrong, review, overview, objectiveMax);
     }
 
     /** 开始答题：起算点落库，返回服务端剩余秒数。 */
@@ -284,7 +285,7 @@ public class ExamSessionEndpoint {
         requireParticipant(o, me);
         ExamSessionService.Finalized f = sessions.submit(o, me.id(), body.contentHtml(),
                 body.contentText(), body.answers());
-        return submitResponse(f);
+        return submitResponse(f, o);
     }
 
     /**
@@ -304,7 +305,7 @@ public class ExamSessionEndpoint {
         ExamSessionService.Finalized f = sessions.submitFile(o, me.id(),
                 new ExamSessionService.FileAttachment(prepared.storagePath(), prepared.fileName(),
                         prepared.mime(), prepared.text(), prepared.unreadable()));
-        return submitResponse(f);
+        return submitResponse(f, o);
     }
 
     /** T062：视频上传；ffprobe 校验时长/宽高，超限指出具体项。 */
@@ -341,7 +342,7 @@ public class ExamSessionEndpoint {
             String key = attachments.storeVideo(o.getId(), bytes, ext, mime);
             ExamSessionService.Finalized f = sessions.submitVideo(o, me.id(),
                     new ExamSessionService.FileAttachment(key, name, mime, null, false));
-            return submitResponse(f);
+            return submitResponse(f, o);
         } catch (java.io.IOException ex) {
             throw ApiException.badRequest("视频读取失败，请重试");
         } catch (VideoProbe.ProbeException ex) {
@@ -357,9 +358,15 @@ public class ExamSessionEndpoint {
         }
     }
 
-    private SittingDtos.SubmitResponse submitResponse(ExamSessionService.Finalized f) {
+    /**
+     * 提交回执。决策 025：成绩未公布时 objectiveScore 返回 null——「AI 判完」不等于「老师公布」，
+     * 否则学生交完立刻看到分，刷新后又看（{@code /my-submissions} 掩码），前后矛盾。
+     */
+    private SittingDtos.SubmitResponse submitResponse(ExamSessionService.Finalized f, Offering o) {
         return new SittingDtos.SubmitResponse(f.submission().getId().toString(),
-                f.submission().getAttemptNo(), f.objectiveScore(), java.math.BigDecimal.valueOf(f.totalPoints()),
+                f.submission().getAttemptNo(),
+                o.isPublishScores() ? f.objectiveScore() : null,
+                java.math.BigDecimal.valueOf(f.totalPoints()),
                 f.autoSubmitted(), f.lateBySeconds(), f.submission().getGradingState().name(),
                 f.submission().isUnreadable(), f.submission().getAttachmentName());
     }
@@ -382,7 +389,7 @@ public class ExamSessionEndpoint {
                 && (active == null || active.getSubmittedAt() != null);
         List<SittingDtos.AttemptView> views = attempts.stream()
                 .sorted(Comparator.comparingInt(Submission::getAttemptNo))
-                .map(this::attemptView)
+                .map(s -> attemptView(s, !scoresVisible(o, s)))
                 .toList();
         return new SittingDtos.MyAttemptsView(o.getId().toString(), attempts.size(), o.getMaxAttempts(),
                 canRetry, active == null ? null : active.getAttemptNo(), views);
@@ -451,11 +458,32 @@ public class ExamSessionEndpoint {
                 s.started(), s.submitted(), s.autoSubmitted(), s.locked(), o.getTimingMode().name());
     }
 
+    /**
+     * 分数可见性（决策 025，2026-10-25）：教师公布成绩，或这一份的复核反馈已发布。
+     *
+     * <p>「AI 判完」不等于「老师批完」：未公布前学生只看得到自己的状态（已交卷），
+     * 看不到任何分数。与 {@link #myFeedback} 的 {@code published} 口径保持一致。
+     */
+    private boolean scoresVisible(Offering o, Submission s) {
+        if (o.isPublishScores()) {
+            return true;
+        }
+        return s != null && reviewFeedback.noteOf(s.getId())
+                .map(n -> n.publishedAt() != null)
+                .orElse(false);
+    }
+
     private SittingDtos.AttemptView attemptView(Submission s) {
+        return attemptView(s, false);
+    }
+
+    /** {@code maskScores=true} 时三个分数返回 null，其余字段照旧：学生端未公布成绩的场景。 */
+    private SittingDtos.AttemptView attemptView(Submission s, boolean maskScores) {
         return new SittingDtos.AttemptView(s.getAttemptNo(), str(s.getSubmittedAt()), s.isAutoSubmitted(),
                 s.getLateBySeconds(), str(s.getRejectedAt()), s.getRejectReason(), s.getGradingState().name(),
-                s.getObjectiveTotal(), s.getSubjectiveTotal(),
-                s.getObjectiveTotal().add(s.getSubjectiveTotal()), s.isActive(),
+                maskScores ? null : s.getObjectiveTotal(),
+                maskScores ? null : s.getSubjectiveTotal(),
+                maskScores ? null : s.getObjectiveTotal().add(s.getSubjectiveTotal()), s.isActive(),
                 s.getId().toString(), s.getAttachmentName(), s.getContentHtml(), s.getContentText());
     }
 

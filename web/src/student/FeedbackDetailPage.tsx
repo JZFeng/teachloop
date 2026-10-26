@@ -69,8 +69,14 @@ export default function FeedbackDetailPage() {
             <h2>① {t('student.myScore')}</h2>
             <div className="exam-result-score">
               <div className="score-big">
-                {fmtScore(attempt.totalScore)}
-                <small> / {fmtScore(feedback.totalPoints)}</small>
+                {attempt.totalScore == null ? (
+                  <span className="small muted">{t('student.scorePending')}</span>
+                ) : (
+                  <>
+                    {fmtScore(attempt.totalScore)}
+                    <small> / {fmtScore(feedback.totalPoints)}</small>
+                  </>
+                )}
               </div>
               <div className="result-facts">
                 {/* 无客观题（objectiveMax=0）时不显示这一行；老后端不返回该字段，用 !== 0 保留原行为 */}
@@ -91,7 +97,7 @@ export default function FeedbackDetailPage() {
               </div>
             </div>
             <div className="row" style={{ marginTop: 12 }}>
-              {attempt.gradingState === 'DONE'
+              {attempt.gradingState === 'DONE' && attempt.totalScore != null
                 ? <span className="tag green">{t('student.status_graded')}</span>
                 : <span className="tag amber">{t('student.pendingGrade')}</span>}
               {attempt.autoSubmitted && <span className="tag gray">{t('student.autoSubmitted')}</span>}

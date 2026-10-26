@@ -37,7 +37,9 @@ export function rowStatus(row: StudentRow): RowStatusKey {
   if (attempt?.rejectedAt) return 'rejected'
   if (!attempt) return 'not_started'
   if (!attempt.submittedAt) return 'in_progress'
-  if (attempt.gradingState === 'DONE') return 'graded'
+  // 决策 025：「AI 判完」不等于「老师公布」。分数没露出来就是「已交卷」，
+  // 只有后端给了分（整场公布成绩或这一份复核已发布）才显示「已批改」。
+  if (attempt.gradingState === 'DONE' && attempt.totalScore != null) return 'graded'
   return 'submitted'
 }
 

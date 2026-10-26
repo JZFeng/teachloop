@@ -228,9 +228,13 @@ class Phase2ExamTimingTest {
                 "/api/offerings/" + offeringId + "/submissions",
                 Map.of("answers", List.of(Map.of("number", 1, "answer", "A"),
                         Map.of("number", 2, "answer", "C"))));
-        // 快照里题 2 的答案是 B；库里已被改成 C。学生选 C，按快照必须判错（10 分而不是 20）
-        assertThat(new BigDecimal(submitted.get("objectiveScore").toString()))
-                .isEqualByComparingTo(new BigDecimal("10"));
+        // 决策 025：成绩未公布前，提交回执与 my-submissions 都不给分（AI 判完 ≠ 老师公布）
+        assertThat(submitted.get("objectiveScore")).as("未公布成绩时提交回执不给分").isNull();
+        Map<String, Object> beforePublish = get(base, student,
+                "/api/offerings/" + offeringId + "/my-submissions");
+        Map<?, ?> hiddenAttempt = (Map<?, ?>) ((List<?>) beforePublish.get("attempts")).get(0);
+        assertThat(hiddenAttempt.get("objectiveScore")).as("未公布时客观分为 null").isNull();
+        assertThat(hiddenAttempt.get("totalScore")).as("未公布时总分为 null").isNull();
         send(base, teacher, "POST", "/api/offerings/" + offeringId + "/scores/publish", Map.of());
         Map<String, Object> feedback = get(base, student, "/api/offerings/" + offeringId + "/my-feedback");
         assertThat(feedback.get("feedbackPublished")).isEqualTo(true);

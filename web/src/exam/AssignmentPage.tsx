@@ -356,12 +356,24 @@ export default function AssignmentPage() {
           <h2>{t('exam.assignmentSubmitted')}</h2>
           <div className="row" style={{ alignItems: 'flex-end', gap: 24 }}>
             <div className="score-big">
-              {fmtScore(showResult.objectiveScore)}
-              <small> / {fmtScore(showResult.totalPoints)}</small>
+              {showResult.objectiveScore == null ? (
+                <span className="small muted">{t('exam.scorePending')}</span>
+              ) : (
+                <>
+                  {fmtScore(showResult.objectiveScore)}
+                  <small> / {fmtScore(showResult.totalPoints)}</small>
+                </>
+              )}
             </div>
             <div className="small muted">
-              <div>{t('exam.resultObjective')}: {fmtScore(showResult.objectiveScore)}</div>
-              <div>{t('exam.resultSubjective')}: {t('exam.pendingGrade')}</div>
+              {showResult.objectiveScore == null ? (
+                <div>{t('exam.scorePendingHint')}</div>
+              ) : (
+                <>
+                  <div>{t('exam.resultObjective')}: {fmtScore(showResult.objectiveScore)}</div>
+                  <div>{t('exam.resultSubjective')}: {t('exam.pendingGrade')}</div>
+                </>
+              )}
             </div>
           </div>
           <div className="row" style={{ marginTop: 12 }}>
@@ -387,17 +399,29 @@ export default function AssignmentPage() {
           <h2>{t('exam.assignmentSubmitted')}</h2>
           <div className="row" style={{ alignItems: 'flex-end', gap: 24 }}>
             <div className="score-big">
-              {fmtScore(latest.totalScore)}
-              <small> / {fmtScore(entry.totalPoints)}</small>
+              {latest.totalScore == null ? (
+                <span className="small muted">{t('exam.scorePending')}</span>
+              ) : (
+                <>
+                  {fmtScore(latest.totalScore)}
+                  <small> / {fmtScore(entry.totalPoints)}</small>
+                </>
+              )}
             </div>
             <div className="small muted">
-              <div>{t('exam.resultObjective')}: {fmtScore(latest.objectiveScore)}</div>
-              <div>{t('exam.resultSubjective')}: {fmtScore(latest.subjectiveScore)}</div>
+              {latest.totalScore == null ? (
+                <div>{t('exam.scorePendingHint')}</div>
+              ) : (
+                <>
+                  <div>{t('exam.resultObjective')}: {fmtScore(latest.objectiveScore)}</div>
+                  <div>{t('exam.resultSubjective')}: {fmtScore(latest.subjectiveScore)}</div>
+                </>
+              )}
               <div>{t('exam.submittedAtLabel')}: {fmtDateTime(latest.submittedAt)}</div>
             </div>
           </div>
           <div className="row" style={{ marginTop: 12 }}>
-            {latest.gradingState === 'DONE'
+            {latest.totalScore != null && latest.gradingState === 'DONE'
               ? <span className="tag green">{t('exam.resultGraded')}</span>
               : <span className="tag amber">{t('exam.pendingGrade')}</span>}
             {latest.lateBySeconds > 0 && <span className="tag amber">{t('exam.lateTag')}</span>}

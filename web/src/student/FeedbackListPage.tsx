@@ -111,10 +111,13 @@ export default function FeedbackListPage() {
     {
       key: 'score',
       title: t('student.colScore'),
-      value: (item) => item.attempt.totalScore,
+      // 未公布成绩时没有分：排序按 -1 落到末尾，显示交给 render。
+      value: (item) => item.attempt.totalScore ?? -1,
       render: (item) => (
         <span className="mono">
-          {fmtScore(item.attempt.totalScore)} / {fmtScore(item.row.entry?.totalPoints ?? 0)}
+          {item.attempt.totalScore == null
+            ? t('student.scorePending')
+            : `${fmtScore(item.attempt.totalScore)} / ${fmtScore(item.row.entry?.totalPoints ?? 0)}`}
         </span>
       ),
       sortable: true,
@@ -193,20 +196,28 @@ export default function FeedbackListPage() {
                     </div>
                     <div className="right">
                       <div className="score-big" style={{ fontSize: 22 }}>
-                        {fmtScore(attempt.totalScore)}
-                        <small className="muted"> / {fmtScore(row.entry?.totalPoints ?? 0)}</small>
+                        {attempt.totalScore == null ? (
+                          <span className="tag gray">{t('student.scorePending')}</span>
+                        ) : (
+                          <>
+                            {fmtScore(attempt.totalScore)}
+                            <small className="muted"> / {fmtScore(row.entry?.totalPoints ?? 0)}</small>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="row">
                     <span className={`tag ${rowIsExam(row) ? 'blue' : 'gray'}`}>{kindLabel(row.offering.kind)}</span>
                     <span className={`tag ${statusTagClass(status)}`}>{t(`student.status_${status}`)}</span>
-                    <span className="tag gray">
-                      {t('student.scoreBreakdown', {
-                        objective: fmtScore(attempt.objectiveScore),
-                        subjective: fmtScore(attempt.subjectiveScore),
-                      })}
-                    </span>
+                    {attempt.totalScore != null && (
+                      <span className="tag gray">
+                        {t('student.scoreBreakdown', {
+                          objective: fmtScore(attempt.objectiveScore),
+                          subjective: fmtScore(attempt.subjectiveScore),
+                        })}
+                      </span>
+                    )}
                   </div>
                 </div>
               )

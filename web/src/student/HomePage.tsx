@@ -107,13 +107,16 @@ export default function StudentHomePage() {
                         {row.entry && <span className="muted"> / {fmtScore(row.entry.totalPoints)}</span>}
                       </span>
                     )}
-                    {attempt?.submittedAt && (
+                    {attempt?.submittedAt && attempt.totalScore != null && (
                       <span className="small muted">
                         {t('student.scoreBreakdown', {
                           objective: fmtScore(attempt.objectiveScore),
                           subjective: fmtScore(attempt.subjectiveScore),
                         })}
                       </span>
+                    )}
+                    {attempt?.submittedAt && attempt.totalScore == null && (
+                      <span className="small muted">{t('student.scorePending')}</span>
                     )}
                     {rowHasFeedback(row) && <span className="tag green">{t('student.hasFeedback')}</span>}
                     {row.attempts && row.attempts.attemptsUsed > 1 && (

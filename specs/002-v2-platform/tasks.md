@@ -667,7 +667,7 @@ AC-4.23④ / AC-4.24–4.29、FR-146–150、plan §20。
 | 2026-10-19 | T190/T193/T194 学生端 | 完成（部分依赖未接入） | 作业提交（草稿/提交/拒收后重交）、反馈列表表格/卡片切换且切换被记住、反馈详情固定顺序。错题与解析、班级概览依赖尚未实现的 T110/T111，界面明确显示「未接入」，未编造 |
 | 2026-10-19 | 浏览器联调（教师 + 学生） | 完成 | 起 8010 后端 + 5173 前端，经 API 种入 1 份卷、1 个班、1 场考试、1 次作业；实测登录 → 教师首页 → 批改详情 → 立即派发 → 复核通过 → 学生考试 → 作答 → 未答检查 → 交卷。1280×813，截图在 `.docs/screenshots/` |
 | 2026-10-19 | T070/T152 支撑：逐题对错落库 | 完成 | V012：`objective_answers.correct` + `item_id` 索引；提交/自动保存时按快照标准答案判定并落库。报表与反馈都读这一列，不在 SQL 里重算匹配策略 |
-| 2026-10-19 | T111/T112/T113/T194 学生反馈详情与班级概览 | 完成 | 新增 `GET /api/offerings/{id}/my-feedback`：自己的分始终可见；反馈未发布时不返回标准答案与评语；错题含你的作答/正确答案（来自布置快照）；`FeedbackOverview` 给出应交/实交/我的分/全班均分（仅在 publishScores && showPeerOverview 时返回均分）。Phase2ExamTimingTest 覆盖「未发布不泄漏」「发布后错题与快照答案」「概览数字」 |
+| 2026-10-19 | T111/T112/T113/T194 学生反馈详情与班级概览 | 完成 | 新增 `GET /api/offerings/{id}/my-feedback`：自己的分始终可见（**2026-10-25 决策 025 已推翻**：改为按公布状态，未公布时所有分数返回 null；见 spec AC-12.3 / D-5 与 `docs/decisions/025-offering-status-by-role.md`）；反馈未发布时不返回标准答案与评语；错题含你的作答/正确答案（来自布置快照）；`FeedbackOverview` 给出应交/实交/我的分/全班均分（仅在 publishScores && showPeerOverview 时返回均分）。Phase2ExamTimingTest 覆盖「未发布不泄漏」「发布后错题与快照答案」「概览数字」 |
 | 2026-10-19 | T192 报表 Top N 错题聚合 | 完成（导出未接入） | 新增 `GET /api/reports/wrong-items`（report 模块只读 SQL，CTE 去重最新 attempt；`objective_answers.correct` 聚合；classIds/from/to/limit）。报表页接线：查询按钮 + 正确率升序 + 最常错选；`WrongItemsReport` 6 个用例全绿（含 AC-17.10 limit 不缩统计、学生 403、时间/班级过滤、最新 attempt） |
 | 2026-10-19 | T182 补：重试失败项 | 完成 | `POST /api/offerings/{id}/grading/retry-failed` 只把 FAILED 退回 PENDING（运行中/已完成不动），写审计；教师端按钮启用并显示重试份数 |
 | 2026-10-19 | 浏览器复核（报表 + 反馈） | 完成 | 重启后端（含 V012）与 Vite，实测报表页 Top N 查询（正确率/最常错选/作答分布）与学生反馈详情（错题/正确答案/解析未生成/概览）；截图 `.docs/screenshots/reports-wrong-items.png`、`feedback-detail.png` |

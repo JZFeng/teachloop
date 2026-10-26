@@ -68,6 +68,8 @@ class ObjectiveRecomputeTest {
                 "timingMode", "INDIVIDUAL", "dueAt", "2026-12-31T23:59:59Z", "durationMinutes", 60,
                 "classes", List.of(Map.of("classId", classId))), "id");
         post(base, teacher, "/api/offerings/" + offeringId + "/publish", Map.of(), "id");
+        // 本用例验证客观分重算，先把成绩公布出去，避免决策 025 的未公布掩码挡住分数
+        request(base, teacher, "POST", "/api/offerings/" + offeringId + "/scores/publish", Map.of());
         request(base, student, "POST", "/api/offerings/" + offeringId + "/start", Map.of());
         request(base, student, "POST", "/api/offerings/" + offeringId + "/submissions",
                 Map.of("answers", List.of(Map.of("number", 1, "answer", "A"))));

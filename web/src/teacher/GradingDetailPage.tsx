@@ -87,6 +87,10 @@ export default function GradingDetailPage() {
   const [rejectReason, setRejectReason] = useState('')
   const [rejectError, setRejectError] = useState<string | null>(null)
   const [rejecting, setRejecting] = useState(false)
+  // 决策 025：成绩以老师公布为准，所以这一页必须有公布入口，否则学生永远看不到分。
+  const [publishingScores, setPublishingScores] = useState(false)
+  const [publishScoresNote, setPublishScoresNote] = useState<string | null>(null)
+  const [publishScoresError, setPublishScoresError] = useState<string | null>(null)
   const [auditTarget, setAuditTarget] = useState<OfferingSubmissionView | null>(null)
 
   const filter = normalizeFilter(params.get('state'))
@@ -128,6 +132,22 @@ export default function GradingDetailPage() {
     }
     setAiBlocked(true)
     return true
+  }
+
+  /** 公布成绩：学生从此能看到自己的分数（此前只有「已交卷 · 待老师公布」）。 */
+  const publishOfferingScores = async () => {
+    setPublishingScores(true)
+    setPublishScoresError(null)
+    setPublishScoresNote(null)
+    try {
+      await api.post(`/api/offerings/${offeringId}/scores/publish`)
+      setPublishScoresNote(t('teacher.detail.publishScoresDone'))
+      reload()
+    } catch (err) {
+      setPublishScoresError(errorMessage(err))
+    } finally {
+      setPublishingScores(false)
+    }
   }
 
   const dispatch = async () => {
@@ -436,6 +456,16 @@ export default function GradingDetailPage() {
                 <Button size="small" variant="text" onClick={() => navigate(`/review?offeringId=${offering.id}`)}>
                   {t('teacher.detail.toReview')}
                 </Button>
+                {!offering.publishScores && (
+                  <Button
+                    size="small"
+                    onClick={() => void publishOfferingScores()}
+                    busy={publishingScores}
+                    title={t('teacher.detail.publishScoresHint')}
+                  >
+                    {t('teacher.detail.publishScores')}
+                  </Button>
+                )}
                 <Button size="small" variant="text" onClick={() => navigate(`/offerings/${offering.id}/summary`)}>
                   {t('teacher.common.summary')}
                 </Button>
@@ -558,6 +588,17 @@ export default function GradingDetailPage() {
                   ? <Button size="small" onClick={() => navigate(aiSetupTarget)}>{t('teacher.detail.goSetAi')}</Button>
                   : undefined}
               />
+            )}
+            {publishScoresError && (
+              <Alert
+                type="error"
+                showIcon
+                style={{ marginTop: 10 }}
+                message={t('teacher.detail.publishScoresFailed', { message: publishScoresError })}
+              />
+            )}
+            {publishScoresNote && (
+              <Alert type="success" showIcon style={{ marginTop: 10 }} message={publishScoresNote} />
             )}
             {dispatchError && (
               <Alert

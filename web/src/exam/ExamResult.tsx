@@ -39,8 +39,14 @@ export function ExamResult({
           <h2>{t('exam.resultScoreTitle')}</h2>
           <div className="exam-result-score">
             <div className="score-big">
-              {fmtScore(total)}
-              <small> / {fmtScore(totalPoints)}</small>
+              {total == null ? (
+                <span className="small muted">{t('exam.scorePending')}</span>
+              ) : (
+                <>
+                  {fmtScore(total)}
+                  <small> / {fmtScore(totalPoints)}</small>
+                </>
+              )}
             </div>
             <div className="result-facts">
               <div className="kv"><span>{t('exam.resultObjective')}</span><span className="mono">{fmtScore(objective)}</span></div>
@@ -52,9 +58,11 @@ export function ExamResult({
             </div>
           </div>
           <div className="row" style={{ marginTop: 14 }}>
-            {pending
-              ? <span className="tag amber">{t('exam.resultPending')}</span>
-              : <span className="tag green">{t('exam.resultGraded')}</span>}
+            {total == null
+              ? <span className="tag amber">{t('exam.scorePending')}</span>
+              : pending
+                ? <span className="tag amber">{t('exam.resultPending')}</span>
+                : <span className="tag green">{t('exam.resultGraded')}</span>}
             {lateBy > 0 && <span className="tag amber">{t('exam.resultLate', { minutes: Math.ceil(lateBy / 60) })}</span>}
           </div>
         </div>

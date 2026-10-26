@@ -199,9 +199,10 @@ export interface OfferingSubmissionView {
   rejectedAt: string | null
   rejectReason: string | null
   gradingState: string
-  objectiveScore: number
-  subjectiveScore: number
-  totalScore: number
+  /** 决策 025：老师公布成绩（或这一份复核已发布）前，三个分数都是 null。 */
+  objectiveScore: number | null
+  subjectiveScore: number | null
+  totalScore: number | null
   active: boolean
   /** 决策 022 D3：这份提交由哪条 provider 判（人工判分为 null）。 */
   gradedProvider: string | null
@@ -307,7 +308,8 @@ export interface AnswerSaveResponse {
 export interface SubmitResponse {
   submissionId: string
   attemptNo: number
-  objectiveScore: number
+  /** 决策 025：成绩未公布时为 null——学生看不到分数，只能看到「已交卷」。 */
+  objectiveScore: number | null
   totalPoints: number
   autoSubmitted: boolean
   lateBySeconds: number
@@ -324,9 +326,10 @@ export interface AttemptView {
   rejectedAt: string | null
   rejectReason: string | null
   gradingState: string
-  objectiveScore: number
-  subjectiveScore: number
-  totalScore: number
+  /** 决策 025：老师公布成绩（或这一份复核已发布）前，三个分数都是 null。 */
+  objectiveScore: number | null
+  subjectiveScore: number | null
+  totalScore: number | null
   active: boolean
   submissionId: string | null
   attachmentName: string | null
