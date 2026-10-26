@@ -55,7 +55,7 @@
 - **`RoleAccessTest`（testcontainers）4/4 绿**，`RoleNavMatrixTest` 6/6、`FeaturesEndpointTest` 5/5。
 - **ⓘ 气泡在页面最顶部，向上展开会压住侧栏品牌区**：`InfoHint` 的 `placement="top"` 是组件级统一设置，本次未改。
 - **`./scripts/env.sh deploy qa` 打进快照的是工作区当前状态**，两轮都同时包含另一条并行会话未提交的改动
-  （T500 作业页、批改详情页、`TableToolbar`/`ViewTabs` 等）。
+  （T505 作业页、T500 批改详情页、`TableToolbar`/`ViewTabs` 等）。
 - **共享浏览器里我改了登录态**：第一轮用 127.0.0.1 / localhost 的 student01 会话验证；第二轮另起独立 origin，
   没有动并行会话的教师登录态。
 
