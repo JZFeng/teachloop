@@ -1,9 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 import { trackEvent } from './api/events'
-import { ensureCsrf } from './api/client'
+import { api, ensureCsrf } from './api/client'
 import { useAuth } from './api/auth'
 import { useFeatures } from './api/features'
 import { Loading } from './components/States'
@@ -111,14 +111,31 @@ function ShellLayout() {
 export default function App() {
   const { features, loaded } = useFeatures()
   const location = useLocation()
+  // 全新实例没有任何管理员时，谁打开首页都只能看到登录页（而这时根本没有账号），
+  // 所以按 /api/setup/status 的 needsAdmin 自动把人送到 /setup。
+  const [needsAdmin, setNeedsAdmin] = useState(false)
 
   useEffect(() => {
     void ensureCsrf()
   }, [])
 
   useEffect(() => {
+    if (!['/', '/login', '/setup'].includes(location.pathname)) return
+    let alive = true
+    api
+      .get<{ needsAdmin: boolean }>('/api/setup/status')
+      .then((s) => { if (alive) setNeedsAdmin(Boolean(s.needsAdmin)) })
+      .catch(() => { if (alive) setNeedsAdmin(false) })
+    return () => { alive = false }
+  }, [location.pathname])
+
+  useEffect(() => {
     trackEvent('page_view', { route: location.pathname })
   }, [location.pathname])
+
+  if (needsAdmin && location.pathname !== '/setup') {
+    return <Navigate to="/setup" replace />
+  }
 
   return (
     <Routes>
