@@ -62,7 +62,8 @@
 | 2026-10-25 | T444 | 完成 | 词集页两张表（词集补排序/分页/选择/批量/URL）、发词预览、班级成员表并入；班级汇总两张只读表与复核逐题只加 `tl-table` 类；编辑器/表单表未动（`RAW_TABLE` 基线冻结 14 处）；截图 `sets-light.png`、`classes-members-light.png` |
 | 2026-10-25 | T445 | 完成 | `check-ui.py` 新增第 6 条规则 `RAW_TABLE` + 基线重生成（145 → 128 处，无规则新增上升）；002 AC-24.3/24.4 与 003 spec/plan/tasks、`docs/DELIVERY-STATUS.md` 同步；`check-ui`/`check-i18n`/`contrast` 全绿 |
 | 2026-10-25 | T446 | 完成 | 报告 `docs/reports/2026-10-25-table-unify/index.md` + 9 张亮/暗截图；报告列明 3 项未验证（改造前截图、学生反馈有数据路径、报表错题表真实查询）与「无自动化视觉基线（T308）」 |
-| 2026-10-25 | T486 | 完成 | 用户要求「错误/警告一律上色」：新增 `ui/InlineNote`（四档）+ `.inline-note.ok/.warn/.err` 文字与底色同给 + 全局 `.chip`（原先根本没有全局样式，词库状态渲染成灰字）+ 12 处灰字失败改红/黄；`check-ui` 第 7 条规则 `MUTED_FAILURE`（存量 0，基线不豁免）；宪法第十五条加「反馈必须带语义色」；决策 `docs/decisions/026-message-tones.md`（四档判据）。反证：插入 `__guard_probe.tsx` 后退出码 1 并打印命中两行，删除后回 0；`check-ui` 存量 89、`check-i18n` 1697 键对齐、`typecheck`/`build`/`test 94` 全 0；截图 `docs/reports/2026-10-25-message-colors/` |
+| 2026-10-25 | T496 | 完成 | 用户要求「错误/警告一律上色」：新增 `ui/InlineNote`（四档）+ `.inline-note.ok/.warn/.err` 文字与底色同给 + 全局 `.chip`（原先根本没有全局样式，词库状态渲染成灰字）+ 12 处灰字失败改红/黄；`check-ui` 第 7 条规则 `MUTED_FAILURE`（存量 0，基线不豁免）；宪法第十五条加「反馈必须带语义色」；决策 `docs/decisions/026-message-tones.md`（四档判据）。反证：插入 `__guard_probe.tsx` 后退出码 1 并打印命中两行，删除后回 0；`check-ui` 存量 89、`check-i18n` 1697 键对齐、`typecheck`/`build`/`test 94` 全 0；截图 `docs/reports/2026-10-25-message-colors/` |
+| 2026-10-25 | T497 | 完成 | 用户反馈 `/assignments/new` 一屏堆满灰字提示。新增 `ui/InfoHint`（ⓘ + Popover，trigger 只开 hover/focus）+ `Field.info` + `PageHeader.info`；删「参考范文（可选）」字段（页面不再发 `anchorExamples`，后端列与历史值保留，`trimmed()` 对 null 安全）；删 4 条自解释 hint（title/instructions/totalPoints/classes）；截止时间、宽限期、最多尝试、页面副标题 4 条长解释收进 ⓘ；评分标准格式 hint 保留可见。zh/en 删 7 键、加 `common.moreInfo`；`typecheck`/`build`/`check-ui`（存量 86，第 8 条 `ROW_ACTION_OVERFLOW` 已在）/`check-i18n`（1705 键）全绿；5174 实测：页面上搜不到「参考范文」与 4 条被删文案，4 个 ⓘ 悬停与点击都能打开且文案正确；截图 `docs/reports/2026-10-25-assignment-form/` |
 
 ## 已知缺口
 

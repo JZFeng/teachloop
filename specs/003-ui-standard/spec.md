@@ -84,6 +84,12 @@
 **绿**=刚完成且有时效，**蓝/中性**=纯说明。判据写在 `docs/decisions/026-message-tones.md`。
 **验收**：见 AC-70.1–70.4。
 
+### US-71 作为教师，长解释不占屏，需要时再展开
+
+一屏十几个字段、每个字段下面两行灰字，真正要填的输入框反而被埋起来。长解释收进标签旁的 ⓘ，
+页面只留「这是什么」；自解释的句子直接删，不折进气泡。
+**验收**：见 AC-71.1–71.3。
+
 ---
 
 ## 3. 验收标准
@@ -132,6 +138,17 @@
 - [x] AC-70.3 行内状态 chip 有基础样式与四档语义色（`app.css` 的 `.chip` + `.chip.ok/.warn/.err/.info`）：词库「未准备」黄 /「内容生成中」蓝 /「内容生成失败」红、词集详情「已暂停」黄 /「已删除」红、发词预览「已过期」黄；`.teacher-page .chip` 的筛选样式不受影响
 - [x] AC-70.4 界面标准面板并排展示四档提示条与四档 chip（`web/src/app/UiKitPanel.tsx`）作为唯一活参考；四档判据（什么算 error、什么算 warning）写在 `docs/decisions/026-message-tones.md`
 
+#### US-71 长解释不占屏：标签旁的 ⓘ（2026-10-25）
+
+> 编号顺延：US-71、AC-71.1–71.3、FR-153、T497。
+
+用户原话：「整个页面杂乱无章地堆着一堆信息，能不能把这些信息设计成带 Info 图标的 Label」。
+判据只有一条：**页面上看不出来的规则**才进气泡；「学生端看到的就是这个标题」这类自解释句直接删。
+
+- [x] AC-71.1 `ui/Field` 与 `ui/PageHeader` 支持 `info` 属性，渲染为标签旁 / 标题旁的 ⓘ（`ui/InfoHint.tsx`）；触发只开 `hover + focus`，**不加 click**——三者都开时「悬停打开→再点关闭」，快点的人看不到内容（实测踩到）；点一下按钮会先拿到焦点，触屏同样能开
+- [x] AC-71.2 自解释文案一律删除、不折进气泡：本轮删 4 条（`titleHint`「学生端看到的就是这个标题」、`instructionsHint`「学生只看到这段文字与评分标准」、`totalPointsHint`「1–1000 分…」、`classesHint`「可多选。勾几个班…」），zh/en 同步删键
+- [x] AC-71.3 `Field` 的 `hint`（短格式约定，如「一条评分项一行，合计等于总分」）与 `info`（长行为解释，如「批改每晚 02:30 开始」）分工写进组件注释；「新建作业」页实测 4 个 ⓘ（页面标题 + 截止时间 + 宽限期 + 最多尝试），评分标准的格式 hint 仍在标签下方可见
+
 ---
 
 ## 4. 功能需求
@@ -143,7 +160,7 @@
 | FR-054 | 组件库接入：antd 6 + ConfigProvider（算法/令牌/语言包）+ React 19 兼容 | US-28 |
 | FR-055 | 主题切换：Segmented 放在侧栏底部与资料页，选择写 `localStorage` | US-27 |
 | FR-056 | 组件展示入口：资料页「偏好设置 → 界面标准」面板（旧链接 `/ui-kit` 重定向到展开态），组件 × 状态的唯一参考 | US-28 |
-| FR-057 | 静态守卫 `scripts/check-ui.py`：7 条规则（含 FR-152 的 `MUTED_FAILURE`）+ 基线文件 + `make check-ui` | US-30 |
+| FR-057 | 静态守卫 `scripts/check-ui.py`：8 条规则（含 FR-152 的 `MUTED_FAILURE` 与 `ROW_ACTION_OVERFLOW`）+ 基线文件 + `make check-ui` | US-30 |
 | FR-058 | 对比度守卫 `scripts/ui/contrast.py`：断言两处令牌一致 + 16 组对比度 | US-30 |
 | FR-059 | 5 屏迁移：登录、首页、试卷列表、新建作业、复核 | US-28 |
 | FR-060 | 中文排版基线：14px / 行高 1.65 / 字号六档 / 表格密度 middle | US-27 |
@@ -154,6 +171,7 @@
 | FR-141 | 列配置（显隐 / 上下移）只保留在「我的词库」，持久化到 `/api/vocab/prefs`；不进组件 | US-68 |
 | FR-151 | 反馈语义色：`ui/InlineNote` 四档 + `.inline-note.ok/.warn/.err` + `.chip.ok/.warn/.err/.info`；失败与阻断禁止灰字，判据见决策 026 | US-70 |
 | FR-152 | 静态守卫 `MUTED_FAILURE`：灰度容器（`muted` / 无色调 `inline-note`）承载错误表达式即失败，基线不豁免 | US-70 |
+| FR-153 | 长解释入口：`ui/InfoHint`（hover + focus 触发的 ⓘ）+ `Field.info` / `PageHeader.info`；`hint` 只留给一眼要看到的短格式约定 | US-71 |
 
 ---
 

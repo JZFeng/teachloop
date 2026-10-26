@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { InfoHint } from './InfoHint'
 
 /**
  * 页面标题区：eyebrow / 标题 / 说明 / 操作按钮，四件套统一间距。
@@ -45,6 +46,7 @@ const EYEBROW_RULES: EyebrowRule[] = [
 export function PageHeader({
   title,
   sub,
+  info,
   actions,
   eyebrow,
   tone,
@@ -52,6 +54,8 @@ export function PageHeader({
 }: {
   title: ReactNode
   sub?: ReactNode
+  /** 标题旁 ⓘ 气泡里的长解释（与 sub 二选一：一屏只说一次，别两处重复）。 */
+  info?: ReactNode
   actions?: ReactNode
   /** 覆盖路由推断；只在路由表表达不了时用。 */
   eyebrow?: ReactNode
@@ -73,7 +77,12 @@ export function PageHeader({
             {label}
           </div>
         )}
-        {!hideTitle && <h1 className="tl-page-title">{title}</h1>}
+        {!hideTitle && (
+          <div className="tl-page-title-row">
+            <h1 className="tl-page-title">{title}</h1>
+            {info && <InfoHint>{info}</InfoHint>}
+          </div>
+        )}
         {sub && <p className="tl-page-sub">{sub}</p>}
       </div>
       {actions && <div className="tl-page-actions">{actions}</div>}

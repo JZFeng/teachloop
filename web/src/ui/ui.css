@@ -74,6 +74,23 @@
   align-items: center;
   gap: 8px;
 }
+
+/*
+ * 标签旁的 ⓘ（2026-10-25 用户要求）：长解释收进气泡，页面只留「这是什么」。
+ * 三种触发都开（悬停 / 聚焦 / 点击），所以触屏与键盘都能打开。
+ */
+.tl-info-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px; padding: 0; border: 0; border-radius: 50%;
+  background: none; color: var(--muted-2); font-size: 14px; line-height: 1; cursor: pointer;
+}
+.tl-info-btn:hover { color: var(--accent-text); }
+.tl-info-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; color: var(--accent-text); }
+.tl-info-body { max-width: 320px; font-size: 12.5px; line-height: 1.65; color: var(--text); }
+/* 标题行：标题 + ⓘ 同一基线，标题很长时 ⓘ 不被挤走。 */
+.tl-page-title-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tl-page-title-row .tl-page-title { margin: 0; }
+
 .tl-field-required {
   color: var(--red);
   margin-left: 3px;

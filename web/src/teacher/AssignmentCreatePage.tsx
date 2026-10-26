@@ -11,7 +11,6 @@ import {
   Input,
   Loading,
   PageHeader,
-  TextArea,
   UploadOutlined,
   useConfirm,
   useToast,
@@ -55,7 +54,6 @@ export default function AssignmentCreatePage() {
   const [totalPoints, setTotalPoints] = useState('')
   // 空就是空：不预填任何 rubric。留空无法发布，提示里说清格式与「合计 = 总分」。
   const [rubricMarkdown, setRubricMarkdown] = useState('')
-  const [anchorExamples, setAnchorExamples] = useState('')
   const [selectedClassIds, setSelectedClassIds] = useState<string[]>([])
   const [dueAt, setDueAt] = useState('')
   const [graceHours, setGraceHours] = useState('3')
@@ -157,7 +155,6 @@ export default function AssignmentCreatePage() {
         instructions: instructions.trim(),
         totalPoints: points,
         rubricMarkdown,
-        anchorExamples: anchorExamples.trim() || null,
         dueAt: dueIso,
         graceHours: grace,
         maxAttempts: attempts,
@@ -180,7 +177,7 @@ export default function AssignmentCreatePage() {
       </div>
       <PageHeader
         title={t('teacher.assignmentCreate.title')}
-        sub={t('teacher.assignmentCreate.sub')}
+        info={t('teacher.assignmentCreate.sub')}
       />
 
       {loading && <Loading label={t('teacher.common.loading')} />}
@@ -191,7 +188,6 @@ export default function AssignmentCreatePage() {
           <Field
             label={t('teacher.assignmentCreate.fieldTitle')}
             required
-            hint={t('teacher.assignmentCreate.titleHint')}
             htmlFor="assign-title"
           >
             <Input
@@ -205,7 +201,6 @@ export default function AssignmentCreatePage() {
           <Field
             label={t('teacher.assignmentCreate.fieldInstructions')}
             required
-            hint={t('teacher.assignmentCreate.instructionsHint')}
             htmlFor="assign-instructions"
             extra={(
               <Button
@@ -249,7 +244,6 @@ export default function AssignmentCreatePage() {
           <Field
             label={t('teacher.assignmentCreate.fieldTotalPoints')}
             required
-            hint={t('teacher.assignmentCreate.totalPointsHint')}
             htmlFor="assign-total"
           >
             <Input
@@ -313,21 +307,7 @@ export default function AssignmentCreatePage() {
             />
           </Field>
 
-          <Field
-            label={t('teacher.assignmentCreate.anchorExamples')}
-            hint={t('teacher.assignmentCreate.anchorExamplesHint')}
-            htmlFor="assign-anchors"
-          >
-            <TextArea
-              id="assign-anchors"
-              rows={4}
-              value={anchorExamples}
-              onChange={(e) => setAnchorExamples(e.target.value)}
-              placeholder={t('teacher.assignmentCreate.anchorExamplesPlaceholder')}
-            />
-          </Field>
-
-          <Field label={t('teacher.assignmentCreate.classes')} required hint={t('teacher.assignmentCreate.classesHint')}>
+          <Field label={t('teacher.assignmentCreate.classes')} required>
             {classes.length === 0 ? (
               <p className="muted">
                 {t('teacher.assignmentCreate.noClasses')}{' '}
@@ -351,7 +331,12 @@ export default function AssignmentCreatePage() {
           </Field>
 
           <div className="form-grid">
-            <Field label={t('teacher.assignmentCreate.dueAt')} required htmlFor="assign-due">
+            <Field
+              label={t('teacher.assignmentCreate.dueAt')}
+              required
+              info={t('teacher.assignmentCreate.publishHint')}
+              htmlFor="assign-due"
+            >
               <input
                 id="assign-due"
                 type="datetime-local"
@@ -361,7 +346,7 @@ export default function AssignmentCreatePage() {
             </Field>
             <Field
               label={t('teacher.assignmentCreate.graceHours')}
-              hint={t('teacher.assignmentCreate.graceHint')}
+              info={t('teacher.assignmentCreate.graceHint')}
               htmlFor="assign-grace"
             >
               <Input
@@ -374,7 +359,7 @@ export default function AssignmentCreatePage() {
             </Field>
             <Field
               label={t('teacher.assignmentCreate.maxAttempts')}
-              hint={t('teacher.assignmentCreate.maxAttemptsHint')}
+              info={t('teacher.assignmentCreate.maxAttemptsHint')}
               htmlFor="assign-attempts"
             >
               <Input
@@ -395,9 +380,6 @@ export default function AssignmentCreatePage() {
                 ? t('teacher.assignmentCreate.publishing')
                 : t('teacher.assignmentCreate.publish')}
             </Button>
-          </div>
-          <div className="hint" style={{ marginTop: 10 }}>
-            {t('teacher.assignmentCreate.publishHint')}
           </div>
         </div>
       )}

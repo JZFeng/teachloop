@@ -217,7 +217,8 @@
     "total": "{{total}} in total",
     "pageSize": "Per page",
     "selectAll": "Select all on this page",
-    "selectRow": "Select"
+    "selectRow": "Select",
+    "moreInfo": "More information"
   },
   "editor": {
     "bold": "Bold",
@@ -690,7 +691,6 @@
   "teacher": {
     "assignmentCreate": {
       "classes": "Classes",
-      "classesHint": "Select one or more. Each selected class creates one assignment-class record.",
       "dueAt": "Due at",
       "errors": {
         "classes": "Select at least one class.",
@@ -709,7 +709,6 @@
       "goClasses": "Go to Classes",
       "graceHint": "The grace period only delays grading; it never blocks submission.",
       "graceHours": "Grace period (hours)",
-      "instructionsHint": "Students see only this text and the rubric.",
       "instructionsPlaceholder": "Say what students must do, how long it should be, and what to watch out for",
       "maxAttempts": "Maximum attempts",
       "maxAttemptsHint": "How many times a student may resubmit; submissions stop after that.",
@@ -720,9 +719,7 @@
       "rubricHint": "Markdown, one criterion per line with its points in the line. The points must add up to the total.",
       "sub": "Title, instructions, total points and rubric all live on this page; students are graded against the rubric",
       "title": "New assignment",
-      "titleHint": "Students see exactly this title.",
       "titlePlaceholder": "e.g. Unit 4 writing · argumentative essay",
-      "totalPointsHint": "1 to 1000 points; the rubric below decides how they are awarded.",
       "totalPointsPlaceholder": "e.g. 25",
       "aiPreview": "What the AI will see",
       "importMarkdown": "Import .md / .txt",
@@ -732,9 +729,6 @@
       "importEmpty": "This file has no content.",
       "importUnreadable": "This file could not be read. Try another file.",
       "importDone": "Imported “{{name}}”.",
-      "anchorExamples": "Reference essays (optional)",
-      "anchorExamplesHint": "Up to 3 teacher-approved exemplars with scores and comments; anonymize names/IDs/contacts first. Leave blank to skip.",
-      "anchorExamplesPlaceholder": "Example:\n[Reference 1] Student text...\nScore: 10/10; Comment: ...",
       "rubricPlaceholder": "1. Answers the prompt — 4 points\n2. Clear structure — 3 points\n3. Accurate language — 3 points",
       "aiPreviewSum": "{{total}} points / {{expected}} total",
       "aiPreviewEmpty": "No rubric items yet: start each line with 1. or -, and write the points like 5 points.",

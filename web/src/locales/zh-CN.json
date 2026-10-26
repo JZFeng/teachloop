@@ -217,7 +217,8 @@
     "total": "共 {{total}} 条",
     "pageSize": "每页",
     "selectAll": "全选当前页",
-    "selectRow": "选择"
+    "selectRow": "选择",
+    "moreInfo": "说明"
   },
   "editor": {
     "bold": "加粗",
@@ -690,7 +691,6 @@
   "teacher": {
     "assignmentCreate": {
       "classes": "参与班级",
-      "classesHint": "可多选。勾几个班，就生成几条「参与班级」记录。",
       "dueAt": "截止时间",
       "errors": {
         "classes": "至少要选一个班级。",
@@ -709,7 +709,6 @@
       "goClasses": "去班级页",
       "graceHint": "宽限期只决定批改启动时间，不影响学生提交。",
       "graceHours": "宽限期（小时）",
-      "instructionsHint": "学生只看到这段文字与评分标准。",
       "instructionsPlaceholder": "写清学生要做什么、写多长、注意什么",
       "maxAttempts": "最多尝试次数",
       "maxAttemptsHint": "允许学生重交的次数，超过后不能再提交。",
@@ -720,9 +719,7 @@
       "rubricHint": "Markdown，一条评分项一行，分值写在行里；各项分值合计必须等于总分。",
       "sub": "标题、题目要求、总分与评分标准都写在这一页；发布后学生按这份标准被批改",
       "title": "新建作业",
-      "titleHint": "学生端看到的就是这个标题。",
       "titlePlaceholder": "例如：Unit 4 写作 · 议论文",
-      "totalPointsHint": "1–1000 分，分数按下面的评分标准给。",
       "totalPointsPlaceholder": "例如：25",
       "aiPreview": "AI 将看到",
       "importMarkdown": "导入 .md / .txt",
@@ -732,9 +729,6 @@
       "importEmpty": "这个文件里没有内容。",
       "importUnreadable": "读不到这个文件，请换一个再试。",
       "importDone": "已导入「{{name}}」。",
-      "anchorExamples": "参考范文（可选）",
-      "anchorExamplesHint": "最多 3 份教师已批好的范文 + 分数 + 评语；请先匿名化（去姓名/学号/联系方式）。不填则不注入。",
-      "anchorExamplesPlaceholder": "示例：\n【范文 1】学生正文…\n分数：10/10；评语：…",
       "rubricPlaceholder": "1. 回应题目要求 — 4 points\n2. 结构清楚 — 3 points\n3. 语言准确 — 3 points",
       "aiPreviewSum": "合计 {{total}} 分 / 总分 {{expected}} 分",
       "aiPreviewEmpty": "还没有评分项：每条用 1. 或 - 开头，分值写成 5分。",
