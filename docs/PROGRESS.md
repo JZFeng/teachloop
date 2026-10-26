@@ -327,3 +327,21 @@
   手机宽度、催交（需后端接口，本次没做）。
 - **并发提醒**：改这段期间另有一路会话在改 `student/*`、`App.tsx`、`Shell.tsx`、`nav.ts` 等文件，
   本报告只覆盖 teacher/ui 一侧；最终全量 `make test` 应在两边都收工后再跑。
+
+## 学生首页去重（2026-10-26，T503 + T504）— **已实现，含浏览器验收**
+
+- **用户口径**：看学生首页后提两点——「『我的反馈』这个按钮怎么这么别扭」「DASHBOARD 我的学习，是不是重复了？
+  还有『考试、作业与反馈；成绩由老师公布后可见』，莫名其妙」。第一轮只接回入口，睡前面谈拍板三件事：
+  排序改「最急的在最上」、页名改「首页」、删 `/feedback` 列表页只留详情。
+- **已交付**：页头一行（删 eyebrow `DASHBOARD` / 副标题 / 「我的反馈」按钮，规则进标题旁 ⓘ）；
+  汇总数字改四枚可点筛选 chip；「有反馈」静态 tag 改行内「看评语」直连 `/feedback/:id`；
+  `sortRowsByDue` 改正序（AC-24.1 加例外）；侧栏学生项 3 → 2（vocab 开 4），后端 `RoleNavMatrix` 同步；
+  「我的反馈」改名「成绩与评语」后随列表页一起删除。
+- **验证**：`typecheck`/`build` 0、`pnpm test` 117/117、`check-i18n` 1702 键、`check-ui` 0 新增（78 存量）、
+  `RoleNavMatrixTest` 6/6、`FeaturesEndpointTest` 5/5、`RoleAccessTest` 4/4；deploy qa 后在独立 origin
+  （192.168.68.99:5300 → 8011）实测排序/标题/侧栏/看评语/`/feedback` 兜底全部符合。
+  报告 `docs/reports/student-home-2026-10-26/`，决策 `docs/decisions/027-student-home-entries.md`。
+- **未验证**：英文界面、768px 以下。
+- **并发提醒**：本轮改 `web/src/student/*`、`App.tsx`、`nav.ts`、`Shell.tsx`、`locales/*`、
+  `RoleNavMatrix.java`；同一时段另一路会话在改 `teacher/*` 与 `ui/*`，两批改动被对方的整树提交扫进过
+  （`31d732f` 里含本轮的 locales 与 002 AC-24.1 改动）。
