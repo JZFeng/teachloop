@@ -137,7 +137,9 @@ export default function FeedbackDetailPage() {
                       {item.explanation ? (
                         <div className="small" style={{ marginTop: 4, whiteSpace: 'pre-wrap' }}>{item.explanation}</div>
                       ) : (
-                        <div className="small muted" style={{ marginTop: 4 }}>{t('student.explanationMissing')}</div>
+                        <InlineNote tone="warning" className="compact" style={{ marginTop: 6 }}>
+                          {t('student.explanationMissing')}
+                        </InlineNote>
                       )}
                     </div>
                   ))}

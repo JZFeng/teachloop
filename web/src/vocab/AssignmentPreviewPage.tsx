@@ -99,7 +99,7 @@ export default function VocabAssignmentPreviewPage() {
             {t('vocab.assignment.due')} {new Date(detail.dueAt).toLocaleString()}
           </span>
         )}
-        {detail.expired && <span className="chip">{t('vocab.assignment.expired')}</span>}
+        {detail.expired && <span className="chip warn">{t('vocab.assignment.expired')}</span>}
       </div>
 
       <DataTable

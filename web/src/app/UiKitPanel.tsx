@@ -157,6 +157,14 @@ export function UiKitPanel() {
           <Tag tone="blue">queued</Tag>
           <Tag>draft</Tag>
         </div>
+        {/* 行内状态 chip：与上面的 Tag 同一套语义，只是更轻，用在表格单元格与词库里。 */}
+        <div className="row" style={{ marginTop: 8 }}>
+          <span className="chip">NEW</span>
+          <span className="chip info">{t('ui.kit.chipRunning')}</span>
+          <span className="chip warn">{t('ui.kit.chipWarn')}</span>
+          <span className="chip err">{t('ui.kit.chipErr')}</span>
+          <span className="chip ok">{t('ui.kit.chipOk')}</span>
+        </div>
       </Section>
 
       <Section title={t('ui.kit.sectionNote')}>

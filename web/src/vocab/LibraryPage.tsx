@@ -493,14 +493,14 @@ export default function VocabLibraryPage() {
       case 'state':
         return (
           <span className="row" style={{ gap: 4, flexWrap: 'wrap' }}>
-            <span className="chip">{stateLabel(word)}</span>
+            <span className={`chip${word.paused ? ' warn' : ''}`}>{stateLabel(word)}</span>
             {word.contentStatus === 'PENDING' && (
-              <span className="chip">
+              <span className={`chip ${word.generating ? 'info' : 'warn'}`}>
                 {word.generating ? t('vocab.library.contentGenerating') : t('vocab.library.contentIdle')}
               </span>
             )}
             {word.contentStatus === 'FAILED'
-              && <span className="chip">{t('vocab.library.contentFailed')}</span>}
+              && <span className="chip err">{t('vocab.library.contentFailed')}</span>}
           </span>
         )
       case 'due':

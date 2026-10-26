@@ -263,9 +263,9 @@ export default function VocabListDetailPage() {
           >
             {word.form}
           </span>
-          {isPausedWord(word) && <span className="chip">{t('vocab.lists.pausedWordChip')}</span>}
+          {isPausedWord(word) && <span className="chip warn">{t('vocab.lists.pausedWordChip')}</span>}
           {word.deleted === true && (
-            <span className="chip">{t('vocab.lists.deletedWordChip')}</span>
+            <span className="chip err">{t('vocab.lists.deletedWordChip')}</span>
           )}
         </span>
       ),
