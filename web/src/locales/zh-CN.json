@@ -1025,7 +1025,7 @@
       "grading": "待批改 {{done}}/{{total}}",
       "published": "已公布",
       "toPublish": "待公布",
-      "uncollected": "未交齐 {{n}}"
+      "uncollected": "未交齐"
     },
     "offeringStatus": {
       "CLOSED": "已关闭",

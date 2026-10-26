@@ -1025,7 +1025,7 @@
       "grading": "{{done}}/{{total}} graded",
       "published": "Published",
       "toPublish": "To publish",
-      "uncollected": "{{n}} not submitted"
+      "uncollected": "Not all submitted"
     },
     "offeringStatus": {
       "CLOSED": "Closed",

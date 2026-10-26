@@ -241,7 +241,9 @@ export function OfferingStateTag({
         : 'green'
   const label =
     view.state === 'uncollected'
-      ? t('teacher.offeringState.uncollected', { n: unsubmitted })
+      // 2026-10-25 修订：chip 只表达「卡在谁手里」，数量留在「提交 / 应交」列——
+      // 原来的「未交齐 29」既没有单位，又和提交列重复（决策 025 已同步改口）。
+      ? t('teacher.offeringState.uncollected')
       : view.state === 'grading'
         ? t('teacher.offeringState.grading', { done: view.gradedCount, total: view.total })
         : view.state === 'to_publish'

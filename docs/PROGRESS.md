@@ -307,3 +307,5 @@
   `AiSetupTest` provider 期望 local 实得 null、`AiReadinessTest` INTERNAL 500），本次 diff 中
   `.java`/`.sql` 改动为 0，需单独立项。
 - **注意**：5174 是 `vite preview` 快照，本次改动要 `./scripts/env.sh deploy qa`（或重建 dist 后重启）才可见。
+- **同日追加**：状态 chip 去掉裸数字（用户指出「未交齐 29」别扭）——`未交齐` 不再带计数，
+  数量留在「提交 / 应交」列；规则定为「数字只在别处看不到时才写进 chip」，决策 025 已同步改口。
