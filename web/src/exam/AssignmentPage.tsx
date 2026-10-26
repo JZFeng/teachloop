@@ -97,10 +97,11 @@ export default function AssignmentPage() {
   const [richHtml, setRichHtml] = useState('')
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
-  // 题目要求 / 评分标准是否展开：null = 还没手动点过，跟随「是否已交卷」。
-  // 已交卷的学生进页面默认看到收起的两行标题（用户 2026-10-26 要求：做完以后页面只留重要信息）。
+  // 题目要求 / 评分标准 / 我提交的内容是否展开：null = 还没手动点过，跟随「是否已交卷」。
+  // 已交卷的学生进页面默认看到收起的标题（用户 2026-10-26 要求：做完以后页面只留重要信息）。
   const [promptsOverride, setPromptsOverride] = useState<boolean | null>(null)
   const [rubricOverride, setRubricOverride] = useState<boolean | null>(null)
+  const [contentOverride, setContentOverride] = useState<boolean | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const load = useCallback(async () => {
@@ -272,6 +273,8 @@ export default function AssignmentPage() {
   // 交卷后题目要求 / 评分标准只剩回查价值：默认收起，标题整行可点；未交卷时默认展开，别多一次点击。
   const promptsOpen = promptsOverride ?? !submitted
   const rubricOpen = rubricOverride ?? !submitted
+  // 我提交的内容只在交卷后出现，默认收起（用户 2026-10-26：「要折叠吧」）。
+  const contentOpen = contentOverride ?? false
 
   const promptsCard = paper && paper.items.length > 0 ? (
     <SectionCard
@@ -350,9 +353,12 @@ export default function AssignmentPage() {
     </div>
   )
 
-  // 我交上去的正文单独一张卡：交卷后顺序是 结果 → 题目要求▽ → 评分标准▽ → 我提交的内容 → 作业说明。
+  // 我交上去的正文单独一张卡，也默认收起（用户 2026-10-26：要折叠吧）——正文常常几千字，
+  // 展开态会把作业说明挤到屏幕外。点标题展开，箭头翻转。
   const submittedContentCard = (
     <SubmittedContentCard
+      open={contentOpen}
+      onToggle={() => setContentOverride(!contentOpen)}
       html={submittedHtml}
       text={submittedText}
       attachmentName={latest?.attachmentName ?? submitResult?.attachmentName ?? null}
@@ -553,8 +559,8 @@ function latestOf(attempts: MyAttemptsView | null): AttemptView | null {
 
 /**
  * 可折叠的分区卡片（用户 2026-10-26）：标题整行可点，右侧向下箭头，展开后箭头翻转。
- * 交卷后题目要求 / 评分标准默认收起——学生已经做完，页面留给分数、提交正文与动作。
- * 未交卷时默认展开，避免为了看一眼题目再多点一次。
+ * 交卷后题目要求 / 评分标准 / 我提交的内容都默认收起——学生已经做完，页面留给分数与动作。
+ * 未交卷时题目要求与评分标准默认展开，避免为了看一眼题目再多点一次。
  */
 function SectionCard({ title, open, onToggle, children }: {
   title: string
@@ -576,9 +582,12 @@ function SectionCard({ title, open, onToggle, children }: {
 /**
  * 已提交正文单独一张卡（T248）：学生交完就在本页看到自己交了什么，不用再点按钮跳走。
  * html 是后端写入时已消毒的 content_html，可直接渲染；纯文本按原样换行。
- * 放在结果与两份参考资料之后——正文通常很长，不该把分数和动作挤到屏幕外。
+ * 放在结果与两份参考资料之后——正文通常很长，不该把分数和动作挤到屏幕外；
+ * 默认也收起（`SectionCard`），点标题才展开，和题目要求 / 评分标准用同一套交互。
  */
-function SubmittedContentCard({ html, text, attachmentName, attachmentHref }: {
+function SubmittedContentCard({ open, onToggle, html, text, attachmentName, attachmentHref }: {
+  open: boolean
+  onToggle: () => void
   html: string | null
   text: string | null
   attachmentName: string | null
@@ -589,8 +598,7 @@ function SubmittedContentCard({ html, text, attachmentName, attachmentHref }: {
   const plain = text && text.trim() ? text : null
   if (!rich && !plain && !attachmentName) return null
   return (
-    <div className="card">
-      <h2>{t('exam.submittedContent')}</h2>
+    <SectionCard title={t('exam.submittedContent')} open={open} onToggle={onToggle}>
       {rich && <div className="submitted-body rich" dangerouslySetInnerHTML={{ __html: rich }} />}
       {!rich && plain && <div className="submitted-body">{plain}</div>}
       {attachmentName && attachmentHref && (
@@ -598,6 +606,6 @@ function SubmittedContentCard({ html, text, attachmentName, attachmentHref }: {
           {t('exam.downloadAttachment')} · {attachmentName}
         </a>
       )}
-    </div>
+    </SectionCard>
   )
 }
