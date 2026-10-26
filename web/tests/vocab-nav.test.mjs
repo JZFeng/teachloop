@@ -21,8 +21,9 @@ const TEACHER_KEYS = [
   'nav.home', 'nav.classes', 'nav.assignments', 'nav.papers',
   'nav.vocab.sets', 'nav.vocab.assign', 'nav.grading', 'nav.review', 'nav.reports',
 ]
+// 2026-10-26（AC-72.8）：学生不再有 nav.feedback 菜单项（列表页删除，详情从行内进）。
 const STUDENT_KEYS = [
-  'nav.home', 'nav.classes', 'nav.vocab.library', 'nav.vocab.review', 'nav.feedback',
+  'nav.home', 'nav.classes', 'nav.vocab.library', 'nav.vocab.review',
 ]
 
 const paths = (features) => navSpecs(features).map((item) => item.to)
@@ -56,17 +57,19 @@ test('教师 vocab 开时 9 项，词集/发词插在试卷之后、批改之前
   ])
 })
 
-test('学生 vocab 关时 3 项；开时 5 项，词库/复习插在班级之后、反馈之前', () => {
-  assert.deepEqual(paths(featuresFor(withoutVocab(STUDENT_KEYS))), ['/', '/classes', '/feedback'])
+test('学生 vocab 关时 2 项；开时 4 项，词库/复习插在班级之后', () => {
+  assert.deepEqual(paths(featuresFor(withoutVocab(STUDENT_KEYS))), ['/', '/classes'])
   assert.deepEqual(paths(featuresFor(STUDENT_KEYS, true)), [
-    '/', '/classes', '/vocab/library', '/vocab/review', '/feedback',
+    '/', '/classes', '/vocab/library', '/vocab/review',
   ])
 })
 
 test('教师与学生互不越界', () => {
   const teacher = paths(featuresFor(TEACHER_KEYS, true))
   const student = paths(featuresFor(STUDENT_KEYS, true))
+  // AC-72.8 之后「成绩与评语」不再是侧栏项，两边都不该出现
   assert.ok(!teacher.includes('/feedback'))
+  assert.ok(!student.includes('/feedback'))
   assert.ok(!student.includes('/grading'))
   assert.ok(!student.includes('/reports'))
   assert.ok(!teacher.includes('/admin/ai'))

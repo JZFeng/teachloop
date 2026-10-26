@@ -92,12 +92,12 @@
 
 ### US-72 作为学生，首页告诉我「现在该点什么」，不是把同一句话说四遍
 
-> 编号说明（2026-10-26）：接全局最大号顺延（US-72、AC-72.1–72.5、FR-154、T499）。
+> 编号说明（2026-10-26）：接全局最大号顺延（US-72、AC-72.1–72.8、FR-154、T503/T504）。
 
 2026-10-26 用户报：学生首页「`DASHBOARD` / 我的学习 / 考试、作业与反馈；成绩由老师公布后可见」
 四层标签在说同一件事，而「看评语」这个唯一有用的动作被做成了页头按钮——它跟侧栏重名、指向同一份列表，
 真正有评语的那一行里那枚「有反馈」却点不动。原则：**页头只说一次这是什么；动作放在出现证据的那一行。**
-**验收**：见 AC-72.1–72.5。
+**验收**：见 AC-72.1–72.8。
 
 ---
 
@@ -161,13 +161,16 @@
 
 #### US-72 学生首页去重：一套名字、一行标题、动作落在有证据的行上（2026-10-26）
 
-> 编号顺延：US-72、AC-72.1–72.5、FR-154、T499。决策见 `docs/decisions/027-student-home-entries.md`。
+> 编号顺延：US-72、AC-72.1–72.8、FR-154、T503/T504。决策见 `docs/decisions/027-student-home-entries.md`。
 
 - [x] AC-72.1 学生首页页头只剩**一行标题**：没有 eyebrow（`DASHBOARD` 从 zh/en 删除，`PageHeader` 的 `^/$` 规则移除，教师首页同时生效）、没有可见副标题、没有操作按钮；标题旁给一个 ⓘ，内容只讲屏幕上推不出来的规则（三态各自的含义 + 「AI 批完不算公布」），文案键 `student.homeInfo`
 - [x] AC-72.2 原汇总行（`homeSummary`）改成**四枚可点筛选 chip**：全部 / 未完成 / 已交卷 / 已公布，各自带计数；点击后只保留该状态的行，`全部` 复原；`aria-pressed` 表达选中，键盘可操作；筛选后为空时给一条可见说明（`student.filterEmpty`），不是空白页
 - [x] AC-72.3 「有反馈」不再是静态 `tag`：已公布的行内提供**「看评语」按钮**，直接进 `/feedback/:offeringId`（`stopPropagation`，不触发整卡跳转）；`student.hasFeedback` 键删除，`grep -rn "hasFeedback" web/src` 为 0
-- [x] AC-72.4 该入口在学生侧栏、列表页标题、考试结果页统一改名为**「成绩与评语」**（`nav.feedback`、`student.feedbackTitle`、`exam.viewFeedback`、`eyebrow.feedback`），zh/en 键集合相等；`student.myFeedback`、`homeSub`、`homeSummary` 删除；`make check-i18n` 退出码 0
+- [x] AC-72.4 该入口在学生侧栏、页面标题、考试结果页统一改名为**「成绩与评语」**（`nav.feedback`、`student.feedbackTitle`、`exam.viewFeedback`、`eyebrow.feedback`），zh/en 键集合相等；`student.myFeedback`、`homeSub`、`homeSummary` 删除；`make check-i18n` 退出码 0
 - [x] AC-72.5 修订 AC-31.3：`/` 不再要求 eyebrow——首页没有功能位，那个位置只能重复标题；其余路由的 eyebrow 要求不变
+- [x] AC-72.6 **页名与侧栏同名**：`student.homeTitle` = 「首页」（原来叫「我的学习」，与侧栏「首页」是两个名字指同一个位置），zh/en 同步
+- [x] AC-72.7 **排序改成「最急的在最上」**：`sortRowsByDue` 按 `dueAt` **升序**（原为降序，最晚截止排最前、最急的沉底）；仍以纯函数实现，`web/tests/student-home.test.mjs` 断言三条乱序数据排成 `早 → 晚`
+- [x] AC-72.8 **删除 `/feedback` 列表页，只留详情页**（`/feedback/:offeringId` 不变）：`FeedbackListPage.tsx` 删除、`App.tsx` 去掉 `feedback` 路由、`nav.ts` 删 `nav.feedback` 目录项、后端 `RoleNavMatrix` 学生集合去掉 `NAV_FEEDBACK`；侧栏学生项由 3 项变 **2 项**（vocab 开 = 4 项）；详情页的「返回列表」改为只留「返回首页」；`feedbackSub`/`viewCard`/`viewTable`/`colTitle`/`colType`/`colSubmittedAt`/`colScore`/`feedbackEmpty`/`loadingFeedback` 同步删除，`check-i18n` 绿
 
 ---
 

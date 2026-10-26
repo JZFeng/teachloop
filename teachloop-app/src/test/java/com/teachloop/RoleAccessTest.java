@@ -122,7 +122,7 @@ class RoleAccessTest {
         Map<String, Object> studentFeatures = Json.parse(
                 request(base, student, "GET", "/api/features", null).body());
         assertThat(studentFeatures)
-                .containsEntry("nav.feedback", true)
+                .doesNotContainKey("nav.feedback")
                 .containsEntry("nav.papers", false)
                 .containsEntry("nav.grading", false);
     }

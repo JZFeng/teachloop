@@ -26,16 +26,16 @@ class RoleNavMatrixTest {
                         RoleNavMatrix.NAV_GRADING, RoleNavMatrix.NAV_REVIEW,
                         RoleNavMatrix.NAV_REPORTS, RoleNavMatrix.NAV_VOCAB_SETS,
                         RoleNavMatrix.NAV_VOCAB_ASSIGN)
-                .doesNotContain(RoleNavMatrix.NAV_AI, RoleNavMatrix.NAV_FEEDBACK);
+                .doesNotContain(RoleNavMatrix.NAV_AI);
     }
 
     @Test
-    void studentSeesFiveIncludingVocabButNoTeacherItems() {
+    void studentSeesFourIncludingVocabButNoTeacherItems() {
+        // 2026-10-26（AC-72.8）：学生 5 → 4 项，「成绩与评语」菜单项随列表页一起删除。
         assertThat(RoleNavMatrix.keysFor(UserRole.STUDENT))
-                .hasSize(5)
+                .hasSize(4)
                 .contains(RoleNavMatrix.NAV_HOME, RoleNavMatrix.NAV_CLASSES,
-                        RoleNavMatrix.NAV_FEEDBACK, RoleNavMatrix.NAV_VOCAB_LIBRARY,
-                        RoleNavMatrix.NAV_VOCAB_REVIEW)
+                        RoleNavMatrix.NAV_VOCAB_LIBRARY, RoleNavMatrix.NAV_VOCAB_REVIEW)
                 .doesNotContain(RoleNavMatrix.NAV_PAPERS, RoleNavMatrix.NAV_GRADING,
                         RoleNavMatrix.NAV_REVIEW, RoleNavMatrix.NAV_REPORTS,
                         RoleNavMatrix.NAV_ASSIGNMENTS, RoleNavMatrix.NAV_AI);

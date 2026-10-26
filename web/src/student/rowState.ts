@@ -33,3 +33,18 @@ export function studentRowState(attempts: MyAttemptsView | null): StudentRowStat
 export function studentRowRejected(attempts: MyAttemptsView | null): boolean {
   return Boolean(latestAttemptOf(attempts)?.rejectedAt)
 }
+
+/**
+ * 首页排序（AC-72.7，2026-10-26 用户拍板）：**最急的在最上**——按截止时间升序。
+ *
+ * 原来是倒序（AC-24.1 的「列表默认时间倒序」），但首页是「待办」不是「档案」：
+ * 倒序会把最晚截止的排最前，最急的沉到最下面。解析不出的截止时间沉到最后，不假装它在最前面。
+ * 放在这个文件是因为它要能被 `web/tests/student-home.test.mjs` 直接测（纯函数、无 api 依赖）。
+ */
+export function sortRowsByDue<T extends { offering: { dueAt: string } }>(rows: T[]): T[] {
+  const dueOf = (row: T) => {
+    const at = Date.parse(row.offering.dueAt)
+    return Number.isNaN(at) ? Number.POSITIVE_INFINITY : at
+  }
+  return [...rows].sort((a, b) => dueOf(a) - dueOf(b))
+}

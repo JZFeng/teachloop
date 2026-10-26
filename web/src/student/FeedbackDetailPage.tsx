@@ -51,12 +51,8 @@ export default function FeedbackDetailPage() {
           ? `${t('student.attemptNo', { no: attempt.attemptNo })} · ${t('student.submittedAt')} ${fmtDateTime(attempt.submittedAt)}`
           : t('student.detailSub')}
         actions={(
-          <div className="row">
-            <button type="button" className="btn" onClick={() => navigate('/feedback')}>
-              {t('student.backToList')}
-            </button>
-            <button type="button" className="btn" onClick={() => navigate('/')}>{t('student.backHome')}</button>
-          </div>
+          // 2026-10-26（AC-72.8）：列表页删除后不再有「返回列表」——只留回首页这一条路。
+          <button type="button" className="btn" onClick={() => navigate('/')}>{t('student.backHome')}</button>
         )}
       />
 

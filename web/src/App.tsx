@@ -40,7 +40,6 @@ import ReviewPage from './teacher/ReviewPage'
 import ReportsPage from './teacher/ReportsPage'
 import ClassSummaryPage from './teacher/ClassSummaryPage'
 import StudentHomePage from './student/HomePage'
-import FeedbackListPage from './student/FeedbackListPage'
 import FeedbackDetailPage from './student/FeedbackDetailPage'
 import ExamEntryPage from './exam/ExamEntryPage'
 import ExamLivePage from './exam/ExamLivePage'
@@ -177,7 +176,7 @@ export default function App() {
           <Route path="offerings/:offeringId/summary" element={<RequireFeature feature="nav.reports"><ClassSummaryPage /></RequireFeature>} />
           {/* 学生作业页不按 nav.assignments 拦：学生没有这个 key，但必须能作答 */}
           <Route path="assignments/:offeringId" element={<AssignmentPage />} />
-          <Route path="feedback" element={<FeedbackListPage />} />
+          {/* 2026-10-26（AC-72.8）：`/feedback` 列表页删除，只留详情；入口在首页卡片与作业页行内。 */}
           <Route path="feedback/:offeringId" element={<FeedbackDetailPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="admin/ai" element={<AdminAiPage />} />

@@ -45,16 +45,16 @@ class FeaturesEndpointTest {
                 .containsEntry("nav.review", true)
                 .containsEntry("nav.papers", true)
                 .containsEntry("nav.ai", false)
-                .containsEntry("nav.feedback", false);
+                .doesNotContainKey("nav.feedback"); // 2026-10-26 AC-72.8：名录里已无此项
     }
 
     @Test
-    @DisplayName("学生：能看到我的反馈，看不到试卷与批改")
+    @DisplayName("学生：看不到反馈菜单（列表页已删）、试卷与批改")
     void studentSeesStudentItems() {
         Map<String, Boolean> f = new FeaturesEndpoint(false).features(user("STUDENT"));
 
         assertThat(f)
-                .containsEntry("nav.feedback", true)
+                .doesNotContainKey("nav.feedback")
                 .containsEntry("nav.home", true)
                 .containsEntry("nav.papers", false)
                 .containsEntry("nav.grading", false)

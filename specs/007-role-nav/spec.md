@@ -41,10 +41,12 @@
 | 报表 | `nav.reports` | — | ✓ | — |
 | 我的词库 | `nav.vocab.library` | — | — | ✓（vocab 开） |
 | 今日复习 | `nav.vocab.review` | — | — | ✓（vocab 开） |
-| 成绩与评语 | `nav.feedback` | — | — | ✓ |
 | AI 设置 | `nav.ai` | ✓ | — | — |
 
-合计：ADMIN 2 项；TEACHER 7 项（vocab 开 9）；STUDENT 3 项（vocab 开 5）。资料页与通知在侧栏底部常驻，不计入矩阵。
+合计：ADMIN 2 项；TEACHER 7 项（vocab 开 9）；STUDENT 2 项（vocab 开 4）。资料页与通知在侧栏底部常驻，不计入矩阵。
+
+> **2026-10-26（AC-72.8）**：删掉原「成绩与评语 | `nav.feedback`」一行——`/feedback` 列表页与首页是同一份数据，
+> 删页时同步删菜单项；反馈详情（`/feedback/:offeringId`）仍从首页卡片与作业页行内进入，不是侧栏入口。
 
 ## 3. 用户故事
 
@@ -60,13 +62,13 @@
 - [ ] AC-63.1 角色 × 菜单矩阵是**后端唯一真源**（Java 常量，位于 `teachloop-identity`）；`GET /api/features` 返回当前用户最终生效的 key 集合（含 `nav.*` 与实验项，扁平等）；前端 `web/src/app/nav.ts` 只保留「菜单目录」（key → 路径 / 图标 / 文案 / **全局顺序**），**不含任何角色判断**
 - [ ] AC-63.2 ADMIN 侧栏恰好 2 项：班级（`/classes`）、AI 设置（`/admin/ai`），顺序固定
 - [ ] AC-63.3 TEACHER 侧栏 7 项，顺序为 首页、班级、作业、试卷、批改、复核、报表；vocab 开关打开时词集、发词插在试卷之后（共 9 项）
-- [ ] AC-63.4 STUDENT 侧栏 3 项，顺序为 首页、班级、成绩与评语（`nav.feedback`，2026-10-26 由「我的反馈」改名，见 AC-72.4）；vocab 开关打开时我的词库、今日复习插在班级之后（共 5 项）
+- [ ] AC-63.4 STUDENT 侧栏 **2 项**，顺序为 首页、班级（**2026-10-26 修订，AC-72.8**：原第 3 项「成绩与评语」随 `/feedback` 列表页删除而移除；更早的名字是「我的反馈」，见 AC-72.4）；vocab 开关打开时我的词库、今日复习插在班级之后（共 4 项）
 - [ ] AC-63.5 ADMIN 登录后落在 `/classes`；访问 `/` 时重定向到 `/classes`，不停留在教师首页
 - [ ] AC-63.6 ADMIN 直接输入 `/papers`、`/grading`、`/review`、`/reports`、`/assignments` 时被重定向到 `/classes`，不出现白屏、不出现原始 403 错误页
 - [ ] AC-63.7 后端接口按角色收口，细到方法：`/api/reports/**`、`/api/papers/**`、`/api/offerings/{id}/grading/**`、`/api/submissions/*/review*`、`/api/offerings/{id}/class-summary`、`/api/offerings/{id}/export/**`、`POST /api/offerings`、`POST /api/offerings/{id}/submissions/{sid}/reject` 对 ADMIN 返回 403，对 TEACHER 放行
 - [ ] AC-63.8 学生答题链路不受收口影响：学生仍能 `GET /api/offerings`、`/api/offerings/{id}/entry`、`/api/offerings/{id}/paper`、`/session`、`/my-submissions`、`PUT /answers`、`POST /submissions`；`POST /api/offerings`（创建布置）对学生返回 403
 - [ ] AC-63.9 管理员落到班级页后，页面内不出现会 403 的入口（布置作业、批改等按钮对 ADMIN 不可见或禁用），点击不产生报错
-- [ ] AC-63.10 前端侧栏渲染 = 「菜单目录」按**全局顺序**过滤出 `features` 中为 true 的 key，再映射成菜单项；教师 9 项、学生 5 项、管理员 2 项这三套顺序由同一份目录自然得出，**不需要按角色的分支**
+- [ ] AC-63.10 前端侧栏渲染 = 「菜单目录」按**全局顺序**过滤出 `features` 中为 true 的 key，再映射成菜单项；教师 9 项、学生 4 项、管理员 2 项这三套顺序由同一份目录自然得出，**不需要按角色的分支**
 - [ ] AC-63.11 `features` 加载完成前不渲染侧栏菜单，避免登录后先闪出全量菜单再收缩；加载失败时侧栏只显示资料页与退出，不显示业务菜单
 
 ## 5. 功能需求

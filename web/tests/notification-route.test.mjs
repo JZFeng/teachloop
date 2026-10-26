@@ -43,7 +43,7 @@ test('考试与作业仍然按 targetType 分页', () => {
     '/assignments/o1')
 })
 
-test('反馈通知指向布置的反馈页；历史 submission 行退到反馈列表', () => {
+test('反馈通知指向布置的反馈页；历史 submission 行退到首页（列表页已删）', () => {
   assert.equal(
     notificationRoute({ kind: 'feedback_published', targetType: 'offering', targetId: 'of1' }),
     '/feedback/of1')
@@ -52,7 +52,7 @@ test('反馈通知指向布置的反馈页；历史 submission 行退到反馈�
     '/feedback/of2')
   assert.equal(
     notificationRoute({ kind: 'feedback_published', targetType: 'submission', targetId: 's1' }),
-    '/feedback')
+    '/')
 })
 
 test('没有目标 id、或 targetType 不认识时不给跳转（只标已读）', () => {

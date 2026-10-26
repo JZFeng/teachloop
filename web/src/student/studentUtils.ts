@@ -82,11 +82,5 @@ export function statusTagClass(status: RowStatusKey): string {
   }
 }
 
-/** 按截止时间倒序（AC-24.1：带时间字段的列表默认时间倒序）。 */
-export function sortRowsByDue(rows: StudentRow[]): StudentRow[] {
-  return [...rows].sort((a, b) => {
-    const at = Date.parse(a.offering.dueAt)
-    const bt = Date.parse(b.offering.dueAt)
-    return (Number.isNaN(bt) ? 0 : bt) - (Number.isNaN(at) ? 0 : at)
-  })
-}
+/** 首页排序（AC-72.7）：实现搬去 `rowState.ts`（纯函数，能被 node 测试直接引），这里只转发。 */
+export { sortRowsByDue } from './rowState'

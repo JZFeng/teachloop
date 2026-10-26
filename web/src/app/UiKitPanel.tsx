@@ -60,7 +60,7 @@ const ICON_DEMO: { key: string; icon: ReactNode }[] = [
   { key: 'nav.review', icon: <AuditOutlined /> },
   { key: 'nav.reports', icon: <BarChartOutlined /> },
   { key: 'nav.aiSettings', icon: <RobotOutlined /> },
-  { key: 'nav.feedback', icon: <CommentOutlined /> },
+  { key: 'student.feedbackTitle', icon: <CommentOutlined /> },
   { key: 'nav.notifications', icon: <BellOutlined /> },
   { key: 'nav.profile', icon: <UserOutlined /> },
   { key: 'common.logout', icon: <LogoutOutlined /> },

@@ -28,7 +28,6 @@ public final class RoleNavMatrix {
     public static final String NAV_REPORTS = "nav.reports";
     public static final String NAV_VOCAB_LIBRARY = "nav.vocab.library";
     public static final String NAV_VOCAB_REVIEW = "nav.vocab.review";
-    public static final String NAV_FEEDBACK = "nav.feedback";
     public static final String NAV_AI = "nav.ai";
 
     /**
@@ -38,7 +37,7 @@ public final class RoleNavMatrix {
     public static final List<String> ALL_KEYS = List.of(
             NAV_HOME, NAV_CLASSES, NAV_ASSIGNMENTS, NAV_PAPERS,
             NAV_VOCAB_SETS, NAV_VOCAB_ASSIGN, NAV_GRADING, NAV_REVIEW, NAV_REPORTS,
-            NAV_VOCAB_LIBRARY, NAV_VOCAB_REVIEW, NAV_FEEDBACK, NAV_AI);
+            NAV_VOCAB_LIBRARY, NAV_VOCAB_REVIEW, NAV_AI);
 
     /**
      * 角色默认可见集合。管理员只做班级查看与 AI 配置（2026-10-24 用户拍板）：
@@ -48,8 +47,9 @@ public final class RoleNavMatrix {
             UserRole.ADMIN, Set.of(NAV_CLASSES, NAV_AI),
             UserRole.TEACHER, Set.of(NAV_HOME, NAV_CLASSES, NAV_ASSIGNMENTS, NAV_PAPERS,
                     NAV_VOCAB_SETS, NAV_VOCAB_ASSIGN, NAV_GRADING, NAV_REVIEW, NAV_REPORTS),
-            UserRole.STUDENT, Set.of(NAV_HOME, NAV_CLASSES, NAV_VOCAB_LIBRARY, NAV_VOCAB_REVIEW,
-                    NAV_FEEDBACK));
+            // 2026-10-26（AC-72.8）：学生不再有「成绩与评语」菜单项——列表页删除，
+            // 反馈详情从首页卡片 / 作业页行内直接进。
+            UserRole.STUDENT, Set.of(NAV_HOME, NAV_CLASSES, NAV_VOCAB_LIBRARY, NAV_VOCAB_REVIEW));
 
     private RoleNavMatrix() {
     }
