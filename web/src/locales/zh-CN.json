@@ -207,6 +207,7 @@
     "nextPage": "下一页",
     "page": "第 {{page}} 页",
     "pageInfo": "共 {{total}} 条 · 第 {{page}}/{{pages}} 页",
+    "pageInfoPending": "本页说明整理中，稍后补充。",
     "prev": "上一步",
     "prevPage": "上一页",
     "retry": "重试",
@@ -415,27 +416,6 @@
     "windowValue": "{{start}} 起，{{due}} 前必须开始",
     "working": "处理中…"
   },
-  "eyebrow": {
-    "classes": "CLASSES",
-    "papers": "CREATE · 组卷",
-    "assignments": "CREATE · 作业",
-    "assignmentCreate": "CREATE · 布置",
-    "grading": "ASSESS · 批改",
-    "review": "ASSESS · 复核",
-    "reports": "INSIGHTS · 报表",
-    "summary": "INSIGHTS · 汇总",
-    "feedback": "ASSESS · 成绩",
-    "exam": "ASSESS · 作答",
-    "profile": "ACCOUNT",
-    "notifications": "INBOX",
-    "adminAi": "ADMIN",
-    "vocabLibrary": "PRACTICE · 词库",
-    "vocabReview": "PRACTICE · 复习",
-    "vocabSets": "PRACTICE · 词集",
-    "vocabAssign": "PRACTICE · 发词",
-    "vocabAssignment": "PRACTICE · 预习",
-    "vocabAdd": "PRACTICE · 加词"
-  },
   "language": {
     "en": "English",
     "zh": "中文"
@@ -604,7 +584,7 @@
     "submissionId": "提交",
     "suggestions": "建议",
     "teacherGrading": "教师判分与评语",
-    "title": "复核工作台",
+    "title": "复核",
     "unpublished": "未发布",
     "withdraw": "撤回",
     "withdrawnOk": "已撤回发布，学生暂时看不到本次反馈。",
@@ -1441,7 +1421,7 @@
       "brandFeatures": "四个功能位（ink × tint）",
       "brandStatus": "判分三态",
       "brandRaw": "品牌原色（只做填充）",
-      "brandNote": "功能色只做图标胶囊、eyebrow 与图表；判分三态用状态标签，始终带文字。品牌原色只做填充，不承担正文。",
+      "brandNote": "功能色只做图标胶囊与图表；判分三态用状态标签，始终带文字。品牌原色只做填充，不承担正文。",
       "brandSpaces": "两个空间位（只进导航）",
       "navToneNote": "导航给五项上色：首页 = 海军蓝（空间位）、班级 = 淡紫（空间位）、作业/试卷 = Create、批改/复核 = Assess、报表/我的反馈 = Insights；资料、通知、管理员 AI 仍是中性。",
       "brandContrast": "对比度（亮 / 暗）",
@@ -1751,6 +1731,7 @@
       "sent": "已发送"
     },
     "detail": {
+      "title": "查词",
       "phonetic": "音标",
       "phoneticUk": "英",
       "phoneticUs": "美",

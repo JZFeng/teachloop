@@ -207,6 +207,7 @@
     "nextPage": "Next",
     "page": "Page {{page}}",
     "pageInfo": "{{total}} in total · page {{page}}/{{pages}}",
+    "pageInfoPending": "Page help is being written and will be added soon.",
     "prev": "Previous",
     "prevPage": "Previous",
     "retry": "Retry",
@@ -415,27 +416,6 @@
     "windowValue": "Opens {{start}}; you must start before {{due}}",
     "working": "Working…"
   },
-  "eyebrow": {
-    "classes": "CLASSES",
-    "papers": "CREATE · Papers",
-    "assignments": "CREATE · Assignments",
-    "assignmentCreate": "CREATE · Assign",
-    "grading": "ASSESS · Grading",
-    "review": "ASSESS · Review",
-    "reports": "INSIGHTS · Reports",
-    "summary": "INSIGHTS · Summary",
-    "feedback": "ASSESS · Grades",
-    "exam": "ASSESS · Answer",
-    "profile": "ACCOUNT",
-    "notifications": "INBOX",
-    "adminAi": "ADMIN",
-    "vocabLibrary": "PRACTICE · Library",
-    "vocabReview": "PRACTICE · Review",
-    "vocabSets": "PRACTICE · Word sets",
-    "vocabAssign": "PRACTICE · Send words",
-    "vocabAssignment": "PRACTICE · Preview",
-    "vocabAdd": "PRACTICE · Add words"
-  },
   "language": {
     "en": "English",
     "zh": "中文"
@@ -604,7 +584,7 @@
     "submissionId": "Submission",
     "suggestions": "Suggestions",
     "teacherGrading": "Teacher score and comment",
-    "title": "Review workbench",
+    "title": "Review",
     "unpublished": "Not published",
     "withdraw": "Withdraw",
     "withdrawnOk": "Publishing withdrawn; the student cannot see this feedback for now.",
@@ -1441,7 +1421,7 @@
       "brandFeatures": "Four feature slots (ink × tint)",
       "brandStatus": "Grading states",
       "brandRaw": "Raw brand colors (fills only)",
-      "brandNote": "Feature hues are for icon chips, eyebrows and charts. Grading states always carry text. Raw brand colors are fills only and never carry body text.",
+      "brandNote": "Feature hues are for icon chips and charts. Grading states always carry text. Raw brand colors are fills only and never carry body text.",
       "brandSpaces": "Two space slots (nav only)",
       "navToneNote": "Nav colors cover five items: Home is a navy space slot and Classes a violet one; assignments/papers = Create, grading/review = Assess, reports/feedback = Insights. Profile, notifications and admin AI stay neutral.",
       "brandContrast": "Contrast (light / dark)",
@@ -1751,6 +1731,7 @@
       "sent": "Sent"
     },
     "detail": {
+      "title": "Word details",
       "phonetic": "Phonetic",
       "phoneticUk": "UK",
       "phoneticUs": "US",

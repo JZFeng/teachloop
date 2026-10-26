@@ -13,6 +13,15 @@
 
 ## 当前
 
+- 已实现：**T509 全站页头统一（2026-10-26，决策 028）**：`PageHeader` 删除整张 eyebrow 路由表与四档功能色
+  样式，zh/en 删 20 个 `eyebrow.*` 键；标题行固定渲染 `<h1>` + `InfoHint`，无 `info` 的页面先用
+  `common.pageInfoPending` 占位（用户后统一提供文案）。`/review` 改名「复核」、`/vocab/review` 恢复
+  「今日复习」标题并把快捷键表并入标题 ⓘ、查词页补「查词」标题。验证：`typecheck`/`build` 0、
+  `pnpm test` 117/117、`check-i18n` 1689 键对齐（本任务验证时）、本任务改动 `check-ui` 0 新增；
+  QA 5174 DOM 扫描教师 19 + 学生 6 条路由 `eyebrow=0 / ⓘ=1` 全成立；截图
+  `docs/reports/2026-10-26-unified-page-header/`。当前共享 HEAD 另有并发 T508 的
+  `web/src/exam/importToEditor.ts` 触发 `RAW_TABLE`，不属于本任务。
+
 - 已实现：**T380–T385 全局 AI provider + 模型选择 + 教师级批改时机（D-30/D-33）**。
   v1 口径按可点 mock 收敛：管理员在 `/admin/ai` 维护 provider 列表（Provider ID、显示名、Base URL、
   OpenAI 兼容协议、可空 Key、`/v1/models` 模型发现），第一个 provider 自动成为当前模型；

@@ -12,18 +12,6 @@
   margin-bottom: 18px;
   flex-wrap: wrap;
 }
-.tl-page-eyebrow {
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: 0.08em;
-  color: var(--muted-2);
-}
-.tl-page-eyebrow[data-tone='create'] { color: var(--create); }
-.tl-page-eyebrow[data-tone='assess'] { color: var(--assess); }
-.tl-page-eyebrow[data-tone='insights'] { color: var(--insights); }
-.tl-page-eyebrow[data-tone='practice'] { color: var(--practice); }
 .tl-page-title {
   font-family: var(--font-head);
   font-size: 24px;

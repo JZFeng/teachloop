@@ -15,7 +15,7 @@
 | T346 | 壳层：侧栏品牌区 + 导航功能色胶囊（作业/试卷蓝、批改/复核青、报表/反馈玫红） | T345 | 首页/试卷/复核截图；当前项用 accent-text | 完成 |
 | T347 | 登录页按样张重排：整标 + brandLine + 中文 tagline + 三个卖点 + 四个功能位 | T345 | `/login` 亮暗截图；Practice 带「规划中」脚注 | 完成 |
 | T348 | 命名与入口：`app.name = TeachLoop`、tagline/brandLine、favicon、apple-touch-icon、标题 | T347 | `check-i18n` zh/en 对齐；浏览器标签图标生效 | 完成 |
-| T349 | 全站页头 eyebrow：路由前缀 → 文案 + 色调；页标题 20 → 24px | T346 | 20+ 路由截图；无路由漏映射 | 完成 |
+| T349 | 全站页头 eyebrow：路由前缀 → 文案 + 色调；页标题 20 → 24px | T346 | 20+ 路由截图；无路由漏映射 | 完成（2026-10-26 决策 028 撤销：全站 eyebrow 删除，改标题旁 ⓘ；见 T509） |
 | T350 | `/ui-kit` 品牌色板：四个功能位、判分三态、原始色、实测对比度 | T343 | `/ui-kit` 亮暗截图；无新增字面量 | 完成 |
 | T351 | 学生与深层页截图：学生首页/班级/反馈/作业/作答须知、批改详情、班级汇总、试卷向导、导入 | T346 | 30 张真页面截图；脚本 `scripts/brand/shoot-app.mjs` 可复跑 | 完成 |
 | T352 | 文档与决策：spec / decision 006、宪法第十五条回改、003 标注、PROGRESS、本文件 | T341–T351 | 四份计数自检通过；003 顶部标注被 006 取代 | 完成 |
@@ -40,3 +40,4 @@
 | 2026-10-22 | T352 | 完成 | 本文件、spec、decision 006、宪法第十五条品牌层、003 标注、PROGRESS |
 | 2026-10-22 | T353 | 完成 | `make test` 退出码 0（surefire 255/0/0/0）+ `pnpm test` 14/14 + typecheck/build 0 + contrast 40/40 + check-ui 0 新增 + check-i18n 1197 键 |
 | 2026-10-23 | T371 | 完成 | `contrast.py` 44/44；`check-ui` 0 新增；`pnpm test` 28/28；样张 `docs/mock/nav-color-2026-10-23/`、`docs/mock/insights-color-2026-10-23/`；截图 `docs/reports/nav-color-2026-10-23/` |
+| 2026-10-26 | T509 | 完成 | 全站页头删 eyebrow（`EYEBROW_RULES` / `eyebrow.*` 20 键 / `.tl-page-eyebrow` 样式全删），标题行固定 `<h1>` + `InfoHint`；无 `info` 的页面用 `common.pageInfoPending` 占位；`review.title` 改「复核」、今日复习页恢复「今日复习」标题、查词页补「查词」标题。验证：`typecheck`/`build` 0、`pnpm test` 117/117、`check-i18n` 1689 键、`check-ui` 0 新增；QA 5174 教师 19 + 学生 6 条路由 DOM 扫描 `eyebrow=0 / ⓘ=1`；截图 `docs/reports/2026-10-26-unified-page-header/`；决策 `docs/decisions/028-unified-page-header.md`（本任务改动自身 `check-ui` 0 新增；并发 T508 的 `importToEditor.ts` 另有 RAW_TABLE，不计本任务） |

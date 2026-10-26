@@ -206,8 +206,7 @@ export default function VocabWordDetailPage() {
   return (
     <>
       <PageHeader
-        title={detail.form}
-        hideTitle
+        title={t('vocab.detail.title')}
         actions={detail.inLibrary
           ? (
             <Button size="small" onClick={() => setFeedbackOpen(true)}>

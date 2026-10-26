@@ -19,7 +19,7 @@
 | 品牌资产 | mark / 字标 / 整标 / favicon，从 1254×1254 位图裁切、去白边 | `scripts/brand/build-assets.py`、`web/public/brand/` |
 | 令牌 | 品牌原色、三个已上线功能位、两个空间位（首页/班级）、判分三态、语义色 | `web/src/ui/tokens.ts`、`web/src/styles/tokens.css` |
 | 守卫 | 44 组对比度（原 16 组）+ 两处令牌一致性 + 暗色背景改读令牌 | `scripts/ui/contrast.py` |
-| 组件 | `Brand`（mark / text / lockup）、导航功能色胶囊、页头 eyebrow | `web/src/ui/Brand.tsx`、`PageHeader.tsx`、`Shell.tsx` |
+| 组件 | `Brand`（mark / text / lockup）、导航功能色胶囊、页头标题 + ⓘ | `web/src/ui/Brand.tsx`、`PageHeader.tsx`、`Shell.tsx` |
 | 页面 | 登录页重排；全站 24 条路由继承新令牌；25 条路由已截图 | `web/src/app/`、`teacher/`、`student/`、`exam/` |
 | 展示 | 资料页「偏好设置 → 界面标准」面板（原 `/ui-kit`）增加品牌色板与功能位对照 | `web/src/app/UiKitPanel.tsx` |
 
@@ -31,7 +31,7 @@
 | :--- | :--- | :--- |
 | 主操作颜色 | `#1A63E0`（白字 5.38:1），不是 logo 亮蓝 | 亮蓝 `#1F8DFD` 白字仅 3.34:1，违宪第十五条 4.5:1 |
 | 亮色用途 | 只做填充、插画、图表；文字用深一档 ink | WCAG 1.4.3 豁免 logo 本身，不豁免界面正文 |
-| 功能色 vs 判分色 | 两个命名空间，功能色进导航/eyebrow/胶囊，判分色进带文字标签 | 青↔绿、黄↔琥珀、玫红↔红三对撞色靠场景与文字分开 |
+| 功能色 vs 判分色 | 两个命名空间，功能色进导航/胶囊，判分色进带文字标签 | 青↔绿、黄↔琥珀、玫红↔红三对撞色靠场景与文字分开 |
 | 圆角 | 卡片 12 / 控件 8 / 小件 6 | logo 圆润；密度与控件高 32 不动 |
 | 字体 | 不引 webfont，字标用位图 + 文本两种形态 | 中文 webfont 1–5 MB，与自托管冲突 |
 | 暗色字标 | 亮色位图整标；暗色 mark + 文本字标 | 深海军蓝字标在暗底 2.14:1，硬反色位图会发毛 |
@@ -70,8 +70,8 @@
 
 - [ ] AC-31.1 登录页 `/login` 在 1440×900 亮/暗两套下：左侧显示整标（亮色位图 / 暗色 mark + 文本字标）、`Better Practice. More Insights.`、中文 tagline、三条卖点、四个功能位（Create / Assess / Practice / Insights，Practice 带「规划中」脚注）；证据 `docs/reports/brand-app-2026-10-22/login-{light,dark}.png`。
 - [ ] AC-31.2 侧栏品牌区使用 `Brand` 组件的 mark + 文本字标（不是位图字标）；导航五项带粉彩底胶囊：作业/试卷 = Create 蓝、批改/复核 = Assess 青、报表 = Insights 靛蓝、首页 = 空间海军蓝、班级 = 空间淡紫；资料、通知、管理员 AI 仍为中性、无胶囊；选中项统一 `--accent-weak` 底 + `--accent-text` 字；证据 `docs/reports/nav-color-2026-10-23/home-{light,dark}.png`、`classes-{light,dark}.png`。**2026-10-24 注：管理员导航改为独立两项（班级 = 空间淡紫胶囊、AI 设置 = 中性），教师与学生导航项不变；菜单矩阵见 `specs/007-role-nav/spec.md` §2。2026-10-26 注：学生侧「我的反馈」（Insights 靛蓝）随 `/feedback` 列表页删除而移除，见 AC-72.8；Insights 靛蓝此后只有「报表」一项使用。**
-- [ ] AC-31.3 每一条使用 `PageHeader` 的路由都有 eyebrow，颜色按模块：`/papers*` CREATE 蓝、`/assignments` 与 `/assignments/new` CREATE 蓝、`/grading*` 与 `/review` ASSESS 青、`/reports` 与 `/offerings/:id/summary` INSIGHTS 玫红、`/feedback*` 与 `/exams/:id` ASSESS 青、其余中性灰；截图覆盖至少 20 条路由。**2026-10-26 修订（AC-72.5）：`/` 例外——首页没有功能位，eyebrow 只能重复标题（原值 `DASHBOARD`），该路由不再出 eyebrow。**
-- [ ] AC-31.4 功能色与空间色只出现在导航胶囊、eyebrow（仅功能位）、登录页/UI kit 的色板与图表；空间色不进口 eyebrow；判分状态只出现在带文字的状态标签；同一个元素不同时使用两者。
+- [ ] AC-31.3 **2026-10-26 撤销（决策 028）**：全站页头不再有 eyebrow——`PageHeader` 的 `EYEBROW_RULES` 删除，zh/en 的 `eyebrow.*` 键删除；页头统一为「标题 + 标题旁 ⓘ + 可选副标题」，与首页一致。原要求（`/papers*` CREATE 蓝、`/grading*` 与 `/review` ASSESS 青、`/reports*` INSIGHTS 玫红、其余中性灰，截图覆盖 20 条路由）作废。
+- [ ] AC-31.4 功能色与空间色只出现在导航胶囊、登录页/UI kit 的色板与图表；页头不放功能色；判分状态只出现在带文字的状态标签；同一个元素不同时使用两者。
 - [ ] AC-31.5 品牌命名统一：`app.name = TeachLoop`（zh/en）、tagline 与 brandLine 入 i18n、`index.html` 标题为 `TeachLoop · AI 教学平台`、favicon/apple-touch-icon 存在；`check-i18n` 前端 zh/en 键数一致。
 
 #### US-32 维护者
@@ -102,7 +102,7 @@
 | FR-065 | `Brand` 组件：mark / text / lockup 三形态、四档尺寸、亮暗自适应、屏幕阅读器可读 | US-31/33 |
 | FR-066 | 壳层：侧栏品牌区、导航功能色与空间位胶囊、当前项文字用 `--accent-text` | US-31 |
 | FR-067 | 登录页：整标 + brandLine + 中文 tagline + 三个卖点 + 四个功能位；错误/加载态沿用组件层 | US-31 |
-| FR-068 | 页头 eyebrow：路由前缀 → 文案 + 色调的唯一映射表；页标题 24px | US-31 |
+| FR-068 | 页头：标题 24px + 标题旁 ⓘ（`ui/InfoHint`，无文案时用 `common.pageInfoPending` 占位）；全站无 eyebrow（2026-10-26 决策 028 撤销原路由映射表） | US-31 |
 | FR-069 | `/ui-kit`：品牌色板、功能位与空间位、判分三态、原始色、实测对比度 | US-31/32 |
 | FR-070 | 命名与入口：`app.name = TeachLoop`、tagline/brandLine、favicon、apple-touch-icon、页面标题 | US-31 |
 | FR-071 | 文档：spec / decision / 宪法第十五条 / 003 标注 / PROGRESS / tasks 互相一致 | US-32 |
@@ -158,10 +158,10 @@ Practice 未上线，改用 Insights 退下来的玫红占位。空间位与功�
 **导航着色口径（2026-10-23 修订）**：导航给五项上色——首页（空间海军蓝）、班级（空间淡紫）、
 作业/试卷 = Create、批改/复核 = Assess、报表/我的反馈 = Insights；资料、通知、管理员 AI 仍是中性导航。
 **2026-10-24 注：管理员导航改为独立两项——班级（空间淡紫胶囊）+ AI 设置（中性）；教师与学生导航项与本段一致。菜单矩阵见 `specs/007-role-nav/spec.md` §2。**
-空间色只进导航图标，**不进口 eyebrow**：页头仍只有 CREATE / ASSESS / INSIGHTS 三种功能色。
+空间色只进导航图标；页头不再使用功能色（2026-10-26 决策 028 删除 eyebrow）。
 选中态统一用 `--accent-weak` 底 + `--accent-text` 字，不跟各自色走。
 Insights 从玫红改靛蓝，因为玫红在暗色下与「出错」红同族，读起来像报错；空出来的玫红交给未上线的 Practice。
-依据 `Shell.tsx` 的 `NavItem`、`PageHeader.tsx` 的路由映射与 AC-31.2；中性页面想「补色」时先改这条口径。
+依据 `Shell.tsx` 的 `NavItem` 与 AC-31.2；中性页面想「补色」时先改这条口径。
 
 ### 5.4 判分三态
 
@@ -230,7 +230,7 @@ Insights 从玫红改靛蓝，因为玫红在暗色下与「出错」红同族�
 ## 8. 范围外
 
 - 信息架构调整、五个功能位改成五个导航项（Practice / Words 未上线）。
-- 21 屏逐屏重写；本轮靠令牌继承 + 页头 eyebrow + 壳层统一。
+- 21 屏逐屏重写；本轮靠令牌继承 + 页头统一 + 壳层统一。
 - `Tag` 组件的语义重写（仍用 tone: blue/green/amber/red/gray）。
 - 管理员 AI 设置、考试 live、反馈详情的视觉重截（见 6.2）。
 - 生产部署与真实微信/OSS 验证。

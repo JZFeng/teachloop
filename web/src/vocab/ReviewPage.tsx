@@ -6,11 +6,9 @@ import {
   Button,
   Empty,
   ErrorState,
-  InfoCircleOutlined,
   InlineNote,
   Loading,
   PageHeader,
-  Popover,
   useConfirm,
   useToast,
 } from '../ui'
@@ -346,19 +344,7 @@ export default function VocabReviewPage() {
   const header = (
     <PageHeader
       title={t('vocab.review.title')}
-      hideTitle
-      actions={(
-        <Popover content={info} trigger="click" placement="bottomRight">
-          <button
-            type="button"
-            className="review-info-icon"
-            aria-label={t('vocab.review.shortcuts')}
-            title={t('vocab.review.shortcuts')}
-          >
-            <InfoCircleOutlined />
-          </button>
-        </Popover>
-      )}
+      info={info}
     />
   )
 
