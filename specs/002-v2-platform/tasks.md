@@ -605,6 +605,31 @@ AC-4.23④ / AC-4.24–4.29、FR-146–150、plan §20。
 
 ---
 
+## 阶段 32 — 2026-10-25 AI provider 故障转移与花费护栏（决策 022 / 023，T482–T485）
+
+上游：`docs/decisions/022-ai-provider-failover.md`（修订 013-A）、`docs/decisions/023-ai-daily-budget-guard.md`。
+背景：目标规模 1000 个学生 + 包月套餐（opencode go）。套餐超额时返回多为 401/402/403，按 013-B 不重试，
+现状结果是「整班批改失败等人工」；同时判分没有任何花费上限。
+
+| ID | 任务 | 依赖 | 验收 |
+| :--- | :--- | :--- | :--- |
+| T482 | **迁移 V066 + 实体**：`ai_providers.priority`（默认 100）、`ai_usage_daily`、`submissions.graded_provider` | — | 迁移在 Postgres 16 上按版本序跑通（V066 接 V065）；空库与已有库都能迁移；`check-boundaries` 表归属不变；`make test` 迁移校验通过 |
+| T483 | **provider 故障转移**：熔断打开 → 按 priority 切下一个可用 provider → 审计 `ai.provider.failover` → 通知管理员与受影响教师 → 失败份按 013-D 重派 | T482 | 单测：连续 5 份失败打开熔断后 `active_provider_id` 指向下一个；无备用 provider 时保持熔断不动；切换写审计且不含密钥；同场跨 provider 时每份 `graded_provider` 正确；`/admin/ai` 与复核台显示切换事实 |
+| T484 | **每日预算护栏**：`ai_usage_daily` 计数（calls + usage token，purpose=grading/explanation/vocab）、上限停派、80% 预警、`/admin/ai` 今日面板与「今日放行」（写审计 `ai.budget.override`） | T482 | 单测：上限为 0 时不限；达上限后自动派发停止且提交保持 PENDING；预警同日只通知一次；provider 不返回 usage 时只计 calls 且标 `usage_missing`；放行后可继续派发且审计带操作人 |
+| T485 | **验证与收尾**：全量回归 + 浏览器验收 + 文档 | T483, T484 | `make test` 退出码 0（四个守卫 + 前端 + Maven）；用假 provider（指向 127.0.0.1 不可用端口）制造熔断，浏览器看到 failover 与今日用量；`DELIVERY-STATUS` / `PROGRESS` 补条目；013 的 A 行已指向 022 |
+
+### 编号取号记录（2026-10-25 第二次）
+
+- 落笔前实测：`T` 最大 481 → 本阶段 `T482–T485`；`AC` 最大 69、`FR` 最大 150、`US` 最大 69 → 本阶段不新增 spec 编号（两者属 US-62 的实现细节；若实现时发现需要验收标准，再取 `AC-70.x` 并同时回写 spec）。
+- 迁移号：V065 已被试卷重构占用 → 本阶段用 **V066**。
+
+### 本次拍板的「不做」（避免下一轮又被当成缺口提出来）
+
+- **排队慢不是问题**：用户口径「1 小时完全没问题，小时候考试都过好几天才有成绩」→ 不因 1000 人规模强制加 worker；worker 数量按实测队列积压再加。
+- **v1 不切 OSS**：用户有 10TB 硬盘，`STORAGE_BACKEND=local` + 本地卷即可。**代价**：单盘即单点，必须配 `scripts/backup-pg.sh` 的 uploads 备份并留一份异地副本——10TB 盘不做备份等于没有备份。
+
+---
+
 ## 未实现声明（v2 不做）
 
 - **阅读理解文章分栏（sticky 左文章 / 右题目）**：托福 2023 改版采用此布局，但会与「单一滚动区 + 目录树滚动联动」冲突，V1 保持纵向排列；见 `.docs/research/2026-10-19-toefl-ibt-interface.md`。
