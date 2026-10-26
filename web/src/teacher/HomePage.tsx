@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api, fmtDateTime } from '../api/client'
@@ -11,6 +11,7 @@ import {
   ErrorState,
   Loading,
   PageHeader,
+  Search,
   StatCard,
   TableToolbar,
   useColumnPrefs,
@@ -90,21 +91,40 @@ export default function TeacherHomePage() {
     (STATE_FILTERS as readonly string[]).includes(value),
   )
 
+  /**
+   * 2026-10-26（用户要求）：首页「最近作业」也照词库那套 table view 摆——常驻搜索框在最前。
+   * 搜索框的即时值与 URL 双轨：输入立刻过滤（不等一次 URL 往返），URL 变了（后退/前进）再同步回来；
+   * 清空（allowClear / 全选删除）当场生效。写法与作业列表、词库页一致。
+   */
+  const q = params.get('q') ?? ''
+  const [search, setSearch] = useState(q)
+  useEffect(() => { setSearch(q) }, [q])
+
   /** 只改 URL，不动 sort/page：AC-19.4 要求切换筛选不丢排序与分页（DataTable 会自己夹紧页码）。 */
   const update = (mutate: (next: URLSearchParams) => void) => {
-    const next = new URLSearchParams(params)
-    mutate(next)
-    setParams(next, { replace: true })
+    setParams((prev) => {
+      const next = new URLSearchParams(prev)
+      mutate(next)
+      return next
+    }, { replace: true })
   }
 
   /** 两组筛选 → URL：班级用逗号（沿用旧链接），状态用多值 `state=`。 */
   const applyFilters = (next: Record<string, string[]>) => {
-    update((search) => {
-      search.delete('classes')
-      search.delete('state')
+    update((target) => {
+      target.delete('classes')
+      target.delete('state')
       const classes = next.classes ?? []
-      if (classes.length > 0) search.set('classes', classes.join(','))
-      ;(next.state ?? []).forEach((value) => search.append('state', value))
+      if (classes.length > 0) target.set('classes', classes.join(','))
+      ;(next.state ?? []).forEach((value) => target.append('state', value))
+    })
+  }
+
+  /** 「清空筛选」= 回到全量：关键字与两组筛选一起清（与词库页那行按钮同一个语义）。 */
+  const resetAll = () => {
+    setSearch('')
+    update((target) => {
+      ;['q', 'classes', 'state'].forEach((key) => target.delete(key))
     })
   }
 
@@ -125,7 +145,9 @@ export default function TeacherHomePage() {
     })
   }
 
+  const keyword = search.trim().toLowerCase()
   const filteredOfferings = offerings.filter((o) => {
+    if (keyword && !o.paperTitle.toLowerCase().includes(keyword)) return false
     if (selectedClasses.length > 0 && !o.classes.some((c) => selectedClasses.includes(c.classId))) {
       return false
     }
@@ -303,28 +325,58 @@ export default function TeacherHomePage() {
                 onPageSizeChange={setPageSize}
                 onRowClick={(o) => navigate(`/grading/${o.id}`)}
                 toolbar={(
-                  <TableToolbar
-                    groups={[
-                      {
-                        key: 'classes',
-                        label: t('teacher.home.filterClasses'),
-                        options: classes.map((c) => ({ value: c.id, label: `${c.name} (${c.memberCount})` })),
-                      },
-                      {
-                        key: 'state',
-                        label: t('teacher.home.filterStates'),
-                        options: STATE_FILTERS.map((state) => ({
-                          value: state,
-                          label: t(`teacher.home.stateFilter.${state}`),
-                        })),
-                      },
-                    ]}
-                    value={{ classes: selectedClasses, state: selectedStates }}
-                    onChange={applyFilters}
-                    columnPicker={<Button onClick={() => setColumnsOpen(true)}>{t('common.columns')}</Button>}
-                  />
+                  <>
+                    <Search
+                      className="tl-table-search"
+                      value={search}
+                      allowClear
+                      placeholder={t('teacher.home.searchPlaceholder')}
+                      onChange={(event) => {
+                        const value = event.target.value
+                        setSearch(value)
+                        update((target) => {
+                          if (value.trim()) target.set('q', value)
+                          else target.delete('q')
+                        })
+                      }}
+                      onSearch={(value) => {
+                        setSearch(value)
+                        update((target) => {
+                          if (value.trim()) target.set('q', value)
+                          else target.delete('q')
+                        })
+                      }}
+                    />
+                    <TableToolbar
+                      groups={[
+                        {
+                          key: 'classes',
+                          label: t('teacher.home.filterClasses'),
+                          options: classes.map((c) => ({ value: c.id, label: `${c.name} (${c.memberCount})` })),
+                        },
+                        {
+                          key: 'state',
+                          label: t('teacher.home.filterStates'),
+                          options: STATE_FILTERS.map((state) => ({
+                            value: state,
+                            label: t(`teacher.home.stateFilter.${state}`),
+                          })),
+                        },
+                      ]}
+                      value={{ classes: selectedClasses, state: selectedStates }}
+                      onChange={applyFilters}
+                      onReset={resetAll}
+                      columnPicker={<Button onClick={() => setColumnsOpen(true)}>{t('common.columns')}</Button>}
+                    />
+                  </>
                 )}
-                empty={filterCount > 0 ? t('teacher.home.filteredEmpty') : t('teacher.home.empty')}
+                empty={
+                  keyword
+                    ? t('teacher.home.noMatch')
+                    : filterCount > 0
+                      ? t('teacher.home.filteredEmpty')
+                      : t('teacher.home.empty')
+                }
               />
             </>
           )}

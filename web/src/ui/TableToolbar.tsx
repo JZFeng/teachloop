@@ -33,9 +33,15 @@ export interface TableToolbarProps {
   columnPicker?: ReactNode
   /** 右侧附加信息，如「显示 3 / 10 条」。 */
   summary?: ReactNode
+  /**
+   * 「清空筛选」的完整语义（2026-10-26）：除筛选组之外，页面自己的关键字（URL `q`）也一并清掉。
+   * 传了它，按钮就按词库页的做法常驻显示（空态也显示，点了就是回到全量）；
+   * 不传时只清筛选组，供没有搜索框的页面（批改详情「提交明细」）沿用。
+   */
+  onReset?: () => void
 }
 
-export function TableToolbar({ groups, value, onChange, columnPicker, summary }: TableToolbarProps) {
+export function TableToolbar({ groups, value, onChange, columnPicker, summary, onReset }: TableToolbarProps) {
   const { t } = useTranslation('translation')
   const [open, setOpen] = useState(false)
   const [draft, setDraft] = useState<Record<string, string[]>>(value)
@@ -65,6 +71,10 @@ export function TableToolbar({ groups, value, onChange, columnPicker, summary }:
   }
 
   const clear = () => {
+    if (onReset) {
+      onReset()
+      return
+    }
     onChange(Object.fromEntries(groups.map((group) => [group.key, []])))
   }
 
@@ -74,7 +84,8 @@ export function TableToolbar({ groups, value, onChange, columnPicker, summary }:
         {t('common.filter')}{count > 0 ? ` · ${count}` : ''}
       </Button>
       {columnPicker}
-      {count > 0 && <Button onClick={clear}>{t('common.clearFilters')}</Button>}
+      {/* 清空筛选常驻（与词库页一致）：空态也在，点它就是回到全量，不靠「计数 > 0」猜测能不能清。 */}
+      <Button onClick={clear}>{t('common.clearFilters')}</Button>
       {summary && <span className="small muted tl-toolbar-summary">{summary}</span>}
 
       <Modal open={open} title={t('common.filterTitle')} onCancel={() => setOpen(false)} footer={null}>

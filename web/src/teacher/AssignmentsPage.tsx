@@ -97,6 +97,14 @@ export default function AssignmentsPage() {
     return true
   })
 
+  /** 「清空筛选」= 回到全量：关键字与两组筛选一起清（与首页、词库页同一个语义）。 */
+  const resetAll = () => {
+    setSearch('')
+    update((prev) => {
+      ;['q', 'classes', 'status'].forEach((key) => prev.delete(key))
+    })
+  }
+
   const allColumns = useMemo<Record<ColumnKey, Column<OfferingView>>>(() => ({
     title: {
       key: 'title',
@@ -251,6 +259,7 @@ export default function AssignmentsPage() {
                     prev.set('page', '1')
                   })}
                   columnPicker={<Button onClick={() => setColumnsOpen(true)}>{t('common.columns')}</Button>}
+                  onReset={resetAll}
                 />
               </>
             )}
