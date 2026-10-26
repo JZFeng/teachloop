@@ -27,7 +27,7 @@
 - [x] **T478** 路由守卫与落地 — `HomeRouter` 按 `nav.home` 落地、`RequireFeature` 包 11 条路由；`tsc --noEmit` EXIT=0。**浏览器未验收**
 - [x] **T479** 后端方法级收口 — `SecurityConfig` 10 条规则；`RoleAccessTest` 4/4 通过（9 端点 × admin 403 / teacher 非 403）；全量 Maven `./mvnw -pl teachloop-app -am test` EXIT=0
 - [x] **T480** 班级页入口收敛 — 核实班级页只有「创建班级 / 成员列表」，`/api/classes/**` 未收口，不会 403；`RoleAccessTest.adminCanUseClassPageActions` 钉住
-- [ ] **T481** 三档验收与状态文档 — **部分完成**：`check-deps` / `check-boundaries` / `check-i18n` / `check-ui` / 44 组对比度全绿，`pnpm run build` EXIT=0，DELIVERY-STATUS 已加行；**缺三角色浏览器截图，视觉未验收**
+- [x] **T481** 三档验收与状态文档 — `check-deps` / `check-boundaries` / `check-i18n` / `check-ui` / 44 组对比度全绿；`pnpm run build` EXIT=0；**三角色浏览器验收通过**：admin 侧栏 2 项且 `/grading`、`/reports` 均落到 `/classes`，教师 9 项、学生 5 项（截图 `docs/reports/role-nav-2026-10-25/`）
 
 ---
 

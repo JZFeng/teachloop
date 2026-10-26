@@ -46,7 +46,7 @@ golden set：`DEEPSEEK_API_KEY=... python3 scripts/golden-set.py`。
 | 质量基线 | v1 四模型段落计数移植，10 份 parity 全一致 | `TextLengthCounterFixtureTest` |
 | Golden set | 10 份人工均分 9.6；deepseek-flash 平均偏差 0.0、最大 0、方向持平 | `docs/reports/golden-set-baseline.md`、`make test-ai` |
 | 管理员初始设置 | `/setup` 创建首个管理员（Key 可空）；`/admin/ai` 维护全局 provider 列表（Key AES-GCM 加密、只回掩码、测试连接、模型发现）并切换当前模型；教师 `/profile` 没有任何 AI 入口（D-33，2026-10-24 修订） | `AiSetupTest`；QA 浏览器 `scripts/verify/ai-model-settings.mjs` 12/12，截图 `docs/reports/t386-ai-model-settings/` |
-| 角色导航矩阵（007） | 后端 `RoleNavMatrix` 唯一真源（admin 2 项 / teacher 9 项 / student 5 项）；`/api/features` 按当前用户返回 key 集合；前端只保留菜单目录 + 路由守卫；后端方法级收口（报表/试卷/批改/复核/布置对 ADMIN 403）。**浏览器三角色视觉未验收** | `RoleNavMatrixTest`、`FeaturesEndpointTest`、`RoleAccessTest`、`vocab-nav.test.mjs` |
+| 角色导航矩阵（007） | 后端 `RoleNavMatrix` 唯一真源（admin 2 项 / teacher 9 项 / student 5 项）；`/api/features` 按当前用户返回 key 集合；前端只保留菜单目录 + 路由守卫；后端方法级收口（报表/试卷/批改/复核/布置对 ADMIN 403）。三角色浏览器验收通过（admin 侧栏 2 项、教师 9 项、学生 5 项，截图 `docs/reports/role-nav-2026-10-25/`） | `RoleNavMatrixTest`、`FeaturesEndpointTest`、`RoleAccessTest`、`vocab-nav.test.mjs` |
 
 ## 四、部分完成 / 已知偏差
 
