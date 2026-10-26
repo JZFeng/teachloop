@@ -46,6 +46,22 @@ LEGACY_BTN = re.compile(r'className=\{?["`]([^"`]*\bbtn\b)')
 EMOJI = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf]")
 RAW_TABLE = re.compile(r"<table\b")
 
+# 注释里的示例代码不是代码：文档注释里常出现 `<table>`、`from 'antd'` 这类字面，
+# 扫原文会误报（实例：web/src/exam/importToEditor.ts:10 的富文本白名单说明）。
+# 只剥块注释与「整行 // 注释」；行内 // 不动，避免误伤 URL 与字符串。
+BLOCK_COMMENT = re.compile(r"/\*.*?\*/", re.S)
+LINE_COMMENT = re.compile(r"^[ \t]*//.*$", re.M)
+
+
+def strip_comments(text: str) -> str:
+    """剥掉注释但保留换行，避免行号与缩进结构漂移。"""
+
+    def blank_block(match: re.Match[str]) -> str:
+        return "\n" * match.group(0).count("\n")
+
+    return LINE_COMMENT.sub("", BLOCK_COMMENT.sub(blank_block, text))
+
+
 # 第七条（决策 026 / AC-70.2）：失败与阻断不许用灰字表达。
 # 只抓「错误表达式直接落进灰色容器」这一种最容易犯的写法：
 #   <p className="small muted">{error}</p>
@@ -135,7 +151,8 @@ def scan() -> dict[str, dict[str, int]]:
         if path.suffix not in {".ts", ".tsx", ".css"} or not path.is_file():
             continue
         rel = path.relative_to(ROOT).as_posix()
-        text = path.read_text(encoding="utf-8")
+        # 所有文本规则都基于「剥掉注释」的文本：注释里的示例不是真实代码。
+        text = strip_comments(path.read_text(encoding="utf-8"))
 
         if rel not in COLOR_TOKEN_FILES:
             counts[rel]["COLOR_LITERAL"] += len(COLOR_LITERAL.findall(text))

@@ -139,7 +139,7 @@ export default function ClassesPage() {
     // 成员是「行内展开」的主操作，轮换邀请码是低频动作 → 收进「⋯」（AC-25.1）。
     render: (row) => (
       <RowActions
-        primary={{
+        main={{
           key: 'members',
           label: membersClassId === row.id
             ? t('teacher.classes.hideMembers')

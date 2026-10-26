@@ -239,13 +239,14 @@ export default function VocabListsPage() {
       value: () => '',
       render: (list) => {
         const count = reviewableOf(list)
-        // AC-25.1：行内只留 1 个主操作（开始复习），编辑 / 删除收进「⋯」。
+        // AC-25.1：行内只留 1 个「主要动作」（开始复习），编辑 / 删除收进「⋯」。
+        // 「主要动作」是结构概念，**不是** `variant="primary"`：行内永远描边，
+        // 实色主按钮只给页面级（这页是页头的「新建词单」）。
         return (
           <RowActions
-            primary={{
+            main={{
               key: 'review',
               label: t('vocab.lists.startReview', { count }),
-              variant: count > 0 ? 'primary' : 'default',
               disabled: count === 0 || startingId === list.id,
               busy: startingId === list.id,
               reason: count === 0 ? t('vocab.lists.reviewNoneHint') : undefined,

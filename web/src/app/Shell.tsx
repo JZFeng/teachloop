@@ -135,7 +135,10 @@ export function Shell({ children }: { children: ReactNode }) {
             {/* 模型只在 /admin/ai 配；教师页没有 AI 入口，所以教师看到的是提示而不是跳转。 */}
             {aiMissing && (me?.role === 'ADMIN'
               ? (
-                <Button size="small" variant="primary" onClick={() => navigate('/admin/ai')}>
+                /* Must not share weight with "complete profile": a missing profile blocks use,
+                   while a missing AI key only affects generation. Two solid buttons side by side
+                   leave no visual answer to "which one first" (checklist A1a, 2026-10-26). */
+                <Button size="small" variant="default" onClick={() => navigate('/admin/ai')}>
                   {t('profile.aiMissingAction')}
                 </Button>
               )
