@@ -1821,7 +1821,7 @@
       "due": "Due",
       "expired": "Expired",
       "claimed": "Already added",
-      "claim": "Add to my library",
+      "claim": "Add to library",
       "claimedDone": "Added {{added}} words, {{duplicated}} already in library",
       "word": "Word",
       "band": "Frequency",

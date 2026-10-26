@@ -1821,7 +1821,7 @@
       "due": "截止",
       "expired": "已过期",
       "claimed": "已加入词库",
-      "claim": "加入我的词库",
+      "claim": "加入词库",
       "claimedDone": "已加入 {{added}} 个词，{{duplicated}} 个已在库",
       "word": "单词",
       "band": "常用度",

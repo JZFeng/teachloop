@@ -87,10 +87,16 @@ export default function VocabAssignmentPreviewPage() {
 
   return (
     <>
+      {/* Back + claim share one row (user request 2026-10-26): claiming already
+          navigates to the library, so "back" is just the escape hatch and must
+          not require scrolling to the end of the word list. */}
       <PageHeader title={detail.setName} sub={detail.note} actions={(
-        <Button variant="primary" busy={busy} disabled={detail.claimed} onClick={() => void claim()}>
-          {detail.claimed ? t('vocab.assignment.claimed') : t('vocab.assignment.claim')}
-        </Button>
+        <span className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+          <Button onClick={() => navigate('/vocab/library')}>{t('vocab.assignment.back')}</Button>
+          <Button variant="primary" busy={busy} disabled={detail.claimed} onClick={() => void claim()}>
+            {detail.claimed ? t('vocab.assignment.claimed') : t('vocab.assignment.claim')}
+          </Button>
+        </span>
       )} />
 
       <div className="row" style={{ gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
@@ -108,10 +114,6 @@ export default function VocabAssignmentPreviewPage() {
         rowKey={(row) => `${row.form}-${row.rowNumber}`}
         empty={t('vocab.assignment.empty')}
       />
-
-      <div className="row" style={{ justifyContent: 'flex-end', marginTop: 12 }}>
-        <Button onClick={() => navigate('/vocab/library')}>{t('vocab.assignment.back')}</Button>
-      </div>
     </>
   )
 }
