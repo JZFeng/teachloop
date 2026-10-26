@@ -62,6 +62,28 @@ docker compose down                      # 停（保留数据卷）
 docker compose down -v                   # 停并删除数据（慎用）
 ```
 
+## Cloudflare 隧道（公网访问）
+
+```bash
+ssh jzfeng@192.168.68.101 'cd ~/teachloop && docker compose --env-file .env --profile tunnel up -d tunnel'
+ssh jzfeng@192.168.68.101 'docker logs teachloop-tunnel-1 2>&1 | grep -oE "https://[a-z0-9-]+\.trycloudflare\.com" | head -1'
+```
+
+- 当前地址：**https://inch-foods-uncle-fisher.trycloudflare.com**（2026-10-25 验证：首页 200 / 登录 200 / `/api/auth/me` 200）
+- 这是 **quick tunnel**：地址随机，容器重启就会换。要固定地址，需要先有域名（接入 Cloudflare）再做 named tunnel + DNS route。
+- 暴露范围：登录页对公网可见。已先把首个管理员建好（`admin@teachloop.local`，密码见交付说明），否则 `/setup` 会被任何人抢注。
+- 更强的保护需要 Cloudflare Access（要求 Cloudflare 账号 + 域名）。
+
+## 部署中发现并修掉的生产缺陷
+
+| # | 问题 | 影响 |
+| :--- | :--- | :--- |
+| 1 | `SecurityConfig` 没有 Web 条件注解，worker(non-web) 启动即失败 | worker 永远起不来（文档里的启动方式不成立） |
+| 2 | Dockerfile `pip install piper-tts` 撞 PEP 668 | 任何干净构建失败 |
+| 3 | **`/api/csrf` 在 prod 返回空 token**（Spring Security 7 下 request attribute 拿不到 token），浏览器所有 POST 被 CSRF 拒绝 → 401，**连首个管理员都建不了** | 生产不可用；dev profile 关了 CSRF 所以一直没暴露。修法：CsrfEndpoint 显式 `generateToken` + `saveToken`，并把 XOR 掩码换成 `CsrfTokenRequestAttributeHandler`（SPA 直传 Cookie 值） |
+| 4 | 部署脚本中断会把 dist 撕成半套（index.html 指向不存在的 JS） | 首页白屏；已加产物校验 + 原地 `--delete-after` 同步 + 强制重建 web 容器 |
+| 5 | `mv` 目录做「原子」替换会让 nginx bind mount 挂在旧 inode | 首页 403 |
+
 ## 已知缺口（本部署刻意没做）
 
 - 没有 HTTPS / 域名：内网 HTTP 方案，`COOKIE_SECURE=false`。

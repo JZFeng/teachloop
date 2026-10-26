@@ -56,6 +56,10 @@ public class SecurityConfig {
             .csrf(csrf -> {
                 if (prod) {
                     csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse());
+                    // SPA 直接回传 Cookie 里的原始 token；XOR 掩码会让「Cookie 值」和
+                    // handler 期待的「掩码值」不一致，导致所有 POST 401（2026-10-25 部署实测）。
+                    csrf.csrfTokenRequestHandler(
+                            new org.springframework.security.web.csrf.CsrfTokenRequestAttributeHandler());
                 } else {
                     csrf.disable();
                 }
