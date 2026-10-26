@@ -75,6 +75,15 @@
 所有列表页的表格来自**同一个组件**：排序、分页、每页条数、空态、选择列的行为一致；
 只有「我的词库」额外提供列配置。**验收**：见 AC-68.1–68.6。
 
+### US-70 作为用户，我一眼能分出「出错了」「有风险」「只是说明」
+
+> 编号说明（2026-10-25）：接 US-68 之后按全局最大号顺延（US-70、AC-70.1–70.4、FR-151–152），
+> 与 `specs/006-brand-visual`（US-31–67）、`specs/002-v2-platform`（FR-062–137）不重号。
+
+失败与阻断不再是一行灰字：**红**=操作失败或被拦住，**黄**=还能继续但有风险或有事待办，
+**绿**=刚完成且有时效，**蓝/中性**=纯说明。判据写在 `docs/decisions/026-message-tones.md`。
+**验收**：见 AC-70.1–70.4。
+
 ---
 
 ## 3. 验收标准
@@ -116,6 +125,13 @@
 - [x] AC-68.5 列显隐与上下移只在「我的词库」，仍持久化到 `/api/vocab/prefs`；该页改造前后 DOM 结构与视觉保持一致（改造前/后截图对照）*（2026-10-25 用户拍板：两侧都没有 before 截图（改造前未起服务），以「组件渲染的正是词库页原 `<table>` markup 与同一套 `tl-table*` 样式」作为等价证据，配改造后截图 `docs/reports/2026-10-25-table-unify/library-*.png`；不是像素对比。）*
 - [x] AC-68.6 表格样式只来自 `ui/ui.css` 的 `tl-table*` 规则与令牌：`make check-ui`（含 `contrast.py`）与 `make check-i18n` 均 0 新增；3 张只读分析表（班级汇总分布/正确率、复核逐题）只统一视觉、不加排序分页；编辑器/表单表（组卷向导 ×5、导入试卷、一次布置覆盖、考试入场 kv、词条排序）逐条 grep 确认未改动
 
+#### US-70 反馈带语义色（2026-10-25）
+
+- [x] AC-70.1 提示条组件 `web/src/ui/InlineNote.tsx` 提供 info / success / warning / error 四档，映射到 `styles/mockup.css` 的 `.inline-note` / `.ok` / `.warn` / `.err`；亮暗两套主题下文字与底色都不同（实测亮色 err `#b42338` on `#fde6e8`、warn `#8a5a00` on `#fff3d6`、ok `#17703f` on `#e6f5ec`；暗色 err `#ff7d8a` on `#331218` 等），截图 `docs/reports/2026-10-25-message-colors/inline-notes.png`
+- [x] AC-70.2 失败/阻断文案禁止灰字：`check-ui` 的 `MUTED_FAILURE` 规则对「`{*Error|*Fail|*Warn|*Blocked}` 表达式落在 `className` 含 `muted` 或无色调 `inline-note` 的元素」报告新增违规即失败，基线不豁免；实测反证：手动插入 `<p className="small muted">{error}</p>` 时 `make check-ui` 退出码非 0
+- [x] AC-70.3 行内状态 chip 有基础样式与四档语义色（`app.css` 的 `.chip` + `.chip.ok/.warn/.err/.info`）：词库「未准备」黄 /「内容生成中」蓝 /「内容生成失败」红、词集详情「已暂停」黄 /「已删除」红、发词预览「已过期」黄；`.teacher-page .chip` 的筛选样式不受影响
+- [x] AC-70.4 界面标准面板并排展示四档提示条与四档 chip（`web/src/app/UiKitPanel.tsx`）作为唯一活参考；四档判据（什么算 error、什么算 warning）写在 `docs/decisions/026-message-tones.md`
+
 ---
 
 ## 4. 功能需求
@@ -127,7 +143,7 @@
 | FR-054 | 组件库接入：antd 6 + ConfigProvider（算法/令牌/语言包）+ React 19 兼容 | US-28 |
 | FR-055 | 主题切换：Segmented 放在侧栏底部与资料页，选择写 `localStorage` | US-27 |
 | FR-056 | 组件展示入口：资料页「偏好设置 → 界面标准」面板（旧链接 `/ui-kit` 重定向到展开态），组件 × 状态的唯一参考 | US-28 |
-| FR-057 | 静态守卫 `scripts/check-ui.py`：5 条规则 + 基线文件 + `make check-ui` | US-30 |
+| FR-057 | 静态守卫 `scripts/check-ui.py`：7 条规则（含 FR-152 的 `MUTED_FAILURE`）+ 基线文件 + `make check-ui` | US-30 |
 | FR-058 | 对比度守卫 `scripts/ui/contrast.py`：断言两处令牌一致 + 16 组对比度 | US-30 |
 | FR-059 | 5 屏迁移：登录、首页、试卷列表、新建作业、复核 | US-28 |
 | FR-060 | 中文排版基线：14px / 行高 1.65 / 字号六档 / 表格密度 middle | US-27 |
@@ -136,6 +152,8 @@
 | FR-139 | 页脚与每页条数：共 N 条 / 第 x/y 页 / 上一页·下一页 / 10-20-50-100，默认 10（承接 AC-24.3 修订） | US-68 |
 | FR-140 | 选择列与批量条：只在有批量动作的页面启用；表头全选 + 半选态；无批量动作的页面不渲染空列 | US-68 |
 | FR-141 | 列配置（显隐 / 上下移）只保留在「我的词库」，持久化到 `/api/vocab/prefs`；不进组件 | US-68 |
+| FR-151 | 反馈语义色：`ui/InlineNote` 四档 + `.inline-note.ok/.warn/.err` + `.chip.ok/.warn/.err/.info`；失败与阻断禁止灰字，判据见决策 026 | US-70 |
+| FR-152 | 静态守卫 `MUTED_FAILURE`：灰度容器（`muted` / 无色调 `inline-note`）承载错误表达式即失败，基线不豁免 | US-70 |
 
 ---
 

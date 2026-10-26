@@ -44,6 +44,17 @@ LEGACY_BTN = re.compile(r'className=\{?["`]([^"`]*\bbtn\b)')
 EMOJI = re.compile("[\U0001f300-\U0001faff\u2600-\u27bf]")
 RAW_TABLE = re.compile(r"<table\b")
 
+# 第七条（决策 026 / AC-70.2）：失败与阻断不许用灰字表达。
+# 只抓「错误表达式直接落进灰色容器」这一种最容易犯的写法：
+#   <p className="small muted">{error}</p>
+#   <div className="inline-note">{membersError}</div>
+# 抓不到的（条件渲染里的语义、第三方组件内部的文案）由 AC-70.4 与 review 兜。
+JSX_EXPR = re.compile(r"\{([A-Za-z_$][\w$]*(?:\.[\w$]+)*)\}")
+FAILURE_IDENT = re.compile(r"[A-Za-z_$]*(?:[Ee]rror|[Ff]ail|[Ww]arn|Blocked|blocked)[A-Za-z_$]*")
+TONED_CONTAINER = re.compile(
+    r"inline-note\s+(?:ok|warn|err|info)\b|chip\s+(?:ok|warn|err|info)\b"
+)
+
 RULE_HINT = {
     "COLOR_LITERAL": "颜色只能来自 web/src/ui/tokens.ts 或 web/src/styles/tokens.css",
     "INLINE_STYLE": "内联 style 只写布局（flex/grid/width/margin），颜色/字号/圆角走令牌或组件",
@@ -51,7 +62,31 @@ RULE_HINT = {
     "LEGACY_BTN_CLASS": "用 <Button variant=...>，不要手写 className=\"btn\"",
     "EMOJI_ICON": "图标用 @ant-design/icons（经 ui/ 引出），不要用 emoji",
     "RAW_TABLE": "列表表格用 ui 的 DataTable；页面不再新写 <table>（T441）",
+    "MUTED_FAILURE": "错误/警告不能用灰字：改用 <InlineNote tone=\"error|warning\"> 或 <Alert type=\"error|warning\">"
+                   "（决策 026 / AC-70.2）",
 }
+
+
+def muted_failures(text: str) -> list[str]:
+    """返回「灰字容器里放错误表达式」的片段，用于报错定位。"""
+    hits: list[str] = []
+    for match in JSX_EXPR.finditer(text):
+        ident = match.group(1)
+        if not FAILURE_IDENT.fullmatch(ident.split(".")[0]) and not FAILURE_IDENT.fullmatch(ident):
+            continue
+        start = text.rfind("<", 0, match.start())
+        if start < 0:
+            continue
+        tag = text[start:match.start()]
+        if "className" not in tag:
+            continue
+        if "muted" not in tag and "inline-note" not in tag:
+            continue
+        if TONED_CONTAINER.search(tag) or "InlineNote" in tag:
+            continue
+        hits.append(f"{tag.strip()[:60]}…{{{ident}}}")
+    return hits
+
 
 
 def is_ui_layer(rel: str) -> bool:
@@ -73,6 +108,8 @@ def scan() -> dict[str, dict[str, int]]:
         if path.suffix in {".ts", ".tsx"}:
             for body in INLINE_STYLE.findall(text):
                 counts[rel]["INLINE_STYLE"] += len(INLINE_COLOR_KEY.findall(body))
+            if path.suffix == ".tsx":
+                counts[rel]["MUTED_FAILURE"] += len(muted_failures(text))
             if not is_ui_layer(rel):
                 counts[rel]["ANTD_DIRECT"] += len(ANTD_IMPORT.findall(text))
                 counts[rel]["LEGACY_BTN_CLASS"] += len(LEGACY_BTN.findall(text))
@@ -149,6 +186,11 @@ def main() -> int:
     for path, rule, count, allowed in sorted(offenders):
         print(f"  - {path} · {rule}：现在 {count} 处，基线 {allowed} 处")
         print(f"    改法：{RULE_HINT[rule]}")
+        if rule == "MUTED_FAILURE":
+            # 这条规则最需要看到具体那一行，否则不知道改哪。
+            text = (ROOT / path).read_text(encoding="utf-8")
+            for snippet in muted_failures(text)[:3]:
+                print(f"    命中：{snippet}")
     print(f"\n共 {len(offenders)} 处新增。改完再跑一次；确实要放宽请改基线文件并在 PR 里说明理由。")
     return 1
 
