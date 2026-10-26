@@ -252,6 +252,123 @@ class SubmissionFormsTest {
         assertThat(download(student, richSubmission).statusCode()).isEqualTo(404);
     }
 
+    // ============ 2026-10-26：上传只把内容填进编辑框，不交卷（用户拍板） ============
+
+    @Test
+    @DisplayName("上传 txt：只回正文原文，不建提交、不存附件、不写草稿")
+    void extractTextFileDoesNotSubmit() throws Exception {
+        String classId = createClass("导入正文班");
+        join(student, classInvite(classId));
+        String offeringId = createOffering(classId);
+        send(student, "POST", "/api/offerings/" + offeringId + "/start", Map.of());
+        int before = submissionCount(offeringId);
+        String body = "第一段\n\n第二段";
+
+        HttpResponse<String> res = extractRaw(student, offeringId, "lesson.txt", "text/plain",
+                body.getBytes(StandardCharsets.UTF_8));
+
+        assertThat(res.statusCode()).as(res.body()).isEqualTo(200);
+        Map<String, Object> payload = Json.parse(res.body());
+        assertThat(payload.get("text")).isEqualTo(body);
+        assertThat(payload.get("fileName")).isEqualTo("lesson.txt");
+        assertThat(payload.get("extension")).isEqualTo("txt");
+        assertThat(payload.get("unreadable")).isEqualTo(false);
+        assertThat(payload.get("truncated")).isEqualTo(false);
+        assertThat(payload.get("chars")).isEqualTo(body.length());
+        assertThat(submissionCount(offeringId)).as("解析不创建提交").isEqualTo(before);
+        Integer withContent = jdbc.queryForObject(
+                "select count(*) from submissions where offering_id = ? and (content_text is not null "
+                        + "or attachment_path is not null)",
+                Integer.class, UUID.fromString(offeringId));
+        assertThat(withContent).as("既没有写草稿，也没有留附件").isZero();
+    }
+
+    @Test
+    @DisplayName("上传 md：回 Markdown 原文，渲染交给前端")
+    void extractMarkdownReturnsSource() throws Exception {
+        String classId = createClass("导入md班");
+        join(student, classInvite(classId));
+        String offeringId = createOffering(classId);
+        send(student, "POST", "/api/offerings/" + offeringId + "/start", Map.of());
+        String markdown = "# 标题\n\n- 一\n- 二";
+
+        HttpResponse<String> res = extractRaw(student, offeringId, "plan.md", "text/markdown",
+                markdown.getBytes(StandardCharsets.UTF_8));
+
+        assertThat(res.statusCode()).as(res.body()).isEqualTo(200);
+        Map<String, Object> payload = Json.parse(res.body());
+        assertThat(payload.get("text")).isEqualTo(markdown);
+        assertThat(payload.get("extension")).isEqualTo("md");
+    }
+
+    @Test
+    @DisplayName("上传 .doc：拒绝并提示另存 docx，不建提交")
+    void extractRejectsLegacyDoc() throws Exception {
+        String classId = createClass("导入doc班");
+        join(student, classInvite(classId));
+        String offeringId = createOffering(classId);
+        send(student, "POST", "/api/offerings/" + offeringId + "/start", Map.of());
+        int before = submissionCount(offeringId);
+
+        HttpResponse<String> res = extractRaw(student, offeringId, "old.doc", "application/msword",
+                "binary".getBytes(StandardCharsets.UTF_8));
+
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(res.body()).contains("docx");
+        assertThat(submissionCount(offeringId)).as("被拒的文件不留下任何提交").isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("扫描件 PDF：返回 unreadable，不建提交")
+    void extractUnreadablePdf() throws Exception {
+        String classId = createClass("导入扫描件班");
+        join(student, classInvite(classId));
+        String offeringId = createOffering(classId);
+        send(student, "POST", "/api/offerings/" + offeringId + "/start", Map.of());
+        int before = submissionCount(offeringId);
+
+        HttpResponse<String> res = extractRaw(student, offeringId, "scan.pdf", "application/pdf", blankPdf());
+
+        assertThat(res.statusCode()).as(res.body()).isEqualTo(200);
+        Map<String, Object> payload = Json.parse(res.body());
+        assertThat(payload.get("unreadable")).isEqualTo(true);
+        assertThat(payload.get("text")).isNull();
+        assertThat(submissionCount(offeringId)).isEqualTo(before);
+    }
+
+    @Test
+    @DisplayName("超长文本截到 20 万字并标记 truncated")
+    void extractTruncatesLongText() throws Exception {
+        String classId = createClass("导入超长班");
+        join(student, classInvite(classId));
+        String offeringId = createOffering(classId);
+        send(student, "POST", "/api/offerings/" + offeringId + "/start", Map.of());
+
+        HttpResponse<String> res = extractRaw(student, offeringId, "long.txt", "text/plain",
+                "a".repeat(200_010).getBytes(StandardCharsets.UTF_8));
+
+        assertThat(res.statusCode()).as(res.body()).isEqualTo(200);
+        Map<String, Object> payload = Json.parse(res.body());
+        assertThat(payload.get("truncated")).isEqualTo(true);
+        assertThat(payload.get("chars")).isEqualTo(200_000);
+        assertThat(((String) payload.get("text"))).hasSize(200_000);
+    }
+
+    @Test
+    @DisplayName("非本班学生不能调用解析接口")
+    void extractRequiresParticipant() throws Exception {
+        String classId = createClass("导入权限班");
+        join(student, classInvite(classId));
+        String offeringId = createOffering(classId);
+        String other = createAndLoginOtherStudent();
+
+        HttpResponse<String> res = extractRaw(other, offeringId, "a.txt", "text/plain",
+                "x".getBytes(StandardCharsets.UTF_8));
+
+        assertThat(res.statusCode()).as("非参与者不能解析：%s %s", res.statusCode(), res.body())
+                .isBetween(400, 499);
+    }
+
     // ================= fixtures / helpers =================
 
     private void assertFileRow(String submissionId, String expectedName, String expectedMime,
@@ -324,6 +441,19 @@ class SubmissionFormsTest {
 
     private HttpResponse<String> uploadRaw(String cookie, String offeringId, String fileName,
                                            String contentType, byte[] bytes) throws Exception {
+        return multipartTo(cookie, "/api/offerings/" + offeringId + "/submissions/file",
+                fileName, contentType, bytes);
+    }
+
+    /** 2026-10-26：只解析、不交卷的上传——解析结果回给前端填进编辑框。 */
+    private HttpResponse<String> extractRaw(String cookie, String offeringId, String fileName,
+                                            String contentType, byte[] bytes) throws Exception {
+        return multipartTo(cookie, "/api/offerings/" + offeringId + "/submissions/extract",
+                fileName, contentType, bytes);
+    }
+
+    private HttpResponse<String> multipartTo(String cookie, String path, String fileName,
+                                             String contentType, byte[] bytes) throws Exception {
         String boundary = "----teachloop" + UUID.randomUUID();
         ByteArrayOutputStream body = new ByteArrayOutputStream();
         body.write(("--" + boundary + "\r\n"
@@ -332,13 +462,18 @@ class SubmissionFormsTest {
         body.write(bytes);
         body.write(("\r\n--" + boundary + "--\r\n").getBytes(StandardCharsets.UTF_8));
 
-        HttpRequest request = HttpRequest.newBuilder(
-                        URI.create(base + "/api/offerings/" + offeringId + "/submissions/file"))
+        HttpRequest request = HttpRequest.newBuilder(URI.create(base + path))
                 .header("Content-Type", "multipart/form-data; boundary=" + boundary)
                 .header("Cookie", cookie)
                 .POST(HttpRequest.BodyPublishers.ofByteArray(body.toByteArray()))
                 .build();
         return client.send(request, HttpResponse.BodyHandlers.ofString());
+    }
+
+    private int submissionCount(String offeringId) {
+        Integer count = jdbc.queryForObject("select count(*) from submissions where offering_id = ?",
+                Integer.class, UUID.fromString(offeringId));
+        return count == null ? 0 : count;
     }
 
     private HttpResponse<byte[]> download(String cookie, String submissionId) throws Exception {

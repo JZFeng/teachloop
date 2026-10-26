@@ -28,6 +28,10 @@ public class SubmissionAttachments {
         this.extractor = extractor;
     }
 
+    /** 只解析、不落库（2026-10-26 用户拍板）：上传文件用来回填编辑框，不交卷、不写 BlobStore。 */
+    public record Preview(String fileName, String extension, String text, boolean unreadable) {
+    }
+
     /** 校验并保存附件；解析失败只标记 unreadable，不抛错（AC-6.9）。 */
     public Prepared prepare(UUID offeringId, MultipartFile file) {
         SubmissionFileExtractor.ValidatedFile validated = extractor.validate(file);
@@ -42,6 +46,21 @@ public class SubmissionAttachments {
         String key = "submissions/" + offeringId + "/" + UUID.randomUUID() + "." + validated.extension();
         storage.store(key, bytes, validated.mime());
         return new Prepared(key, validated.originalName(), validated.mime(),
+                extraction.text(), extraction.unreadable());
+    }
+
+    /** 只解析、不落库：学生只是把文件内容填进编辑框，还没交卷，所以这里不做任何写入。 */
+    public Preview preview(MultipartFile file) {
+        SubmissionFileExtractor.ValidatedFile validated = extractor.validate(file);
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException ex) {
+            throw ApiException.badRequest("文件读取失败，请重试");
+        }
+        SubmissionFileExtractor.Extraction extraction =
+                extractor.extract(validated.extension(), bytes);
+        return new Preview(validated.originalName(), validated.extension(),
                 extraction.text(), extraction.unreadable());
     }
 

@@ -83,7 +83,8 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (!post) {
             return null;
         }
-        if (path.matches("^/api/offerings/[^/]+/submissions/file$")) {
+        // 文件解析（extract）与文件提交（file）都算上传动作：同一个 100 MB 上限，共用配额。
+        if (path.matches("^/api/offerings/[^/]+/submissions/(file|extract)$")) {
             return userTarget(request, RateLimitAction.UPLOAD);
         }
         if (path.matches("^/api/offerings/[^/]+/grading/dispatch$")) {
