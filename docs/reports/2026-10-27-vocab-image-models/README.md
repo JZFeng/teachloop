@@ -45,7 +45,7 @@ cp ~/ai/ComfyUI/models/checkpoints/ae.safetensors ~/ai/ComfyUI/models/vae/ae.saf
 ~/ai/comfy/venv/bin/python main.py --listen 127.0.0.1 --port 8188 --reserve-vram 1 --fp8_e4m3fn-unet
 ```
 
-## 工作流（API 版，见 `scripts/vocab/image/batch_images.py` 的 flux 分支）
+## 工作流（API 版，见 `scripts/vocab/image/batch_images_flux.py`）
 
 ```
 UNETLoader(flux1-schnell.safetensors)
