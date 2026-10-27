@@ -92,3 +92,7 @@ web/public/vditor/
 # Python 脚本缓存（scripts/vocab 等）
 __pycache__/
 *.pyc
+
+# 部署用的 SSH 私钥与含密钥的临时 .env（2026-10-27）
+.dsh/keys/
+.dsh/tmp/
