@@ -83,3 +83,24 @@ UNETLoader(flux1-schnell.safetensors)
 - 为什么不是“只提亮”：B 亮底只提亮会把对比度从 40.9 降到 35.2，88px 更糊；提对比后 B 到 49.4，仍低于目标，故采用现水彩底 + 提对比。
 - 产物：`contact-sheet-final.png`（113 张）、`card-mock-final.png`（卡片 88px 实拍）、`brightness-contrast-variants.png`（亮度/对比度对照）。
 - 对比图统一用 `Hiragino Sans GB` 字体（Arial 无 CJK 字形，会出方框）。
+
+## 修订（2026-10-27 下午）：白底太亮 → 暖纸底
+
+用户反馈「card-mock-final 背景全白、太亮，看不清内容」。测量确认：上一版 **59.7% 的像素 ≥250**（近白），卡片是浅色，图与底融在一起。
+
+修正两处：
+
+1. **提示词**：去掉 `generous negative space`，改为
+   `warm-toned watercolor illustration on textured paper, soft golden side light, muted ochre and sage palette, soft warm background wash (never white), visible brush edges, clear silhouette, centered composition`
+2. **后处理**（`normalize_images.py` 的 v2 曲线）：levels 2%–98% → 轻提暗部 `×0.92+0.06` → **高光压到 ~246**（不再推到 255）→ 暖色偏移（R×1.03 / B×0.97）→ UnsharpMask(1.2, 55, 2)。
+
+结果（113 张，88px）：
+
+| 版本 | 亮度 | 对比度 | 近白像素(≥250) |
+| :--- | ---: | ---: | ---: |
+| 上一版（白底） | 213.3 | 65.2 | **59.7%** |
+| **C1 暖底（当前）** | **196.0** | **54.8** | **0.4%** |
+| A + 提亮（参照） | 175.8 | 55.0 | 0.5% |
+| ChatGPT（参照） | 128.7 | 56.9 | 0.1% |
+
+产物：`contact-sheet-c1.png`（113 张）、`card-mock-c1.png`（卡片实拍）、`warm-background-compare.png`（白底 / C1 / C2 / A+提亮 / ChatGPT 五列对比）。
