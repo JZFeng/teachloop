@@ -44,6 +44,30 @@ public class AdminService {
                 encoder.encode(password), "管理员", Instant.now(clock)));
     }
 
+    /**
+     * 2026-10-27：管理员建普通账号（教师/学生），用于开通测试账号。
+     *
+     * <p>{@code passwordLoginEnabled=true} 时该账号在生产环境可以用邮箱 + 密码登录
+     * （见 {@code PasswordAuthProvider}）；这是**按账号**的白名单，不是对所有人放开。
+     * 密码为 null/空时不允许建号——没有密码的账号在 prod 只能走微信，那不是本方法的用途。
+     */
+    @Transactional
+    public User createUser(String email, UserRole role, String displayName, String password,
+                           boolean passwordLoginEnabled) {
+        if (users.findByEmail(email).isPresent()) {
+            throw ApiException.conflict("该邮箱已存在");
+        }
+        if (password == null || password.isBlank()) {
+            throw ApiException.badRequest("测试账号必须设置密码");
+        }
+        String name = displayName == null || displayName.isBlank()
+                ? email.substring(0, email.indexOf('@'))
+                : displayName.trim();
+        User user = new User(UUID.randomUUID(), role, email, encoder.encode(password), name, Instant.now(clock));
+        user.setPasswordLoginEnabled(passwordLoginEnabled);
+        return users.save(user);
+    }
+
     @Transactional
     public TeacherInvite createTeacherInvite(UUID createdBy, int validDays) {
         String code = newCode();
