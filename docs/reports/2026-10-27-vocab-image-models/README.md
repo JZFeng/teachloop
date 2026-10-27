@@ -72,3 +72,14 @@ UNETLoader(flux1-schnell.safetensors)
 - `strata`、`comfyui` 两个 systemd 服务都已停止（按用户要求，自己启动）；显存 26MB。
 - 无效的半截模型（hunyuan 887MB、flux-fp8 365MB）已删除；保留官方 Flux 23.8GB + SDXL 两个。
 - 未测：HunyuanDiT 1.2（下载中断，8.2GB 单文件可用）、Qwen-Image（20B，diffusers 分片，需拼装）。
+
+## 定稿（2026-10-27 用户拍板）
+
+**卡片配图 = FLUX.1-schnell 水彩提示 + 确定性后处理（levels 拉伸 + 轻微提亮 + 锐化）。**
+
+- 目标区间：88px 亮度 **≈210**、对比度 **≥55**；实测 113 张：**L=206.1 / SD=65.0**（处理前 215.3 / 56.3）。
+- 后处理脚本：[`scripts/vocab/image/normalize_images.py`](../../../scripts/vocab/image/normalize_images.py)（1%–99% levels → ×1.06+0.02 → UnsharpMask 1.2/60/2，纯确定性）。
+- 卡片给图片加 1px `var(--line)` 边框，避免近白图融进浅色卡片。
+- 为什么不是“只提亮”：B 亮底只提亮会把对比度从 40.9 降到 35.2，88px 更糊；提对比后 B 到 49.4，仍低于目标，故采用现水彩底 + 提对比。
+- 产物：`contact-sheet-final.png`（113 张）、`card-mock-final.png`（卡片 88px 实拍）、`brightness-contrast-variants.png`（亮度/对比度对照）。
+- 对比图统一用 `Hiragino Sans GB` 字体（Arial 无 CJK 字形，会出方框）。
