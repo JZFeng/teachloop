@@ -62,3 +62,5 @@
 **改动**：`web/src/vocab/LibraryPage.tsx` 删那个 `Button`；`vocab.lists.toolbarEntry` 中英各删 1 键（只服务这个按钮）；AC-69.11 / `plan.md` 入口结论 / `tasks.md` T451 与 T514 行回写，并落成规则「**词库工具条只放指向侧栏没有的页的按钮**」。
 
 **验证**：`npx tsc --noEmit` 0、`pnpm test` 125/125、`check-i18n` zh/en 各 1695 键对齐且 0 新增中文字面量、`check-ui` 无新增；重建快照后 5174 学生侧栏仍是 5 项、「我的词单」仍紧跟「我的词库」，词库页工具条按钮数从 6 → 5（筛选 / 列 / 清空筛选 / 复习这些词（N）/ 加词），页面里再无「词单」按钮，`/vocab/lists` 仍能从侧栏进入。截图 `library-toolbar-no-lists.png`。
+
+**dev 环境同步**（2026-10-26 22:57，用户选择「重建」）：5173 的前端是 `vite dev`（读源码，改动本来就已生效），只有 8010 的后端跑旧 jar。只重建后端并重启 8010（Postgres `teachloop-pg:55432` 与 `uploads` 未动；`TEACHLOOP_GRADING_ENGINE=ai`、`VOCAB_GENERATION_ENGINE=ai`，日志 `.dsh/logs/dev-backend.log`）：新 PID 44379，`Started TeachLoopApplication in 4.336s`、`/healthz` 200；student01 的 `/api/features` 出现 `nav.vocab.lists: true`（true 集合 6 项含 `vocab`）；5173 实测侧栏 5 项含「我的词单」、词库页全页按钮已无「词单」、点侧栏项到 `/vocab/lists`。
