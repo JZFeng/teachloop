@@ -30,9 +30,9 @@ VAE = os.environ.get("FLUX_VAE", "ae.safetensors")
 SIZE = int(os.environ.get("SIZE", "512"))
 STEPS = int(os.environ.get("STEPS", "4"))
 GUIDANCE = float(os.environ.get("GUIDANCE", "3.5"))
-STYLE = ("warm-toned watercolor illustration on textured paper, soft golden side light, "
+STYLE = ("warm-toned watercolor illustration on textured paper, smooth soft washes, soft golden side light, "
          "muted ochre and sage palette, soft warm background wash (never white), visible brush edges, "
-         "clear silhouette, centered composition: ")
+         "clear silhouette, centered composition, no watermark, no signature, no text: ")
 
 
 def workflow(word: str, scene: str) -> dict:
