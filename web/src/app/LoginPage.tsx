@@ -35,8 +35,8 @@ export default function LoginPage() {
   const [params] = useSearchParams()
   // 学生从班群点开预习链接但没登录：登录后回到那次布置（只接受站内路径）。
   const next = safeNextPath(params.get('next'))
-  const [email, setEmail] = useState('teacher@teachloop.local')
-  const [password, setPassword] = useState('teachloop123')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
 
@@ -120,7 +120,6 @@ export default function LoginPage() {
           <Button variant="primary" size="large" block busy={busy} htmlType="submit">
             {t('login.submit')}
           </Button>
-          <div className="login-hint">{t('login.hint')}</div>
         </form>
       </div>
     </div>

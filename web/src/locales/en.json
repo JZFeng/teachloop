@@ -78,7 +78,6 @@
     },
     "name": "TeachLoop",
     "setup": {
-      "adminDone": "Administrator created.",
       "adminName": "Administrator name",
       "afterLogin": "After signing in, open \"AI settings\" in the left sidebar to configure the model.",
       "aiConfigured": "; AI is configured ({{model}})",
@@ -92,10 +91,7 @@
       "pageTitle": "TeachLoop initial setup",
       "password": "Password (at least 8 characters)",
       "sub": "First deployment: create the administrator; the AI model can be configured later in teacher settings. The administrator password is never stored in plain text.",
-      "title": "Setup",
-      "apiKey": "AI API key (optional now)",
-      "apiKeyHint": "Local models usually need no key; you can also skip this and configure it later under /profile.",
-      "apiKeyPlaceholder": "sk-... or leave blank"
+      "title": "Setup"
     },
     "tagline": "Better Practice. More Insights.",
     "crashTitle": "This page hit an error",
@@ -425,7 +421,6 @@
     "bullet2": "The answer key is data; the AI never sees it while grading.",
     "bullet3": "Every comment traces back to whoever approved it.",
     "email": "Email",
-    "hint": "Dev accounts: teacher@teachloop.local / student01@teachloop.local, password teachloop123",
     "password": "Password",
     "submit": "Sign in",
     "subtitle": "Email and password for now; WeChat sign-in comes later",

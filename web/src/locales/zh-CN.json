@@ -78,7 +78,6 @@
     },
     "name": "TeachLoop",
     "setup": {
-      "adminDone": "管理员已创建。",
       "adminName": "管理员姓名",
       "afterLogin": "登录后从左侧「AI 设置」进入模型配置。",
       "aiConfigured": "，AI 已配置（{{model}}）",
@@ -92,10 +91,7 @@
       "pageTitle": "TeachLoop 初始设置",
       "password": "密码（至少 8 位）",
       "sub": "第一次部署：先创建管理员；AI 模型可稍后在教师设置里配置。管理员密码不会明文保存。",
-      "title": "初始化",
-      "apiKey": "AI API Key（可稍后配置）",
-      "apiKeyHint": "本地模型通常不需要 Key；也可以先跳过，登录后在 /profile 配置。",
-      "apiKeyPlaceholder": "sk-... 或留空"
+      "title": "初始化"
     },
     "tagline": "练得更好，看得更清。",
     "crashTitle": "这个页面出错了",
@@ -425,7 +421,6 @@
     "bullet2": "标准答案是数据，AI 判分时看不到。",
     "bullet3": "每份评语都能追溯到是谁批准的。",
     "email": "邮箱",
-    "hint": "开发账号：teacher@teachloop.local / student01@teachloop.local，密码 teachloop123",
     "password": "密码",
     "submit": "登录",
     "subtitle": "开发期用邮箱密码登录；微信扫码在接入后启用",
