@@ -104,3 +104,12 @@ UNETLoader(flux1-schnell.safetensors)
 | ChatGPT（参照） | 128.7 | 56.9 | 0.1% |
 
 产物：`contact-sheet-c1.png`（113 张）、`card-mock-c1.png`（卡片实拍）、`warm-background-compare.png`（白底 / C1 / C2 / A+提亮 / ChatGPT 五列对比）。
+
+## 最终定稿 v2（2026-10-27）
+
+- 生成：FLUX.1-schnell，512×512，4 步，guidance 3.5，暖纸底水彩提示词（含 `no watermark, no signature, no text`）。
+- 后处理：levels 2%–98% → 暗部 ×0.92+0.06 → 高光压 246 → 暖色 R×1.03/B×0.97 → **缩到目标尺寸后**轻锐化（0.8/30/2）。
+- 产物：176px WebP（卡片 2x，113 张共 1.1MB，≈10KB/张）、96px WebP（520KB）。
+- 实测：113 张 274.9 秒（2.43s/张）；88px 亮度 196.0、对比度 54.8、近白像素 0.4%。
+- 分辨率结论：512 足够；768/1024 无可见收益，1024 还会改构图并偶发水印文字。
+- 环境恢复：见 [`docs/runbooks/2026-10-27-image-gen-box-restore.md`](../../runbooks/2026-10-27-image-gen-box-restore.md) 与 `scripts/vocab/image/bootstrap_image_box.sh`。
