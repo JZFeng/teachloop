@@ -1692,7 +1692,6 @@
       "reviewCapped": "This round reviews the first {{limit}} words ({{count}} reviewable in this list)",
       "formsTooLong": "{{count}} word forms are longer than 64 characters and were ignored",
       "deleteThisList": "Delete this list",
-      "toolbarEntry": "Lists",
       "filterList": "Word lists",
       "addToLists": "Add to list",
       "addToListsTitle": "Add to a word list",

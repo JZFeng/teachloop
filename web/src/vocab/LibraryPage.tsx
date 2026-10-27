@@ -613,8 +613,8 @@ export default function VocabLibraryPage() {
             already has both tabs (paste / file), so two toolbar buttons led to the
             same page. */}
         <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
-        {/* AC-69.11：纯文字「词单」，不带数量角标 */}
-        <Button onClick={() => navigate('/vocab/lists')}>{t('vocab.lists.toolbarEntry')}</Button>
+        {/* 2026-10-26（AC-69.11 修订）：工具条的「词单」按钮删除——词单在侧栏已有并列
+          * 一级入口，同页两个入口是两套信息架构；工具条只留指向「侧栏没有的页」的按钮。 */}
       </div>
 
       <DataTable

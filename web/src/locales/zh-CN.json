@@ -1692,7 +1692,6 @@
       "reviewCapped": "本次先复习前 {{limit}} 词（这份词单共 {{count}} 个可复习词）",
       "formsTooLong": "{{count}} 个词形超过 64 字符，已忽略",
       "deleteThisList": "删除这份词单",
-      "toolbarEntry": "词单",
       "filterList": "词单",
       "addToLists": "加入词单",
       "addToListsTitle": "加入词单",
