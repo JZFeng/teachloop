@@ -166,14 +166,19 @@ body { display: block; }
 .login-card {
   width: 100%;
   margin: 0;
-  padding: 40px 36px 34px;
+  padding: 44px 36px 34px;
   border: 0;
   border-radius: 0;
   box-shadow: none;
   background: var(--panel);
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  /*
+   * 顶对齐而不是竖直居中：右栏首元素必须和左栏首元素（logo）落在同一条 44px 顶线上。
+   * 居中式的问题不是「不好看」，是两条栏的首行错位随主题漂移（亮色 lockup 203px 高、
+   * 暗色 54px 高，卡片高 626.6 vs 560），且登录失败插入 Alert 时整块会上下跳。
+   */
+  justify-content: flex-start;
 }
 .login-card h2 { font-size: 20px; font-weight: 750; letter-spacing: -0.02em; margin: 0; }
 .login-card .sub { margin: 5px 0 22px; font-size: 13px; color: var(--muted); }
