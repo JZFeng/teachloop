@@ -29,18 +29,40 @@ export async function ensureCsrf(): Promise<void> {
   }
 }
 
+/**
+ * 2026-10-27（Bug）：改密码第一次点保存必然 403，刷新再点就成功。
+ * 原因：浏览器里的 XSRF-TOKEN cookie 丢失/轮换后，首个写请求没有带上有效 token，
+ * 服务端 403 的同时会回写一个新的 XSRF-TOKEN，所以第二次就过了。
+ * 处理：写请求前若没有 token 先取一次；仍然 403 就换新 token 重试一次（首个请求已被拒绝，无副作用）。
+ */
+async function sendWithCsrf<T>(method: string, path: string, body: unknown,
+                               extraHeaders?: Record<string, string>): Promise<Response> {
+  const build = (): Promise<Response> => {
+    const headers: Record<string, string> = { ...csrfHeaders(), ...extraHeaders }
+    // 后端按 Accept-Language 决定 message 语言；跟着界面语言走，而不是浏览器的语言。
+    headers['Accept-Language'] = i18n.language || 'zh-CN'
+    if (body !== undefined) headers['Content-Type'] = 'application/json'
+    return fetch(path, {
+      method,
+      credentials: 'include',
+      headers,
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+  }
+  if (method !== 'GET' && Object.keys(csrfHeaders()).length === 0) {
+    await ensureCsrf()
+  }
+  let res = await build()
+  if (res.status === 403 && method !== 'GET') {
+    await ensureCsrf()
+    res = await build()
+  }
+  return res
+}
+
 async function request<T>(method: string, path: string, body?: unknown,
                           extraHeaders?: Record<string, string>): Promise<T> {
-  const headers: Record<string, string> = { ...csrfHeaders(), ...extraHeaders }
-  // 后端按 Accept-Language 决定 message 语言；跟着界面语言走，而不是浏览器的语言。
-  headers['Accept-Language'] = i18n.language || 'zh-CN'
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
-  const res = await fetch(path, {
-    method,
-    credentials: 'include',
-    headers,
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
+  const res = await sendWithCsrf<T>(method, path, body, extraHeaders)
   if (!res.ok) {
     let parsed: ApiErrorBody | null = null
     try {

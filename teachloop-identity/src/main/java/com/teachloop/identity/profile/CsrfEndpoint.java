@@ -24,8 +24,14 @@ public class CsrfEndpoint {
 
     @GetMapping("/api/csrf")
     public Map<String, String> csrf(HttpServletRequest request, HttpServletResponse response) {
-        // 每次取都生成新 token 并写回 Cookie：不依赖过滤器内部状态，结果确定。
-        CsrfToken token = repository.generateToken(request);
+        // 2026-10-27（Bug）：原来每次调用都 generate 新 token 并覆盖 Cookie。
+        // 后果是「页面刚加载、ensureCsrf 还在飞」时提交的写请求带着旧 token → 403，
+        // 再点一次就成功（用户报的「改密码第一次 403」就是这个）。
+        // 现在只在没有 token 时才生成，重复调用是幂等的。
+        CsrfToken token = repository.loadToken(request);
+        if (token == null) {
+            token = repository.generateToken(request);
+        }
         repository.saveToken(token, request, response);
         return Map.of("token", token.getToken(), "headerName", token.getHeaderName());
     }

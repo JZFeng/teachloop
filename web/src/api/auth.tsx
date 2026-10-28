@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
-import { api } from './client'
+import { api, ensureCsrf } from './client'
 import type { Me } from './types'
 
 interface ProfileLite {
@@ -60,6 +60,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(async (email: string, password: string) => {
     const user = await api.post<Me>('/api/auth/login', { email, password })
+    // 2026-10-27（Bug）：登录后换一次 CSRF token，避免随后第一个写请求（如改密码）带着旧 token 被 403。
+    await ensureCsrf()
     setMe(user)
     return user
   }, [])
