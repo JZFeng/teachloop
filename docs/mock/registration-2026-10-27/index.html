@@ -74,7 +74,7 @@
 <body>
 <div class="wrap">
   <div class="phone">
-    <div class="brand">TeachLoop<small>009 注册与登录 · 可点原型 v2（激活链接）</small></div>
+    <div class="brand">TeachLoop<small>009 注册与登录 · 可点原型 v2（激活链接 · 单姓名）</small></div>
 
     <!-- 登录 -->
     <div class="card screen on" id="s-login">
@@ -117,10 +117,10 @@
       </div>
       <div id="register-alert"></div>
 
-      <div class="nameRow" id="name-row">
-        <label class="field" id="f-last"><span id="lab-last">姓</span><input id="rg-last" type="text" placeholder="冯" /></label>
-        <label class="field" id="f-first"><span id="lab-first">名</span><input id="rg-first" type="text" placeholder="建中" /></label>
-      </div>
+      <label class="field"><span>姓名</span>
+        <input id="rg-name" type="text" placeholder="想填什么填什么，可留空" />
+        <div class="hint">不做格式校验；留空时用邮箱前缀当显示名。</div>
+      </label>
 
       <label class="field"><span>邮箱<em>*</em></span><input id="rg-email" type="email" placeholder="you@example.com" /></label>
       <label class="field"><span>密码<em>*</em></span>
@@ -129,7 +129,6 @@
       </label>
       <button class="primary" onclick="submitRegister()">注册</button>
       <div class="links"><button class="link" onclick="go('login')">已有账号？去登录</button></div>
-      <div class="hint" id="order-note"></div>
     </div>
 
     <!-- 激活邮件已发送 -->
@@ -210,12 +209,6 @@
   <!-- 调试面板 -->
   <div class="debug">
     <div class="card">
-      <h2>界面语言（决定姓名顺序）</h2>
-      <div class="row">
-        <button class="chip" id="lang-zh" aria-pressed="true" onclick="setLang('zh')">中文：姓 名</button>
-        <button class="chip" id="lang-en" aria-pressed="false" onclick="setLang('en')">EN: First Last</button>
-      </div>
-      <hr />
       <h2>通道开关</h2>
       <label><input type="checkbox" checked onchange="setupChannels()" /><span>邮箱（v1 默认开）</span></label>
       <label><input type="checkbox" data-toggle="sms" onchange="setupChannels()" /><span>手机短信（需资质）</span></label>
@@ -260,22 +253,6 @@ function go(r) {
 function alertInto(id, kind, title, body) {
   const el = $(id);
   el.innerHTML = kind ? `<div class="alert ${kind}"><b>${title}</b>${body || ''}</div>` : '';
-}
-
-function setLang(lang) {
-  state.lang = lang;
-  $('lang-zh').setAttribute('aria-pressed', lang === 'zh');
-  $('lang-en').setAttribute('aria-pressed', lang === 'en');
-  const row = $('name-row');
-  const first = $('f-first'), last = $('f-last');
-  if (lang === 'en') { row.appendChild(first); row.appendChild(last); } else { row.appendChild(last); row.appendChild(first); }
-  $('lab-first').textContent = lang === 'en' ? 'First name' : '名';
-  $('lab-last').textContent = lang === 'en' ? 'Last name' : '姓';
-  $('rg-first').placeholder = lang === 'en' ? 'Jianzhong' : '建中';
-  $('rg-last').placeholder = lang === 'en' ? 'Feng' : '冯';
-  $('order-note').textContent = lang === 'en'
-    ? '英文界面：First name 在前 → display_name 合成为「名 姓」。'
-    : '中文界面：姓在前 → display_name 合成为「姓 名」。';
 }
 
 function setupChannels() {
@@ -439,7 +416,6 @@ function force(kind) {
 }
 
 setupChannels();
-setLang('zh');
 </script>
 </body>
 </html>

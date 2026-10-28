@@ -17,7 +17,7 @@
 本规格把「获得一个账号」抽象成**通道无关的验证码流程**，但**注册与登录是两个独立行为**：
 
 ```
-注册：填「名 / 姓」+ 邮箱 + 密码 → 建 PENDING 账号 → 发激活邮件
+注册：填「姓名」+ 邮箱 + 密码 → 建 PENDING 账号 → 发激活邮件
       → 点邮件里的链接 → 打开「确认激活」页 → 点按钮 → 账号 ACTIVE
       → 回登录页，用邮箱 + 密码登录
 登录：邮箱 + 密码（直接登录）
@@ -114,13 +114,13 @@
 #### US-73 邮箱注册（激活链接）与登录
 
 - [ ] AC-73.1 `GET /api/auth/channels` 是**公开**端点（未登录可访问），返回已启用通道：`email`、`sms`、`wechat` 各自的 `channel`、`label`、`targetHint`；未启用的通道**不出现**在数组里，登录页据此渲染 tab，不在前端硬编码
-- [ ] AC-73.2 **注册提交** `POST /api/auth/register` 入参 `{channel, email, password, firstName, lastName}`：密码 ≥8 位、邮箱合法才受理；成功即建 **`status=PENDING`** 的 STUDENT 账号（`first_name` / `last_name` 落库，`display_name` 由二者按语言顺序合成）并发送激活邮件，返回 `202 { resendAfterSeconds }`，**此时不签发任何会话**
+- [ ] AC-73.2 **注册提交** `POST /api/auth/register` 入参 `{channel, email, password, displayName?}`：密码 ≥8 位、邮箱合法才受理；成功即建 **`status=PENDING`** 的 STUDENT 账号并发送激活邮件，返回 `202 { resendAfterSeconds }`，**此时不签发任何会话**
 - [ ] AC-73.3 同一邮箱再次提交注册：账号是 **PENDING** → 重发激活邮件并返回 202（不报错、不建第二个账号）；账号是 **ACTIVE** → **409 `ALREADY_REGISTERED`**，不发信
 - [ ] AC-73.4 **激活令牌**：32 字节随机、只存哈希、**24 小时**有效、**一次性消费**；`GET /api/auth/activate?token=…` **只渲染确认页、不激活**（对抗邮件网关的链接预取），`POST /api/auth/activate` 才把账号置为 ACTIVE
 - [ ] AC-73.5 令牌无效 / 过期 / 已用 → 确认页给出对应文案（`TOKEN_EXPIRED` / `TOKEN_USED` / `TOKEN_INVALID`）并提供「重新发送激活邮件」，**不暴露该邮箱是否已注册**
 - [ ] AC-73.6 **PENDING 与 DISABLED 账号不能登录、不能访问任何需要认证的接口**：密码登录返回 403 `ACCOUNT_PENDING`，验证码登录在发码阶段即 403，不签发会话
 - [ ] AC-73.7 激活成功后返回登录页；用注册时的邮箱 + 密码可登录，`/api/auth/me` 返回 `role=STUDENT`
-- [ ] AC-73.8 **姓名**：`first_name` / `last_name` 两个字段落库，`display_name` 自动合成为「姓 + 名」（zh-CN）或「名 + 姓」（en）；注册页的字段顺序随界面语言切换（中文「姓」在前，英文 First Name 在前），两栏都允许为空，为空时 `display_name` 取邮箱 `@` 前缀
+- [ ] AC-73.8 **姓名只有一个输入框**（`display_name`）：用户想填什么填什么，**不做格式校验**（不拆姓/名、不限制字符集）；留空时取邮箱 `@` 前缀
 - [ ] AC-73.9 请求体里出现 `role` 等提权字段一律忽略；注册只能得到 STUDENT，教师仍走 `AC-3.2/3.3` 的邀请码（承接 `AC-3.4`、`AC-3.5`）
 - [ ] AC-73.10 频控（复用 `rate_limits`，注册、激活邮件重发、登录、验证码分桶计数）：同一邮箱重发激活邮件冷却 **60s**、1 小时 ≤**5** 次；同一来源 IP 1 小时 ≤**20** 次。超限 429 + `Retry-After`
 - [ ] AC-73.11 **邮箱 + 密码登录**：`POST /api/auth/login` 对**任何 ACTIVE 且 `password_hash` 非空**的账号生效（不再限于 ADMIN 与白名单），密码错返回 401、PENDING/DISABLED 403；错误文案不区分「账号不存在」与「密码错误」
@@ -185,7 +185,7 @@
 | FR-169 | 注册必填密码（≥8 位，BCrypt 落库）；邮箱 + 密码登录对所有 ACTIVE 账号开放 | US-73 |
 | FR-170 | 忘记密码：`/api/auth/password-reset/*` 走邮箱验证码，成功后踢掉所有已有会话 | US-77 |
 | FR-171 | 激活令牌：32 字节随机、只存哈希、24 小时、一次性；GET 只渲染确认页，POST 才激活；支持重发 | US-73 |
-| FR-172 | 姓名拆 `first_name` / `last_name` 两列，`display_name` 按界面语言合成（zh 姓+名 / en 名+姓），两栏可空 | US-73 |
+| FR-172 | 姓名只有 `display_name` 一个字段，自由文本、不校验格式，留空取邮箱前缀 | US-73 |
 
 ---
 
@@ -229,7 +229,7 @@
 | `ProdAuthTest.devLoginDisabledInProd` | 断言「教师密码登录 503」 | 改为断言「错误密码 401 / 停用账号 403」，否则这条测试会挡住 FR-169 |
 | `ProfileEndpoint.changePassword` | 已实现（2026-10-27） | 与 US-77 共用 `session_invalid_before` 机制，不重复实现 |
 | `users.status` | 只有 `ACTIVE` / `DISABLED` | 新增 **`PENDING`**（注册未激活）；登录、`SessionAuthFilter`、`ProfileCompletionFilter` 都要按「非 ACTIVE 一律拒绝」处理 |
-| `users` 姓名 | 只有 `display_name` | 新增 `first_name` / `last_name` 两列；`display_name` 继续作为展示口径，由两列合成，避免全班名单、报表、通知四处改口径 |
+| `users` 姓名 | `display_name` 一个字段 | **不改**（2026-10-27 二次确认：不拆姓/名） |
 
 ### 7.2 `.specify/memory/constitution.md` 第六条
 
@@ -258,5 +258,5 @@
 | 2026-10-27 | **注册采集字段只保留「显示名（可空）」**；班级邀请码、协议勾选、预收手机号明确不做 | 用户多选只选了显示名；其中协议勾选已作为合规风险记入 §2 |
 | 2026-10-27 晚 | **撤销 passwordless**：注册必填密码（≥8 位）；邮箱 + 密码登录对所有 ACTIVE 账号开放；新增 US-77 忘记密码（邮箱验证码自助重置） | 用户 review 时选了「注册要设密码」，并选了「所有人可密码登录」「邮箱验证码自助重置」 |
 | 2026-10-27 晚 | **注册的邮箱验证从「验证码」改为「激活链接」**：注册建 PENDING 账号并发激活邮件，点确认页才激活；验证码只留给「验证码登录」与「忘记密码」 | 用户指出「注册页都收邮箱和密码了，再抄验证码是多余的」；并选定 A 方案与「未激活不能登录」 |
-| 2026-10-27 晚 | **姓名拆成 `first_name` / `last_name`**，展示顺序随界面语言（zh 姓+名，en 名+姓） | 用户要求注册先填姓/名再填邮箱 |
+| 2026-10-27 晚 | **姓名保持单字段 `display_name`**（自由文本、不校验），撤销「拆 first/last 两栏」 | 用户：「别搞那么复杂了，就一个 edit box，Name 就好了，用户爱填啥填啥」 |
 | 2026-10-27 晚 | **`AC-1.7` 的修订 v1 不落地**：资料补全继续要求手机号 + 邮箱都非空 | 用户 review 时选「第 3 条改：先不落地 AC-1.7」——仍要收集手机号 |
