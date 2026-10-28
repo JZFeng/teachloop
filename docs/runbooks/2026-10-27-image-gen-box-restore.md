@@ -272,3 +272,27 @@ print(json.loads(urllib.request.urlopen(r).read())["prompt_id"])
 - [ ] 单张 <10s，113 张 <6min
 - [ ] 88px 指标：L 190–210、SD ≥52、白底 <1%
 - [ ] 出图完成后按需 `sudo systemctl start strata`
+
+---
+
+## 12. 重装前备份清单（2026-10-27 实测）
+
+`bash scripts/ops/backup-ai-ubuntu.sh` 会自动打一个 ≈22KB 的 P0 包（数据库 dump、`~/teachloop/.env`、
+SSH 密钥、`strata.service`、Caddy 配置、`~/.dsh` 凭据、环境快照）。**含密钥，不要进 git。**
+
+必须单独搬走的大件（体积大、只在 ai-ubuntu 上有）：
+
+| 目录 | 大小 | 丢了会怎样 |
+| :--- | ---: | :--- |
+| `~/Documents/deepseek-harness/default-workspace/Strata-data` | **73GB** | 本地 LLM 权重/专家包，重下很久 |
+| `~/Documents/deepseek-harness/default-workspace/Strata` | 12GB | 代码可 clone，venv 可重建 |
+| `~/ai/ComfyUI/models` | 55GB | 出图模型（2026-10-27 已备份到另一台机器） |
+| `~/ai/vocab-images` | 409MB | 113 词各版本出图产物 |
+| `~/ai/teaching` | 184MB | 教学脚本 |
+
+不用备份：`~/ai/comfy/venv`（17GB，bootstrap 重建）、`~/ai/ComfyUI` 代码部分（git clone）、
+docker images（源码 build）、`~/.cache`。
+
+重装后恢复顺序：OS → docker → `~/teachloop`（放回 `.env`/compose/nginx）→
+`docker compose up -d` → `gunzip < teachloop-db.sql.gz | docker exec -i teachloop-db-1 psql -U teachloop teachloop`
+→ 模型拷回 → `bash scripts/vocab/image/bootstrap_image_box.sh`。
