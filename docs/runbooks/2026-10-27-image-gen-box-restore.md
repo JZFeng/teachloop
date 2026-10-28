@@ -161,23 +161,18 @@ disown
 
 ---
 
-## 6. 显存互斥（最容易踩的坑）
+## 6. 显存独占（strata 已在 2026-10-27 弃用）
 
-同机 `strata.service`（本地 LLM，Qwen3.8-Flash-Next IQ2_XS）常驻 **≈24.2GB / 24.5GB** 显存，
-ComfyUI 一启动就 `Got an OOM, unloading all loaded models`。
+本机曾同时跑本地 LLM `strata.service`，它常驻 ≈24.2GB / 24.5GB 显存，和 ComfyUI 互斥。
+**2026-10-27 用户确认：Strata 以后不要了**，重装后不要再装它，ComfyUI 独占 24GB。
+
+- 仍然保留 `--fp8_e4m3fn-unet`：FLUX fp16 权重 23.8GB，加激活值会顶满 24GB，fp8 载入后 ≈12GB 更稳。
+- 如果旧机器上 strata 还在，出图前务必：
 
 ```bash
-# 出图前
-sudo systemctl stop strata
+sudo systemctl stop strata        # 之后也可以 systemctl disable strata
 for f in /sys/class/drm/card*/device/mem_info_vram_used; do echo "$(( $(cat $f)/1024/1024 )) MB"; done   # 期望 <100MB
-
-# 出图后（用户在用它时再起）
-sudo systemctl start strata
 ```
-
-**不要**试图让两者共存：单卡 24GB 放不下（LLM 24GB + FLUX fp8 12GB）。
-
----
 
 ## 7. 出图流程（三步）
 
@@ -268,7 +263,7 @@ print(json.loads(urllib.request.urlopen(r).read())["prompt_id"])
 - [ ] `flux1-schnell.safetensors` 字节数 = 23782506688
 - [ ] `diffusion_models/flux1-schnell.safetensors` symlink 存在
 - [ ] ComfyUI 启动带 `--fp8_e4m3fn-unet`（不带会 OOM）
-- [ ] `strata.service` 已停（否则必 OOM）
+- [ ] 没有别的进程占显存（`/sys/class/drm/card*/device/mem_info_vram_used` < 200MB）
 - [ ] 单张 <10s，113 张 <6min
 - [ ] 88px 指标：L 190–210、SD ≥52、白底 <1%
 - [ ] 出图完成后按需 `sudo systemctl start strata`
@@ -284,8 +279,8 @@ SSH 密钥、`strata.service`、Caddy 配置、`~/.dsh` 凭据、环境快照）
 
 | 目录 | 大小 | 丢了会怎样 |
 | :--- | ---: | :--- |
-| `~/Documents/deepseek-harness/default-workspace/Strata-data` | **73GB** | 本地 LLM 权重/专家包，重下很久 |
-| `~/Documents/deepseek-harness/default-workspace/Strata` | 12GB | 代码可 clone，venv 可重建 |
+| ~~`Strata-data` 73GB~~ | 不需要 | 2026-10-27 决定弃用 Strata |
+| ~~`Strata` 12GB~~ | 不需要 | 同上 |
 | `~/ai/ComfyUI/models` | 55GB | 出图模型（2026-10-27 已备份到另一台机器） |
 | `~/ai/vocab-images` | 409MB | 113 词各版本出图产物 |
 | `~/ai/teaching` | 184MB | 教学脚本 |

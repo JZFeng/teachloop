@@ -60,8 +60,11 @@ SIZE=$(stat -c%s "$MODELS/checkpoints/flux1-schnell.safetensors")
 ln -sf "$MODELS/checkpoints/flux1-schnell.safetensors" "$MODELS/diffusion_models/flux1-schnell.safetensors"
 cp -f "$MODELS/checkpoints/ae.safetensors" "$MODELS/vae/ae.safetensors"
 
-echo "==> 6/7 释放显存（strata 与 ComfyUI 互斥）"
-sudo systemctl stop strata 2>/dev/null || true
+echo "==> 6/7 确认显存空闲（2026-10-27 起不再安装 strata）"
+if systemctl list-unit-files 2>/dev/null | grep -q '^strata.service'; then
+  echo "  检测到 strata.service（已弃用），停止以释放显存"
+  sudo systemctl stop strata 2>/dev/null || true
+fi
 for f in /sys/class/drm/card*/device/mem_info_vram_used; do
   [ -r "$f" ] && echo "  VRAM used: $(( $(cat "$f")/1024/1024 )) MB"
 done
