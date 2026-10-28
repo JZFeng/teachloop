@@ -20,22 +20,8 @@ const READINESS_TONE: Record<ChannelReadiness, NoteTone> = {
   unreadable: 'error',
 }
 
-/** 测试邮件的投递阶段：入队 → 轮询 → 已发送 / 失败待重试 / 失败 / 超时。 */
-type TestPhase = 'sending' | 'sent' | 'retrying' | 'failed' | 'timeout'
-
-interface TestState {
-  phase: TestPhase
-  target: string
-  ms: number
-  /** 失败时后端给的错误原文（SMTP 返回码这类）。 */
-  message?: string | null
-}
-
-/** 入队回执与轮询结果（后端 /api/admin/identity-channels/{channel}/test）。 */
+/** 入队回执：后端只回「排上了」，不回投递结果（2026-10-28 用户口径）。 */
 interface TestQueued { id: string; target: string }
-interface TestDelivery { status: 'PENDING' | 'SENT' | 'FAILED'; target: string; message: string | null }
-
-const sleep = (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms) })
 
 /**
  * 009 T535：全域通讯通道配置面板（嵌在管理端的系统设置页里）。
@@ -59,7 +45,7 @@ export default function IdentityChannelsPanel() {
   const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
-  const [test, setTest] = useState<TestState | null>(null)
+  const [testQueued, setTestQueued] = useState<TestQueued | null>(null)
 
   const load = () => {
     api.get<EmailChannelRow[]>('/api/admin/identity-channels')
@@ -82,7 +68,7 @@ export default function IdentityChannelsPanel() {
     setForm((prev) => (prev ? { ...prev, ...patch } : prev))
     setIssue(null)
     setSaved(false)
-    setTest(null)
+    setTestQueued(null)
   }
 
   const save = async () => {
@@ -93,7 +79,7 @@ export default function IdentityChannelsPanel() {
     setSaving(true)
     setError(null)
     setSaved(false)
-    setTest(null)
+    setTestQueued(null)
     try {
       const updated = await api.put<EmailChannelRow>('/api/admin/identity-channels/email',
         buildEmailUpdate(form, row.dailyQuota))
@@ -108,39 +94,18 @@ export default function IdentityChannelsPanel() {
   }
 
   /**
-   * 2026-10-28：发送改为异步（后端只入队），所以这里要轮询投递结果——
-   * 不轮询的话按钮只能显示「已提交」，管理员没法知道信到底出去没有。
+   * 2026-10-28（用户纠正）：这里**不等投递结果**。
+   *
+   * 异步的目的就是别把用户按在这一页——入队只要几毫秒，按钮立刻恢复可点；
+   * 想再发一封就再点一次（每次都是一条新队列行）。信有没有到，去邮箱看就好；
+   * 发送失败由队列按退避重试，页面不承担这个等待。
    */
   const sendTest = async () => {
     setTesting(true)
     setError(null)
-    setTest(null)
-    const started = Date.now()
+    setTestQueued(null)
     try {
-      const queued = await api.post<TestQueued>('/api/admin/identity-channels/email/test')
-      setTest({ phase: 'sending', target: queued.target, ms: 0 })
-      // 30 秒：派发器 2 秒一轮 + SMTP 握手，正常 4 秒内出结果。
-      for (let i = 0; i < 38; i += 1) {
-        await sleep(800)
-        const delivery = await api.get<TestDelivery>(
-          `/api/admin/identity-channels/email/test/${queued.id}`)
-        const ms = Date.now() - started
-        if (delivery.status === 'SENT') {
-          setTest({ phase: 'sent', target: delivery.target, ms })
-          return
-        }
-        if (delivery.status === 'FAILED') {
-          setTest({ phase: 'failed', target: delivery.target, ms, message: delivery.message })
-          return
-        }
-        // 第一次投递就失败（例如授权码过期、端口被墙）：别让管理员干等 30 秒的退避，
-        // 直接把服务端原因摆出来；队列会在后台自己重试。
-        if (delivery.status === 'PENDING' && delivery.message) {
-          setTest({ phase: 'retrying', target: delivery.target, ms, message: delivery.message })
-          return
-        }
-      }
-      setTest({ phase: 'timeout', target: queued.target, ms: Date.now() - started })
+      setTestQueued(await api.post<TestQueued>('/api/admin/identity-channels/email/test'))
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e))
     } finally {
@@ -226,23 +191,12 @@ export default function IdentityChannelsPanel() {
             {t(`app.channels.state.${readiness}`)}
           </InlineNote>
 
-          {test && (
+          {testQueued && (
             <Alert
-              type={test.phase === 'sending' ? 'info'
-                : test.phase === 'sent' ? 'success'
-                  : test.phase === 'timeout' ? 'warning'
-                    : test.phase === 'retrying' ? 'warning' : 'error'}
+              type="success"
               showIcon
               style={{ marginBottom: 12 }}
-              message={test.phase === 'sending'
-                ? t('app.channels.testSending', { to: test.target })
-                : test.phase === 'sent'
-                  ? t('app.channels.testOk', { to: test.target, ms: test.ms })
-                  : test.phase === 'timeout'
-                    ? t('app.channels.testTimeout', { to: test.target })
-                    : test.phase === 'retrying'
-                      ? t('app.channels.testRetrying', { message: test.message ?? '' })
-                      : t('app.channels.testFail', { message: test.message ?? '' })}
+              message={t('app.channels.testQueued', { to: testQueued.target })}
             />
           )}
 

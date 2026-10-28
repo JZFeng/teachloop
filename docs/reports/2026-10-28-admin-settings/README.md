@@ -29,9 +29,8 @@
 | :--- | :--- |
 | `01-settings-top.png` | 侧栏与页标题都是「系统设置」；AI 只剩一张卡 |
 | `02-smtp-form.png` / `02b-smtp-form-bottom.png` | 邮件六个字段（无认证账号）+ 加密方式单选 + 两个按钮；开关读作「启用邮件服务 ☑ 开启」；短信 / 微信不渲染 |
-| `03-test-email-queued.png` | 点「发送测试邮件」→ 立刻蓝色「已交给发送队列，正在等投递结果…」（按钮禁用，后台在发） |
-| `04-test-email-sent.png` | 轮询到 SENT → 绿色「测试邮件已发送到 19725156124@163.com · 4099ms」——**真发出去了**（SSL/TLS 465 + 真实授权码） |
-| `05-models-loaded-green.png` | 对接本地假 `/v1/models`（127.0.0.1:8099）→「已加载 2 个模型」是**绿色** |
+| `03-test-email-queued.png` | 点「发送测试邮件」→ **毫秒级**回「已交给发送队列（19725156124@163.com）…」；按钮**没有**变灰，可以立刻再点 |
+| `04-models-loaded-green.png` | 对接本地假 `/v1/models`（127.0.0.1:8099）→「已加载 2 个模型」是**绿色** |
 
 保存链路：把加密方式切到 STARTTLS → 保存 → `GET /api/admin/identity-channels` 的
 `extra.encryption == "starttls"`；再切回 SSL/TLS 保存 → 恢复 `"ssl"`（dev 库保持可用状态）。
@@ -41,10 +40,10 @@
 - `POST /api/auth/register`（真实队列 + 真实 SMTP 配置）返回 **200，用时 113ms**——改前同一路径要等
   整封 SMTP 会话（实测一封 3.8s 量级）；随后 `outbound_messages` 出现 1 行且状态 `SENT`、`body_cipher` 已清空；
 - 顺序：`PENDING → SENT`，`attempts=1`；
-- **故障路径也验过**：把 SMTP 主机临时指向 `127.0.0.1:2599`（拒绝连接）→ 测试邮件 2 秒内
-  变成 `PENDING` + `last_error="邮件发送失败：Connection refused"`，页面显示琥珀色
-  「投递失败，队列会在 30 秒后自动重试：…」，管理员不用等 30 秒退避就能看到原因；
-  验完把主机改回 `smtp.163.com:465`（当前库里就是这个值）；
+- **连点两次 = 两条队列行**：19:44:05 与 19:44:22 各一条，状态都是 `SENT`、`attempts=1`；
+- **故障路径只落库、不上页面**（按用户口径）：把 SMTP 主机临时指向 `127.0.0.1:2599`（拒绝连接）时
+  `last_error="邮件发送失败：Connection refused"`、状态 `PENDING` 等退避重试——这一行是接口层证据，
+  页面不再展示投递结果；验完把主机改回 `smtp.163.com:465`（当前库里就是这个值）；
 - 注册探针用的账号与消息已从 dev 库删除（`users` / `verification_codes` / `outbound_messages` 各 1 行）。
 
 自动化：

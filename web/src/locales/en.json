@@ -103,10 +103,7 @@
     "brandLine": "Better Practice. More Insights.",
     "channels": {
       "testHint": "The test email goes to the saved sender address and uses the saved configuration. Save first, then test.",
-      "testSending": "Queued; waiting for the delivery result ({{to}})…",
-      "testTimeout": "Queued, but no result within 30 seconds — SMTP may be slow. Check {{to}} shortly, or look at the server log.",
-      "testOk": "Test email sent to {{to}} · {{ms}}ms",
-      "testFail": "Test failed: {{message}}",
+      "testQueued": "Queued for {{to}}. Delivery happens in the background — this page does not wait; check that inbox. Failures retry automatically.",
       "title": "Global communication channels",
       "sub": "Which channel serves sign-up, sign-in and password reset. Changes apply on the next request.",
       "enable": "Email service",
@@ -144,8 +141,7 @@
         "disabled": "Saved but not enabled — the sign-up page shows no email entry, so nobody can sign up. Tick the switch and save again.",
         "incomplete": "Incomplete — sender address, SMTP server and auth code must all be set.",
         "unreadable": "The stored auth code cannot be decrypted (security secret changed?). Enter it again."
-      },
-      "testRetrying": "Delivery failed; the queue retries in 30 seconds: {{message}}"
+      }
     }
   },
   "audit": {

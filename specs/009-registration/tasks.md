@@ -49,7 +49,7 @@ T544 收尾验收
 | T523 | `SmtpEmailChannel`（`spring-boot-starter-mail`），发件人/主机/端口/授权码全部来自 `identity_channels` | T521 | 用本地 `HttpServer`/GreenMail 替身发送成功 1 封；`configured()` 在缺 from 或缺 secret 时为 false |
 | T524 | `HttpApiEmailChannel`：可配 endpoint + Bearer key，POST JSON；超时 5s | T521 | 替身返回 200 → 发送成功；返回 500 → 抛 `MAIL_SEND_FAILED` |
 | ~~T525~~ | ~~发送失败语义：502 + 该 challenge/令牌立即作废~~ **2026-10-28 作废**：改为异步投递后不再「发信失败就作废令牌」，失败由队列退避重试，见 T545 | ~~T523/T524~~ | — |
-| T545 | **出站消息异步投递（2026-10-28）**：`outbound_messages`（V074）+ `OutboundMessageQueue`（入队，正文 `SecretBox` 加密存）+ `OutboundMessageWorker`（`@Scheduled` 2s 一批，`for update skip locked` 抢件，30s/5min 退避，3 次失败置 FAILED）。注册激活、登录/重置验证码、管理端测试邮件三处改为入队；测试邮件改「入队 + 前端轮询状态」 | T521/T523 | `OutboundMessageWorkerTest` 4/4（成功清正文 / 退避 / 重试成功 / 三次失败终态）；`RegistrationFlowTest` 2/2 与 `LoginCodeFlowTest` 4/4 在异步下仍能拿到邮件内容；注册接口实测从 ~3.8s 降到毫秒级 |
+| T545 | **出站消息异步投递（2026-10-28）**：`outbound_messages`（V074）+ `OutboundMessageQueue`（入队，正文 `SecretBox` 加密存）+ `OutboundMessageWorker`（`@Scheduled` 2s 一批，`for update skip locked` 抢件，30s/5min 退避，3 次失败置 FAILED）。注册激活、登录/重置验证码、管理端测试邮件三处改为入队；测试邮件改「只入队，页面立即返回」 | T521/T523 | `OutboundMessageWorkerTest` 4/4（成功清正文 / 退避 / 重试成功 / 三次失败终态）；`RegistrationFlowTest` 2/2 与 `LoginCodeFlowTest` 4/4 在异步下仍能拿到邮件内容；注册接口实测从 ~3.8s 降到毫秒级 |
 
 ## 4. 批 C：注册与激活
 

@@ -173,7 +173,7 @@
 - [ ] AC-78.2 派发器每 2 秒（`teachloop.outbound.poll-ms`）领一批到期消息并投递；成功后 `status=SENT`、`body_cipher` 清空、`sent_at` 写入
 - [ ] AC-78.3 投递失败按 30 秒 / 5 分钟退避重试，**3 次**仍失败置 `FAILED` 且 `last_error` 可查；进程重启不丢消息（PENDING 行留在库里，下一轮继续发）
 - [ ] AC-78.4 队列正文用 `SecretBox` 加密存 `body_cipher`，发出后立即清空——激活链接等于一次性凭据，队列不能成为第二份明文
-- [ ] AC-78.5 管理端「发送测试邮件」拿 `id` 轮询 `GET /api/admin/identity-channels/{channel}/test/{id}`，页面按 PENDING / SENT / FAILED 分别显示「等待投递 / 已发送 / 失败原因」，不是只显示「已提交」
+- [ ] AC-78.5 管理端「发送测试邮件」**只回入队回执**：接口毫秒级返回，按钮立即恢复可点（再点就再入队一条），页面显示「已交给发送队列（收件人）」后**不再等待**投递结果——异步的目的就是不要在这一页 block 用户，信到没到去邮箱看（2026-10-28 用户纠正；`GET /{channel}/test/{id}` 仅留给后台排查，页面不轮询）
 
 ---
 
