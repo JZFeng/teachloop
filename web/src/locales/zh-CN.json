@@ -98,7 +98,26 @@
     "crashBody": "这一块没能渲染出来。先刷新试试；如果反复出现，把当前页面地址发给开发。",
     "crashReload": "重新加载",
     "descriptor": "AI 教学平台",
-    "brandLine": "Better Practice. More Insights."
+    "brandLine": "Better Practice. More Insights.",
+    "channels": {
+      "title": "身份通道",
+      "sub": "注册、登录与找回密码用哪条通道。保存后立即生效，改完可直接去登录页验证。",
+      "on": "已开启",
+      "off": "已关闭",
+      "driver": "驱动",
+      "from": "发件人 / 签名",
+      "baseUrl": "服务地址",
+      "secret": "密钥 / 授权码（留空表示不修改）",
+      "save": "保存",
+      "saved": "已保存，下一次请求即生效",
+      "unreadable": "密钥无法解密（安全密钥变过？），请重新填写。",
+      "hint": "邮箱通道需要「发件人 + 服务地址 + 授权码」三项齐全才会出现在登录页；微信与短信还需要资质。",
+      "name": {
+        "email": "邮箱",
+        "sms": "手机短信",
+        "wechat": "微信"
+      }
+    }
   },
   "audit": {
     "attemptNo": "第 {{n}} 次提交",

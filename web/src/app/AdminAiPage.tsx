@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { Alert, Button, Field, InlineNote, Input, PageHeader, TextArea } from '../ui'
 import type { AiModelsView, AiProviderRequest, AiProviderStatus, AiProviderView, AiTestResult } from '../api/types'
+import IdentityChannelsPanel from './IdentityChannelsPanel'
 
 interface ModelsResult { ok: boolean; models: string[]; message: string }
 
@@ -410,6 +411,7 @@ export default function AdminAiPage() {
           </div>
         </div>
       )}
+      <IdentityChannelsPanel />
     </>
   )
 }

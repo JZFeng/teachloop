@@ -33,6 +33,29 @@ public class IdentityChannelRepository {
                         rs.getString("extra"), (Integer) rs.getObject("daily_quota")));
     }
 
+    /** 保存通道配置：secretCipher 为 null 表示「不改密钥」，空串表示「清除密钥」。 */
+    public void update(String channel, boolean enabled, String driver, String fromAddress, String baseUrl,
+                       String secretCipherOrNullOrEmpty, String extra, Integer dailyQuota, java.util.UUID updatedBy) {
+        if (secretCipherOrNullOrEmpty == null) {
+            jdbc.update("""
+                            update identity_channels
+                               set enabled = ?, driver = ?, from_address = ?, base_url = ?, extra = ?,
+                                   daily_quota = ?, updated_at = now(), updated_by = ?
+                             where channel = ?
+                            """,
+                    enabled, driver, fromAddress, baseUrl, extra, dailyQuota, updatedBy, channel);
+        } else {
+            jdbc.update("""
+                            update identity_channels
+                               set enabled = ?, driver = ?, from_address = ?, base_url = ?, extra = ?,
+                                   daily_quota = ?, secret_cipher = nullif(?, ''), updated_at = now(), updated_by = ?
+                             where channel = ?
+                            """,
+                    enabled, driver, fromAddress, baseUrl, extra, dailyQuota, secretCipherOrNullOrEmpty, updatedBy,
+                    channel);
+        }
+    }
+
     public Optional<Row> find(String channel) {
         return findAll().stream().filter(r -> r.channel().equals(channel)).findFirst();
     }

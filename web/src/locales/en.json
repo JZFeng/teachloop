@@ -98,7 +98,26 @@
     "crashBody": "This section failed to render. Reload first; if it keeps happening, send the page address to the developer.",
     "crashReload": "Reload",
     "descriptor": "AI teaching platform",
-    "brandLine": "Better Practice. More Insights."
+    "brandLine": "Better Practice. More Insights.",
+    "channels": {
+      "title": "Identity channels",
+      "sub": "Which channel serves sign-up, sign-in and password reset. Changes apply on the next request.",
+      "on": "Enabled",
+      "off": "Disabled",
+      "driver": "Driver",
+      "from": "Sender / signature",
+      "baseUrl": "Endpoint",
+      "secret": "Secret / auth code (leave blank to keep)",
+      "save": "Save",
+      "saved": "Saved — takes effect on the next request",
+      "unreadable": "Stored secret cannot be decrypted (security secret changed?). Enter it again.",
+      "hint": "The email channel only appears on the sign-in page when sender, endpoint and secret are all set. WeChat and SMS also need provider approval.",
+      "name": {
+        "email": "Email",
+        "sms": "SMS",
+        "wechat": "WeChat"
+      }
+    }
   },
   "audit": {
     "attemptNo": "Attempt {{n}}",
