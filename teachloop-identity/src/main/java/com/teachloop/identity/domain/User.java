@@ -37,6 +37,13 @@ public class User {
     @Column(name = "wechat_openid")
     private String wechatOpenId;
 
+    /**
+     * 2026-10-27：生产环境允许邮箱 + 密码登录。
+     * 默认 false（普通教师/学生仍走微信）；只有管理员用 CLI `--create-user` 建的测试账号是 true。
+     */
+    @Column(name = "password_login_enabled", nullable = false)
+    private boolean passwordLoginEnabled;
+
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
@@ -62,6 +69,7 @@ public class User {
     public String getLocale() { return locale; }
     public UserStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
+    public boolean isPasswordLoginEnabled() { return passwordLoginEnabled; }
 
     public void setRole(UserRole role) { this.role = role; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
@@ -71,4 +79,5 @@ public class User {
     public void setStatus(UserStatus status) { this.status = status; }
     public void setEmail(String email) { this.email = email; }
     public void setWechatOpenId(String openId) { this.wechatOpenId = openId; }
+    public void setPasswordLoginEnabled(boolean passwordLoginEnabled) { this.passwordLoginEnabled = passwordLoginEnabled; }
 }

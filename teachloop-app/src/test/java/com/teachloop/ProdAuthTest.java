@@ -8,6 +8,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.util.Map;
 import com.teachloop.identity.admin.AdminService;
+import com.teachloop.identity.domain.UserRole;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -64,6 +65,23 @@ class ProdAuthTest {
                         .build(), HttpResponse.BodyHandlers.ofString());
         assertThat(res.statusCode()).isEqualTo(503);
         assertThat(Json.parse(res.body()).get("code")).isEqualTo("UNAVAILABLE");
+    }
+
+    @Test
+    @DisplayName("2026-10-27：password_login_enabled 的测试账号可在 prod 用密码登录")
+    void testAccountPasswordLogin() throws Exception {
+        String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
+        adminService.createUser("friend@teachloop.local", UserRole.STUDENT, "朋友", "friend-pass-123", true);
+        Map<String, Object> csrf = csrf(base);
+        HttpResponse<String> res = client.send(HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                .header("Content-Type", "application/json")
+                .header("Cookie", csrf.get("cookie").toString())
+                .header("X-XSRF-TOKEN", csrf.get("token").toString())
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"email\":\"friend@teachloop.local\",\"password\":\"friend-pass-123\"}"))
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(Json.parse(res.body()).get("role")).isEqualTo("STUDENT");
     }
 
     @Test

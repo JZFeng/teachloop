@@ -1,6 +1,6 @@
 package com.teachloop.identity.api;
 
-import com.teachloop.identity.auth.AdminPasswordAuthProvider;
+import com.teachloop.identity.auth.PasswordAuthProvider;
 import com.teachloop.identity.auth.DevPasswordAuthProvider;
 import com.teachloop.identity.auth.WeChatAuthProvider;
 import com.teachloop.identity.domain.TeacherInvite;
@@ -35,20 +35,20 @@ public class AuthEndpoint {
     private final TeacherInviteRepository invites;
     private final PasswordEncoder passwordEncoder;
     private final DevPasswordAuthProvider devProvider;
-    private final AdminPasswordAuthProvider adminProvider;
+    private final PasswordAuthProvider prodProvider;
     private final WeChatAuthProvider weChatProvider;
     private final Environment environment;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     public AuthEndpoint(UserRepository users, TeacherInviteRepository invites, PasswordEncoder passwordEncoder,
-                        DevPasswordAuthProvider devProvider, AdminPasswordAuthProvider adminProvider,
+                        DevPasswordAuthProvider devProvider, PasswordAuthProvider prodProvider,
                         WeChatAuthProvider weChatProvider, Environment environment, Clock clock) {
         this.users = users;
         this.invites = invites;
         this.passwordEncoder = passwordEncoder;
         this.devProvider = devProvider;
-        this.adminProvider = adminProvider;
+        this.prodProvider = prodProvider;
         this.weChatProvider = weChatProvider;
         this.environment = environment;
         this.clock = clock;
@@ -69,7 +69,7 @@ public class AuthEndpoint {
     public AuthDtos.MeView login(@RequestBody @Valid LoginRequest body, HttpServletRequest request) {
         boolean prod = environment.acceptsProfiles(Profiles.of("prod"));
         Optional<User> user = prod
-                ? adminProvider.login(body.email(), body.password())
+                ? prodProvider.login(body.email(), body.password())
                 : devProvider.login(body.email(), body.password());
         if (user.isEmpty()) {
             if (prod) {
