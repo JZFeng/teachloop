@@ -147,6 +147,7 @@ AI_ENV="stub"
 DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" DB_USER=teachloop DB_PASSWORD=teachloop \
   STORAGE_LOCAL_DIR="$STORAGE_LOCAL_DIR" \
   PORT="$BACKEND_PORT" TEACHLOOP_GRADING_ENGINE="$AI_ENV" \
+  TEACHLOOP_APP_BASE_URL="${TEACHLOOP_APP_BASE_URL:-http://127.0.0.1:5173}" \
   VOCAB_GENERATION_ENGINE="$AI_ENV" \
   "$JAVA_HOME/bin/java" -jar "$JAR" > "$LOG_DIR/dev-backend.log" 2>&1 &
 BACK_PID=$!

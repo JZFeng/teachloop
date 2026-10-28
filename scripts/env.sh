@@ -171,6 +171,7 @@ cmd_up() {
   VOCAB_CONTENT_STORE_PATH="$ENV_DIR/content-delta.db" \
   VOCAB_CONTENT_PACK_DIR="$ROOT/fixtures-local/vocab-content" \
   PORT="$PORT" TEACHLOOP_GRADING_ENGINE="$engine" \
+  TEACHLOOP_APP_BASE_URL="${TEACHLOOP_APP_BASE_URL:-http://127.0.0.1:$WEB_PORT}" \
     "$JAVA" -jar "$JAR" > "$ENV_DIR/backend.log" 2>&1 &
   echo $! > "$BACK_PID_FILE"
 
