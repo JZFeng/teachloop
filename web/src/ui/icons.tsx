@@ -29,6 +29,7 @@ export {
   HomeOutlined,
   InfoCircleOutlined,
   LogoutOutlined,
+  MenuOutlined,
   MoonOutlined,
   MoreOutlined,
   PauseCircleOutlined,

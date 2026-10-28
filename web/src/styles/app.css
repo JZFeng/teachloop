@@ -2,9 +2,9 @@
 body { display: block; }
 #root { min-height: 100vh; }
 
-/* 放大编辑遮罩从侧栏右边开始，宽度只在这里定义一次（侧栏本身的 238px 在 mockup.css 的 aside）。 */
+/* 放大编辑遮罩从侧栏右边开始，宽度只在这里定义一次（侧栏本身的 238px 在 mockup.css 的 aside）。
+   ≤1023 时侧栏变抽屉、不占位，0px 由下面的 tablet 断点统一给。 */
 :root { --app-sidebar-w: 238px; }
-@media (max-width: 900px) { :root { --app-sidebar-w: 0px; } }
 
 .app-shell {
   display: flex;
@@ -184,16 +184,55 @@ body { display: block; }
 .login-card .sub { margin: 5px 0 22px; font-size: 13px; color: var(--muted); }
 .login-card .tl-field { margin-bottom: 14px; }
 .login-card .ant-btn-primary { margin-top: 4px; }
-@media (max-width: 900px) {
-  .login-page { padding: 24px 16px; }
-  .login-shell { grid-template-columns: 1fr; max-width: 520px; }
-  .login-hero { min-height: 0; padding: 28px 24px; border-right: 0; border-bottom: 1px solid var(--line); }
-  .login-card { padding: 28px 24px; }
-  .login-pillars { padding-top: 18px; }
-  .app-sidebar { display: none; }
+
+/*
+ * tablet（744–1100 宽，iPad mini / iPad 10 / Air 11 / Pro 12.9 竖屏都是这一档）：
+ * 登录类未登录页换单列。
+ *
+ * 为什么断点是 1100 而不是 900：iPad Pro 12.9 竖屏是 1024×1366，落在 901 以上就用两栏，
+ * 于是 560px 高的卡被竖直居中悬在 1366 高的屏中间（上下各空 ~400px，实测 cardTop=407、
+ * gapBelow=399），表单标题落在页面 33% 处——这就是「看起来太靠下」的真实来源。
+ * 单列后卡片高度=内容高度，从顶部开始排，再把整标从 344 缩到 260 压掉品牌区高度。
+ */
+@media (max-width: 1100px) {
+  .login-page { padding: 32px 16px 48px; align-items: flex-start; overflow-y: auto; }
+  .login-shell { grid-template-columns: 1fr; max-width: 560px; }
+  .login-hero { min-height: 0; padding: 28px 24px 22px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .login-card { padding: 26px 24px 30px; }
+  .login-hero .tl-brand-xl { --tl-lockup-w: 260px; --tl-lockup-word: 30px; }
+  .login-tagline { margin-top: 12px; font-size: 15px; }
+  /*
+   * 平板竖屏只留「整标 + 一句 tagline」，卖点/功能位/规划注记/脚注收起来。
+   * 实测：三行卖点 + 四个功能位 + 两行注记合计 ~200px，会把表单推到屏幕 1/3 处（439/1366），
+   * 这正是「靠下」的直接原因；竖屏平板上首屏优先给表单，营销内容在小屏不属于必读。
+   */
+  .login-points, .login-pillars, .login-plan-note, .login-hero-foot { display: none; }
+}
+
+/* 应用壳层：平板竖屏侧栏改抽屉。1023 与作答页目录树的抽屉断点保持一致。 */
+.app-nav-toggle { display: none; }
+@media (max-width: 1023px) {
+  :root { --app-sidebar-w: 0px; }
   .app-main { padding: 20px 16px 80px; }
   .app-topbar { padding: 10px 16px; }
+  .app-nav-toggle { display: inline-flex; }
+
+  /*
+   * 侧栏从「隐藏」改成「抽屉」：原先 ≤900 时 .app-sidebar{display:none}，而 nav 只存在于
+   * <aside> 里（Shell.tsx），于是 iPad mini / iPad 10 / Air 11 竖屏登录后没有导航，只能停在落地页。
+   * 这里改成离屏 + 顶栏菜单按钮，宽度 280（238 侧栏 + 内边距），上限 86vw 防止小屏占满。
+   */
+  .app-sidebar {
+    position: fixed; inset: 0 auto 0 0; z-index: 60;
+    width: 280px; max-width: 86vw; height: 100vh; padding: 16px 12px;
+    background: var(--panel); border-right: 1px solid var(--line);
+    overflow: auto; box-shadow: var(--shadow-lg);
+    transform: translateX(-100%); transition: transform .16s ease;
+  }
+  .app-sidebar.open { transform: none; }
+  .app-nav-backdrop { position: fixed; inset: 0; z-index: 55; background: var(--overlay); }
 }
+
 
 /* 考试作答页的两栏：目录树 + 单滚动区 */
 .exam-layout { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 20px; max-width: 1180px; margin: 0 auto; padding: 20px; }

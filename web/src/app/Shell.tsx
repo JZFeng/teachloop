@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
-import { NavLink, useNavigate } from 'react-router-dom'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import { useFeatures } from '../api/features'
+import { useEscapeClose } from '../ui'
 import { navSpecs, type NavIcon } from './nav'
 import {
   AppstoreOutlined,
@@ -19,6 +20,7 @@ import {
   HomeOutlined,
   InlineNote,
   LogoutOutlined,
+  MenuOutlined,
   RobotOutlined,
   SendOutlined,
   SyncOutlined,
@@ -52,13 +54,26 @@ export function Shell({ children }: { children: ReactNode }) {
   const { features, loaded: featuresLoaded } = useFeatures()
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const [unread, setUnread] = useState(0)
   const [aiMissing, setAiMissing] = useState(false)
+  // 平板竖屏（≤1023，见 app.css 的 tablet 断点）侧栏是抽屉：顶栏按钮开合，选中导航后自动收起。
+  const [navOpen, setNavOpen] = useState(false)
 
   // 三个功能位（作业/试卷 create、批改/复核 assess、报表/成绩与评语 insights）之外，
   // 首页与班级作为「空间位」各有一个颜色：home 海军蓝、classes 淡紫（决策 006 2026-10-23 修订）。
   // 可见性全部来自后端 key 集合；features 未回来前不渲染业务菜单，避免闪出全量再收缩（AC-63.11）。
   const items = featuresLoaded ? navSpecs(features) : []
+
+  // 抽屉的行为三条：点导航收起、Esc 收起、开着的时侯锁住背景滚动（否则抽屉后面还能滚）。
+  useEffect(() => { setNavOpen(false) }, [pathname])
+  useEscapeClose(navOpen, () => setNavOpen(false))
+  useEffect(() => {
+    if (!navOpen) return
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [navOpen])
 
   useEffect(() => {
     let alive = true
@@ -92,9 +107,13 @@ export function Shell({ children }: { children: ReactNode }) {
 
   return (
     <div className="app-shell">
-      <aside className="app-sidebar">
+      {navOpen && (
+        <div className="app-nav-backdrop" aria-hidden="true" onClick={() => setNavOpen(false)} />
+      )}
+      <aside className={`app-sidebar${navOpen ? ' open' : ''}`}>
         <div className="brand"><Brand variant="text" size="md" tagline /></div>
-        <nav id="nav">
+        {/* onClick 收抽屉：点当前页链接时 pathname 不变，只靠 [pathname] 的 effect 关不掉。 */}
+        <nav id="nav" onClick={() => setNavOpen(false)}>
           {items.map((item) => (
             <NavLink
               key={item.to}
@@ -127,6 +146,18 @@ export function Shell({ children }: { children: ReactNode }) {
       <div className="app-main-wrap">
         <header className="app-topbar">
           <div className="row" style={{ gap: 8 }}>
+            {/* ≤1023 才显示（CSS 控制）：侧栏在那个宽度是抽屉，没有这个按钮平板竖屏就没有导航。 */}
+            <Button
+              className="app-nav-toggle"
+              size="small"
+              icon={<MenuOutlined aria-hidden="true" />}
+              aria-expanded={navOpen}
+              aria-controls="nav"
+              aria-label={t('nav.menu')}
+              onClick={() => setNavOpen((prev) => !prev)}
+            >
+              {t('nav.menu')}
+            </Button>
             {profileComplete === false && (
               <Button size="small" variant="primary" onClick={() => navigate('/profile')}>
                 {t('profile.completeAction')}
