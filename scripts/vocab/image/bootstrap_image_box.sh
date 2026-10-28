@@ -41,10 +41,11 @@ echo "==> 4/7 目录"
 mkdir -p "$MODELS"/{checkpoints,diffusion_models,text_encoders,vae,loras}
 
 echo "==> 5/7 模型（≈55GB，30MB/s 约 30 分钟）"
-: "${HF_TOKEN:?需要 HF_TOKEN（只读令牌）}"
+: "${HF_TOKEN:-}"   # 模型已从备份拷回时可以不提供
 dl() { # dl <url> <dest>
   local url="$1" dest="$2"
   if [ -f "$dest" ]; then echo "  跳过 $(basename "$dest")"; return 0; fi
+  if [ -z "${HF_TOKEN:-}" ]; then echo "  缺少模型且未提供 HF_TOKEN：$dest"; exit 1; fi
   aria2c -q -x16 -s16 -k 1M --file-allocation=none \
     --header="Authorization: Bearer $HF_TOKEN" -d "$(dirname "$dest")" -o "$(basename "$dest")" "$url"
 }
