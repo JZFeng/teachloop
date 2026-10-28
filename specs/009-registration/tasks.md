@@ -77,7 +77,7 @@ T544 收尾验收
 | T | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
 | T534 | `GET/PUT /api/admin/identity-channels`：掩码 + `hasSecret` + `secretUnreadable`；保存即生效；写审计 | T521 | 非 ADMIN 403；保存后下一次 `/api/auth/channels` 立即反映；任何响应都不含明文密钥 |
-| T535 | 管理页（嵌在 `/admin/ai` 系统设置页）：**2026-10-28 改版**——标题「全域通讯通道」，短信与微信只在 UI 隐藏（后端与表不动）；邮件摊成「发件人名称 / 发件人邮箱 / SMTP 服务器 / 端口 / 加密方式 / 认证账号 / 授权码」七个字段，并可「发送测试邮件」（`POST /api/admin/identity-channels/email/test`，收件人是已保存的发件人邮箱）。字段↔库的映射抽在 `web/src/app/emailChannelForm.ts` | T534 | 前端可改 email 开关并立刻在登录页生效；密钥输入框只显示掩码；加密方式三档（SSL/STARTTLS/无）真的生效；`web/tests/email-channel-form.test.mjs` 11 条、`IdentityChannelAdminTest` 覆盖 `extra` 回读与未配齐时测试发送 `ok=false` |
+| T535 | 管理页（嵌在 `/admin/ai` 系统设置页）：**2026-10-28 改版**——标题「全域通讯通道」，短信与微信只在 UI 隐藏（后端与表不动）；邮件摊成「发件人名称 / 发件人邮箱 / SMTP 服务器 / 端口 / 加密方式 / 授权码」六个字段（2026-10-28 二次简化：认证账号恒等于发件人邮箱），并可「发送测试邮件」（`POST /api/admin/identity-channels/email/test`，收件人是已保存的发件人邮箱）。字段↔库的映射抽在 `web/src/app/emailChannelForm.ts` | T534 | 前端可改 email 开关并立刻在登录页生效；密钥输入框只显示掩码；加密方式三档（SSL/STARTTLS/无）真的生效；`web/tests/email-channel-form.test.mjs` 11 条、`IdentityChannelAdminTest` 覆盖 `extra` 回读与未配齐时测试发送 `ok=false` |
 
 ## 8. 批 G：前端
 

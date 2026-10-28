@@ -6,7 +6,8 @@
  * 映射规则集中在下面两个函数里，页面只负责渲染：
  *   - `from_address` = 发件人邮箱（也是默认认证账号）
  *   - `base_url`     = `${host}:${port}`
- *   - `extra`        = { name, user, encryption }：发件人名称、认证账号、加密方式
+ *   - `extra`        = { name, encryption }：发件人名称、加密方式
+ *   - 认证账号 === 发件人邮箱（2026-10-28 用户：别再单列一个字段，前面填啥邮箱就用啥）
  *
  * 抽成纯函数的原因：web/tests/email-channel-form.test.mjs 能直接断言映射，
  * 不用起浏览器，也不会出现「改了一个字段忘了写回 extra」这种只有上线才发现的问题。
@@ -36,7 +37,6 @@ export interface EmailForm {
   host: string
   port: string
   security: SmtpSecurity
-  username: string
   secret: string
 }
 
@@ -77,7 +77,7 @@ function asSecurity(value: unknown): SmtpSecurity {
   return value === 'starttls' || value === 'none' ? value : 'ssl'
 }
 
-/** 库里的行 → 表单。认证账号不回填发件邮箱：留空由后端回落，改发件人时不会留下旧账号。 */
+/** 库里的行 → 表单。授权码永远不回填（只回掩码）。 */
 export function toEmailForm(row: EmailChannelRow): EmailForm {
   const extra = row.extra ?? {}
   const { host, port } = parseHostPort(row.baseUrl)
@@ -88,7 +88,6 @@ export function toEmailForm(row: EmailChannelRow): EmailForm {
     host,
     port,
     security: asSecurity(extra.encryption),
-    username: text(extra.user),
     secret: '',
   }
 }
@@ -97,7 +96,6 @@ export function toEmailForm(row: EmailChannelRow): EmailForm {
 export function buildEmailUpdate(form: EmailForm, dailyQuota: number | null): EmailUpdateBody {
   const extra: Record<string, string> = { encryption: form.security }
   if (form.fromName.trim()) extra.name = form.fromName.trim()
-  if (form.username.trim()) extra.user = form.username.trim()
   return {
     enabled: form.enabled,
     driver: 'smtp',

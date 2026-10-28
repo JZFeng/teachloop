@@ -66,8 +66,12 @@
 落地方式（不新增库表）：
 
 - `identity_channels.base_url` 仍是 `host:port`，`from_address` 仍是发件人邮箱；
-- 三个新字段进 `extra`（jsonb）：`{"name":"发件人名称","user":"认证账号","encryption":"ssl|starttls|none"}`；
+- 两个新字段进 `extra`（jsonb）：`{"name":"发件人名称","encryption":"ssl|starttls|none"}`；
   缺项按老行为回落（名称空 = 只写地址；user 空 = 用发件人邮箱；encryption 缺省 = ssl）；
 - `SmtpMailSender` 支持三档加密（隐式 TLS / STARTTLS / 明文）与 `From:` 显示名（RFC 2047）；
 - 新增 `POST /api/admin/identity-channels/{channel}/test`：用**已保存**的配置给该通道的发件人邮箱发一封测试信，
   不要求 `enabled=true`（先测通再开开关）。
+
+**2026-10-28 当天二次简化**：用户要求「直接把认证账号拿掉吧，前面填啥邮箱就用啥，功能简单」。
+`extra.user` 废弃、不再读写；`SmtpEmailChannel` 的 AUTH 账号恒等于 `from_address`
+（163/QQ 本来就要求两者一致）。面板从七字段降到六字段。

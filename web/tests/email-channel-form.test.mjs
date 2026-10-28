@@ -34,7 +34,6 @@ const form = {
   host: 'smtp.163.com',
   port: '465',
   security: 'ssl',
-  username: '',
   secret: '',
 }
 
@@ -60,11 +59,10 @@ test('授权码永远不回填：表单里的 secret 一律是空串', () => {
   assert.equal(toEmailForm(row).secret, '')
 })
 
-test('没有 extra 的老数据：名称空、加密方式按 ssl、认证账号留空走默认', () => {
+test('没有 extra 的老数据：名称空、加密方式按 ssl', () => {
   const view = toEmailForm({ ...row, extra: null })
   assert.equal(view.fromName, '')
   assert.equal(view.security, 'ssl')
-  assert.equal(view.username, '')
 })
 
 test('extra 里写 starttls / none 时原样还原', () => {
@@ -85,9 +83,9 @@ test('授权码留空表示不修改（secret=null），填了就带上', () => 
   assert.equal(buildEmailUpdate({ ...form, secret: 'abcd1234' }, null).secret, 'abcd1234')
 })
 
-test('认证账号填了才写进 extra；不填由后端回落到发件邮箱', () => {
+test('不再写 extra.user：认证账号恒等于发件人邮箱（2026-10-28 简化）', () => {
   assert.equal('user' in buildEmailUpdate(form, null).extra, false)
-  assert.equal(buildEmailUpdate({ ...form, username: 'sender@163.com' }, null).extra.user, 'sender@163.com')
+  assert.deepEqual(Object.keys(buildEmailUpdate(form, null).extra).sort(), ['encryption', 'name'])
 })
 
 test('dailyQuota 原样带回，保存不会把它清空', () => {

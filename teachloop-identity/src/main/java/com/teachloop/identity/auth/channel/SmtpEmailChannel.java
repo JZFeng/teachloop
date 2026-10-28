@@ -14,9 +14,11 @@ import tools.jackson.databind.ObjectMapper;
  *   <li>{@code base_url} = {@code host:port}（缺端口按 465）</li>
  *   <li>{@code from_address} = 发件人邮箱与默认登录账号（163 等要求两者一致）</li>
  *   <li>{@code secret_cipher} = 授权码密文（{@link SecretBox} AES-GCM）</li>
- *   <li>{@code extra} = JSON：{@code {"name":"系统管理员","user":"…","encryption":"ssl"}}，
- *       分别对应管理端的「发件人名称 / 认证账号 / 加密方式」；旧数据没有这一列内容时
- *       name 为空（{@code From:} 只写地址）、user 回落 from_address、encryption 按 ssl。</li>
+ *   <li>{@code extra} = JSON：{@code {"name":"系统管理员","encryption":"ssl"}}，
+ *       对应管理端的「发件人名称 / 加密方式」；旧数据没有这一列内容时
+ *       name 为空（{@code From:} 只写地址）、encryption 按 ssl。</li>
+ *   <li>认证账号**恒等于 from_address**（2026-10-28 用户要求：不再单列）。163/QQ 本来就要求两者一致；
+ *       {@code extra.user} 即使存在也被忽略，免得留下一个改不掉的旧账号。</li>
  * </ul>
  *
  * <p>密钥解不开时 {@link #configured()} 为 false——通道按「未配置」处理，不抛 500（AC-76.4）。
@@ -83,12 +85,8 @@ public class SmtpEmailChannel implements VerificationChannel {
     private SmtpMailSender.Settings settings(IdentityChannelRepository.Row row, String secret) {
         String[] hostPort = splitHostPort(row.baseUrl());
         JsonNode extra = parseExtra(row.extra());
-        String user = text(extra, "user");
-        if (user == null) {
-            user = row.fromAddress();
-        }
         int port = port(hostPort[1]);
-        return new SmtpMailSender.Settings(hostPort[0], port, user, secret, row.fromAddress(),
+        return new SmtpMailSender.Settings(hostPort[0], port, row.fromAddress(), secret, row.fromAddress(),
                 text(extra, "name"), security(text(extra, "encryption")));
     }
 

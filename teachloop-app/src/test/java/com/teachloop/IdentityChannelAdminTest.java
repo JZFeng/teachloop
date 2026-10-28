@@ -143,7 +143,7 @@ class IdentityChannelAdminTest {
     }
 
     @Test
-    @DisplayName("邮件 extra（发件人名称 / 认证账号 / 加密方式）保存后按对象回读")
+    @DisplayName("邮件 extra（发件人名称 / 加密方式）保存后按对象回读")
     void emailExtraRoundTrips() throws Exception {
         String base = base();
         adminService.createAdmin("chan-admin5@test.local", "adminpass123");
@@ -152,7 +152,7 @@ class IdentityChannelAdminTest {
         String body = """
                 {"enabled":false,"driver":"smtp","fromAddress":"a@163.com","baseUrl":"smtp.163.com:465",
                  "secret":"code",
-                 "extra":{"name":"系统管理员","user":"a@163.com","encryption":"starttls"}}
+                 "extra":{"name":"系统管理员","encryption":"starttls"}}
                 """;
         HttpResponse<String> put = put(base, "/api/admin/identity-channels/email", admin, body);
         assertThat(put.statusCode()).isEqualTo(200);

@@ -38,7 +38,8 @@ interface TestResult {
  * - 手机短信与微信**只在 UI 隐藏**，后端接口、`identity_channels` 三行数据与驱动枚举都不动，
  *   等资质齐了把这两行放回来即可；
  * - 邮件不再是一行「驱动 + 地址 + 密钥」，而是摊成发件人名称 / 发件人邮箱 / SMTP 服务器 /
- *   端口 / 加密方式 / 认证账号 / 授权码七个字段，并可当场发一封测试邮件。
+ *   端口 / 加密方式 / 授权码六个字段，并可当场发一封测试邮件；
+ *   2026-10-28 当天再简化：**认证账号不再单列**——登录账号就是发件人邮箱。
  *
  * 字段到库的映射全在 `emailChannelForm.ts`，这里只负责渲染。
  */
@@ -175,13 +176,6 @@ export default function IdentityChannelsPanel() {
               <Radio value="ssl">{t('app.channels.securitySsl')}</Radio>
               <Radio value="starttls">{t('app.channels.securityStarttls')}</Radio>
             </Radio.Group>
-          </Field>
-
-          <Field label={t('app.channels.authUser')} hint={t('app.channels.authUserHint')}
-            htmlFor="channel-auth-user">
-            <Input id="channel-auth-user" value={form.username}
-              placeholder={form.fromAddress || t('app.channels.authUserPlaceholder')}
-              onChange={(e) => change({ username: e.target.value })} />
           </Field>
 
           <Field label={t('app.channels.secret')} required={!row.hasSecret}
