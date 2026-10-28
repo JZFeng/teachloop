@@ -1,7 +1,7 @@
 # 规格说明 — 注册与身份通道（009-registration）
 
 - 特性编号：`009-registration`
-- 状态：**草稿（2026-10-27），待用户 review**
+- 状态：**已定稿（2026-10-27，用户四轮逐条 review 通过）**，待 Mock
 - 上游：用户 2026-10-27 要求 ——「没有 register，之前忘了」；v1 用邮箱；手机与微信代码同批交付；全部可配置；微信是长期最重要通道
 - 调研：`docs/research/2026-10-27-registration-channels.md`
 - 修订既有规格：`specs/002-v2-platform/spec.md` 的 `AC-1.7`、`AC-1.8`（见 §7）；`.specify/memory/constitution.md` 第六条（见 §7）
