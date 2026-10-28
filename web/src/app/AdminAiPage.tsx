@@ -288,7 +288,10 @@ export default function AdminAiPage() {
               </div>
               <div className="row" style={{ gap: 6 }}>
                 {providers.length > 1 && !p.active && (
-                  <Button size="small" variant="primary" busy={busy} onClick={() => void setDefault(p)}>
+                  /* Card-level config action, not the page's primary action: several inactive
+                     providers side by side would render several solid buttons competing for the
+                     same attention (checklist A1a, 2026-10-26). */
+                  <Button size="small" variant="default" busy={busy} onClick={() => void setDefault(p)}>
                     {t('app.ai.setDefault')}
                   </Button>
                 )}

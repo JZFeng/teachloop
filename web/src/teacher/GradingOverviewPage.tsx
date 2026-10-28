@@ -212,7 +212,7 @@ export default function GradingOverviewPage() {
       // AC-25.6：整个产品只在「作业台账」这一处保留「汇总」入口（详情页另有视图切换）。
       render: (o) => (
         <RowActions
-          primary={{
+          main={{
             key: 'summary',
             label: t('teacher.common.summary'),
             onClick: () => navigate(`/offerings/${o.id}/summary`),

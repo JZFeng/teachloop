@@ -71,6 +71,10 @@ public class VocabularyGenerationWorker {
     }
 
     private void process(GenerationJobStore.Job job) {
+        if ("FORM".equals(job.subjectType())) {
+            processLookup(job);
+            return;
+        }
         if (!"WORD".equals(job.subjectType())) {
             store.fail(job.id(), null, job.attempts() + 1, true, clock.instant(),
                     "unsupported subject type " + job.subjectType(), clock.instant());
@@ -103,6 +107,39 @@ public class VocabularyGenerationWorker {
                     ex.getMessage(), clock.instant());
             log.warn("内容生成失败 word={} attempts={}/{}：{}",
                     word.get().form(), attempts, maxAttempts, ex.getMessage());
+        }
+    }
+
+    /**
+     * 查词任务（T515 / AC-60.13）：生成「不在库的词形」，结果只写全局 delta。
+     *
+     * <p>与词条任务的区别只有成功分支：没有 {@code vocab_words} 行可写，所以置任务 SUCCEEDED 即可；
+     * 下次任何人查同一个词，读路径直接从 {@code ContentStore} 命中（AC-60.6 同一词形只生成一次）。
+     * 失败与词条任务同一条退避规则（1 分钟 / 5 分钟，第 3 次标 FAILED）。
+     */
+    private void processLookup(GenerationJobStore.Job job) {
+        Optional<GenerationJobStore.FormInfo> target = store.form(job.subjectId());
+        if (target.isEmpty() || target.get().form() == null || target.get().form().isBlank()) {
+            store.fail(job.id(), null, job.attempts() + 1, true, clock.instant(),
+                    "lookup form not found", clock.instant());
+            return;
+        }
+        GenerationJobStore.FormInfo info = target.get();
+        String language = info.language() == null || info.language().isBlank()
+                ? "en" : info.language();
+        try {
+            String content = generator.generate(info.form(), language);
+            // delta 写失败按失败处理：查词任务的唯一产物就是这份全局内容，写不进去等于没生成。
+            contentStore.put(language, WordNormalizer.normalized(info.form()), content, "AI");
+            store.succeedForm(job.id(), clock.instant());
+        } catch (RuntimeException ex) {
+            int attempts = job.attempts() + 1;
+            boolean finalFailure = attempts >= maxAttempts;
+            Instant nextRunAt = clock.instant().plusSeconds(attempts == 1 ? 60 : 300);
+            store.fail(job.id(), null, attempts, finalFailure, nextRunAt,
+                    ex.getMessage(), clock.instant());
+            log.warn("查词内容生成失败 form={} attempts={}/{}：{}",
+                    info.form(), attempts, maxAttempts, ex.getMessage());
         }
     }
 }

@@ -460,5 +460,5 @@ P1/P2 不变（继续读 `vocab_words.content`）；P3 改为按 `content_id` �
 | 教师「已发出的布置」 | **已定** | 放在词集页的第二个 tab（不占一级导航），按时间倒序，可复制链接 |
 | 路由表与 i18n key 清单 | **留给 tasks** | 每个页面一条任务，key 前缀 `vocab.*`，中英同步 |
 | 词表 manifest 发布流程 | **已定** | `scripts/vocab/build-wordlist-index.py` 生成 → `make vocab-lexicon` 校验 sha256；产物不进 git，部署时构建阶段生成或挂卷 |
-| 学生词单入口（US-69，2026-10-25） | **已定** | 词库页工具条 → `/vocab/lists`（列表）、`/vocab/lists/:id`（详情）；**不新增一级导航**（AC-69.11）；文案前缀 `vocab.lists.*` |
+| 学生词单入口（US-69，2026-10-25；2026-10-26 修订） | **已定** | 侧栏一级入口「我的词单」→ `/vocab/lists`（列表），详情 `/vocab/lists/:id`；紧跟「我的词库」，key 为 `nav.vocab.lists`；**词库页工具条的「词单」按钮删除**（2026-10-26 用户拍板，侧栏是唯一入口，`vocab.lists.toolbarEntry` 一并删）；文案前缀 `vocab.lists.*`。原「不新增一级导航」（AC-69.11 旧文）被 2026-10-26 用户要求覆盖 |
 | 卡组视图（US-47） | **暂缓** | 表与 `deckId` 参数保留、不开接口与页面；学生分组由 US-69 承接（`decisions/020`） |

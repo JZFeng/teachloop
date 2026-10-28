@@ -44,6 +44,17 @@ VERSION_FILE="$ENV_DIR/VERSION"
 BACK_PID_FILE="$ENV_DIR/backend.pid"
 WEB_PID_FILE="$ENV_DIR/web.pid"
 
+# 本机对局域网暴露的 IPv4：取默认路由所在网卡的地址（Mac 上常是 en1/en5，不一定是 en0）
+lan_ip() {
+  local ifc ip
+  ifc="$(route -n get default 2>/dev/null | awk '/interface:/{print $2}')"
+  if [ -n "$ifc" ]; then
+    ip="$(ipconfig getifaddr "$ifc" 2>/dev/null || true)"
+    [ -n "$ip" ] && { printf '%s' "$ip"; return; }
+  fi
+  hostname -I 2>/dev/null | awk '{print $1}'
+}
+
 say()  { printf '\033[1;36m[%s]\033[0m %s\n' "$NAME" "$*"; }
 warn() { printf '\033[1;33m[%s]\033[0m %s\n' "$NAME" "$*" >&2; }
 die()  { printf '\033[1;31m[%s]\033[0m %s\n' "$NAME" "$*" >&2; exit 1; }
@@ -184,7 +195,7 @@ cmd_up() {
 
   say "启动前端 :${WEB_PORT}（vite preview，服务静态快照）"
   ( cd "$ROOT/web" && TEACHLOOP_API="http://127.0.0.1:$PORT" WEB_PORT="$WEB_PORT" \
-      exec pnpm exec vite preview --outDir "$DIST" --port "$WEB_PORT" --host 127.0.0.1 ) \
+      exec pnpm exec vite preview --outDir "$DIST" --port "$WEB_PORT" --host 0.0.0.0 ) \
       > "$ENV_DIR/web.log" 2>&1 &
   echo $! > "$WEB_PID_FILE"
 
@@ -204,6 +215,7 @@ cmd_up() {
   ${NAME} 测试台已就绪（快照，不受开发机改动影响）
 
   前端    http://127.0.0.1:${WEB_PORT}
+  局域网  http://$(lan_ip):${WEB_PORT}（手机同 WiFi 可直接打开；vite preview 绑 0.0.0.0）
   后端    http://127.0.0.1:${PORT}
   数据    ${DB_CONTAINER}:${DB_PORT}/${DB_NAME}
   附件    ${UPLOADS}

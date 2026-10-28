@@ -33,7 +33,8 @@ type Editor = 'new' | VocabList | null
 /**
  * 我的词单（US-69 / AC-69.1–69.4、69.11）：列表页。
  *
- * 零一级导航：这一页从「我的词库」工具条的「词单」按钮进（AC-69.11）；侧栏仍是两项。
+ * 入口：2026-10-26 起侧栏有「我的词单」一级入口，紧跟「我的词库」（AC-69.11 修订）；
+ * 词库工具条的「词单」按钮也仍然到这一页，两个入口等价。
  * 每行直接给「开始复习（N）」，N = 排除暂停后的词数（AC-69.6 拍板）；0 词或全暂停时禁用。
  */
 export default function VocabListsPage() {
@@ -238,13 +239,14 @@ export default function VocabListsPage() {
       value: () => '',
       render: (list) => {
         const count = reviewableOf(list)
-        // AC-25.1：行内只留 1 个主操作（开始复习），编辑 / 删除收进「⋯」。
+        // AC-25.1：行内只留 1 个「主要动作」（开始复习），编辑 / 删除收进「⋯」。
+        // 「主要动作」是结构概念，**不是** `variant="primary"`：行内永远描边，
+        // 实色主按钮只给页面级（这页是页头的「新建词单」）。
         return (
           <RowActions
-            primary={{
+            main={{
               key: 'review',
               label: t('vocab.lists.startReview', { count }),
-              variant: count > 0 ? 'primary' : 'default',
               disabled: count === 0 || startingId === list.id,
               busy: startingId === list.id,
               reason: count === 0 ? t('vocab.lists.reviewNoneHint') : undefined,

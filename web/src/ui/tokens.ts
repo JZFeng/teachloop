@@ -150,7 +150,7 @@ export const FEATURE_DARK = {
 
 /**
  * 两个空间位（2026-10-23 新增）：首页与班级不是功能位，是空间。
- * 它们有自己的命名空间，不与 FEATURE 混用；颜色只进导航，不进页头 eyebrow。
+ * 它们有自己的命名空间，不与 FEATURE 混用；颜色只进导航。
  */
 export const SPACE_LIGHT = {
   home: '#0E3676',

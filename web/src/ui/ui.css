@@ -12,18 +12,6 @@
   margin-bottom: 18px;
   flex-wrap: wrap;
 }
-.tl-page-eyebrow {
-  margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 800;
-  line-height: 1.2;
-  letter-spacing: 0.08em;
-  color: var(--muted-2);
-}
-.tl-page-eyebrow[data-tone='create'] { color: var(--create); }
-.tl-page-eyebrow[data-tone='assess'] { color: var(--assess); }
-.tl-page-eyebrow[data-tone='insights'] { color: var(--insights); }
-.tl-page-eyebrow[data-tone='practice'] { color: var(--practice); }
 .tl-page-title {
   font-family: var(--font-head);
   font-size: 24px;
@@ -569,3 +557,23 @@
 .tl-brand-swatch[data-brand='yellow'] i { background: var(--brand-yellow); }
 .tl-brand-swatch[data-brand='rose'] i { background: var(--brand-rose); }
 .tl-brand-ratio { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+
+/* 进度条（2026-10-26）：颜色全部来自令牌，页面不许自己画色块。
+ * 类名用 tl-meter 而不是 tl-progress——`.tl-progress` 已经是批改总览页的进度格
+ * （上面 403 行起，排列是 column + head + bar>i），两个组件同名会互相压样式：
+ * 实测本组件套 tl-progress 时被压成 height 0，进度条整条看不见。 */
+.tl-meter { display: flex; align-items: center; gap: 10px; width: 100%; }
+.tl-meter-track {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--line-2);
+  overflow: hidden;
+}
+.tl-meter-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 240ms ease-out;
+}
+.tl-meter-text { font-size: 12px; color: var(--muted); white-space: nowrap; }

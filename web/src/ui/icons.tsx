@@ -42,6 +42,7 @@ export {
   SunOutlined,
   SyncOutlined,
   TeamOutlined,
+  UnorderedListOutlined,
   UploadOutlined,
   UserOutlined,
 } from '@ant-design/icons'

@@ -150,7 +150,8 @@ export default function App() {
               <Route path="vocab/library" element={<VocabLibraryPage />} />
               <Route path="vocab/review" element={<VocabReviewPage />} />
               <Route path="vocab/sets" element={<VocabSetsPage />} />
-              {/* US-69：词单不占导航，从「我的词库」工具条进（AC-69.11） */}
+              {/* US-69：词单页。2026-10-26 起侧栏有「我的词单」一级入口（AC-69.11 修订），
+                 * 词库工具条的「词单」按钮仍保留，两个入口到同一页。 */}
               <Route path="vocab/lists" element={<VocabListsPage />} />
               <Route path="vocab/lists/:id" element={<VocabListDetailPage />} />
               <Route path="vocab/sets/new" element={<VocabSetEditPage />} />

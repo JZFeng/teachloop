@@ -68,7 +68,8 @@ public class VocabularyWordActionsEndpoint {
     public record Affected(int affected) {
     }
 
-    public record StatsView(long total, long dueToday, long newWords, long mastered, long paused) {
+    public record StatsView(long total, long dueToday, long newWords, long mastered, long paused,
+                            long favorite) {
     }
 
     public record SourceView(String kind, UUID batchId, UUID assignmentId, String label, long words) {
@@ -140,7 +141,7 @@ public class VocabularyWordActionsEndpoint {
                            @RequestAttribute("currentUser") CurrentUser me) {
         VocabWordRepository.Stats stats = words.stats(me.id(), languageOrDefault(language));
         return new StatsView(stats.total(), stats.dueToday(), stats.newWords(),
-                stats.mastered(), stats.paused());
+                stats.mastered(), stats.paused(), stats.favorite());
     }
 
     @GetMapping("/sources")

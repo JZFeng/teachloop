@@ -57,7 +57,7 @@
   --insights: #3f51b5;
   --insights-weak: #eaecfb;
 
-  /* 两个空间位：首页与班级，只进导航图标，不进页头 eyebrow。 */
+  /* 两个空间位：首页与班级，只进导航图标。 */
   --space-home: #0e3676;
   --space-home-weak: #e7edf7;
   --space-classes: #5b3ac4;

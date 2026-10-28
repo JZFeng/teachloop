@@ -179,15 +179,6 @@ body { display: block; }
 .login-card .sub { margin: 5px 0 22px; font-size: 13px; color: var(--muted); }
 .login-card .tl-field { margin-bottom: 14px; }
 .login-card .ant-btn-primary { margin-top: 4px; }
-.login-hint {
-  margin-top: 14px;
-  padding: 9px 11px;
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--radius-sm);
-  font-size: 12px;
-  line-height: 1.6;
-  color: var(--muted-2);
-}
 @media (max-width: 900px) {
   .login-page { padding: 24px 16px; }
   .login-shell { grid-template-columns: 1fr; max-width: 520px; }

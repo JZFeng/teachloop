@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocation, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
-import { Button, Empty, ErrorState, InlineNote, Loading, PageHeader, useConfirm, useToast } from '../ui'
+import { Button, Empty, ErrorState, InlineNote, Loading, PageHeader, Progress, useConfirm, useToast } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import { fetchLists } from './lists'
@@ -84,6 +84,8 @@ export default function VocabFreeReviewPage() {
   const [word, setWord] = useState<SessionWord | null | undefined>(undefined)
   const [summary, setSummary] = useState<Summary | null>(null)
   const [flipped, setFlipped] = useState(false)
+  /** 已评「不认识」：仍停在这一张，等「下一个」推走（照 today-review，AC-53.8）。 */
+  const [rated, setRated] = useState<'KNOWN' | 'DONT_KNOW' | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<Error | null>(null)
   const [sessionId, setSessionId] = useState(id)
@@ -101,6 +103,7 @@ export default function VocabFreeReviewPage() {
       if (current) {
         setWord(current)
         setFlipped(false)
+        setRated(null)
       } else {
         const ended = await api.post<Summary>(`/api/vocab/review-sessions/${sessionId}/end`, {})
         setSummary(ended)
@@ -254,7 +257,8 @@ export default function VocabFreeReviewPage() {
   }, [word, t, toast])
 
   const advance = useCallback(async (action: 'KNOWN' | 'DONT_KNOW' | 'PAUSE' | 'SKIP' | 'TOGGLE_PAUSE') => {
-    if (!word || busy) return
+    // 已评「不认识」时评分已落库，只剩「下一个」；不再接受第二次评分/暂停。
+    if (!word || busy || rated) return
     setBusy(true)
     try {
       await api.post(`/api/vocab/review-sessions/${sessionId}/advance`, { action, elapsedMs: 0 })
@@ -269,7 +273,46 @@ export default function VocabFreeReviewPage() {
     } finally {
       setBusy(false)
     }
-  }, [word, busy, sessionId, load, toast])
+  }, [word, busy, rated, sessionId, load, toast])
+
+  /**
+   * 点「不认识」：先翻到反面，停在原地（2026-10-26 用户报 Bug）。
+   *
+   * `today-review`（`ReviewPage.submit`）一直是这个行为：评分只落库，卡面翻到反面给学生看
+   * 释义/例句，再由「下一个」推进。`free-review` 之前直接 `load()`，学生还没看到释义就被换走了。
+   */
+  const rateDontKnow = useCallback(async () => {
+    if (!word || busy || rated || word.paused) return
+    setBusy(true)
+    try {
+      await api.post(`/api/vocab/review-sessions/${sessionId}/advance`,
+        { action: 'DONT_KNOW', elapsedMs: 0 })
+      setRated('DONT_KNOW')
+      setFlipped(true)
+    } catch (rateError) {
+      toast.error((rateError as Error).message)
+    } finally {
+      setBusy(false)
+    }
+  }, [word, busy, rated, sessionId, toast])
+
+  /**
+   * 「下一个」：已评分时只推进到下一张（评分已经落库，不再发请求）；
+   * 未评分时仍是「跳过」（SKIP，不写评分、不动排期）。
+   */
+  const next = useCallback(async () => {
+    if (!word || busy) return
+    if (!rated) {
+      await advance('SKIP')
+      return
+    }
+    setBusy(true)
+    try {
+      await load()
+    } finally {
+      setBusy(false)
+    }
+  }, [word, busy, rated, advance, load])
 
   const end = useCallback(async () => {
     const ok = await confirm({
@@ -300,14 +343,14 @@ export default function VocabFreeReviewPage() {
         event.preventDefault()
         setFlipped((value) => !value)
       } else if (event.key === '1') {
-        void advance('DONT_KNOW')
+        void rateDontKnow()
       } else if (event.key === '2') {
         void advance('KNOWN')
       } else if (event.key === 's' || event.key === 'S') {
         void advance('TOGGLE_PAUSE')
       } else if (event.key === 'n' || event.key === 'N' || event.key === 'ArrowRight') {
-        // T436：明细视图可跳过当前词，不评分、不动排期
-        void advance('SKIP')
+        // 已评分 → 推进下一张；未评分 → 跳过（T436：不写评分、不动排期）
+        void next()
       } else if (event.key === 'f' || event.key === 'F') {
         event.preventDefault()
         void toggleFavorite()
@@ -315,7 +358,7 @@ export default function VocabFreeReviewPage() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [advance, preparing, toggleFavorite])
+  }, [advance, next, rateDontKnow, preparing, toggleFavorite])
 
   /**
    * 窄条：照词库页的 `vocab-banner`（不新造样式）。
@@ -386,9 +429,17 @@ export default function VocabFreeReviewPage() {
               <div className="review-word">{word.form}</div>
               <div className="muted">{t('vocab.review.preparing')}</div>
               {gatePrep && (
-                <div className="muted">
-                  {t('vocab.review.preparingCount', { ready: gatePrep.ready, total: gatePrep.requested })}
-                </div>
+                <>
+                  <div className="muted">
+                    {t('vocab.review.preparingCount', { ready: gatePrep.ready, total: gatePrep.requested })}
+                  </div>
+                  <div className="review-prep-progress">
+                    <Progress value={gatePrep.ready} max={gatePrep.requested}
+                      label={t('vocab.review.preparingCount', {
+                        ready: gatePrep.ready, total: gatePrep.requested,
+                      })} />
+                  </div>
+                </>
               )}
               <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
               {gateSlow && (
@@ -418,9 +469,17 @@ export default function VocabFreeReviewPage() {
                 <>
                   <div className="muted">{t('vocab.review.preparing')}</div>
                   {prep && (
-                    <div className="muted">
-                      {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
-                    </div>
+                    <>
+                      <div className="muted">
+                        {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
+                      </div>
+                      <div className="review-prep-progress">
+                        <Progress value={prep.ready} max={prep.requested}
+                          label={t('vocab.review.preparingCount', {
+                            ready: prep.ready, total: prep.requested,
+                          })} />
+                      </div>
+                    </>
                   )}
                   <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
                 </>
@@ -458,8 +517,8 @@ export default function VocabFreeReviewPage() {
             onToggleFavorite={() => void toggleFavorite()}
             paused={!!word.paused}
             onTogglePause={() => void advance('TOGGLE_PAUSE')}
-            onRate={(rating) => void advance(rating)}
-            ratingDisabled={busy || !!word.paused}
+            onRate={(rating) => { void (rating === 'DONT_KNOW' ? rateDontKnow() : advance('KNOWN')) }}
+            ratingDisabled={busy || !!word.paused || rated !== null}
             notice={word.paused ? t('vocab.freeReview.pausedHint') : undefined}
             centered
           />
@@ -470,10 +529,10 @@ export default function VocabFreeReviewPage() {
 
         <Button
           size="large"
-          className={`review-next${flipped ? ' is-highlighted' : ''}`}
-          variant={flipped ? 'primary' : 'default'}
+          className={`review-next${flipped || rated ? ' is-highlighted' : ''}`}
+          variant={flipped || rated ? 'primary' : 'default'}
           disabled={busy}
-          onClick={() => void advance('SKIP')}
+          onClick={() => void next()}
         >
           {t('vocab.review.next')}
         </Button>

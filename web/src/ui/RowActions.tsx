@@ -20,8 +20,6 @@ export interface RowAction {
   key: string
   label: ReactNode
   onClick?: () => void
-  /** 一级按钮的样式；菜单项只用 `danger` 表达破坏性。 */
-  variant?: 'primary' | 'default'
   disabled?: boolean
   /** 主操作进行中：按钮自己转圈并禁用，防止连点（与 `Button` 的 busy 同义）。 */
   busy?: boolean
@@ -31,13 +29,23 @@ export interface RowAction {
 }
 
 export interface RowActionsProps {
-  primary?: RowAction
+  /**
+   * 行内最重要的那个动作。**刻意不叫 `primary`**。
+   *
+   * 叫 `primary` 会诱导调用方顺手补一个 `variant: 'primary'`，于是行内实色按钮与页面级
+   * 主按钮视觉权重相同——2026-10-26 在 `/vocab/lists` 与批改详情两处实际发生。
+   * `Button.tsx:9` 的约定是「primary 主操作，一屏只该有一个」，所以行内动作**永远是描边**，
+   * 实色主按钮只留给页面级容器（`PageHeader` actions / 表单底部 / 工具栏）。
+   *
+   * 这不是审美偏好：一屏出现两个同色实心按钮时，扫视无法判断哪个是页面级主操作。
+   */
+  main?: RowAction
   items?: RowAction[]
 }
 
-export function RowActions({ primary, items = [] }: RowActionsProps) {
+export function RowActions({ main, items = [] }: RowActionsProps) {
   const { t } = useTranslation('translation')
-  if (!primary && items.length === 0) return null
+  if (!main && items.length === 0) return null
 
   const moreLabel = t('common.moreActions')
   const menuItems: MenuProps['items'] = items.map((item) => ({
@@ -60,16 +68,16 @@ export function RowActions({ primary, items = [] }: RowActionsProps) {
   return (
     // 行本身是「点行进详情」，动作容器必须拦住冒泡，否则点动作会同时触发行跳转。
     <span className="tl-actions" onClick={(event) => event.stopPropagation()}>
-      {primary && (
+      {main && (
         <Button
           size="small"
-          variant={primary.variant ?? 'default'}
-          disabled={primary.disabled}
-          busy={primary.busy}
-          title={primary.disabled ? primary.reason : undefined}
-          onClick={primary.onClick}
+          variant="default"
+          disabled={main.disabled}
+          busy={main.busy}
+          title={main.disabled ? main.reason : undefined}
+          onClick={main.onClick}
         >
-          {primary.label}
+          {main.label}
         </Button>
       )}
       {items.length > 0 && (

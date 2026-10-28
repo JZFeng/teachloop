@@ -37,7 +37,6 @@ export default function VocabAddWordsPage() {
   const [params] = useSearchParams()
   const [tab, setTab] = useState<'paste' | 'file'>(params.get('tab') === 'file' ? 'file' : 'paste')
   const [text, setText] = useState('')
-  const [label, setLabel] = useState('')
   const [listName, setListName] = useState('')
   const [preview, setPreview] = useState<Preview | null>(null)
   const [result, setResult] = useState<CommitResult | null>(null)
@@ -60,7 +59,7 @@ export default function VocabAddWordsPage() {
     setBusy(true)
     try {
       const committed = await api.post<CommitResult>('/api/vocab/import/commit',
-        { text, language: 'en', label: label.trim() || null, listName: listName.trim() || null })
+        { text, language: 'en', listName: listName.trim() || null })
       setResult(committed)
       const attached = committed.list
       if (attached?.skippedReason) {
@@ -113,8 +112,6 @@ export default function VocabAddWordsPage() {
         <p className="muted sm" style={{ margin: '8px 0 0' }}>{t('vocab.add.listNameHint')}</p>
 
         <div className="row" style={{ gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-          <Input value={label} placeholder={t('vocab.add.sourceLabel')} style={{ maxWidth: 260 }}
-            onChange={(event) => setLabel(event.target.value)} />
           <Input value={listName} placeholder={t('vocab.add.listName')} style={{ maxWidth: 240 }}
             onChange={(event) => setListName(event.target.value)} />
           <Button onClick={() => void doPreview()} busy={busy}>{t('vocab.add.preview')}</Button>
@@ -132,7 +129,7 @@ export default function VocabAddWordsPage() {
             </div>
             {!preview.spellingChecked && <p className="muted sm">{t('vocab.add.spellingOff')}</p>}
             {preview.skipped.length > 0 && (
-              <details style={{ marginTop: 8 }}>
+              <details style={{ marginTop: 8 }} open>
                 <summary>{t('vocab.add.skippedSummary', { count: preview.skipped.length })}</summary>
                 <ul className="sm">
                   {preview.skipped.map((line) => (
@@ -142,7 +139,7 @@ export default function VocabAddWordsPage() {
               </details>
             )}
             {preview.cleanups.length > 0 && (
-              <details style={{ marginTop: 8 }}>
+              <details style={{ marginTop: 8 }} open>
                 <summary>{t('vocab.add.cleanupsSummary', { count: preview.cleanups.length })}</summary>
                 <ul className="sm">
                   {preview.cleanups.map((cleanup, index) => (

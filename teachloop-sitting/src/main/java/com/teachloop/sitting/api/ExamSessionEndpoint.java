@@ -308,6 +308,47 @@ public class ExamSessionEndpoint {
         return submitResponse(f, o);
     }
 
+    /**
+     * 只解析文件、<b>不交卷</b>（2026-10-26 用户拍板）：把 pdf/docx/txt/md 里的正文抽出来交给前端，
+     * 由前端填进编辑框；学生核对后自己点「提交作业」。
+     *
+     * <p>为什么不让「上传」直接交卷：文件解析结果学生还没看过，一点就把作业交了，很容易误操作。
+     * 因此这里不写 BlobStore、不建 submission、不动 attempts——纯读操作，可重复调用。
+     * 校验规则与 {@link #submitFile} 同一套（扩展名 + 声明类型双校验、100 MB 上限、.doc 明确拒绝）。
+     */
+    @PostMapping(value = "/submissions/extract", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public SittingDtos.ExtractResponse extractFile(@PathVariable UUID offeringId,
+                                                   @RequestParam("file") org.springframework.web.multipart.MultipartFile file,
+                                                   @RequestAttribute("currentUser") CurrentUser me) {
+        Offering o = published(offeringId);
+        requireStudent(me);
+        requireParticipant(o, me);
+        SubmissionAttachments.Preview preview = attachments.preview(file);
+        if (preview.unreadable() || preview.text() == null) {
+            return new SittingDtos.ExtractResponse(preview.fileName(), preview.extension(),
+                    null, 0, true, false);
+        }
+        String text = preview.text();
+        boolean truncated = text.length() > IMPORT_TEXT_LIMIT;
+        if (truncated) {
+            text = safeCut(text, IMPORT_TEXT_LIMIT);
+        }
+        return new SittingDtos.ExtractResponse(preview.fileName(), preview.extension(),
+                text, text.length(), false, truncated);
+    }
+
+    /** 回填上限 20 万字：再长的文件填进编辑框也没有可读性，且提交时会把正文撑爆。 */
+    private static final int IMPORT_TEXT_LIMIT = 200_000;
+
+    /** 截断时不要把代理对（emoji 等）劈成两半，否则前端拿到孤立代理字符。 */
+    private static String safeCut(String text, int limit) {
+        int end = limit;
+        if (Character.isHighSurrogate(text.charAt(end - 1))) {
+            end--;
+        }
+        return text.substring(0, end);
+    }
+
     /** T062：视频上传；ffprobe 校验时长/宽高，超限指出具体项。 */
     @PostMapping(value = "/submissions/video", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
     public SittingDtos.SubmitResponse submitVideo(@PathVariable UUID offeringId,

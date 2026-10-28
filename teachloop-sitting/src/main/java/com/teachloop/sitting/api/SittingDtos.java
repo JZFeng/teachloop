@@ -69,6 +69,18 @@ public final class SittingDtos {
                                  String gradingState, boolean unreadable, String attachmentName) {
     }
 
+    /**
+     * 文件只解析、不交卷（2026-10-26 用户拍板）：上传文件的唯一作用是「把内容填进编辑框」，
+     * 交卷必须由学生再点「提交作业」，避免点错按钮就把作业交掉。
+     *
+     * <p>{@code text} 是解析出的正文原文（txt/md 是文件原文，pdf/docx 是抽取的文本）；
+     * {@code unreadable=true} 表示没有可提取文字（扫描件、加密文件）；{@code truncated=true}
+     * 表示超出回填上限，只返回了前 {@code chars} 个字符。
+     */
+    public record ExtractResponse(String fileName, String extension, String text, int chars,
+                                  boolean unreadable, boolean truncated) {
+    }
+
     /** 考试入口页（考前须知，T200 / AC-21.16）。 */
     public record EntryView(String offeringId, String paperTitle, int itemCount, int totalPoints,
                             int durationMinutes, String timingMode, String startAt, String dueAt,

@@ -18,6 +18,7 @@ import { Markdown } from '../components/Markdown'
 import { ErrorState, Loading, PageHeader } from '../components/States'
 import { Button, DownOutlined, InfoHint, InlineNote } from '../ui'
 import { countWrittenWords, fmtScore } from './examUtils'
+import { htmlFromImportedFile, textToHtml } from './importToEditor'
 import './exam.css'
 
 const LOCAL_DRAFT_PREFIX = 'teachloop.assignment.'
@@ -38,15 +39,6 @@ function readLocalDraft(offeringId: string): LocalDraft {
   } catch {
     return { text: '', html: '' }
   }
-}
-
-/** 旧版纯文本草稿 → 编辑器认的 HTML：先转义，再按空行分段、单换行变 <br>。 */
-function textToHtml(text: string): string {
-  const escaped = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  return escaped
-    .split(/\n{2,}/)
-    .map((block) => `<p>${block.replace(/\n/g, '<br>')}</p>`)
-    .join('')
 }
 
 /** 只有 HTML 时（换浏览器读到服务端富文本）用这个回填纯文本，保证字数与 contentText 不为空。 */
@@ -96,7 +88,11 @@ export default function AssignmentPage() {
   const [submittedSnapshot, setSubmittedSnapshot] = useState<{ html: string | null; text: string } | null>(null)
   const [richHtml, setRichHtml] = useState('')
   const [file, setFile] = useState<File | null>(null)
-  const [uploading, setUploading] = useState(false)
+  // 2026-10-26 用户拍板：上传文件只解析并填入编辑框，绝不交卷；交卷只能点「提交作业」。
+  const [importing, setImporting] = useState(false)
+  const [importNote, setImportNote] = useState<{ name: string; chars: number; truncated: boolean } | null>(null)
+  // 上传填入正文要替换编辑框内容：编辑器只在挂载时读 initialHtml，所以换一次 key 让它重挂载。
+  const [editorRevision, setEditorRevision] = useState(0)
   // 题目要求 / 评分标准 / 我提交的内容是否展开：null = 还没手动点过，跟随「是否已交卷」。
   // 已交卷的学生进页面默认看到收起的标题（用户 2026-10-26 要求：做完以后页面只留重要信息）。
   const [promptsOverride, setPromptsOverride] = useState<boolean | null>(null)
@@ -218,6 +214,7 @@ export default function AssignmentPage() {
       setSubmittedSnapshot({ html: richHtml.trim() ? richHtml : null, text: content })
       trackEvent('submit', { offeringId, mode: 'rich' })
       clearLocalDraft(offeringId)
+      setImportNote(null)
       await load()
     } catch (submitFailure) {
       if (submitFailure instanceof ApiError && submitFailure.status === 409) {
@@ -231,28 +228,48 @@ export default function AssignmentPage() {
     }
   }
 
-  const uploadFile = async () => {
-    if (!file || uploading) return
-    setUploading(true)
+  /**
+   * 上传文件 → 解析 → 填进编辑框（2026-10-26 用户拍板）。
+   *
+   * 不交卷、不落库：后端 `/submissions/extract` 是纯读操作。学生核对内容后自己点「提交作业」，
+   * 这样「点错按钮就把作业交了」不可能发生。解析不出文字（扫描件、加密文件）时保留已选文件，
+   * 只提示换文件，编辑框里已有的内容不动。
+   */
+  const importFile = async () => {
+    if (!file || importing) return
+    setImporting(true)
     setActionError(null)
+    setImportNote(null)
     try {
       const body = new FormData()
       body.append('file', file)
-      const res = await fetch(`/api/offerings/${offeringId}/submissions/file`, {
+      const res = await fetch(`/api/offerings/${offeringId}/submissions/extract`, {
         method: 'POST', credentials: 'include', headers: csrfHeaders(), body,
       })
       const payload = await res.json().catch(() => null)
       if (!res.ok) {
         throw new Error(payload?.detail || payload?.message || `HTTP ${res.status}`)
       }
-      setSubmitResult(payload as SubmitResponse)
-      trackEvent('submit', { offeringId, mode: 'file' })
+      const text: string = typeof payload?.text === 'string' ? payload.text : ''
+      if (payload?.unreadable || !text.trim()) {
+        setActionError(t('exam.uploadUnreadable'))
+        return
+      }
+      const html = htmlFromImportedFile(text, String(payload?.extension ?? ''))
+      setRichHtml(html)
+      // 字数按渲染后的纯文本算，否则 md 的 `**` / `#` 会被算成词，学生看到的字数是假的。
+      setContent(htmlToText(html))
+      setEditorRevision((current) => current + 1)
+      setImportNote({
+        name: typeof payload?.fileName === 'string' ? payload.fileName : file.name,
+        chars: typeof payload?.chars === 'number' ? payload.chars : text.length,
+        truncated: Boolean(payload?.truncated),
+      })
       setFile(null)
-      await load()
     } catch (uploadError) {
       setActionError((uploadError as Error).message)
     } finally {
-      setUploading(false)
+      setImporting(false)
     }
   }
 
@@ -477,6 +494,7 @@ export default function AssignmentPage() {
           <h2>{t('exam.assignmentSubmission')}</h2>
           <p className="small muted" style={{ marginTop: 0 }}>{t('exam.richHint')}</p>
           <RichTextEditor
+            key={`editor-${editorRevision}`}
             initialHtml={richHtml}
             placeholder={t('exam.richPlaceholder')}
             disabled={busy}
@@ -502,14 +520,29 @@ export default function AssignmentPage() {
               <div className="row" style={{ alignItems: 'center', gap: 10 }}>
                 <b>{t('exam.fileSelected', { name: file.name })}</b>
                 <span className="small muted">{Math.round(file.size / 1024)} KB</span>
-                <Button variant="primary" busy={uploading} onClick={() => void uploadFile()}>
-                  {t('exam.uploadSubmit')}
+                <Button variant="primary" busy={importing} onClick={() => void importFile()}>
+                  {importing ? t('exam.uploadParsing') : t('exam.upload')}
                 </Button>
-                <Button disabled={uploading} onClick={() => setFile(null)}>
+                <Button disabled={importing} onClick={() => setFile(null)}>
                   {t('common.cancel')}
                 </Button>
               </div>
+              {richHtml.trim() ? (
+                <div className="small muted" style={{ marginTop: 6 }}>{t('exam.uploadOverwrites')}</div>
+              ) : null}
               <div className="small muted" style={{ marginTop: 6 }}>{t('exam.fileHint')}</div>
+            </div>
+          )}
+          {importNote && (
+            <div className="inline-note" style={{ marginTop: 10 }}>
+              <div className="row" style={{ alignItems: 'center', gap: 10 }}>
+                <b>{t('exam.uploadImported', { name: importNote.name, chars: importNote.chars })}</b>
+              </div>
+              {importNote.truncated ? (
+                <div className="small muted" style={{ marginTop: 6 }}>
+                  {t('exam.uploadTruncated', { chars: importNote.chars })}
+                </div>
+              ) : null}
             </div>
           )}
           <div className="row" style={{ marginTop: 12 }}>
@@ -519,9 +552,12 @@ export default function AssignmentPage() {
             <Button variant="primary" busy={busy} onClick={() => void submit()}>
               {t('exam.submitAssignment')}
             </Button>
-            <Button disabled={busy || uploading} onClick={() => fileInputRef.current?.click()}>
-              {t('exam.upload')}
-            </Button>
+            {/* 选了文件就把入口收进上面的面板：两个按钮都叫「上传」会分不清点哪个。 */}
+            {file ? null : (
+              <Button disabled={busy || importing} onClick={() => fileInputRef.current?.click()}>
+                {t('exam.upload')}
+              </Button>
+            )}
             <div style={{ flex: 1 }} />
             <span className="small muted">
               {lastSaved ? t('exam.savedAt', { time: fmtDateTime(lastSaved) }) : t('exam.draftLocalOnly')}

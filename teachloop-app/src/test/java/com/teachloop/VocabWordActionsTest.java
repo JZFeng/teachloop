@@ -145,12 +145,21 @@ class VocabWordActionsTest {
         assertThat(put(base, cookie, "/api/vocab/words/" + wordId + "/favorite",
                 Map.of("favorite", true)).statusCode()).isEqualTo(200);
         assertThat(get(base, cookie, "/api/vocab/words?favorite=true").get("total").asInt()).isEqualTo(1);
+        // AC-59.12（T512）：统计卡第五张「已收藏」的数字来自同一句统计 SQL
+        assertThat(get(base, cookie, "/api/vocab/words/stats").get("favorite").asInt()).isEqualTo(1);
         assertThat(jdbc.queryForObject(
                 "select state from vocab_progress where word_id = ?", String.class, wordId))
                 .isEqualTo(beforeState);
         assertThat(jdbc.queryForObject(
                 "select due_at from vocab_progress where word_id = ?", java.sql.Timestamp.class, wordId))
                 .isEqualTo(beforeDue);
+
+        // AC-59.12：暂停只动 removed，不动 favorite——两张卡的数字互不串
+        assertThat(post(base, cookie, "/api/vocab/words/" + wordId + "/pause", null).statusCode())
+                .isEqualTo(200);
+        assertThat(get(base, cookie, "/api/vocab/words/stats").get("favorite").asInt()).isEqualTo(1);
+        assertThat(post(base, cookie, "/api/vocab/words/" + wordId + "/resume", null).statusCode())
+                .isEqualTo(200);
 
         String teacherCookie = login(base, "teacher@teachloop.local");
         assertThat(put(base, teacherCookie, "/api/vocab/words/" + wordId + "/favorite",
@@ -159,6 +168,7 @@ class VocabWordActionsTest {
         assertThat(put(base, cookie, "/api/vocab/words/" + wordId + "/favorite",
                 Map.of("favorite", false)).statusCode()).isEqualTo(200);
         assertThat(get(base, cookie, "/api/vocab/words?favorite=true").get("total").asInt()).isZero();
+        assertThat(get(base, cookie, "/api/vocab/words/stats").get("favorite").asInt()).isZero();
     }
 
     private String base() {

@@ -14,9 +14,7 @@ export default function SetupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [displayName, setDisplayName] = useState('')
-  const [apiKey, setApiKey] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState(false)
 
   useEffect(() => {
     api.get<Status>('/api/setup/status').then(setStatus).catch((e: Error) => setError(e.message))
@@ -25,8 +23,9 @@ export default function SetupPage() {
   const createAdmin = async () => {
     setError(null)
     try {
-      await api.post('/api/setup/admin', { email, password, displayName, apiKey })
-      setDone(true)
+      await api.post('/api/setup/admin', { email, password, displayName })
+      // 建完直接去登录页：留在 /setup 会看到「系统已有管理员」的空壳页，像失败了一样
+      navigate('/login', { replace: true })
     } catch (e) {
       setError((e as Error).message)
     }
@@ -41,18 +40,11 @@ export default function SetupPage() {
       <h1>{t('app.setup.pageTitle')}</h1>
       <p className="small muted">{t('app.setup.sub')}</p>
       {error && <InlineNote tone="error">{error}</InlineNote>}
-      {done ? (
-        <>
-          <div className="inline-note">{t('app.setup.adminDone')}</div>
-          <button className="btn pri" onClick={() => navigate('/login')}>{t('app.setup.goLogin')}</button>
-        </>
-      ) : status.needsAdmin ? (
+      {status.needsAdmin ? (
         <>
           <label className="f"><b>{t('app.setup.adminName')}</b><input value={displayName} placeholder={t('app.setup.defaultAdminName')} onChange={(e) => setDisplayName(e.target.value)} /></label>
           <label className="f"><b>{t('app.setup.email')}</b><input type="email" value={email} onChange={(e) => setEmail(e.target.value)} /></label>
           <label className="f"><b>{t('app.setup.password')}</b><input type="password" value={password} onChange={(e) => setPassword(e.target.value)} /></label>
-          <label className="f"><b>{t('app.setup.apiKey')}</b><input type="password" value={apiKey} placeholder={t('app.setup.apiKeyPlaceholder')} onChange={(e) => setApiKey(e.target.value)} autoComplete="off" /></label>
-          <p className="small muted">{t('app.setup.apiKeyHint')}</p>
           <button className="btn pri" disabled={!email || password.length < 8} onClick={() => void createAdmin()}>{t('app.setup.createAdmin')}</button>
         </>
       ) : (

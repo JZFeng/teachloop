@@ -489,10 +489,9 @@ export default function GradingDetailPage() {
         return (
           <div>
             <RowActions
-              primary={canGrade ? {
+              main={canGrade ? {
                 key: 'grade',
                 label: t('teacher.detail.grade'),
-                variant: 'primary',
                 onClick: () => navigate(`/review?submissionId=${row.submissionId}`),
               } : undefined}
               items={[

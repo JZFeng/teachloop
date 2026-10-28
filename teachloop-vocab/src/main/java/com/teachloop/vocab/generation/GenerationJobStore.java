@@ -1,5 +1,7 @@
 package com.teachloop.vocab.generation;
 
+import com.teachloop.vocab.word.WordNormalizer;
+import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -36,6 +38,10 @@ public class GenerationJobStore {
     public record WordInfo(UUID id, String form, String language) {
     }
 
+    /** 查词任务（subject_type=FORM）的生成目标：不绑定任何 vocab_words 行。 */
+    public record FormInfo(UUID id, String form, String language) {
+    }
+
     /** 后台预热优先级（导入等批量来源）。 */
     public static final int PRIORITY_BACKGROUND = 0;
     /** 学生正在等的按需准备（复习/详情页），先于后台任务领取。 */
@@ -63,6 +69,89 @@ public class GenerationJobStore {
                 values ('WORD', ?, 'QUEUED', 0, ?, ?, ?, ?)
                 on conflict (subject_type, subject_id) do nothing
                 """, batch);
+    }
+
+    /**
+     * 查词即生成（T515 / AC-60.13）：为「不在库、也没有全局内容」的词形入队一次生成。
+     *
+     * <p>subject_type 用 {@code FORM}——任务不绑定任何 {@code vocab_words} 行，生成结果只写全局
+     * {@code ContentStore}，所以查词不会把词塞进学生词库。{@code subject_id} 由
+     * {@code (language, normalizedForm)} 稳定派生，同一词形重复查词只会有一条 job。
+     *
+     * @return true 表示本次新建了任务；false 表示已有任务（QUEUED/RUNNING/SUCCEEDED/FAILED）
+     */
+    public boolean enqueueForm(String language, String form, Instant now, int priority) {
+        String lang = language == null || language.isBlank() ? "en" : language;
+        String normalized = WordNormalizer.normalized(form);
+        if (normalized.isEmpty()) {
+            return false;
+        }
+        Timestamp timestamp = Timestamp.from(now);
+        int inserted = jdbc.update("""
+                insert into vocab_generation_jobs
+                    (subject_type, subject_id, subject_form, subject_language, state, attempts,
+                     next_run_at, created_at, updated_at, priority)
+                values ('FORM', ?, ?, ?, 'QUEUED', 0, ?, ?, ?, ?)
+                on conflict (subject_type, subject_id) do nothing
+                """, formSubjectId(lang, normalized), normalized, lang, timestamp, timestamp,
+                timestamp, priority);
+        return inserted > 0;
+    }
+
+    /** {@code (language, normalizedForm)} → 稳定的 subject_id；worker 与端点用同一个算法。 */
+    public static UUID formSubjectId(String language, String form) {
+        String lang = language == null || language.isBlank() ? "en" : language;
+        String key = "vocab-content:" + lang + ":" + WordNormalizer.normalized(form);
+        return UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8));
+    }
+
+    /** 查词任务要生成的目标（词形 + 语言）；非 FORM 任务或行不存在时为空。 */
+    public Optional<FormInfo> form(UUID subjectId) {
+        List<FormInfo> rows = jdbc.query("""
+                select subject_id, subject_form, subject_language
+                  from vocab_generation_jobs
+                 where subject_type = 'FORM' and subject_id = ?
+                """, (rs, rowNumber) -> new FormInfo(
+                        rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3)),
+                subjectId);
+        return rows.stream().findFirst();
+    }
+
+    /** 某个词形最近一条查词任务的状态（QUEUED/RUNNING/SUCCEEDED/FAILED）；没查过为空。 */
+    public Optional<String> formState(String language, String form) {
+        List<String> rows = jdbc.query("""
+                select state
+                  from vocab_generation_jobs
+                 where subject_type = 'FORM' and subject_id = ?
+                """, (rs, rowNumber) -> rs.getString(1), formSubjectId(language, form));
+        return rows.stream().findFirst();
+    }
+
+    /**
+     * 查词页点「重试」：把失败的查词任务放回队列并清零重试次数。
+     *
+     * <p>只在用户明确点重试时调用——页面自动轮询不会重置，避免一条生成不了的词无限重试。
+     */
+    @Transactional
+    public void retryForm(String language, String form, Instant now) {
+        Timestamp timestamp = Timestamp.from(now);
+        jdbc.update("""
+                update vocab_generation_jobs
+                   set state = 'QUEUED', attempts = 0, next_run_at = ?, last_error = null,
+                       locked_by = null, locked_at = null, updated_at = ?, priority = ?
+                 where subject_type = 'FORM' and subject_id = ?
+                """, timestamp, timestamp, PRIORITY_ON_DEMAND, formSubjectId(language, form));
+    }
+
+    /** 查词任务成功：内容已写全局 delta，任务只需置 SUCCEEDED（不动任何用户词条）。 */
+    @Transactional
+    public void succeedForm(long jobId, Instant now) {
+        jdbc.update("""
+                update vocab_generation_jobs
+                   set state = 'SUCCEEDED', locked_by = null, locked_at = null,
+                       last_error = null, updated_at = ?
+                 where id = ?
+                """, Timestamp.from(now), jobId);
     }
 
     /** 今天已建的任务数（日预算口径）。 */
@@ -157,25 +246,34 @@ public class GenerationJobStore {
     }
 
     /**
-     * 24 小时仍未完成的 job：标 FAILED（内容缺失）并把词条标「生成失败」，不再参与领取。
+     * 24 小时仍未完成的 job：标 FAILED（内容缺失），词条任务顺带把词条标「生成失败」，不再参与领取。
      *
-     * @return 受影响的词条数
+     * <p>T515：查词任务（subject_type=FORM）没有 vocab_words 行，只改任务本身——它的 subject_id
+     * 是按词形派生的 UUID，拿去 update vocab_words 是无效写入。
+     *
+     * @return 受影响的词条数（只算 WORD 任务）
      */
     @Transactional
     public int sweepStale(Instant cutoff, Instant now) {
         Timestamp timestamp = Timestamp.from(now);
-        List<UUID> wordIds = jdbc.query("""
+        List<String[]> stale = jdbc.query("""
                 update vocab_generation_jobs
                    set state = 'FAILED', last_error = 'content missing after 24h',
                        locked_by = null, locked_at = null, updated_at = ?
                  where created_at < ? and state in ('QUEUED', 'RUNNING')
-                returning subject_id
-                """, (rs, rowNumber) -> rs.getObject(1, UUID.class), timestamp, Timestamp.from(cutoff));
-        for (UUID wordId : wordIds) {
+                returning subject_type, subject_id
+                """, (rs, rowNumber) -> new String[]{rs.getString(1), rs.getString(2)},
+                timestamp, Timestamp.from(cutoff));
+        int words = 0;
+        for (String[] row : stale) {
+            if (!"WORD".equals(row[0])) {
+                continue;
+            }
             jdbc.update("update vocab_words set content_status = 'FAILED', updated_at = ? where id = ?",
-                    timestamp, wordId);
+                    timestamp, UUID.fromString(row[1]));
+            words++;
         }
-        return wordIds.size();
+        return words;
     }
 
     /** T395 手动重试：词条回 PENDING，job 回 QUEUED（不存在则补建）。 */

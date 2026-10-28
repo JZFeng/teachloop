@@ -60,6 +60,7 @@ interface Stats {
   newWords: number
   mastered: number
   paused: number
+  favorite: number
 }
 
 interface PendingAssignment {
@@ -581,6 +582,13 @@ export default function VocabLibraryPage() {
               else next.set('paused', 'true')
               next.set('page', '1')
             })} />
+          {/* AC-59.12（T512）：收藏是纯标记，入口只放这一张可点卡片；工具条不再加视图切换（AC-59.9） */}
+          <StatCard value={stats.favorite} label={t('vocab.library.stats.favorite')} active={favorite}
+            onClick={() => update((next) => {
+              if (favorite) next.delete('favorite')
+              else next.set('favorite', 'true')
+              next.set('page', '1')
+            })} />
         </div>
       )}
 
@@ -601,10 +609,12 @@ export default function VocabLibraryPage() {
         <Button variant="primary" disabled={reviewableCount === 0 || startingReview} onClick={() => void startFreeReview()}>
           {t('vocab.library.reviewThese', { count: reviewableCount })}
         </Button>
-        <Button onClick={() => navigate('/vocab/add?tab=file')}>{t('vocab.library.import')}</Button>
+        {/* 2026-10-26 (user request): the "import" button is gone. The add-words page
+            already has both tabs (paste / file), so two toolbar buttons led to the
+            same page. */}
         <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
-        {/* AC-69.11：纯文字「词单」，不带数量角标 */}
-        <Button onClick={() => navigate('/vocab/lists')}>{t('vocab.lists.toolbarEntry')}</Button>
+        {/* 2026-10-26（AC-69.11 修订）：工具条的「词单」按钮删除——词单在侧栏已有并列
+          * 一级入口，同页两个入口是两套信息架构；工具条只留指向「侧栏没有的页」的按钮。 */}
       </div>
 
       <DataTable
@@ -637,7 +647,6 @@ export default function VocabLibraryPage() {
             <div>{filterCount > 0 || q ? t('vocab.library.noMatch') : t('vocab.library.empty')}</div>
             <div className="row" style={{ gap: 8, justifyContent: 'center', marginTop: 10 }}>
               <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
-              <Button onClick={() => navigate('/vocab/add?tab=file')}>{t('vocab.library.import')}</Button>
             </div>
           </>
         )}

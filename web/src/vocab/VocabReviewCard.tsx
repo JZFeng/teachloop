@@ -47,6 +47,8 @@ export interface ReviewCardCoreSemantics {
   core?: string
   notThis?: string
   mentalImage?: string
+  /** 实验：模型生成的小 SVG（后端已做安全过滤） */
+  image?: string
 }
 
 export interface ReviewCardContent {
@@ -109,9 +111,9 @@ export function VocabReviewCard({
   /** 覆盖正面提示行（例如「已暂停」） */
   notice?: string
   /**
-   * T440：卡片正面（review-front）版式——单词居中、英美音标另起一行居中；**只作用于未翻面**。
-   * 卡片反面（review-back）与查词页（WordDetailPage）都保持 T437 的左对齐一行版式。
-   * 今日复习 / 自由复习传 true，查词页不传。
+   * T440 / T510：卡片正面（review-front）版式——单词居中、英美音标另起一行居中；**只作用于未翻面**。
+   * 卡片反面（review-back）保持 T437 的左对齐一行版式。
+   * T510（2026-10-26 用户要求）起查词页（WordDetailPage）的正面也用这套版式，所以三个调用点都传 true。
    */
   centered?: boolean
 }) {
@@ -218,14 +220,23 @@ export function VocabReviewCard({
           <div className="review-back">
             {content?.coreSemantics && (
               <div className="core-semantics">
-                {content.coreSemantics.core && (
-                  <p className="core-semantics-core">{content.coreSemantics.core}</p>
-                )}
-                {content.coreSemantics.notThis && (
-                  <p className="core-semantics-not muted">{content.coreSemantics.notThis}</p>
-                )}
-                {content.coreSemantics.mentalImage && (
-                  <p className="core-semantics-image">{content.coreSemantics.mentalImage}</p>
+                <div className="core-semantics-text">
+                  {content.coreSemantics.core && (
+                    <p className="core-semantics-core">{content.coreSemantics.core}</p>
+                  )}
+                  {content.coreSemantics.notThis && (
+                    <p className="core-semantics-not muted">{content.coreSemantics.notThis}</p>
+                  )}
+                  {content.coreSemantics.mentalImage && (
+                    <p className="core-semantics-image">{content.coreSemantics.mentalImage}</p>
+                  )}
+                </div>
+                {content.coreSemantics.image && (
+                  <div
+                    className="core-semantics-art"
+                    aria-hidden="true"
+                    dangerouslySetInnerHTML={{ __html: content.coreSemantics.image }}
+                  />
                 )}
               </div>
             )}

@@ -26,6 +26,7 @@ public class VocabularyGenerationService {
     private final GenerationJobStore store;
     private final boolean enabled;
     private final boolean onImport;
+    private final boolean lookupOnMiss;
     private final int dailyBudget;
     private final Clock clock;
 
@@ -33,11 +34,13 @@ public class VocabularyGenerationService {
             GenerationJobStore store,
             @Value("${teachloop.vocab.generation.enabled:true}") boolean enabled,
             @Value("${teachloop.vocab.generation.on-import:false}") boolean onImport,
+            @Value("${teachloop.vocab.lookup.generate-on-miss:true}") boolean lookupOnMiss,
             @Value("${teachloop.vocab.generation.daily-budget:2000}") int dailyBudget,
             Clock clock) {
         this.store = store;
         this.enabled = enabled;
         this.onImport = onImport;
+        this.lookupOnMiss = lookupOnMiss;
         this.dailyBudget = dailyBudget;
         this.clock = clock;
     }
@@ -75,5 +78,28 @@ public class VocabularyGenerationService {
         }
         store.enqueueWords(wordIds, clock.instant(), GenerationJobStore.PRIORITY_ON_DEMAND);
         return wordIds.size();
+    }
+
+    /**
+     * 查词即生成（T515 / AC-60.13，2026-10-26 用户 Bug）：查词页遇到「不在本人词库、全局也没有内容」
+     * 的词形时，直接为这个词形入队一次生成，生成结果只写全局 {@code ContentStore}。
+     *
+     * <p>与 {@link #prepareOnDemand} 一样不受日预算限制（学生在页面上等），但多一个独立开关
+     * {@code teachloop.vocab.lookup.generate-on-miss}（默认 true）：查词是全站最容易被随手触发的
+     * 入口（打错一个字母就是一次 AI 调用），运营上要能一键关掉。
+     *
+     * @return true 表示本次新建了任务；false 表示已有关卡任务、开关关闭或词形为空
+     */
+    public boolean prepareLookup(String language, String form) {
+        if (!enabled || !lookupOnMiss) {
+            return false;
+        }
+        return store.enqueueForm(language, form, clock.instant(),
+                GenerationJobStore.PRIORITY_ON_DEMAND);
+    }
+
+    /** 查词即生成是否开启（端点据此区分「已入队」与「功能被关掉」）。 */
+    public boolean lookupEnabled() {
+        return enabled && lookupOnMiss;
     }
 }

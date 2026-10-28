@@ -87,7 +87,7 @@ export default function PapersPage() {
       value: () => '',
       render: (row) => (
         <RowActions
-          primary={{
+          main={{
             key: 'assign',
             label: t('teacher.papers.assign'),
             onClick: () => navigate(`/offerings/new?paperId=${row.id}`),
