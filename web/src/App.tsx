@@ -1,9 +1,9 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
+import { Navigate, Outlet, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { trackEvent } from './api/events'
-import { api, ensureCsrf } from './api/client'
+import { api, ensureCsrf, setProfileIncompleteHandler } from './api/client'
 import { useAuth } from './api/auth'
 import { useFeatures } from './api/features'
 import { Loading } from './components/States'
@@ -22,7 +22,11 @@ import VocabAssignmentPreviewPage from './vocab/AssignmentPreviewPage'
 import VocabListsPage from './vocab/ListsPage'
 import VocabListDetailPage from './vocab/ListDetailPage'
 import LoginPage from './app/LoginPage'
+import RegisterPage from './app/RegisterPage'
+import ActivatePage from './app/ActivatePage'
+import ForgotPasswordPage from './app/ForgotPasswordPage'
 import { loginNextFrom, loginPath, safeNextPath } from './app/redirect'
+import { PROFILE_PATH, profileDetour, profilePathWithNext } from './app/profileGate'
 import NotificationsPage from './app/NotificationsPage'
 import ProfilePage from './app/ProfilePage'
 import SetupPage from './app/SetupPage'
@@ -46,12 +50,48 @@ import ExamLivePage from './exam/ExamLivePage'
 import AssignmentPage from './exam/AssignmentPage'
 
 function RequireAuth() {
-  const { me, loading } = useAuth()
+  const { me, loading, profileComplete, profileChecked } = useAuth()
   const location = useLocation()
   if (loading) return <div style={{ padding: 40 }}><Loading /></div>
-  if (me) return <Outlet />
-  // 带上原地址：学生从班群点开预习链接但没登录时，登录后要回到那次布置，而不是首页。
-  return <Navigate to={loginPath(loginNextFrom(location.pathname, location.search, location.hash))} replace />
+  if (!me) {
+    // 带上原地址：学生从班群点开预习链接但没登录时，登录后要回到那次布置，而不是首页。
+    return <Navigate to={loginPath(loginNextFrom(location.pathname, location.search, location.hash))} replace />
+  }
+  // 2026-10-27（Bug）：缺手机号/邮箱的人先补资料，不能先放他进业务页撞 403。
+  // 判定没回来之前挂 Loading：先渲染再改道会闪一下「出错了：请先补全手机号与邮箱」。
+  if (!profileChecked) return <div style={{ padding: 40 }}><Loading /></div>
+  const detour = profileDetour({ pathname: location.pathname, role: me.role, profileComplete })
+  if (detour) {
+    // 带上原地址：补全保存后回到他本来要去的页面（学生从班群点开的链接不能丢）。
+    return <Navigate to={profilePathWithNext(loginNextFrom(location.pathname, location.search, location.hash))} replace />
+  }
+  return <Outlet />
+}
+
+/**
+ * 接口级兜底：任何请求收到 403 `PROFILE_INCOMPLETE` 都改道 /profile（2026-10-27 Bug）。
+ *
+ * 路由守卫已经覆盖正常入口；这里处理守卫覆盖不到的情况——会话中途资料被清空、
+ * 或者某个页面先发了请求。挂在这里是因为只有 Router 内部才能 `navigate`。
+ */
+function ProfileIncompleteWatcher() {
+  const navigate = useNavigate()
+  const location = useLocation()
+  const { refreshProfile } = useAuth()
+  // 回调用 ref 读当前位置：注册一次就够，不必每次换页重注册。
+  const here = useRef(location)
+  here.current = location
+  useEffect(() => {
+    setProfileIncompleteHandler(() => {
+      void refreshProfile()
+      const at = here.current
+      // 登录页、首次部署页、资料页本身不动作：前两个不该被记成补全后的去处，后者会自己转自己。
+      if (at.pathname === PROFILE_PATH || at.pathname === '/login' || at.pathname === '/setup') return
+      navigate(profilePathWithNext(loginNextFrom(at.pathname, at.search, at.hash)), { replace: true })
+    })
+    return () => setProfileIncompleteHandler(null)
+  }, [navigate, refreshProfile])
+  return null
 }
 
 /** `/login` 的入口：已登录的人带着 next 来（例如刷新登录页），直接回跳，不要再登一次。 */
@@ -118,7 +158,7 @@ function ShellLayout() {
   )
 }
 
-export default function App() {
+function AppRoutes() {
   const { features, loaded } = useFeatures()
   const location = useLocation()
   // 全新实例没有任何管理员时，谁打开首页都只能看到登录页（而这时根本没有账号），
@@ -150,6 +190,9 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginRoute />} />
+      <Route path="/register" element={<RegisterPage />} />
+      <Route path="/activate" element={<ActivatePage />} />
+      <Route path="/forgot" element={<ForgotPasswordPage />} />
       <Route path="/setup" element={<SetupPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<ShellLayout />}>
@@ -203,5 +246,15 @@ export default function App() {
       {/* 深链 /vocab/* 时开关还没回来，先别重定向；否则开关回来 URL 已经变了（T389 浏览器验收发现）。 */}
       <Route path="*" element={loaded ? <Navigate to="/" replace /> : <Loading />} />
     </Routes>
+  )
+}
+
+/** 外层壳：先挂资料兜底监听，再渲染路由（Router 之外拿不到 navigate）。 */
+export default function App() {
+  return (
+    <>
+      <ProfileIncompleteWatcher />
+      <AppRoutes />
+    </>
   )
 }

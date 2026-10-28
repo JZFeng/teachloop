@@ -124,7 +124,7 @@
 - [ ] AC-73.9 请求体里出现 `role` 等提权字段一律忽略；注册只能得到 STUDENT，教师仍走 `AC-3.2/3.3` 的邀请码（承接 `AC-3.4`、`AC-3.5`）
 - [ ] AC-73.10 频控（复用 `rate_limits`，注册、激活邮件重发、登录、验证码分桶计数）：同一邮箱重发激活邮件冷却 **60s**、1 小时 ≤**5** 次；同一来源 IP 1 小时 ≤**20** 次。超限 429 + `Retry-After`
 - [ ] AC-73.11 **邮箱 + 密码登录**：`POST /api/auth/login` 对**任何 ACTIVE 且 `password_hash` 非空**的账号生效（不再限于 ADMIN 与白名单），密码错返回 401、PENDING/DISABLED 403；错误文案不区分「账号不存在」与「密码错误」
-- [ ] AC-73.12 **邮箱验证码登录**（保留）：`POST /api/auth/login/challenge` 仅对已存在的 ACTIVE 账号发码，不存在 404 `NOT_REGISTERED`、PENDING 403；码分 6 位、10 分钟、错 5 次作废
+- [ ] AC-73.12 **邮箱验证码登录**（后端保留，**v1 不进登录页 UI**）：`POST /api/auth/login/challenge` 仅对已存在的 ACTIVE 账号发码，不存在 404 `NOT_REGISTERED`、PENDING 403；码 6 位、10 分钟、错 5 次作废。登录页只暴露「邮箱 + 密码」，验证码登录等有需要时再补前端（2026-10-27 用户拍板：不要多一个页签）
 - [ ] AC-73.13 `PUT /api/profile` 修改邮箱必须先过验证码（补掉现在「任何人都能把邮箱改成别人的」这个洞，见 `ProfileEndpoint.java:36-52`）
 
 #### US-74 手机号验证码注册与登录

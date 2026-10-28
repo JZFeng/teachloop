@@ -38,7 +38,7 @@ function normalize(value: unknown): Features {
 }
 
 export function FeaturesProvider({ children }: { children: ReactNode }) {
-  const { me, loading } = useAuth()
+  const { me, loading, profileComplete } = useAuth()
   const [features, setFeatures] = useState<Features>(OFF)
   const [fetchedFor, setFetchedFor] = useState<string | null>(null)
 
@@ -49,7 +49,18 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
       setFetchedFor(null)
       return
     }
+    // 资料未补全时 /api/features 一定被 ProfileCompletionFilter 拦成 403，这一枪不用打；
+    // 补全保存后 profileComplete 变 true，本 effect 重跑，侧栏才会重新出现（2026-10-27 Bug）。
+    if (profileComplete === false) {
+      setFeatures(OFF)
+      setFetchedFor(me.id)
+      return
+    }
     let alive = true
+    // 重新取期间按「未知」处理：补全资料后 profileComplete 由 false 变 true 会重跑本 effect，
+    // 若此时仍挂着补全前的空集，RequireFeature 会把刚跳回的深链（如 /classes）又改写成落地页
+    // （2026-10-27 验收发现：保存后 next 白带）。
+    setFetchedFor(null)
     api.get<Features>('/api/features')
       .then((value) => {
         if (!alive) return
@@ -65,7 +76,7 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false
     }
-  }, [me?.id, loading])
+  }, [me?.id, loading, profileComplete])
 
   const loaded = !loading && (me ? fetchedFor === me.id : true)
   const value = useMemo(() => ({ features, loaded }), [features, loaded])

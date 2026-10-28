@@ -14,6 +14,21 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * 资料未补全的兜底出口（2026-10-27 Bug）。
+ *
+ * 后端 `ProfileCompletionFilter` 对缺手机号/邮箱的用户一律回 403 `PROFILE_INCOMPLETE`
+ * （`detail` 是 `/profile`）。这不是故障，是「先去补全资料」，所以不能让它落到各页面的
+ * 错误卡上（截图里的「出错了：请先补全手机号与邮箱」就是这条 403 被当成异常渲染）。
+ * 页面层（`App.tsx` 的 `RequireProfile`）已经先拦；这里兜住「守卫之外」的情形：
+ * 资料在会话中途被清空、或链接直接落在守卫覆盖不到的页面。
+ */
+let profileIncompleteHandler: (() => void) | null = null
+
+export function setProfileIncompleteHandler(handler: (() => void) | null): void {
+  profileIncompleteHandler = handler
+}
+
 /** T033：生产环境双提交 CSRF；开发环境没有 cookie 时自然不带。 */
 export function csrfHeaders(): Record<string, string> {
   const match = document.cookie.split('; ').find((c) => c.startsWith('XSRF-TOKEN='))
@@ -54,6 +69,10 @@ async function sendWithCsrf<T>(method: string, path: string, body: unknown,
   }
   let res = await build()
   if (res.status === 403 && method !== 'GET') {
+    // 403 有两种：CSRF 令牌失效（换 token 重试有用）和资料未补全（重试一万次也还是 403）。
+    // 后者换 token 只会白打一次写请求，先认出来直接交回去。
+    const body = (await res.clone().json().catch(() => null)) as ApiErrorBody | null
+    if (body?.code === 'PROFILE_INCOMPLETE') return res
     await ensureCsrf()
     res = await build()
   }
@@ -70,6 +89,8 @@ async function request<T>(method: string, path: string, body?: unknown,
     } catch {
       // 非 JSON 错误体（网关 502 等）也走 ApiError
     }
+    // 资料未补全：交给页面层改道去 /profile，别让调用方把它当故障弹出来。
+    if (parsed?.code === 'PROFILE_INCOMPLETE') profileIncompleteHandler?.()
     throw new ApiError(res.status, parsed)
   }
   if (res.status === 204) {

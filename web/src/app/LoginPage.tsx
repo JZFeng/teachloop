@@ -1,10 +1,11 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { ApiError } from '../api/client'
 import { safeNextPath } from './redirect'
+import { profilePathWithNext } from './profileGate'
 import {
   Alert,
   BarChartOutlined,
@@ -30,7 +31,7 @@ import {
  */
 export default function LoginPage() {
   const { t } = useTranslation('translation')
-  const { login } = useAuth()
+  const { login, refreshProfile } = useAuth()
   const navigate = useNavigate()
   const [params] = useSearchParams()
   // 学生从班群点开预习链接但没登录：登录后回到那次布置（只接受站内路径）。
@@ -46,7 +47,10 @@ export default function LoginPage() {
     setError(null)
     try {
       await login(email.trim(), password)
-      navigate(next ?? '/', { replace: true })
+      // 2026-10-27（Bug）：首次登录缺手机号/邮箱时，第一跳直接去 /profile 补全。
+      // 以前落首页、再由业务页的取数钩子报 403，表现为「出错了：请先补全手机号与邮箱」。
+      const complete = await refreshProfile()
+      navigate(complete === false ? profilePathWithNext(next) : next ?? '/', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err))
     } finally {
@@ -120,6 +124,10 @@ export default function LoginPage() {
           <Button variant="primary" size="large" block busy={busy} htmlType="submit">
             {t('login.submit')}
           </Button>
+          <p className="auth-foot spread">
+            <Link to="/forgot">{t('login.forgot')}</Link>
+            <Link to="/register">{t('login.noAccount')}</Link>
+          </p>
         </form>
       </div>
     </div>

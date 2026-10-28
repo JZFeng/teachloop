@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import { LANGUAGES, changeLanguage } from '../i18n'
 import { Alert, Button, Field, InlineNote, Input, PageHeader, ThemeToggle } from '../ui'
 import { UiKitPanel } from './UiKitPanel'
+import { nextAfterProfile } from './profileGate'
 import type { GradingPreference } from '../api/types'
 
 interface ProfileView {
@@ -56,6 +57,7 @@ export default function ProfilePage() {
   const [passwordBusy, setPasswordBusy] = useState(false)
 
   const isTeacher = me?.role === 'TEACHER'
+  const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   // 界面标准（组件与样式）只给教师与管理员看。
   const canViewDesign = isTeacher || me?.role === 'ADMIN'
@@ -117,6 +119,11 @@ export default function ProfilePage() {
       setProfile(saved)
       setMessage(t('profile.saved'))
       await Promise.all([refresh(), refreshProfile()])
+      // 被改道过来的（/profile?next=…）：补全并保存后回原页面，别把人留在资料页。
+      const next = nextAfterProfile(params.get('next'))
+      if (next && saved.phone?.trim() && saved.email?.trim()) {
+        navigate(next, { replace: true })
+      }
     } catch (e) {
       setError((e as Error).message)
     }
