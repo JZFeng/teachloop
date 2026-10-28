@@ -61,6 +61,12 @@ services:
     depends_on:
       app:
         condition: service_healthy
+    # 2026-10-28：镜像级 HEALTHCHECK（Dockerfile:49）探的是 app 的 8010/healthz，
+    # worker 跑 SPRING_PROFILES_ACTIVE=worker 不监听该端口，所以永远 unhealthy
+    # （实测 FailingStreak 801，进程本身正常）。worker 的存活看日志与队列积压，
+    # 不该复用 app 的 HTTP 探针。
+    healthcheck:
+      disable: true
     restart: unless-stopped
 
   web:
