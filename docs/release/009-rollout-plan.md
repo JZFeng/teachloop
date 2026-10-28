@@ -1,6 +1,7 @@
 # 009（注册与身份通道）完整上线计划
 
-日期：2026-10-28　状态：**待执行**（本文件只写计划与口径；每执行一步就地回写证据）
+日期：2026-10-28　状态：**已执行（2026-10-28 02:14，见 §10 执行记录）**；后续待办只有邮件通道配置
+（本文件每执行一步就地回写证据）
 上游：`specs/009-registration/{spec,plan,tasks}.md`　配套：`docs/release/launch-runbook.md`
 
 ---
@@ -139,3 +140,26 @@ ssh jzfeng@192.168.68.166 'cd ~/teachloop && docker tag <旧镜像ID> teachloop:
 | 验收清单三档 | 30–45 min | 端到端要等真实邮件 |
 
 合计 **约 1–1.5 小时**，其中不可压缩的是端到端等邮件与构建。
+
+---
+
+## 10. 执行记录（2026-10-28 02:06–02:15 PDT，已回写证据）
+
+| 时刻 | 动作 | 证据 |
+| :--- | :--- | :--- |
+| 02:06 | 全库 + uploads 备份 | `teachloop-db-20261028-020643.sql.gz`（43 KB） |
+| 02:07 | 前端整目录备份 + 记录旧镜像 | `web/dist.bak-20261028-0207`（13 MB）、镜像 `ac6616b23c89` |
+| 02:08 | **踩坑**：在 prod 旧源码树上 `docker compose build`，镜像里没有 V072/V073——切上去后 Flyway 仍停 V071 | 迁移查询返回 071；`auth/DevPasswordAuthProvider.java` 仍在 |
+| 02:09 | 纠正：`git archive HEAD`（7.4 MB，排除 docs/specs/.dsh）覆盖源码，删掉 HEAD 已移除的 `DevPasswordAuthProvider.java`，重建（1m32s） | prod `web/src` 120 文件；`AuthEndpoint.login` 用 `passwordProvider` |
+| 02:10 | 切 app：18 秒健康；迁移 **V072 → V073** | `flyway_schema_history` = `073 identity user identities`；ERROR 计数 0 |
+| 02:11 | worker 重建；前端 `rsync`（不加 `--delete`） | `index-CHZz_fNW.js` + `index-VmnlvbT5.css` |
+| 02:11 | 界面验证 | `/login` 新文案 +「忘记密码 / 去注册」；`/register` 「创建账号」；`/api/auth/channels` 返回 `[]` |
+| 02:13 | 清库前再备份 | `teachloop-db-20261028-021309.sql.gz`（45 KB，含 009 之后状态） |
+| 02:14 | **清空测试数据**：stop app/worker → `DROP SCHEMA public CASCADE` → 重建 + 授权 → 清 `teachloop_uploads` 卷（0 项）→ 启动 | 清空前：用户 6（ADMIN 1 / TEACHER 2 / STUDENT 3，其中 1 个 DISABLED）、55 张表 |
+| 02:15 | 重建后校验 | Flyway 重跑 **66 条**到 V073；`users` = **0**；表 **55**；健康 19 秒；ERROR 0；`/api/setup/status` = `{"needsAdmin":true}` |
+
+**遗留（唯一一项）**：`identity_channels` 为空，`/api/auth/channels` 返回 `[]` —— 注册与忘记密码会在「发验证码」一步失败。
+需在 `/setup` 建管理员后，去 `/admin/ai` 的通道面板填 `host:port`（如 `smtp.163.com:465`）、发件人（163 要求与登录账号一致）、授权码。
+
+**回滚口径**：数据回到清空前 → `gunzip -c ~/teachloop-backup/teachloop-db-20261028-021309.sql.gz | docker exec -i teachloop-db-1 psql -U teachloop -d teachloop`；
+代码回到 009 之前 → `docker tag ac6616b23c89 teachloop:latest && docker compose -f docker-compose.prod.yml up -d --no-deps app worker`。
