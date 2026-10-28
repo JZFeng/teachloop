@@ -10,6 +10,7 @@ import jakarta.validation.constraints.NotBlank;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.regex.Pattern;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,6 +38,9 @@ public class IdentityChannelAdminEndpoint {
                                 Integer dailyQuota, String extra) {
     }
 
+    /** 够用的邮箱形状校验：拦「teachloop admin」这类把显示名当发件人的输入。 */
+    private static final Pattern EMAIL = Pattern.compile("^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$");
+
     private final IdentityChannelRepository channels;
     private final SecretBox secretBox;
     private final AuditPort audit;
@@ -61,6 +65,7 @@ public class IdentityChannelAdminEndpoint {
         requireAdmin(me);
         IdentityChannelRepository.Row existing = channels.find(channel)
                 .orElseThrow(() -> ApiException.notFound("通道不存在"));
+        validateSmtpConfig(channel, body, existing);
 
         String cipher = body.secret() == null ? null : (body.secret().isBlank() ? "" : secretBox.encrypt(body.secret()));
         channels.update(channel, body.enabled(), body.driver(), body.fromAddress(), body.baseUrl(),
@@ -75,6 +80,50 @@ public class IdentityChannelAdminEndpoint {
 
         return channels.find(existing.channel()).map(this::view)
                 .orElseThrow(() -> ApiException.notFound("通道不存在"));
+    }
+
+    /**
+     * 2026-10-28 Bug（P1，仅生产复现）：以前 PUT 返回 200 就等于「配好了」。
+     * 生产把发件人写成 {@code teachloop admin}（显示名而不是邮箱）也能保存成功，
+     * 再赶上开关没勾，注册页就成了「填完三项才 404」。
+     *
+     * <p>守住「启用 = 真的能发」：发件人必须是邮箱地址，服务地址与可解开的授权码不能缺。
+     * 关闭通道时只校验格式，不要求齐全——半配一半也能先存着。
+     */
+    private void validateSmtpConfig(String channel, UpdateRequest body,
+                                    IdentityChannelRepository.Row existing) {
+        if (!"email".equals(channel) || !"smtp".equals(body.driver())) {
+            return;
+        }
+        String from = body.fromAddress() == null ? "" : body.fromAddress().trim();
+        if (!from.isEmpty() && !EMAIL.matcher(from).matches()) {
+            throw ApiException.badRequest("error.identity.channel.fromFormat");
+        }
+        if (!body.enabled()) {
+            return;
+        }
+        if (from.isEmpty()) {
+            throw ApiException.badRequest("error.identity.channel.fromRequired");
+        }
+        if (body.baseUrl() == null || body.baseUrl().isBlank()) {
+            throw ApiException.badRequest("error.identity.channel.baseUrlRequired");
+        }
+        boolean newSecret = body.secret() != null && !body.secret().isBlank();
+        boolean storedSecretUsable = body.secret() == null && decryptable(existing.secretCipher());
+        if (!newSecret && !storedSecretUsable) {
+            throw ApiException.badRequest("error.identity.channel.secretRequired");
+        }
+    }
+
+    private boolean decryptable(String cipher) {
+        if (cipher == null || cipher.isBlank()) {
+            return false;
+        }
+        try {
+            return secretBox.decrypt(cipher) != null;
+        } catch (RuntimeException ex) {
+            return false;
+        }
     }
 
     private ChannelView view(IdentityChannelRepository.Row row) {

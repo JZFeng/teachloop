@@ -5,6 +5,8 @@ import { Link } from 'react-router-dom'
 import { api, ApiError } from '../api/client'
 import { Alert, Button, Field, Input } from '../ui'
 import AuthLayout from './AuthLayout'
+import { emailSignupOpen } from './registrationGate'
+import type { ChannelSummary } from './registrationGate'
 
 /** 009 T536：注册页。提交后进入「激活邮件已发送」态，60 秒后可重发。 */
 export default function RegisterPage() {
@@ -12,11 +14,22 @@ export default function RegisterPage() {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  // 2026-10-28 Bug（生产注册恒 404「该注册方式不可用」）：以前这里不看通道状态就渲染表单。
+  // 后端只下发「开关打开 + 配置齐全」的通道，未启用时列表为空——那就该直说暂不可用。
+  const [signupOpen, setSignupOpen] = useState<boolean | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sent, setSent] = useState(false)
   const [cooldown, setCooldown] = useState(0)
   const [resent, setResent] = useState(false)
+
+  useEffect(() => {
+    let alive = true
+    api.get<ChannelSummary[]>('/api/auth/channels')
+      .then((rows) => { if (alive) setSignupOpen(emailSignupOpen(rows)) })
+      .catch(() => { if (alive) setSignupOpen(false) })
+    return () => { alive = false }
+  }, [])
 
   useEffect(() => {
     if (cooldown <= 0) return
@@ -38,7 +51,10 @@ export default function RegisterPage() {
       setSent(true)
       setCooldown(60)
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : String(err))
+      // 404 的语义是「这个通道不存在」，照抄给用户只会得到一句看不懂的「该注册方式不可用」。
+      setError(err instanceof ApiError && err.status === 404
+        ? t('register.unavailable')
+        : err instanceof ApiError ? err.message : String(err))
     } finally {
       setBusy(false)
     }
@@ -64,6 +80,17 @@ export default function RegisterPage() {
         <Button variant="primary" size="large" block disabled={cooldown > 0} onClick={() => void resend()}>
           {cooldown > 0 ? t('register.resendIn', { seconds: cooldown }) : t('register.resend')}
         </Button>
+        <p className="auth-foot">
+          <Link to="/login">{t('register.backToLogin')}</Link>
+        </p>
+      </AuthLayout>
+    )
+  }
+
+  if (signupOpen === false) {
+    return (
+      <AuthLayout title={t('register.unavailableTitle')}>
+        <Alert type="warning" showIcon message={t('register.unavailable')} style={{ marginBottom: 14 }} />
         <p className="auth-foot">
           <Link to="/login">{t('register.backToLogin')}</Link>
         </p>

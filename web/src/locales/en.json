@@ -110,12 +110,17 @@
       "secret": "Secret / auth code (leave blank to keep)",
       "save": "Save",
       "saved": "Saved — takes effect on the next request",
-      "unreadable": "Stored secret cannot be decrypted (security secret changed?). Enter it again.",
       "hint": "The email channel only appears on the sign-in page when sender, endpoint and secret are all set. WeChat and SMS also need provider approval.",
       "name": {
         "email": "Email",
         "sms": "SMS",
         "wechat": "WeChat"
+      },
+      "state": {
+        "ready": "Ready — the email sign-up entry appears on the sign-up page.",
+        "disabled": "Saved but not enabled — the sign-up page shows no email entry, so nobody can sign up. Tick the switch above and save again.",
+        "incomplete": "Incomplete — the sender, endpoint and secret must all be set before it appears on the sign-up page.",
+        "unreadable": "The stored secret cannot be decrypted (security secret changed?). Enter it again."
       }
     }
   },
@@ -448,7 +453,9 @@
     "resendIn": "Resend in {{seconds}}s",
     "resent": "Email sent again",
     "backToLogin": "Go to sign in",
-    "haveAccount": "Already have an account? Sign in"
+    "haveAccount": "Already have an account? Sign in",
+    "unavailableTitle": "Sign-up is temporarily unavailable",
+    "unavailable": "The email channel is not enabled or not fully configured yet, so accounts cannot be created. Ask an administrator to configure the sender channel and try again."
   },
   "activate": {
     "checking": "Checking link",

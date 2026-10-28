@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api, ApiError } from '../api/client'
 import { Alert, Button, Field, InlineNote, Input } from '../ui'
+import type { NoteTone } from '../ui'
+import { channelReadiness } from './registrationGate'
+import type { ChannelReadiness } from './registrationGate'
 
 interface ChannelView {
   channel: string
@@ -14,6 +17,18 @@ interface ChannelView {
   secretUnreadable: boolean
   dailyQuota: number | null
   extra: string | null
+}
+
+/**
+ * 2026-10-28 Bug（生产注册不可用）：以前「保存成功」就等于「能用」，
+ * 但 `enabled` 关着时保存照样回成功——生产就是这样把「填好了」当成「配好了」。
+ * 现在每行固定显示就绪档位，不用等人去注册页踩一次才知道。
+ */
+const READINESS_TONE: Record<ChannelReadiness, NoteTone> = {
+  ready: 'success',
+  disabled: 'warning',
+  incomplete: 'warning',
+  unreadable: 'error',
 }
 
 const DRIVER_OPTIONS: Record<string, string[]> = {
@@ -118,11 +133,9 @@ export default function IdentityChannelsPanel() {
               placeholder={row.hasSecret ? (row.secretMask ?? '••••••••') : ''}
               onChange={(e) => setSecrets((s) => ({ ...s, [row.channel]: e.target.value }))} />
           </Field>
-          {row.secretUnreadable && (
-            <InlineNote tone="warning" style={{ marginBottom: 10 }}>
-              {t('app.channels.unreadable')}
-            </InlineNote>
-          )}
+          <InlineNote tone={READINESS_TONE[channelReadiness(row)]} style={{ marginBottom: 10 }}>
+            {t(`app.channels.state.${channelReadiness(row)}`)}
+          </InlineNote>
 
           <Button variant="primary" busy={saving === row.channel} onClick={() => void save(row)}>
             {t('app.channels.save')}

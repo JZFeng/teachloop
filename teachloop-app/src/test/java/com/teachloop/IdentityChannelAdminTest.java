@@ -102,6 +102,46 @@ class IdentityChannelAdminTest {
         assertThat(get(base, "/api/auth/channels", null).body()).doesNotContain("email");
     }
 
+    @Test
+    @DisplayName("2026-10-28 生产事故：发件人不是邮箱 / 缺授权码时不许启用，注册入口不出现")
+    void rejectUnusableSmtpConfig() throws Exception {
+        String base = base();
+        adminService.createAdmin("chan-admin4@test.local", "adminpass123");
+        String admin = login(base, "chan-admin4@test.local", "adminpass123");
+
+        // 先清空授权码（生产当时也只剩「发件人 + 地址」这一类半配置）
+        assertThat(put(base, "/api/admin/identity-channels/email", admin,
+                "{\"enabled\":false,\"driver\":\"smtp\",\"fromAddress\":\"a@163.com\","
+                        + "\"baseUrl\":\"smtp.163.com:465\",\"secret\":\"\"}").statusCode()).isEqualTo(200);
+
+        // 没有授权码就启用 → 400，而且不能出现注册入口
+        HttpResponse<String> noSecret = put(base, "/api/admin/identity-channels/email", admin,
+                "{\"enabled\":true,\"driver\":\"smtp\",\"fromAddress\":\"a@163.com\","
+                        + "\"baseUrl\":\"smtp.163.com:465\"}");
+        assertThat(noSecret.statusCode()).isEqualTo(400);
+        assertThat(noSecret.body()).containsAnyOf("secretRequired", "auth code", "授权码");
+        assertThat(get(base, "/api/auth/channels", null).body()).doesNotContain("email");
+
+        // 配好再启用 → 200（注册入口出现）
+        assertThat(put(base, "/api/admin/identity-channels/email", admin,
+                "{\"enabled\":true,\"driver\":\"smtp\",\"fromAddress\":\"a@163.com\","
+                        + "\"baseUrl\":\"smtp.163.com:465\",\"secret\":\"code\"}").statusCode()).isEqualTo(200);
+        assertThat(get(base, "/api/auth/channels", null).body()).contains("email");
+
+        // 发件人写成显示名（生产那次就是这么填的）→ 400，状态保持上一条的可用配置
+        HttpResponse<String> badFrom = put(base, "/api/admin/identity-channels/email", admin,
+                "{\"enabled\":true,\"driver\":\"smtp\",\"fromAddress\":\"teachloop admin\","
+                        + "\"baseUrl\":\"smtp.163.com:465\",\"secret\":\"code\"}");
+        assertThat(badFrom.statusCode()).isEqualTo(400);
+        assertThat(badFrom.body()).containsAnyOf("fromFormat", "sender must be an email", "发件人");
+
+        // 收尾：关掉通道，别影响同类里其它用例
+        put(base, "/api/admin/identity-channels/email", admin,
+                "{\"enabled\":false,\"driver\":\"smtp\",\"fromAddress\":\"a@163.com\","
+                        + "\"baseUrl\":\"smtp.163.com:465\"}");
+        assertThat(get(base, "/api/auth/channels", null).body()).doesNotContain("email");
+    }
+
     private String base() {
         return "http://127.0.0.1:" + env.getProperty("local.server.port");
     }
