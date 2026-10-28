@@ -234,6 +234,16 @@
 }
 .tl-table-sort:hover { color: var(--text); }
 .tl-table-sort:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+
+/*
+ * 触屏（iPad 等）上把两个"小图标按钮"撑到能点准：桌面它们是 18px（说明）与 ~20px 高（表头排序），
+ * iOS HIG 要求 44×44，手指实际点不准。用 `pointer: coarse` 而不是宽度断点——
+ * iPad Pro 横屏 1366 也很宽，但同样是手指；老鼠点 20px 没有问题，不该跟着变大。
+ */
+@media (pointer: coarse) {
+  .tl-table-sort { min-height: 32px; padding: 4px 2px; }
+  .tl-info-btn { width: 28px; height: 28px; }
+}
 .tl-table-sort-icon { color: var(--muted-2); font-size: 10px; }
 .tl-table-sort-icon.is-asc,
 .tl-table-sort-icon.is-desc { color: var(--accent-text); }
