@@ -20,8 +20,8 @@ const READINESS_TONE: Record<ChannelReadiness, NoteTone> = {
   unreadable: 'error',
 }
 
-/** 测试邮件的投递阶段：入队 → 轮询 → 已发送 / 失败 / 超时。 */
-type TestPhase = 'sending' | 'sent' | 'failed' | 'timeout'
+/** 测试邮件的投递阶段：入队 → 轮询 → 已发送 / 失败待重试 / 失败 / 超时。 */
+type TestPhase = 'sending' | 'sent' | 'retrying' | 'failed' | 'timeout'
 
 interface TestState {
   phase: TestPhase
@@ -133,6 +133,12 @@ export default function IdentityChannelsPanel() {
           setTest({ phase: 'failed', target: delivery.target, ms, message: delivery.message })
           return
         }
+        // 第一次投递就失败（例如授权码过期、端口被墙）：别让管理员干等 30 秒的退避，
+        // 直接把服务端原因摆出来；队列会在后台自己重试。
+        if (delivery.status === 'PENDING' && delivery.message) {
+          setTest({ phase: 'retrying', target: delivery.target, ms, message: delivery.message })
+          return
+        }
       }
       setTest({ phase: 'timeout', target: queued.target, ms: Date.now() - started })
     } catch (e) {
@@ -224,7 +230,8 @@ export default function IdentityChannelsPanel() {
             <Alert
               type={test.phase === 'sending' ? 'info'
                 : test.phase === 'sent' ? 'success'
-                  : test.phase === 'timeout' ? 'warning' : 'error'}
+                  : test.phase === 'timeout' ? 'warning'
+                    : test.phase === 'retrying' ? 'warning' : 'error'}
               showIcon
               style={{ marginBottom: 12 }}
               message={test.phase === 'sending'
@@ -233,7 +240,9 @@ export default function IdentityChannelsPanel() {
                   ? t('app.channels.testOk', { to: test.target, ms: test.ms })
                   : test.phase === 'timeout'
                     ? t('app.channels.testTimeout', { to: test.target })
-                    : t('app.channels.testFail', { message: test.message ?? '' })}
+                    : test.phase === 'retrying'
+                      ? t('app.channels.testRetrying', { message: test.message ?? '' })
+                      : t('app.channels.testFail', { message: test.message ?? '' })}
             />
           )}
 

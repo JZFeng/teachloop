@@ -41,6 +41,10 @@
 - `POST /api/auth/register`（真实队列 + 真实 SMTP 配置）返回 **200，用时 113ms**——改前同一路径要等
   整封 SMTP 会话（实测一封 3.8s 量级）；随后 `outbound_messages` 出现 1 行且状态 `SENT`、`body_cipher` 已清空；
 - 顺序：`PENDING → SENT`，`attempts=1`；
+- **故障路径也验过**：把 SMTP 主机临时指向 `127.0.0.1:2599`（拒绝连接）→ 测试邮件 2 秒内
+  变成 `PENDING` + `last_error="邮件发送失败：Connection refused"`，页面显示琥珀色
+  「投递失败，队列会在 30 秒后自动重试：…」，管理员不用等 30 秒退避就能看到原因；
+  验完把主机改回 `smtp.163.com:465`（当前库里就是这个值）；
 - 注册探针用的账号与消息已从 dev 库删除（`users` / `verification_codes` / `outbound_messages` 各 1 行）。
 
 自动化：

@@ -76,8 +76,11 @@ public class SmtpEmailChannel implements MessageChannel {
         try {
             sender.send(settings(row, secret), target, subject, body);
         } catch (IOException ex) {
+            // 原因是管理端「发送测试邮件」唯一能看到的东西（last_error），所以要带上：
+            // SmtpMailSender 的 IOException 只含服务器返回码/连接错误，不含凭据与收件人。
             log.warn("smtp send failed: {}", ex.getMessage());
-            throw new ChannelSendException("邮件发送失败", ex);
+            String reason = ex.getMessage() == null ? "邮件发送失败" : "邮件发送失败：" + ex.getMessage();
+            throw new ChannelSendException(reason, ex);
         }
     }
 

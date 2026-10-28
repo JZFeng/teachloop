@@ -144,7 +144,8 @@
         "disabled": "Saved but not enabled — the sign-up page shows no email entry, so nobody can sign up. Tick the switch and save again.",
         "incomplete": "Incomplete — sender address, SMTP server and auth code must all be set.",
         "unreadable": "The stored auth code cannot be decrypted (security secret changed?). Enter it again."
-      }
+      },
+      "testRetrying": "Delivery failed; the queue retries in 30 seconds: {{message}}"
     }
   },
   "audit": {
