@@ -9,7 +9,6 @@ public class ChannelConfig {
 
     @Bean
     public SmtpMailSenderFactory smtpMailSenderFactory() {
-        return (host, port, username, secret, from, to, subject, body) ->
-                new SmtpMailSender(host, port, username, secret, from).send(to, subject, body);
+        return (settings, to, subject, body) -> new SmtpMailSender(settings).send(to, subject, body);
     }
 }

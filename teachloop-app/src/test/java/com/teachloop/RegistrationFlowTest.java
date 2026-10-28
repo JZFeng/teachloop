@@ -3,6 +3,7 @@ package com.teachloop;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teachloop.identity.ai.SecretBox;
+import com.teachloop.identity.auth.channel.SmtpMailSender;
 import com.teachloop.identity.auth.channel.SmtpMailSenderFactory;
 import com.teachloop.identity.domain.UserRepository;
 import com.teachloop.identity.domain.UserStatus;
@@ -75,8 +76,7 @@ class RegistrationFlowTest {
         final List<String> subjects = new ArrayList<>();
 
         @Override
-        public void send(String host, int port, String username, String secret, String fromAddress,
-                         String to, String subject, String body) {
+        public void send(SmtpMailSender.Settings settings, String to, String subject, String body) {
             subjects.add(subject);
             bodies.add(body);
         }

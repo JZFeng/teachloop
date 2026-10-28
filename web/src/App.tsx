@@ -104,7 +104,7 @@ function LoginRoute() {
 
 /**
  * 角色落地页：按后端给的 key 选第一个可用入口（2026-10-27：管理员不再有班级，
- * 只剩 AI 设置，因此不再固定落 /classes）。
+ * 只剩「系统设置」（原 AI 设置），因此不再固定落 /classes）。
  */
 function landingFor(features: Record<string, boolean>): string {
   if (features['nav.home'] === true) return '/'
@@ -236,6 +236,8 @@ function AppRoutes() {
           <Route path="feedback/:offeringId" element={<FeedbackDetailPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="admin/ai" element={<AdminAiPage />} />
+          {/* 2026-10-28：页面改叫「系统设置」，/admin/settings 作为别名收口到同一屏。 */}
+          <Route path="admin/settings" element={<Navigate to="/admin/ai" replace />} />
           <Route path="profile" element={<ProfilePage />} />
           {/* 组件标准不再单独成页：旧链接到资料页偏好设置里的面板，不再占侧栏入口。 */}
           <Route path="ui-kit" element={<Navigate to="/profile?panel=ui-kit" replace />} />

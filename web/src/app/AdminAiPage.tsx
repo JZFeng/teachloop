@@ -42,7 +42,7 @@ const EMPTY: FormState = {
 }
 
 /**
- * 管理员 AI 设置（决策 010，2026-10-24 修订）：维护 provider 列表、默认 provider 与当前全站模型。
+ * 管理员系统设置里的 AI 区（决策 010，2026-10-24 修订；2026-10-28 页面改名系统设置）：维护 provider 列表、默认 provider 与当前全站模型。
  * 教师页不再有 AI 入口；全站模型只在这里切换（每个模型行的「设为当前」）。
  * 多个 provider 时用「设为默认」切默认 provider；只有一个 provider 时它天然就是默认。
  * 2026-10-25：去掉列表里的「上移/下移」，故障转移顺序只由新增时的 priority（+10 递增）决定。
@@ -58,6 +58,8 @@ export default function AdminAiPage() {
   const [selectedModels, setSelectedModels] = useState<string[]>([])
   const [currentModel, setCurrentModel] = useState<string | null>(null)
   const [modelsMessage, setModelsMessage] = useState<string | null>(null)
+  /** 加载成功的提示是「消息」，不是告警：固定绿色（2026-10-28 用户指出）。 */
+  const [modelsLoadedOk, setModelsLoadedOk] = useState(false)
   const [manualModel, setManualModel] = useState('')
   const [message, setMessage] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -100,6 +102,7 @@ export default function AdminAiPage() {
     setAvailableModels([])
     setSelectedModels([])
     setModelsMessage(null)
+    setModelsLoadedOk(false)
     setManualModel('')
     setTest(null)
     setFormOpen(true)
@@ -115,6 +118,7 @@ export default function AdminAiPage() {
     setAvailableModels([])
     setSelectedModels(p.models?.length ? p.models : [p.model])
     setModelsMessage(null)
+    setModelsLoadedOk(false)
     setManualModel('')
     setTest(null)
     setFormOpen(true)
@@ -132,6 +136,7 @@ export default function AdminAiPage() {
         extraHeaders: form.extraHeaders.trim() || null,
       })
       setAvailableModels(result.models)
+      setModelsLoadedOk(result.ok)
       setModelsMessage(result.ok
         ? t('app.ai.modelsLoaded', { count: result.models.length })
         : t('app.ai.modelsFailed', { message: result.message }))
@@ -226,8 +231,12 @@ export default function AdminAiPage() {
 
   return (
     <>
-      <PageHeader title={t('app.ai.title')} sub={t('app.ai.sub')} />
+      <PageHeader title={t('app.settings.title')} sub={t('app.settings.sub')} />
 
+      {/*
+        * 2026-10-28：原来「当前全站模型」与「已配置的模型」是两张边框同色的卡，
+        * 同屏摆着像两个互不相干的页面。并成一块：上面说现在用哪个，下面列出可切换的。
+        */}
       <div className="card" style={{ maxWidth: 900 }}>
         {error && <Alert type="error" showIcon message={error} style={{ marginBottom: 14 }} />}
         {message && <Alert type="success" showIcon message={message} style={{ marginBottom: 14 }} />}
@@ -256,9 +265,8 @@ export default function AdminAiPage() {
           </InlineNote>
         )}
         <Button variant="primary" onClick={openAdd}>{t('app.ai.addProvider')}</Button>
-      </div>
 
-      <div className="card" style={{ maxWidth: 900, marginTop: 16 }}>
+        <div style={{ borderTop: '1px solid var(--line)', marginTop: 18, marginBottom: 16 }} />
         <h2>{t('app.ai.providers')}</h2>
         {providers.length === 0 && <div className="inline-note">{t('app.ai.noProvider')}</div>}
         {providers.map((p) => (
@@ -378,7 +386,9 @@ export default function AdminAiPage() {
             <p className="small muted" style={{ marginTop: 6 }}>{t('app.ai.manualModelHint')}</p>
           </Field>
           {modelsMessage && (() => {
-            const cls = classifyProbe(modelsMessage)
+            const cls = modelsLoadedOk
+              ? { tone: 'success' as ProbeTone, hint: undefined }
+              : classifyProbe(modelsMessage)
             return (
               <Alert
                 type={cls.tone}

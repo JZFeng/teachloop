@@ -39,7 +39,7 @@ public class IdentityChannelRepository {
         if (secretCipherOrNullOrEmpty == null) {
             jdbc.update("""
                             update identity_channels
-                               set enabled = ?, driver = ?, from_address = ?, base_url = ?, extra = ?,
+                               set enabled = ?, driver = ?, from_address = ?, base_url = ?, extra = cast(? as jsonb),
                                    daily_quota = ?, updated_at = now(), updated_by = ?
                              where channel = ?
                             """,
@@ -47,7 +47,7 @@ public class IdentityChannelRepository {
         } else {
             jdbc.update("""
                             update identity_channels
-                               set enabled = ?, driver = ?, from_address = ?, base_url = ?, extra = ?,
+                               set enabled = ?, driver = ?, from_address = ?, base_url = ?, extra = cast(? as jsonb),
                                    daily_quota = ?, secret_cipher = nullif(?, ''), updated_at = now(), updated_by = ?
                              where channel = ?
                             """,

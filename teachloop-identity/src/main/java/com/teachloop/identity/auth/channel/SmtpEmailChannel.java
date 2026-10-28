@@ -5,13 +5,18 @@ import java.io.IOException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 009 T523：SMTP 邮件通道。配置来自 {@code identity_channels}：
  * <ul>
  *   <li>{@code base_url} = {@code host:port}（缺端口按 465）</li>
- *   <li>{@code from_address} = 发件人与登录账号（163 等要求两者一致）</li>
+ *   <li>{@code from_address} = 发件人邮箱与默认登录账号（163 等要求两者一致）</li>
  *   <li>{@code secret_cipher} = 授权码密文（{@link SecretBox} AES-GCM）</li>
+ *   <li>{@code extra} = JSON：{@code {"name":"系统管理员","user":"…","encryption":"ssl"}}，
+ *       分别对应管理端的「发件人名称 / 认证账号 / 加密方式」；旧数据没有这一列内容时
+ *       name 为空（{@code From:} 只写地址）、user 回落 from_address、encryption 按 ssl。</li>
  * </ul>
  *
  * <p>密钥解不开时 {@link #configured()} 为 false——通道按「未配置」处理，不抛 500（AC-76.4）。
@@ -25,12 +30,14 @@ public class SmtpEmailChannel implements VerificationChannel {
     private final IdentityChannelRepository channels;
     private final SecretBox secretBox;
     private final SmtpMailSenderFactory sender;
+    private final ObjectMapper mapper;
 
     public SmtpEmailChannel(IdentityChannelRepository channels, SecretBox secretBox,
-                            SmtpMailSenderFactory sender) {
+                            SmtpMailSenderFactory sender, ObjectMapper mapper) {
         this.channels = channels;
         this.secretBox = secretBox;
         this.sender = sender;
+        this.mapper = mapper;
     }
 
     @Override
@@ -64,28 +71,65 @@ public class SmtpEmailChannel implements VerificationChannel {
         if (secret == null) {
             throw new ChannelSendException("邮件通道密钥不可用");
         }
-        String[] hostPort = splitHostPort(row.baseUrl());
         try {
-            sender.send(hostPort[0], Integer.parseInt(hostPort[1]),
-                    username(row), secret, row.fromAddress(), target, subject, body);
+            sender.send(settings(row, secret), target, subject, body);
         } catch (IOException ex) {
             log.warn("smtp send failed: {}", ex.getMessage());
             throw new ChannelSendException("邮件发送失败", ex);
         }
     }
 
-    /** 163/QQ 的登录账号就是发件地址；显式允许 extra 里用 {@code user=} 覆盖。 */
-    private static String username(IdentityChannelRepository.Row row) {
-        String extra = row.extra();
-        if (extra != null && extra.contains("\"user\"")) {
-            int i = extra.indexOf("\"user\"");
-            int start = extra.indexOf('"', extra.indexOf(':', i) + 1);
-            int end = extra.indexOf('"', start + 1);
-            if (start > 0 && end > start) {
-                return extra.substring(start + 1, end);
-            }
+    /** 行数据 + 明文授权码 → 一次发送的连接参数；extra 里的三个可选项都在这里落地。 */
+    private SmtpMailSender.Settings settings(IdentityChannelRepository.Row row, String secret) {
+        String[] hostPort = splitHostPort(row.baseUrl());
+        JsonNode extra = parseExtra(row.extra());
+        String user = text(extra, "user");
+        if (user == null) {
+            user = row.fromAddress();
         }
-        return row.fromAddress();
+        int port = port(hostPort[1]);
+        return new SmtpMailSender.Settings(hostPort[0], port, user, secret, row.fromAddress(),
+                text(extra, "name"), security(text(extra, "encryption")));
+    }
+
+    /**
+     * 加密方式：显式配置优先；没配过的老数据按 ssl（本类此前的唯一行为），
+     * 这样升级部署不会把原本能发的 465 通道改坏。
+     */
+    static SmtpMailSender.Security security(String value) {
+        if (value == null) {
+            return SmtpMailSender.Security.SSL;
+        }
+        return switch (value.trim().toLowerCase()) {
+            case "starttls" -> SmtpMailSender.Security.STARTTLS;
+            case "none" -> SmtpMailSender.Security.NONE;
+            default -> SmtpMailSender.Security.SSL;
+        };
+    }
+
+    private JsonNode parseExtra(String extra) {
+        if (extra == null || extra.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = mapper.readTree(extra);
+            return node != null && node.isObject() ? node : null;
+        } catch (RuntimeException ex) {
+            log.warn("identity channel extra is not valid JSON; falling back to defaults");
+            return null;
+        }
+    }
+
+    private static String text(JsonNode node, String field) {
+        if (node == null) {
+            return null;
+        }
+        JsonNode value = node.get(field);
+        if (value == null || value.isNull()) {
+            return null;
+        }
+        String text = value.isString() ? value.asString() : value.toString();
+        return text.isBlank() ? null : text.trim();
     }
 
     private String decrypt(String cipher) {
@@ -104,6 +148,14 @@ public class SmtpEmailChannel implements VerificationChannel {
             return new String[]{v.substring(0, idx), v.substring(idx + 1)};
         }
         return new String[]{v, String.valueOf(DEFAULT_PORT)};
+    }
+
+    private static int port(String raw) {
+        try {
+            return Integer.parseInt(raw.trim());
+        } catch (NumberFormatException ex) {
+            return DEFAULT_PORT;
+        }
     }
 
     private static boolean notBlank(String s) {

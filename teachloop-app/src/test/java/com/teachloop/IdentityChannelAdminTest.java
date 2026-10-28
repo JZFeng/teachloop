@@ -142,6 +142,50 @@ class IdentityChannelAdminTest {
         assertThat(get(base, "/api/auth/channels", null).body()).doesNotContain("email");
     }
 
+    @Test
+    @DisplayName("邮件 extra（发件人名称 / 认证账号 / 加密方式）保存后按对象回读")
+    void emailExtraRoundTrips() throws Exception {
+        String base = base();
+        adminService.createAdmin("chan-admin5@test.local", "adminpass123");
+        String admin = login(base, "chan-admin5@test.local", "adminpass123");
+
+        String body = """
+                {"enabled":false,"driver":"smtp","fromAddress":"a@163.com","baseUrl":"smtp.163.com:465",
+                 "secret":"code",
+                 "extra":{"name":"系统管理员","user":"a@163.com","encryption":"starttls"}}
+                """;
+        HttpResponse<String> put = put(base, "/api/admin/identity-channels/email", admin, body);
+        assertThat(put.statusCode()).isEqualTo(200);
+        assertThat(put.body()).contains("\"name\":\"系统管理员\"");
+        assertThat(put.body()).contains("\"encryption\":\"starttls\"");
+
+        HttpResponse<String> read = get(base, "/api/admin/identity-channels", admin);
+        assertThat(read.body()).contains("\"name\":\"系统管理员\"").contains("\"encryption\":\"starttls\"");
+
+        // 收尾：清掉 extra 与授权码，别把这次配置留给同类里的其它用例
+        put(base, "/api/admin/identity-channels/email", admin,
+                "{\"enabled\":false,\"driver\":\"smtp\",\"fromAddress\":\"a@163.com\","
+                        + "\"baseUrl\":\"smtp.163.com:465\",\"secret\":\"\",\"extra\":null}");
+    }
+
+    @Test
+    @DisplayName("发送测试邮件：通道没配齐时回 ok=false 与原因，不发起真实连接")
+    void testSendReportsMissingConfig() throws Exception {
+        String base = base();
+        adminService.createAdmin("chan-admin6@test.local", "adminpass123");
+        String admin = login(base, "chan-admin6@test.local", "adminpass123");
+
+        // 先把授权码清空，保证 configured()=false——否则这里会真的去连 smtp.163.com
+        put(base, "/api/admin/identity-channels/email", admin,
+                "{\"enabled\":false,\"driver\":\"smtp\",\"fromAddress\":\"a@163.com\","
+                        + "\"baseUrl\":\"smtp.163.com:465\",\"secret\":\"\",\"extra\":null}");
+
+        HttpResponse<String> res = post(base, "/api/admin/identity-channels/email/test", admin, "");
+        assertThat(res.statusCode()).isEqualTo(200);
+        assertThat(res.body()).contains("\"ok\":false");
+        assertThat(res.body()).contains("error.identity.channel.notConfigured");
+    }
+
     private String base() {
         return "http://127.0.0.1:" + env.getProperty("local.server.port");
     }
@@ -160,6 +204,14 @@ class IdentityChannelAdminTest {
 
     private HttpResponse<String> get(String base, String path, String cookie) throws Exception {
         HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base + path)).GET();
+        if (cookie != null) b.header("Cookie", cookie);
+        return client.send(b.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private HttpResponse<String> post(String base, String path, String cookie, String body) throws Exception {
+        HttpRequest.Builder b = HttpRequest.newBuilder(URI.create(base + path))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body));
         if (cookie != null) b.header("Cookie", cookie);
         return client.send(b.build(), HttpResponse.BodyHandlers.ofString());
     }

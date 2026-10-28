@@ -6,7 +6,7 @@ import { InlineNote } from '../ui'
 
 interface Status { needsAdmin: boolean; aiConfigured: boolean; aiModel: string }
 
-/** 首次管理员初始化（对齐 DSH initial setup）：没有 ADMIN 时允许创建，之后到 AI 设置填模型。 */
+/** 首次管理员初始化（对齐 DSH initial setup）：没有 ADMIN 时允许创建，之后到「系统设置」填模型。 */
 export default function SetupPage() {
   const { t } = useTranslation('translation')
   const navigate = useNavigate()

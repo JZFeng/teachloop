@@ -13,12 +13,10 @@
       "providerOpenaiCompatible": "OpenAI-compatible",
       "save": "Save",
       "saved": "Saved. It takes effect on the next AI call.",
-      "sub": "Maintain the AI model list, the default model and the current global model. v1 has one global model.",
       "test": "Test connection",
       "testFail": "failed",
       "testOk": "passed",
       "testResult": "Test: {{result}} · {{message}} · {{ms}}ms",
-      "title": "AI model settings",
       "modelUnset": "not set",
       "configured": "configured",
       "notConfigured": "not configured",
@@ -76,10 +74,14 @@
       "errServer": "Upstream error (5xx): retry later or try another provider.",
       "errNetwork": "Cannot connect or timed out: check the address and port; from inside a container use the LAN IP, not localhost."
     },
+    "settings": {
+      "title": "System settings",
+      "sub": "AI models and global communication channels. Every change applies when saved; v1 has one global model."
+    },
     "name": "TeachLoop",
     "setup": {
       "adminName": "Administrator name",
-      "afterLogin": "After signing in, open \"AI settings\" in the left sidebar to configure the model.",
+      "afterLogin": "After signing in, open \"System settings\" in the left sidebar to configure AI models and channels.",
       "aiConfigured": "; AI is configured ({{model}})",
       "aiMissing": ", but AI is not configured yet",
       "createAdmin": "Create administrator",
@@ -100,28 +102,51 @@
     "descriptor": "AI teaching platform",
     "brandLine": "Better Practice. More Insights.",
     "channels": {
-      "title": "Identity channels",
+      "title": "Global communication channels",
       "sub": "Which channel serves sign-up, sign-in and password reset. Changes apply on the next request.",
-      "on": "Enabled",
-      "off": "Disabled",
-      "driver": "Driver",
-      "from": "Sender / signature",
-      "baseUrl": "Endpoint",
-      "secret": "Secret / auth code (leave blank to keep)",
-      "save": "Save",
+      "enable": "Email service",
+      "switchOn": "on",
+      "switchOff": "off",
       "saved": "Saved — takes effect on the next request",
-      "hint": "The email channel only appears on the sign-in page when sender, endpoint and secret are all set. WeChat and SMS also need provider approval.",
-      "name": {
-        "email": "Email",
-        "sms": "SMS",
-        "wechat": "WeChat"
+      "missing": "The server returned no email channel configuration. Refresh the page and try again.",
+      "emailTitle": "Email service (SMTP)",
+      "emailSub": "Sign-up activation, sign-in codes and password resets all send from here.",
+      "fromName": "Sender name",
+      "fromNameHint": "The name recipients see in their inbox.",
+      "fromNamePlaceholder": "System administrator",
+      "fromAddress": "Sender address",
+      "fromAddressHint": "A full email address; on 163 / QQ the sender address is also the login account.",
+      "smtpHost": "SMTP server",
+      "smtpHostHint": "Host name only — no scheme, no port, e.g. smtp.163.com.",
+      "smtpPort": "SMTP port",
+      "security": "Encryption",
+      "securityHint": "Use SSL/TLS (TLS from the first byte) on 465; STARTTLS on 587 / 25. \"None\" only fits an internal relay — on the public internet it exposes the auth code in plain text.",
+      "securityNone": "None",
+      "securitySsl": "SSL/TLS",
+      "securityStarttls": "STARTTLS",
+      "authUser": "Auth account",
+      "authUserHint": "Leave blank to use the sender address.",
+      "authUserPlaceholder": "Same as the sender address",
+      "secret": "Password / auth code",
+      "secretHint": "For 163 and similar, this is the app auth code, not the login password. Leave blank to keep the current one; only a mask is shown after saving.",
+      "saveSettings": "Save settings",
+      "sendTest": "Send test email",
+      "testHint": "The test email goes to the saved sender address and uses the saved configuration. Save first, then test.",
+      "testOk": "Test email sent to {{to}} · {{ms}}ms",
+      "testFail": "Test failed: {{message}}",
+      "issue": {
+        "host": "Enter the SMTP server host.",
+        "port": "The port must be a whole number between 1 and 65535.",
+        "fromAddress": "Enter a full sender address, e.g. no-reply@example.com.",
+        "secret": "The first setup must include the auth code."
       },
       "state": {
         "ready": "Ready — the email sign-up entry appears on the sign-up page.",
-        "disabled": "Saved but not enabled — the sign-up page shows no email entry, so nobody can sign up. Tick the switch above and save again.",
-        "incomplete": "Incomplete — the sender, endpoint and secret must all be set before it appears on the sign-up page.",
-        "unreadable": "The stored secret cannot be decrypted (security secret changed?). Enter it again."
-      }
+        "disabled": "Saved but not enabled — the sign-up page shows no email entry, so nobody can sign up. Tick the switch and save again.",
+        "incomplete": "Incomplete — sender address, SMTP server and auth code must all be set.",
+        "unreadable": "The stored auth code cannot be decrypted (security secret changed?). Enter it again."
+      },
+      "testUnknown": "No result was returned"
     }
   },
   "audit": {
@@ -514,7 +539,7 @@
     "practiceNote": "Practice is planned and not live yet."
   },
   "nav": {
-    "aiSettings": "AI settings",
+    "aiSettings": "System settings",
     "assignments": "Assignments",
     "classes": "Classes",
     "exams": "Exams",

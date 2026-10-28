@@ -17,6 +17,7 @@ export type NavIcon =
   | 'review'
   | 'reports'
   | 'ai'
+  | 'settings'
   | 'library'
   | 'lists'
   | 'vocabReview'
@@ -35,7 +36,7 @@ export interface NavSpec {
 
 /**
  * 全局顺序。三套角色菜单由「同一份目录 + 后端给的 key 集合」过滤得出：
- * - 管理员：AI 设置（2026-10-27 起不再有班级——班级只属于师生）
+ * - 管理员：系统设置（2026-10-28 起由「AI 设置」改名；2026-10-27 起不再有班级——班级只属于师生）
  * - 教师：首页 / 班级 / 作业 / 试卷 / 词集 / 发词 / 批改 / 复核 / 报表（vocab 关时少两项）
  * - 学生：首页 / 班级 / 我的词库 / 我的词单 / 今日复习（vocab 关时只有前两项；
  *   2026-10-26 AC-72.8 删掉「成绩与评语」入口，反馈详情从行内进；
@@ -61,7 +62,7 @@ export const NAV_CATALOG: NavSpec[] = [
   // 2026-10-26（AC-72.8）：删 `nav.feedback` 目录项。它原来指向 `/feedback` 列表页，
   // 而那份列表和首页是同一份数据的两个视图；现在「看评语」从首页 / 作业页的行内直接进详情，
   // 侧栏不再留一个重复入口。`/feedback/:offeringId` 路由仍然存在。
-  { key: 'nav.ai', to: '/admin/ai', labelKey: 'nav.aiSettings', icon: 'ai' },
+  { key: 'nav.ai', to: '/admin/ai', labelKey: 'nav.aiSettings', icon: 'settings' },
 ]
 
 /**

@@ -1,7 +1,10 @@
 package com.teachloop.identity.api;
 
 import com.teachloop.identity.ai.SecretBox;
+import com.teachloop.identity.auth.channel.ChannelSendException;
+import com.teachloop.identity.auth.channel.ChannelTestMail;
 import com.teachloop.identity.auth.channel.IdentityChannelRepository;
+import com.teachloop.identity.auth.channel.VerificationChannel;
 import com.teachloop.shared.audit.AuditEvent;
 import com.teachloop.shared.audit.AuditPort;
 import com.teachloop.shared.error.ApiException;
@@ -13,6 +16,8 @@ import java.util.UUID;
 import java.util.regex.Pattern;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 009 T534：通道配置的管理端。
@@ -30,12 +35,22 @@ public class IdentityChannelAdminEndpoint {
 
     public record ChannelView(String channel, boolean enabled, String driver, String fromAddress,
                               String baseUrl, boolean hasSecret, String secretMask, boolean secretUnreadable,
-                              Integer dailyQuota, String extra) {
+                              Integer dailyQuota, JsonNode extra) {
     }
 
     public record UpdateRequest(boolean enabled, @NotBlank String driver, String fromAddress, String baseUrl,
                                 /** null = 不改；"" = 清除；其它 = 新密钥 */ String secret,
-                                Integer dailyQuota, String extra) {
+                                Integer dailyQuota, JsonNode extra) {
+    }
+
+    /**
+     * 「发送测试邮件」的结果。
+     *
+     * <p>{@code messageKey} 是可翻译的固定原因（由 messages*.properties 提供），
+     * {@code message} 是底层异常的原文（例如 SMTP 返回码），二者最多有一个。
+     * {@code target} 是这封信实际发去的地址，成功时前端用它拼「已发送到 X」。
+     */
+    public record TestResult(boolean ok, String messageKey, String message, String target, long latencyMs) {
     }
 
     /** 够用的邮箱形状校验：拦「teachloop admin」这类把显示名当发件人的输入。 */
@@ -45,10 +60,16 @@ public class IdentityChannelAdminEndpoint {
     private final SecretBox secretBox;
     private final AuditPort audit;
 
-    public IdentityChannelAdminEndpoint(IdentityChannelRepository channels, SecretBox secretBox, AuditPort audit) {
+    private final List<VerificationChannel> implementations;
+    private final ObjectMapper mapper;
+
+    public IdentityChannelAdminEndpoint(IdentityChannelRepository channels, SecretBox secretBox, AuditPort audit,
+                                        List<VerificationChannel> implementations, ObjectMapper mapper) {
         this.channels = channels;
         this.secretBox = secretBox;
+        this.implementations = implementations;
         this.audit = audit;
+        this.mapper = mapper;
     }
 
     @GetMapping
@@ -69,7 +90,7 @@ public class IdentityChannelAdminEndpoint {
 
         String cipher = body.secret() == null ? null : (body.secret().isBlank() ? "" : secretBox.encrypt(body.secret()));
         channels.update(channel, body.enabled(), body.driver(), body.fromAddress(), body.baseUrl(),
-                cipher, body.extra(), body.dailyQuota(), me.id());
+                cipher, body.extra() == null ? null : body.extra().toString(), body.dailyQuota(), me.id());
 
         audit.record(new AuditEvent(me.id(), "identity_channel:update", "identity_channel", channel,
                 Map.of("enabled", body.enabled(),
@@ -80,6 +101,42 @@ public class IdentityChannelAdminEndpoint {
 
         return channels.find(existing.channel()).map(this::view)
                 .orElseThrow(() -> ApiException.notFound("通道不存在"));
+    }
+
+    /**
+     * 2026-10-28：管理端「发送测试邮件」。
+     *
+     * <p>只发**已保存**的配置，收件人就是该通道的发件人邮箱——刚在表单里改完还没保存时，
+     * 点这个按钮验的是旧配置，所以前端必须提示「先保存再测试」。
+     *
+     * <p>刻意不要求 {@code enabled=true}：先测通再打开开关才是正常顺序。
+     */
+    @PostMapping("/{channel}/test")
+    public TestResult test(@RequestAttribute("currentUser") CurrentUser me, @PathVariable String channel) {
+        requireAdmin(me);
+        IdentityChannelRepository.Row row = channels.find(channel)
+                .orElseThrow(() -> ApiException.notFound("通道不存在"));
+        VerificationChannel impl = implementations.stream()
+                .filter(c -> c.channel().equals(channel))
+                .findFirst()
+                .orElseThrow(() -> ApiException.badRequest("error.identity.channel.testUnsupported"));
+        String to = row.fromAddress();
+        if (!impl.configured()) {
+            return new TestResult(false, "error.identity.channel.notConfigured", null, to, 0);
+        }
+        long started = System.nanoTime();
+        try {
+            impl.send(to, ChannelTestMail.SUBJECT, ChannelTestMail.BODY);
+        } catch (ChannelSendException ex) {
+            long ms = (System.nanoTime() - started) / 1_000_000;
+            audit.record(new AuditEvent(me.id(), "identity_channel:test", "identity_channel", channel,
+                    Map.of("ok", false, "latencyMs", ms)));
+            return new TestResult(false, null, ex.getMessage(), to, ms);
+        }
+        long ms = (System.nanoTime() - started) / 1_000_000;
+        audit.record(new AuditEvent(me.id(), "identity_channel:test", "identity_channel", channel,
+                Map.of("ok", true, "latencyMs", ms)));
+        return new TestResult(true, null, null, to, ms);
     }
 
     /**
@@ -140,7 +197,19 @@ public class IdentityChannelAdminEndpoint {
             }
         }
         return new ChannelView(row.channel(), row.enabled(), row.driver(), row.fromAddress(), row.baseUrl(),
-                hasSecret, mask, unreadable, row.dailyQuota(), row.extra());
+                hasSecret, mask, unreadable, row.dailyQuota(), extra(row.extra()));
+    }
+
+    /** jsonb 列在接口上回成对象，前端不用再对一段 JSON 文本做二次解析。 */
+    private JsonNode extra(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return null;
+        }
+        try {
+            return mapper.readTree(raw);
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 
     private static void requireAdmin(CurrentUser me) {

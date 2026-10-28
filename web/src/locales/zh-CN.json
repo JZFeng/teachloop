@@ -13,12 +13,10 @@
       "providerOpenaiCompatible": "OpenAI 兼容",
       "save": "保存",
       "saved": "已保存。下一次 AI 调用生效。",
-      "sub": "维护 AI 模型列表、默认模型与当前全站模型；v1 全站一个模型。",
       "test": "测试连接",
       "testFail": "失败",
       "testOk": "通过",
       "testResult": "测试：{{result}} · {{message}} · {{ms}}ms",
-      "title": "AI 大模型设置",
       "modelUnset": "未设置",
       "configured": "已配置",
       "notConfigured": "未配置",
@@ -76,10 +74,14 @@
       "errServer": "对端服务异常（5xx）：稍后重试，或换一个 provider 试。",
       "errNetwork": "连不上或超时：确认地址可达、端口开放；容器里访问宿主要用局域网 IP，不能用 localhost。"
     },
+    "settings": {
+      "title": "系统设置",
+      "sub": "维护 AI 模型与全域通讯通道；两部分都保存即生效，v1 全站一个模型。"
+    },
     "name": "TeachLoop",
     "setup": {
       "adminName": "管理员姓名",
-      "afterLogin": "登录后从左侧「AI 设置」进入模型配置。",
+      "afterLogin": "登录后从左侧「系统设置」进入 AI 模型与通讯通道配置。",
       "aiConfigured": "，AI 已配置（{{model}}）",
       "aiMissing": "，但 AI 尚未配置",
       "createAdmin": "创建管理员",
@@ -100,28 +102,51 @@
     "descriptor": "AI 教学平台",
     "brandLine": "Better Practice. More Insights.",
     "channels": {
-      "title": "身份通道",
-      "sub": "注册、登录与找回密码用哪条通道。保存后立即生效，改完可直接去登录页验证。",
-      "on": "已开启",
-      "off": "已关闭",
-      "driver": "驱动",
-      "from": "发件人 / 签名",
-      "baseUrl": "服务地址",
-      "secret": "密钥 / 授权码（留空表示不修改）",
-      "save": "保存",
+      "title": "全域通讯通道",
+      "sub": "注册、登录与找回密码走哪条通道。保存后立即生效，改完可直接去登录页验证。",
+      "enable": "启用邮件服务",
+      "switchOn": "开启",
+      "switchOff": "关闭",
       "saved": "已保存，下一次请求即生效",
-      "hint": "邮箱通道需要「发件人 + 服务地址 + 授权码」三项齐全才会出现在登录页；微信与短信还需要资质。",
-      "name": {
-        "email": "邮箱",
-        "sms": "手机短信",
-        "wechat": "微信"
+      "missing": "后端没有返回邮件通道配置，请刷新页面后重试。",
+      "emailTitle": "邮件服务配置（SMTP）",
+      "emailSub": "注册激活、登录验证码与找回密码的邮件都从这里发。",
+      "fromName": "发件人名称",
+      "fromNameHint": "收件人在邮箱列表里看到的署名。",
+      "fromNamePlaceholder": "系统管理员",
+      "fromAddress": "发件人邮箱",
+      "fromAddressHint": "必须是完整邮箱；163 / QQ 的发件邮箱同时是登录账号。",
+      "smtpHost": "SMTP 服务器",
+      "smtpHostHint": "只填主机名，不带协议与端口，例如 smtp.163.com。",
+      "smtpPort": "SMTP 端口",
+      "security": "加密方式",
+      "securityHint": "465 端口用 SSL/TLS（连上就加密）；587 / 25 端口用 STARTTLS；「无」只适合内网中继，公网会明文暴露授权码。",
+      "securityNone": "无",
+      "securitySsl": "SSL/TLS",
+      "securityStarttls": "STARTTLS",
+      "authUser": "认证账号",
+      "authUserHint": "留空表示与发件人邮箱相同。",
+      "authUserPlaceholder": "默认与发件人邮箱相同",
+      "secret": "密码 / 授权码",
+      "secretHint": "163 等邮箱填「授权码」而不是登录密码；留空表示不修改，保存后只显示掩码。",
+      "saveSettings": "保存设置",
+      "sendTest": "发送测试邮件",
+      "testHint": "测试邮件发给已保存的发件人邮箱，并只使用已保存的配置；刚改的字段请先保存。",
+      "testOk": "测试邮件已发送到 {{to}} · {{ms}}ms",
+      "testFail": "测试失败：{{message}}",
+      "issue": {
+        "host": "请填写 SMTP 服务器地址。",
+        "port": "端口必须是 1–65535 之间的整数。",
+        "fromAddress": "请填写完整的发件人邮箱，例如 no-reply@example.com。",
+        "secret": "首次配置必须填写授权码。"
       },
       "state": {
         "ready": "已就绪：注册页会显示邮箱注册入口。",
-        "disabled": "已保存但未启用：注册页不会出现邮箱入口，用户无法注册。勾选上方开关后再点保存。",
-        "incomplete": "配置不完整：发件人、服务地址、授权码三项齐全才会出现在注册页。",
+        "disabled": "已保存但未启用：注册页不会出现邮箱入口，用户无法注册。勾选上方开关后再保存。",
+        "incomplete": "配置不完整：发件人邮箱、SMTP 服务器、授权码三项齐全才会生效。",
         "unreadable": "授权码解不开（安全密钥变过？），请重新填写授权码。"
-      }
+      },
+      "testUnknown": "没有收到发送结果"
     }
   },
   "audit": {
@@ -514,7 +539,7 @@
     "practiceNote": "Practice 为规划中模块，暂未上线。"
   },
   "nav": {
-    "aiSettings": "AI 设置",
+    "aiSettings": "系统设置",
     "assignments": "作业",
     "classes": "班级",
     "exams": "考试",

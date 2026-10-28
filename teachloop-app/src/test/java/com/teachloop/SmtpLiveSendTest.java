@@ -26,7 +26,9 @@ class SmtpLiveSendTest {
         assertThat(secret).hasSizeGreaterThanOrEqualTo(8);
 
         String account = "19725156124@163.com";
-        SmtpMailSender sender = new SmtpMailSender("smtp.163.com", 465, account, secret, account);
+        SmtpMailSender sender = new SmtpMailSender(new SmtpMailSender.Settings(
+                "smtp.163.com", 465, account, secret, account, "TeachLoop",
+                SmtpMailSender.Security.SSL));
         sender.send(account, "TeachLoop 邮件通道自检",
                 "这是一封来自 TeachLoop 的通道自检邮件。\n\n"
                         + "如果你收到它，说明注册激活邮件这条链路可以工作。\n"

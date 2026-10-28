@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teachloop.identity.admin.AdminService;
 import com.teachloop.identity.ai.SecretBox;
+import com.teachloop.identity.auth.channel.SmtpMailSender;
 import com.teachloop.identity.auth.channel.SmtpMailSenderFactory;
 import com.teachloop.identity.domain.User;
 import com.teachloop.identity.domain.UserRepository;
@@ -80,8 +81,7 @@ class LoginCodeFlowTest {
         final List<String> bodies = new ArrayList<>();
 
         @Override
-        public void send(String host, int port, String username, String secret, String fromAddress,
-                         String to, String subject, String body) {
+        public void send(SmtpMailSender.Settings settings, String to, String subject, String body) {
             bodies.add(body);
         }
 

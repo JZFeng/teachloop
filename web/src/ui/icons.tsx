@@ -37,6 +37,7 @@ export {
   PlusOutlined,
   RobotOutlined,
   SendOutlined,
+  SettingOutlined,
   StarFilled,
   StarOutlined,
   SoundOutlined,
