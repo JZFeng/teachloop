@@ -79,7 +79,7 @@ public class GlobalExceptionHandler {
         return switch (code) {
             case BAD_REQUEST, VALIDATION_FAILED -> HttpStatus.BAD_REQUEST;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
-            case FORBIDDEN -> HttpStatus.FORBIDDEN;
+            case FORBIDDEN, ACCOUNT_PENDING -> HttpStatus.FORBIDDEN;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case CONFLICT -> HttpStatus.CONFLICT;
             case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;

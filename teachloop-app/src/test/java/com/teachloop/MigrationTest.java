@@ -54,7 +54,18 @@ class MigrationTest {
         assertThat(tables).contains("users", "classes", "class_members", "papers", "paper_sections",
                 "objective_items", "offerings", "submissions", "objective_answers", "grading_runs",
                 "reviews", "item_explanations", "ai_calls", "audit_logs", "notifications",
-                "rate_limits", "teacher_invites", "daily_stats", "ai_settings");
+                "rate_limits", "teacher_invites", "daily_stats", "ai_settings",
+                // 009-registration：验证码与通道、身份表
+                "verification_codes", "identity_channels", "user_identities");
+
+        Integer identityIndex = jdbc.queryForObject(
+                "select count(*) from pg_indexes where tablename = 'user_identities' and indexname = 'user_identities_uk'",
+                Integer.class);
+        assertThat(identityIndex).as("身份唯一性（channel+external_id）").isEqualTo(1);
+
+        Integer channelSeed = jdbc.queryForObject(
+                "select count(*) from identity_channels", Integer.class);
+        assertThat(channelSeed).as("三行通道初始数据").isEqualTo(3);
 
         Integer activeIndex = jdbc.queryForObject(
                 "select count(*) from pg_indexes where tablename = 'submissions' and indexname = 'submissions_active_uk'",

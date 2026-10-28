@@ -2,7 +2,6 @@ package com.teachloop.identity.auth;
 
 import com.teachloop.identity.domain.User;
 import com.teachloop.identity.domain.UserRepository;
-import com.teachloop.identity.domain.UserStatus;
 import java.util.Optional;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
@@ -29,7 +28,8 @@ public class DevPasswordAuthProvider {
 
     public Optional<User> login(String email, String password) {
         return users.findByEmail(email)
-                .filter(u -> u.getStatus() == UserStatus.ACTIVE)
+                // 2026-10-27（009 T520）：不在这里过滤状态——PENDING/DISABLED 由 signIn 统一判 403，
+                // 否则未激活账号会退化成「邮箱或密码不正确」（401），用户没法知道该去激活。
                 .filter(u -> u.getPasswordHash() != null)
                 .filter(u -> encoder.matches(password, u.getPasswordHash()));
     }

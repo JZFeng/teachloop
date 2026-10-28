@@ -123,6 +123,10 @@ public class AuthEndpoint {
     }
 
     private AuthDtos.MeView signIn(User user, HttpServletRequest request) {
+        if (user.getStatus() == UserStatus.PENDING) {
+            // 009 AC-73.6：未激活与「被停用」必须分开，否则用户会以为自己被封了。
+            throw new ApiException(ErrorCode.ACCOUNT_PENDING, "账号尚未激活，请先点激活邮件里的链接");
+        }
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw ApiException.forbidden("账号已停用");
         }
