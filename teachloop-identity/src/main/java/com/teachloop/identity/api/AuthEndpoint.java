@@ -1,8 +1,12 @@
 package com.teachloop.identity.api;
 
+import com.teachloop.identity.auth.CodeService;
 import com.teachloop.identity.auth.PasswordAuthProvider;
-import com.teachloop.identity.auth.DevPasswordAuthProvider;
+import com.teachloop.identity.auth.VerificationPurpose;
 import com.teachloop.identity.auth.WeChatAuthProvider;
+import com.teachloop.identity.auth.channel.ChannelRegistry;
+import com.teachloop.identity.auth.channel.ChannelSendException;
+import com.teachloop.identity.auth.channel.VerificationChannel;
 import com.teachloop.identity.domain.TeacherInvite;
 import com.teachloop.identity.domain.TeacherInviteRepository;
 import com.teachloop.identity.domain.User;
@@ -12,17 +16,20 @@ import com.teachloop.identity.domain.UserStatus;
 import com.teachloop.identity.security.SessionAuthFilter;
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.error.ErrorCode;
+import com.teachloop.shared.error.TooManyRequestsException;
 import com.teachloop.shared.security.CurrentUser;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import java.security.SecureRandom;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
-import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
@@ -31,30 +38,33 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/auth")
 public class AuthEndpoint {
 
+    private static final Duration CODE_TTL = Duration.ofMinutes(10);
+    private static final Duration COOLDOWN = Duration.ofSeconds(60);
+
     private final UserRepository users;
     private final TeacherInviteRepository invites;
     private final PasswordEncoder passwordEncoder;
-    private final DevPasswordAuthProvider devProvider;
-    private final PasswordAuthProvider prodProvider;
+    private final PasswordAuthProvider passwordProvider;
     private final WeChatAuthProvider weChatProvider;
-    private final Environment environment;
+    private final CodeService codes;
+    private final ChannelRegistry channels;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     public AuthEndpoint(UserRepository users, TeacherInviteRepository invites, PasswordEncoder passwordEncoder,
-                        DevPasswordAuthProvider devProvider, PasswordAuthProvider prodProvider,
-                        WeChatAuthProvider weChatProvider, Environment environment, Clock clock) {
+                        PasswordAuthProvider passwordProvider, WeChatAuthProvider weChatProvider,
+                        CodeService codes, ChannelRegistry channels, Clock clock) {
         this.users = users;
         this.invites = invites;
         this.passwordEncoder = passwordEncoder;
-        this.devProvider = devProvider;
-        this.prodProvider = prodProvider;
+        this.passwordProvider = passwordProvider;
         this.weChatProvider = weChatProvider;
-        this.environment = environment;
+        this.codes = codes;
+        this.channels = channels;
         this.clock = clock;
     }
 
-    public record LoginRequest(@NotBlank String email, @NotBlank String password) {
+    public record LoginRequest(@NotBlank @Email String email, @NotBlank String password) {
     }
 
     public record WeChatLoginRequest(@NotBlank String code) {
@@ -64,20 +74,61 @@ public class AuthEndpoint {
                                        @NotBlank String password, String displayName) {
     }
 
-    /** 生产只允许管理员密码登录；开发/测试 profile 走 DevProvider（任意角色）。 */
+    public record CodeRequest(@NotBlank String channel, @NotBlank @Email String email) {
+    }
+
+    public record CodeVerifyRequest(@NotBlank String channel, @NotBlank @Email String email,
+                                    @NotBlank String code) {
+    }
+
+    public record PasswordResetVerifyRequest(@NotBlank @Email String email, @NotBlank String code,
+                                             @NotBlank @Size(min = 8, message = "新密码至少 8 位") String newPassword) {
+    }
+
+    /**
+     * 009 T530 / AC-73.11：邮箱 + 密码登录。任何有密码的 ACTIVE 账号都可以，
+     * 不再区分「管理员 / 白名单」——未激活与停用由 {@link #signIn} 判 403。
+     */
     @PostMapping("/login")
     public AuthDtos.MeView login(@RequestBody @Valid LoginRequest body, HttpServletRequest request) {
-        boolean prod = environment.acceptsProfiles(Profiles.of("prod"));
-        Optional<User> user = prod
-                ? prodProvider.login(body.email(), body.password())
-                : devProvider.login(body.email(), body.password());
-        if (user.isEmpty()) {
-            if (prod) {
-                throw new ApiException(ErrorCode.UNAVAILABLE, "生产环境密码登录仅对管理员开放");
-            }
-            throw ApiException.unauthorized("邮箱或密码不正确");
-        }
-        return signIn(user.get(), request);
+        User user = passwordProvider.login(body.email().trim(), body.password())
+                .orElseThrow(() -> ApiException.unauthorized("邮箱或密码不正确"));
+        return signIn(user, request);
+    }
+
+    /** 009 T531：发登录验证码。账号不存在 404、未激活/停用 403，都不发码。 */
+    @PostMapping("/login/challenge")
+    public Map<String, Object> loginChallenge(@RequestBody @Valid CodeRequest body) {
+        User user = requireActiveAccount(body.email());
+        return sendCode(user, body.channel(), VerificationPurpose.LOGIN);
+    }
+
+    @PostMapping("/login/verify")
+    public AuthDtos.MeView loginVerify(@RequestBody @Valid CodeVerifyRequest body, HttpServletRequest request) {
+        var result = codes.consume(VerificationPurpose.LOGIN, body.channel(), normalize(body.email()), body.code().trim());
+        requireCodeOk(result.status());
+        User user = requireActiveAccount(body.email());
+        return signIn(user, request);
+    }
+
+    /** 009 T533：忘记密码——发码。 */
+    @PostMapping("/password-reset/challenge")
+    public Map<String, Object> passwordResetChallenge(@RequestBody @Valid CodeRequest body) {
+        User user = requireActiveAccount(body.email());
+        return sendCode(user, body.channel(), VerificationPurpose.PASSWORD_RESET);
+    }
+
+    /** 009 T533：重置密码。**不自动登录**，并把该账号所有已有会话作废。 */
+    @PostMapping("/password-reset/verify")
+    @Transactional
+    public Map<String, Object> passwordResetVerify(@RequestBody @Valid PasswordResetVerifyRequest body) {
+        var result = codes.consume(VerificationPurpose.PASSWORD_RESET, "email", normalize(body.email()), body.code().trim());
+        requireCodeOk(result.status());
+        User user = requireActiveAccount(body.email());
+        user.setPasswordHash(passwordEncoder.encode(body.newPassword()));
+        user.setSessionInvalidBefore(Instant.now(clock));
+        users.save(user);
+        return Map.of("status", "RESET");
     }
 
     /** T031：微信 code 登录；同一 openid 复用账号，未配置 appid/secret 时 503。 */
@@ -97,7 +148,7 @@ public class AuthEndpoint {
         TeacherInvite invite = invites.findByCode(body.code().trim().toUpperCase())
                 .filter(i -> i.usable(Instant.now(clock)))
                 .orElseThrow(() -> ApiException.notFound("邀请码无效或已过期"));
-        String email = body.email().trim();
+        String email = normalize(body.email());
         if (users.findByEmail(email).isPresent()) {
             throw ApiException.conflict("该邮箱已注册");
         }
@@ -122,6 +173,55 @@ public class AuthEndpoint {
         return me(users.findById(current.id()).orElseThrow(() -> ApiException.unauthorized("未登录")));
     }
 
+    private Map<String, Object> sendCode(User user, String channelName, VerificationPurpose purpose) {
+        VerificationChannel channel = channels.usable(channelName)
+                .orElseThrow(() -> ApiException.notFound("该验证方式不可用"));
+        long wait = cooldownRemaining(user.getEmail(), purpose);
+        if (wait > 0) {
+            throw new TooManyRequestsException("请求过于频繁，请稍后再试", wait);
+        }
+        var issued = codes.issueCode(purpose, channel.channel(), user.getEmail(), CODE_TTL);
+        String body = purpose == VerificationPurpose.PASSWORD_RESET
+                ? "你正在重设 TeachLoop 密码，验证码：" + issued.raw() + "（10 分钟内有效）\n\n如果不是你本人操作，忽略这封邮件。\n"
+                : "你的 TeachLoop 登录验证码：" + issued.raw() + "（10 分钟内有效）\n";
+        try {
+            channel.send(user.getEmail(), "TeachLoop 验证码", body);
+        } catch (ChannelSendException ex) {
+            codes.invalidate(issued.id());
+            throw new ApiException(ErrorCode.UNAVAILABLE, "验证码发送失败，请稍后重试");
+        }
+        return Map.of("status", "sent", "resendAfterSeconds", COOLDOWN.toSeconds());
+    }
+
+    private long cooldownRemaining(String email, VerificationPurpose purpose) {
+        return codes.lastIssuedAt(purpose, email)
+                .map(last -> COOLDOWN.minus(Duration.between(last, Instant.now(clock))).toSeconds())
+                .filter(seconds -> seconds > 0)
+                .orElse(0L);
+    }
+
+    private User requireActiveAccount(String rawEmail) {
+        User user = users.findByEmail(normalize(rawEmail))
+                .orElseThrow(() -> ApiException.notFound("该邮箱还没有注册"));
+        if (user.getStatus() == UserStatus.PENDING) {
+            throw new ApiException(ErrorCode.ACCOUNT_PENDING, "账号尚未激活，请先点激活邮件里的链接");
+        }
+        if (user.getStatus() != UserStatus.ACTIVE) {
+            throw ApiException.forbidden("账号已停用");
+        }
+        return user;
+    }
+
+    private static void requireCodeOk(CodeService.ConsumeStatus status) {
+        switch (status) {
+            case OK -> { }
+            case EXPIRED -> throw ApiException.badRequest("验证码已过期，请重新获取");
+            case USED -> throw ApiException.badRequest("验证码已用过，请重新获取");
+            case ATTEMPTS_EXCEEDED -> throw new TooManyRequestsException("尝试次数过多，请重新获取验证码", 60);
+            case NOT_FOUND, INVALID -> throw ApiException.badRequest("验证码不正确");
+        }
+    }
+
     private AuthDtos.MeView signIn(User user, HttpServletRequest request) {
         if (user.getStatus() == UserStatus.PENDING) {
             // 009 AC-73.6：未激活与「被停用」必须分开，否则用户会以为自己被封了。
@@ -141,6 +241,10 @@ public class AuthEndpoint {
         return body.displayName() == null || body.displayName().isBlank()
                 ? email.substring(0, email.indexOf('@'))
                 : body.displayName().trim();
+    }
+
+    private static String normalize(String email) {
+        return email.trim().toLowerCase();
     }
 
     private AuthDtos.MeView me(User u) {

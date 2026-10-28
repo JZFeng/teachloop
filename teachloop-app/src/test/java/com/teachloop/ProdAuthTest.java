@@ -52,19 +52,29 @@ class ProdAuthTest {
     private final HttpClient client = HttpClient.newHttpClient();
 
     @Test
-    @DisplayName("T030：prod profile 下教师/学生密码登录返回 503，而不是签发会话")
-    void devLoginDisabledInProd() throws Exception {
+    @DisplayName("009 T530：prod 下普通教师可密码登录（AC-73.11），错密码 401")
+    void teacherPasswordLoginAllowedInProd() throws Exception {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
         Map<String, Object> csrf = csrf(base);
-        HttpClient noRedirect = client;
-        HttpResponse<String> res = noRedirect.send(HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
-                        .header("Content-Type", "application/json")
-                        .header("Cookie", csrf.get("cookie").toString())
-                        .header("X-XSRF-TOKEN", csrf.get("token").toString())
-                        .POST(HttpRequest.BodyPublishers.ofString("{\"email\":\"teacher@teachloop.local\",\"password\":\"teachloop123\"}"))
-                        .build(), HttpResponse.BodyHandlers.ofString());
-        assertThat(res.statusCode()).isEqualTo(503);
-        assertThat(Json.parse(res.body()).get("code")).isEqualTo("UNAVAILABLE");
+
+        HttpResponse<String> ok = client.send(HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                .header("Content-Type", "application/json")
+                .header("Cookie", csrf.get("cookie").toString())
+                .header("X-XSRF-TOKEN", csrf.get("token").toString())
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"email\":\"teacher@teachloop.local\",\"password\":\"teachloop123\"}"))
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(ok.statusCode()).isEqualTo(200);
+        assertThat(Json.parse(ok.body()).get("role")).isEqualTo("TEACHER");
+
+        HttpResponse<String> wrong = client.send(HttpRequest.newBuilder(URI.create(base + "/api/auth/login"))
+                .header("Content-Type", "application/json")
+                .header("Cookie", csrf.get("cookie").toString())
+                .header("X-XSRF-TOKEN", csrf.get("token").toString())
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"email\":\"teacher@teachloop.local\",\"password\":\"definitely-wrong\"}"))
+                .build(), HttpResponse.BodyHandlers.ofString());
+        assertThat(wrong.statusCode()).isEqualTo(401);
     }
 
     @Test

@@ -170,6 +170,17 @@ public class CodeService {
         return rows.stream().findFirst();
     }
 
+    /** 最近一次签发时间，用于「同一邮箱 60 秒冷却」。 */
+    @Transactional(readOnly = true)
+    public Optional<Instant> lastIssuedAt(VerificationPurpose purpose, String target) {
+        List<Instant> rows = jdbc.query(
+                "select max(created_at) as last_at from verification_codes where purpose = ? and target = ?",
+                (rs, i) -> rs.getTimestamp("last_at") == null ? null : rs.getTimestamp("last_at").toInstant(),
+                purpose.name(), normalize(target));
+        // 没有记录时 max() 返回 null，上面那条 mapper 会给出 null，必须在这里兜住（否则 findFirst() NPE）
+        return rows.isEmpty() ? Optional.empty() : Optional.ofNullable(rows.get(0));
+    }
+
     /** 发送失败时把刚发的这条作废，避免用户拿到一条永远用不了的码还占着频控额度。 */
     @Transactional
     public void invalidate(UUID id) {

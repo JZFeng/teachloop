@@ -80,6 +80,16 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (post && "/api/auth/login".equals(path)) {
             return new Target(RateLimitAction.LOGIN, IP_KEY_PREFIX + request.getRemoteAddr());
         }
+        // 009：注册 / 重发激活 / 发验证码 都按 IP 计数（这三个接口在未登录时就要能拦）
+        if (post && "/api/auth/register".equals(path)) {
+            return new Target(RateLimitAction.REGISTER, IP_KEY_PREFIX + request.getRemoteAddr());
+        }
+        if (post && "/api/auth/activate/resend".equals(path)) {
+            return new Target(RateLimitAction.RESEND_ACTIVATION, IP_KEY_PREFIX + request.getRemoteAddr());
+        }
+        if (post && ("/api/auth/login/challenge".equals(path) || "/api/auth/password-reset/challenge".equals(path))) {
+            return new Target(RateLimitAction.VERIFY_SEND, IP_KEY_PREFIX + request.getRemoteAddr());
+        }
         if (!post) {
             return null;
         }

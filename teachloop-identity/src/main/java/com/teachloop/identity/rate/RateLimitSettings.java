@@ -39,12 +39,21 @@ public class RateLimitSettings {
             @Value("${teachloop.rate-limit.grading-dispatch.limit:20}") int dispatchLimit,
             @Value("${teachloop.rate-limit.grading-dispatch.window-seconds:60}") long dispatchWindowSeconds,
             @Value("${teachloop.rate-limit.events.limit:120}") int eventsLimit,
-            @Value("${teachloop.rate-limit.events.window-seconds:60}") long eventsWindowSeconds) {
+            @Value("${teachloop.rate-limit.events.window-seconds:60}") long eventsWindowSeconds,
+            @Value("${teachloop.rate-limit.register.limit:10}") int registerLimit,
+            @Value("${teachloop.rate-limit.register.window-seconds:3600}") long registerWindowSeconds,
+            @Value("${teachloop.rate-limit.resend-activation.limit:5}") int resendLimit,
+            @Value("${teachloop.rate-limit.resend-activation.window-seconds:3600}") long resendWindowSeconds,
+            @Value("${teachloop.rate-limit.verify-send.limit:10}") int verifySendLimit,
+            @Value("${teachloop.rate-limit.verify-send.window-seconds:3600}") long verifySendWindowSeconds) {
         this.rules = new EnumMap<>(RateLimitAction.class);
         rules.put(RateLimitAction.LOGIN, new Rule(loginLimit, loginWindowSeconds));
         rules.put(RateLimitAction.UPLOAD, new Rule(uploadLimit, uploadWindowSeconds));
         rules.put(RateLimitAction.GRADING_DISPATCH, new Rule(dispatchLimit, dispatchWindowSeconds));
         rules.put(RateLimitAction.EVENTS, new Rule(eventsLimit, eventsWindowSeconds));
+        rules.put(RateLimitAction.REGISTER, new Rule(registerLimit, registerWindowSeconds));
+        rules.put(RateLimitAction.RESEND_ACTIVATION, new Rule(resendLimit, resendWindowSeconds));
+        rules.put(RateLimitAction.VERIFY_SEND, new Rule(verifySendLimit, verifySendWindowSeconds));
     }
 
     public Rule ruleFor(RateLimitAction action) {

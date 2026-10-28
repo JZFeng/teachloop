@@ -75,7 +75,8 @@ public class SecurityConfig {
                         "/api/auth/login", "/api/auth/wechat", "/api/auth/teacher-invite",
                         // 009：注册、激活（GET/POST）、重发、通道发现都必须在未登录时可用
                         "/api/auth/register", "/api/auth/activate", "/api/auth/activate/resend",
-                        "/api/auth/channels").permitAll()
+                        "/api/auth/channels", "/api/auth/login/challenge", "/api/auth/login/verify",
+                        "/api/auth/password-reset/challenge", "/api/auth/password-reset/verify").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // 2026-10-27：班级只属于师生。管理员既没有班级菜单，也不该能调班级接口
                 // （此前 requireOwned 里的 ADMIN 例外允许管理员轮换任意班的邀请码）。

@@ -2,7 +2,6 @@ package com.teachloop.identity.auth;
 
 import com.teachloop.identity.domain.User;
 import com.teachloop.identity.domain.UserRepository;
-import com.teachloop.identity.domain.UserRole;
 import java.util.Optional;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
@@ -30,7 +29,9 @@ public class PasswordAuthProvider {
 
     public Optional<User> login(String email, String password) {
         return users.findByEmail(email)
-                .filter(u -> u.getRole() == UserRole.ADMIN || u.isPasswordLoginEnabled())
+                // 2026-10-27（009 T530 / AC-73.11）：不再限制角色与白名单，
+                // 任何有密码的账号都能密码登录；状态由 signIn 统一判（PENDING/DISABLED → 403）。
+
                 // 2026-10-27（009 T520）：不在这里过滤状态——PENDING/DISABLED 由 signIn 统一判 403，
                 // 否则未激活账号会退化成「邮箱或密码不正确」（401），用户没法知道该去激活。
                 .filter(u -> u.getPasswordHash() != null)

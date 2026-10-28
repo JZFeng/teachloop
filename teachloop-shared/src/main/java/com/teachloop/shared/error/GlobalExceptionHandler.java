@@ -23,6 +23,14 @@ public class GlobalExceptionHandler {
         this.messages = messages;
     }
 
+    /** 429 必须带 Retry-After，前端据此显示「还有多少秒」。 */
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiError> handleTooMany(TooManyRequestsException ex) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", Long.toString(ex.retryAfterSeconds()))
+                .body(ApiError.of(ex.code(), localize(ex.getMessage())));
+    }
+
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiError> handleApi(ApiException ex) {
         return ResponseEntity.status(status(ex.code()))
