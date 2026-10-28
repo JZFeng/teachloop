@@ -13,6 +13,8 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+    # 2026-10-27：机器重启后 db 不会自启，app 连不上库 → 整站 502（当天连发两次）。
+    restart: unless-stopped
 
   app:
     build: .
