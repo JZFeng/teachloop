@@ -1,0 +1,93 @@
+[
+  {
+    "word": "struggle",
+    "pos": [
+      "verb",
+      "noun"
+    ],
+    "core": "困难 + 努力，在阻力中持续用力",
+    "scene_zh": "一个人使劲推一扇卡住的门，门几乎纹丝不动",
+    "scene_en": "a lone figure leaning with both palms against a jammed heavy wooden door, feet braced, shoulders low, the door barely open, tiny dust motes in the air",
+    "extra": "keep the body weight visibly forward and the door clearly resisting",
+    "positive": "a lone figure leaning with both palms against a jammed heavy wooden door, feet braced, shoulders low, the door barely open, tiny dust motes in the air, flat editorial illustration, clean vector-like shapes, centered composition, generous negative space, muted desaturated palette with a single warm accent, soft diffused light, subtle paper grain, no text, no letters, no watermark",
+    "negative": "text, letters, typography, watermark, signature, photo, photorealistic, 3d render, busy background, clutter, extra fingers, distorted hands, deformed face, low contrast, oversaturated",
+    "settings": {
+      "aspect": "1:1",
+      "sdxl": "1024x1024, 30 steps, CFG 5.5, DPM++ 2M Karras",
+      "flux_schnell": "1024x1024, 4 steps, guidance 1.0",
+      "flux_dev": "1024x1024, 20 steps, guidance 3.5"
+    }
+  },
+  {
+    "word": "abandon",
+    "pos": [
+      "verb"
+    ],
+    "core": "彻底离开或放弃，不再负责",
+    "scene_zh": "（原画面是留下婴儿车；为避免图像模型敏感内容，改为留下行李箱）",
+    "scene_en": "a traveler walking away down an empty street, back turned, a suitcase left standing alone on the curb behind them, long shadow stretching forward, nobody looking back",
+    "extra": "the suitcase must be isolated in frame and the person clearly leaving it behind",
+    "positive": "a traveler walking away down an empty street, back turned, a suitcase left standing alone on the curb behind them, long shadow stretching forward, nobody looking back, flat editorial illustration, clean vector-like shapes, centered composition, generous negative space, muted desaturated palette with a single warm accent, soft diffused light, subtle paper grain, no text, no letters, no watermark",
+    "negative": "text, letters, typography, watermark, signature, photo, photorealistic, 3d render, busy background, clutter, extra fingers, distorted hands, deformed face, low contrast, oversaturated",
+    "settings": {
+      "aspect": "1:1",
+      "sdxl": "1024x1024, 30 steps, CFG 5.5, DPM++ 2M Karras",
+      "flux_schnell": "1024x1024, 4 steps, guidance 1.0",
+      "flux_dev": "1024x1024, 20 steps, guidance 3.5"
+    }
+  },
+  {
+    "word": "hierarchy",
+    "pos": [
+      "noun"
+    ],
+    "core": "按等级排列的体系",
+    "scene_zh": "一座金字塔，每层站着不同的人，越往上人越少",
+    "scene_en": "a cross-section of a stepped pyramid, small identical figures standing on each tier, many crowded on the wide base, two in the middle, one alone at the pointed top",
+    "extra": "tiers clearly separated, figures identical in style, no faces needed",
+    "positive": "a cross-section of a stepped pyramid, small identical figures standing on each tier, many crowded on the wide base, two in the middle, one alone at the pointed top, flat editorial illustration, clean vector-like shapes, centered composition, generous negative space, muted desaturated palette with a single warm accent, soft diffused light, subtle paper grain, no text, no letters, no watermark",
+    "negative": "text, letters, typography, watermark, signature, photo, photorealistic, 3d render, busy background, clutter, extra fingers, distorted hands, deformed face, low contrast, oversaturated",
+    "settings": {
+      "aspect": "1:1",
+      "sdxl": "1024x1024, 30 steps, CFG 5.5, DPM++ 2M Karras",
+      "flux_schnell": "1024x1024, 4 steps, guidance 1.0",
+      "flux_dev": "1024x1024, 20 steps, guidance 3.5"
+    }
+  },
+  {
+    "word": "quixotic",
+    "pos": [
+      "adjective"
+    ],
+    "core": "理想化到不切实际",
+    "scene_zh": "一个人骑着瘦马冲向风车，以为那是巨人",
+    "scene_en": "a skinny rider on a bony horse charging across dry grass toward a windmill, lance lowered, windmill sails angled like a looming giant, dramatic sky",
+    "extra": "windmill should read as both machine and giant silhouette",
+    "positive": "a skinny rider on a bony horse charging across dry grass toward a windmill, lance lowered, windmill sails angled like a looming giant, dramatic sky, flat editorial illustration, clean vector-like shapes, centered composition, generous negative space, muted desaturated palette with a single warm accent, soft diffused light, subtle paper grain, no text, no letters, no watermark",
+    "negative": "text, letters, typography, watermark, signature, photo, photorealistic, 3d render, busy background, clutter, extra fingers, distorted hands, deformed face, low contrast, oversaturated",
+    "settings": {
+      "aspect": "1:1",
+      "sdxl": "1024x1024, 30 steps, CFG 5.5, DPM++ 2M Karras",
+      "flux_schnell": "1024x1024, 4 steps, guidance 1.0",
+      "flux_dev": "1024x1024, 20 steps, guidance 3.5"
+    }
+  },
+  {
+    "word": "serendipity",
+    "pos": [
+      "noun"
+    ],
+    "core": "意外发现美好事物的运气",
+    "scene_zh": "在旧书里偶然翻到一张百元钞票",
+    "scene_en": "a person standing in a dusty second-hand bookshop, an old book open in their hands, a folded banknote slipping out from between the pages, warm window light, shelves blurred behind",
+    "extra": "the falling banknote is the focal point, one clear gesture of surprise",
+    "positive": "a person standing in a dusty second-hand bookshop, an old book open in their hands, a folded banknote slipping out from between the pages, warm window light, shelves blurred behind, flat editorial illustration, clean vector-like shapes, centered composition, generous negative space, muted desaturated palette with a single warm accent, soft diffused light, subtle paper grain, no text, no letters, no watermark",
+    "negative": "text, letters, typography, watermark, signature, photo, photorealistic, 3d render, busy background, clutter, extra fingers, distorted hands, deformed face, low contrast, oversaturated",
+    "settings": {
+      "aspect": "1:1",
+      "sdxl": "1024x1024, 30 steps, CFG 5.5, DPM++ 2M Karras",
+      "flux_schnell": "1024x1024, 4 steps, guidance 1.0",
+      "flux_dev": "1024x1024, 20 steps, guidance 3.5"
+    }
+  }
+]
