@@ -32,6 +32,11 @@ spring:
       max-request-size: 100MB
 
 teachloop:
+  security:
+    # 2026-10-28：安全基线由属性决定，环境差异只写在 application-<env>.yml。
+    # 这里给默认值（本机/测试不拦），dev / qa / prod 各自在 overlay 里覆盖。
+    csrf: ${TEACHLOOP_SECURITY_CSRF:false}
+    require-profile-completion: ${TEACHLOOP_PROFILE_COMPLETION:false}
   notification:
     # 通知正文里的截止时间按这个时区渲染（A1：正文由服务端拼，页面上的时间仍跟浏览器本地时区）。
     # 学生反馈样例「请在 10/28 15:00 之前预习」；换部署地区时改这里，不要依赖 JVM 默认时区。

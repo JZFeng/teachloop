@@ -1,4 +1,5 @@
-# 生产安全基线（T033/T034）。开发和测试 profile 不启用，避免本地与测试被 CSRF/资料补全卡住。
+# 生产安全基线（T033/T034）。base 里两者默认 false，只有 prod 打开；
+# 2026-10-28 起 qa 也打开（application-qa.yml），这样生产专属的安全路径在测试台就能复现。
 server:
   servlet:
     session:

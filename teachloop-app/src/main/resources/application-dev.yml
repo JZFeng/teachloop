@@ -1,0 +1,11 @@
+# dev：本机开发（scripts/dev.sh）。只写与 base 的差异，不复制 application.yml。
+#
+# 2026-10-28 约定：环境差异只放 overlay，业务开关一律走属性名（代码只认属性，不认 profile）。
+teachloop:
+  security:
+    # 本机每个 POST 都先取 CSRF token 只会拖慢调试；生产/qa 打开。
+    csrf: false
+    require-profile-completion: false
+  seed:
+    # 显式写出来：DevDataSeeder 的 matchIfMissing=true 虽然也是开，但「默认开」是不可见的行为。
+    enabled: true

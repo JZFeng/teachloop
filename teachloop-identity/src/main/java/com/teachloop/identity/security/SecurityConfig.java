@@ -8,7 +8,6 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.env.Environment;
-import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
@@ -50,11 +49,14 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, UserRepository users,
                                            RateLimitFilter rateLimitFilter, Environment environment) throws Exception {
-        boolean prod = environment.acceptsProfiles(Profiles.of("prod"));
+        // 2026-10-28：CSRF 改由属性控制，不再用 acceptsProfiles("prod")。
+        // 旧写法有两个坑：qa 无法开启 CSRF 复现生产行为；application-prod.yml 里的
+        // teachloop.security.csrf 成了没人读的死配置（改它没有任何效果）。
+        boolean csrfEnabled = environment.getProperty("teachloop.security.csrf", Boolean.class, false);
         http
             // T033：生产开启双提交 Cookie CSRF；开发/测试关闭，避免所有测试与本地调用都要先取 token。
             .csrf(csrf -> {
-                if (prod) {
+                if (csrfEnabled) {
                     csrf.csrfTokenRepository(CookieCsrfTokenRepository.withHttpOnlyFalse());
                     // SPA 直接回传 Cookie 里的原始 token；XOR 掩码会让「Cookie 值」和
                     // handler 期待的「掩码值」不一致，导致所有 POST 401（2026-10-25 部署实测）。

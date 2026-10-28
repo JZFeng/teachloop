@@ -1,0 +1,12 @@
+# qa：本机测试台（scripts/env.sh up qa），跑快照产物。
+#
+# 2026-10-28 决定：安全基线向生产对齐——CSRF 与资料补全以前只在 prod 生效，
+# qa 上永远测不出「第一次写请求 403」「资料没补全被拦」这类生产专属问题。
+#
+# 有意不对齐的两项：
+#   * cookie.secure：qa 走 http://<LAN-IP>:5174 给手机验收，Secure cookie 会被浏览器丢弃；
+#   * session.timeout：8 小时是生产体验参数，qa 不需要。
+teachloop:
+  security:
+    csrf: true
+    require-profile-completion: true

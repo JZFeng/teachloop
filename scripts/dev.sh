@@ -136,6 +136,7 @@ if [ "$SEED" = "1" ]; then
   say "写入演示数据（可重复）…"
   DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" DB_USER=teachloop DB_PASSWORD=teachloop \
     STORAGE_LOCAL_DIR="$STORAGE_LOCAL_DIR" \
+    SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-dev}" \
     "$JAVA_HOME/bin/java" -jar "$JAR" --teachloop.seed.demo=true --seed-exit --server.port=0 \
     > "$LOG_DIR/dev-seed.log" 2>&1 || { tail -30 "$LOG_DIR/dev-seed.log"; die "seed 失败"; }
 fi
@@ -146,6 +147,7 @@ AI_ENV="stub"
 [ "$AI" = "1" ] && AI_ENV="ai"
 DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" DB_USER=teachloop DB_PASSWORD=teachloop \
   STORAGE_LOCAL_DIR="$STORAGE_LOCAL_DIR" \
+  SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-dev}" \
   PORT="$BACKEND_PORT" TEACHLOOP_GRADING_ENGINE="$AI_ENV" \
   TEACHLOOP_APP_BASE_URL="${TEACHLOOP_APP_BASE_URL:-http://127.0.0.1:5173}" \
   VOCAB_GENERATION_ENGINE="$AI_ENV" \

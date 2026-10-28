@@ -170,6 +170,7 @@ cmd_up() {
   STORAGE_LOCAL_DIR="$UPLOADS" \
   VOCAB_CONTENT_STORE_PATH="$ENV_DIR/content-delta.db" \
   VOCAB_CONTENT_PACK_DIR="$ROOT/fixtures-local/vocab-content" \
+  SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-$NAME}" \
   PORT="$PORT" TEACHLOOP_GRADING_ENGINE="$engine" \
   TEACHLOOP_APP_BASE_URL="${TEACHLOOP_APP_BASE_URL:-http://127.0.0.1:$WEB_PORT}" \
     "$JAVA" -jar "$JAR" > "$ENV_DIR/backend.log" 2>&1 &
@@ -190,6 +191,7 @@ cmd_up() {
     say "新库首次启动：写入演示数据（可重复）"
     DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" \
     DB_USER=teachloop DB_PASSWORD=teachloop STORAGE_LOCAL_DIR="$UPLOADS" \
+      SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-$NAME}" \
       "$JAVA" -jar "$JAR" --teachloop.seed.demo=true --seed-exit --server.port=0 \
       > "$ENV_DIR/seed.log" 2>&1 || warn "seed 失败，见 $ENV_DIR/seed.log"
   fi
