@@ -3,93 +3,60 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>TeachLoop · 注册与登录（009 Mock）</title>
+<title>TeachLoop · 注册与登录（009 Mock v2）</title>
 <style>
   :root {
-    --primary: #1A63E0;
-    --primary-press: #1450B8;
-    --ink: #111827;
-    --ink-2: #4B5563;
-    --ink-3: #6B7280;
-    --line: #D1D5DB;
-    --line-soft: #E5E7EB;
-    --bg: #F3F5F9;
-    --white: #FFFFFF;
-    --err-bg: #FEF2F2;
-    --err-ink: #B91C1C;
-    --err-line: #FECACA;
-    --ok-bg: #ECFDF5;
-    --ok-ink: #047857;
-    --ok-line: #A7F3D0;
-    --warn-bg: #FFFBEB;
-    --warn-ink: #B45309;
-    --warn-line: #FDE68A;
+    --primary: #1A63E0; --primary-press: #1450B8;
+    --ink: #111827; --ink-2: #4B5563; --ink-3: #6B7280;
+    --line: #D1D5DB; --line-soft: #E5E7EB; --bg: #F3F5F9; --white: #FFFFFF;
+    --err-bg: #FEF2F2; --err-ink: #B91C1C; --err-line: #FECACA;
+    --ok-bg: #ECFDF5; --ok-ink: #047857; --ok-line: #A7F3D0;
+    --warn-bg: #FFFBEB; --warn-ink: #B45309; --warn-line: #FDE68A;
   }
   * { box-sizing: border-box; }
-  body {
-    margin: 0; background: var(--bg); color: var(--ink);
-    font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
-  }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 14px/1.6 -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif; }
   .wrap { display: flex; gap: 24px; padding: 32px; align-items: flex-start; justify-content: center; }
   .phone { width: 440px; }
-
-  .brand { font-size: 20px; font-weight: 700; letter-spacing: .2px; color: var(--primary); }
-  .brand small { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); margin-top: 2px; letter-spacing: 0; }
-
-  .card {
-    background: var(--white); border: 1px solid var(--line-soft); border-radius: 12px;
-    padding: 24px; margin-top: 16px;
-  }
+  .brand { font-size: 20px; font-weight: 700; color: var(--primary); }
+  .brand small { display: block; font-size: 12px; font-weight: 400; color: var(--ink-3); margin-top: 2px; }
+  .card { background: var(--white); border: 1px solid var(--line-soft); border-radius: 12px; padding: 24px; margin-top: 16px; }
   h1 { font-size: 18px; margin: 0 0 4px; }
   .sub { color: var(--ink-3); font-size: 13px; margin: 0 0 18px; }
-
   .tabs { display: flex; gap: 4px; background: #F3F4F6; padding: 4px; border-radius: 8px; margin-bottom: 18px; }
-  .tab {
-    flex: 1; border: 0; background: transparent; padding: 8px 10px; border-radius: 6px;
-    font-size: 14px; color: var(--ink-2); cursor: pointer; font-family: inherit;
-  }
+  .tab { flex: 1; border: 0; background: transparent; padding: 8px 10px; border-radius: 6px; font-size: 14px; color: var(--ink-2); cursor: pointer; font-family: inherit; }
   .tab[aria-selected="true"] { background: var(--white); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(17,24,39,.08); }
-
   .channels { display: flex; gap: 8px; margin-bottom: 18px; }
-  .chip {
-    border: 1px solid var(--line); background: var(--white); border-radius: 6px;
-    padding: 6px 12px; font-size: 13px; color: var(--ink-2); cursor: pointer; font-family: inherit;
-  }
+  .chip { border: 1px solid var(--line); background: var(--white); border-radius: 6px; padding: 6px 12px; font-size: 13px; color: var(--ink-2); cursor: pointer; font-family: inherit; }
   .chip[aria-pressed="true"] { border-color: var(--primary); color: var(--primary); background: #EFF4FE; font-weight: 600; }
-
   label.field { display: block; margin-bottom: 14px; }
   label.field > span { display: block; font-size: 13px; color: var(--ink-2); margin-bottom: 6px; }
   label.field > span em { color: var(--err-ink); font-style: normal; margin-left: 2px; }
-  input:not([type="checkbox"]) {
-    width: 100%; height: 40px; padding: 0 12px; font-size: 14px; font-family: inherit;
-    border: 1px solid var(--line); border-radius: 6px; background: var(--white); color: var(--ink);
-  }
+  input:not([type="checkbox"]) { width: 100%; height: 40px; padding: 0 12px; font-size: 14px; font-family: inherit;
+    border: 1px solid var(--line); border-radius: 6px; background: var(--white); color: var(--ink); }
   input[type="checkbox"] { width: 16px; height: 16px; margin: 0; flex: 0 0 auto; accent-color: var(--primary); }
   input:not([type="checkbox"]):focus { outline: 2px solid rgba(26,99,224,.18); border-color: var(--primary); }
   .hint { font-size: 12px; color: var(--ink-3); margin-top: 6px; }
   .row { display: flex; gap: 10px; align-items: center; }
   .row > * { flex: 1; }
-
-  button.primary {
-    width: 100%; height: 40px; border: 0; border-radius: 6px; background: var(--primary);
-    color: #fff; font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
-  }
+  button.primary { width: 100%; height: 40px; border: 0; border-radius: 6px; background: var(--primary); color: #fff;
+    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit; }
   button.primary:hover { background: var(--primary-press); }
   button.primary:disabled { background: #9DB8E8; cursor: not-allowed; }
   button.link { border: 0; background: none; color: var(--primary); font-size: 13px; cursor: pointer; padding: 0; font-family: inherit; }
   .links { display: flex; justify-content: space-between; margin-top: 14px; }
-
   .alert { border-radius: 8px; padding: 10px 12px; font-size: 13px; margin-bottom: 14px; border: 1px solid; }
   .alert.err { background: var(--err-bg); border-color: var(--err-line); color: var(--err-ink); }
   .alert.ok { background: var(--ok-bg); border-color: var(--ok-line); color: var(--ok-ink); }
   .alert.warn { background: var(--warn-bg); border-color: var(--warn-line); color: var(--warn-ink); }
   .alert b { display: block; margin-bottom: 2px; }
-
   .code-row { display: flex; gap: 8px; }
   .code-row input { flex: 1; letter-spacing: 6px; font-size: 16px; }
   .code-row button { flex: 0 0 auto; width: 118px; height: 40px; border-radius: 6px; border: 1px solid var(--line); background: var(--white); font-size: 13px; cursor: pointer; font-family: inherit; color: var(--ink-2); }
   .code-row button:disabled { color: var(--ink-3); cursor: not-allowed; }
-
+  .mail { border: 1px solid var(--line-soft); border-radius: 8px; padding: 14px; background: #FAFAFB; font-size: 13px; color: var(--ink-2); margin-bottom: 14px; }
+  .mail .from { color: var(--ink-3); font-size: 12px; margin-bottom: 6px; }
+  .mail a { color: var(--primary); word-break: break-all; }
   .debug { width: 300px; }
   .debug .card { padding: 16px; }
   .debug h2 { font-size: 13px; margin: 0 0 10px; color: var(--ink-2); }
@@ -100,90 +67,112 @@
   .screen { display: none; }
   .screen.on { display: block; }
   .state { font-size: 12px; color: var(--ink-3); margin-top: 10px; }
+  .nameRow { display: flex; gap: 10px; }
+  .nameRow > label { flex: 1; }
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="phone">
-    <div class="brand">TeachLoop<small>009 注册与身份通道 · 可点原型</small></div>
+    <div class="brand">TeachLoop<small>009 注册与登录 · 可点原型 v2（激活链接）</small></div>
 
-    <!-- ============ 登录（密码 / 验证码） ============ -->
+    <!-- 登录 -->
     <div class="card screen on" id="s-login">
       <h1>登录</h1>
       <p class="sub">输入邮箱与密码，或改用验证码。</p>
-
-      <div class="tabs" role="tablist">
-        <button class="tab" role="tab" aria-selected="true" onclick="loginMethod('password')">邮箱 + 密码</button>
-        <button class="tab" role="tab" aria-selected="false" onclick="loginMethod('code')">邮箱验证码</button>
+      <div class="tabs">
+        <button class="tab" aria-selected="true" onclick="loginMethod('password')">邮箱 + 密码</button>
+        <button class="tab" aria-selected="false" onclick="loginMethod('code')">邮箱验证码</button>
       </div>
-
       <div class="channels" id="login-channels">
         <button class="chip" aria-pressed="true" onclick="pickChannel('email')">邮箱</button>
         <button class="chip" aria-pressed="false" data-ch="sms" onclick="pickChannel('sms')">手机</button>
         <button class="chip" aria-pressed="false" data-ch="wechat" onclick="pickChannel('wechat')">微信</button>
       </div>
-
       <div id="login-alert"></div>
-
-      <!-- 密码登录 -->
       <div id="m-password">
-        <label class="field"><span>邮箱<em>*</em></span>
-          <input id="li-email" type="email" placeholder="you@example.com" value="zhun.lee@163.com" />
-        </label>
-        <label class="field"><span>密码<em>*</em></span>
-          <input id="li-pwd" type="password" placeholder="至少 8 位" value="pd7HHMiUHXkqQ2wU" />
-        </label>
+        <label class="field"><span>邮箱<em>*</em></span><input id="li-email" type="email" value="zhun.lee@163.com" /></label>
+        <label class="field"><span>密码<em>*</em></span><input id="li-pwd" type="password" value="pd7HHMiUHXkqQ2wU" /></label>
         <button class="primary" onclick="doPasswordLogin()">登录</button>
         <div class="links">
           <button class="link" onclick="go('forgot')">忘记密码？</button>
           <button class="link" onclick="go('register')">没有账号？去注册</button>
         </div>
       </div>
-
-      <!-- 验证码登录 -->
       <div id="m-code" style="display:none">
-        <label class="field"><span>邮箱<em>*</em></span>
-          <input id="lc-email" type="email" placeholder="you@example.com" value="zhun.lee@163.com" />
-        </label>
+        <label class="field"><span>邮箱<em>*</em></span><input id="lc-email" type="email" value="zhun.lee@163.com" /></label>
         <button class="primary" onclick="sendCode('login')">发送验证码</button>
         <div class="links"><button class="link" onclick="go('register')">没有账号？去注册</button></div>
       </div>
     </div>
 
-    <!-- ============ 注册 ============ -->
+    <!-- 注册 -->
     <div class="card screen" id="s-register">
       <h1>创建账号</h1>
-      <p class="sub">填邮箱、设置密码，验证码发到邮箱。</p>
-
+      <p class="sub">填好姓名和邮箱，我们会发一封激活邮件。</p>
       <div class="channels" id="reg-channels">
         <button class="chip" aria-pressed="true" onclick="pickRegChannel('email')">邮箱</button>
         <button class="chip" aria-pressed="false" data-ch="sms" onclick="pickRegChannel('sms')">手机</button>
         <button class="chip" aria-pressed="false" data-ch="wechat" onclick="pickRegChannel('wechat')">微信</button>
       </div>
-
       <div id="register-alert"></div>
 
-      <label class="field"><span>邮箱<em>*</em></span>
-        <input id="rg-email" type="email" placeholder="you@example.com" />
-      </label>
+      <div class="nameRow" id="name-row">
+        <label class="field" id="f-last"><span id="lab-last">姓</span><input id="rg-last" type="text" placeholder="冯" /></label>
+        <label class="field" id="f-first"><span id="lab-first">名</span><input id="rg-first" type="text" placeholder="建中" /></label>
+      </div>
+
+      <label class="field"><span>邮箱<em>*</em></span><input id="rg-email" type="email" placeholder="you@example.com" /></label>
       <label class="field"><span>密码<em>*</em></span>
         <input id="rg-pwd" type="password" placeholder="至少 8 位" />
-        <div class="hint">密码在发验证码之前就校验，不合格不会浪费一封邮件。</div>
+        <div class="hint">密码在提交时就校验；不合格不会创建账号，也不会发信。</div>
       </label>
-      <label class="field"><span>显示名</span>
-        <input id="rg-name" type="text" placeholder="可留空，默认取邮箱前缀" />
-      </label>
-      <button class="primary" onclick="sendCode('register')">发送验证码</button>
+      <button class="primary" onclick="submitRegister()">注册</button>
       <div class="links"><button class="link" onclick="go('login')">已有账号？去登录</button></div>
+      <div class="hint" id="order-note"></div>
     </div>
 
-    <!-- ============ 输码 ============ -->
+    <!-- 激活邮件已发送 -->
+    <div class="card screen" id="s-sent">
+      <h1>激活邮件已发送</h1>
+      <p class="sub">我们给 <b id="sent-to"></b> 发了一封激活信，24 小时内有效。</p>
+      <div class="mail">
+        <div class="from">TeachLoop &lt;no-reply@teachloop.org&gt; · 主题：激活你的 TeachLoop 账号</div>
+        你好，点下面的链接确认激活账号：<br />
+        <a href="javascript:void(0)" onclick="go('activate')">https://www.teachloop.org/activate?token=8f3c…d2</a>
+        <div class="hint">（原型里点这行就等于在邮箱里点链接）</div>
+      </div>
+      <div id="sent-alert"></div>
+      <button class="primary" id="resend-btn" disabled onclick="resendActivation()">60s 后可重发</button>
+      <div class="links"><button class="link" onclick="go('login')">先去登录（未激活会被拒）</button></div>
+    </div>
+
+    <!-- 确认激活 -->
+    <div class="card screen" id="s-activate">
+      <h1>确认激活</h1>
+      <p class="sub">这个链接只做展示，只有点了下面的按钮才会真正激活。</p>
+      <div class="mail">
+        即将激活的账号：<b id="act-email"></b>
+        <div class="hint">邮件网关会预取链接，所以 GET 不能产生副作用（AC-73.4）。</div>
+      </div>
+      <div id="activate-alert"></div>
+      <button class="primary" onclick="confirmActivate()">确认激活这个账号</button>
+      <div class="links"><button class="link" onclick="go('login')">返回登录</button></div>
+    </div>
+
+    <!-- 激活成功 -->
+    <div class="card screen" id="s-activated">
+      <h1>账号已激活</h1>
+      <p class="sub" id="activated-sub">现在用邮箱和密码登录即可。</p>
+      <div class="alert ok"><b>激活成功</b>你的账号已经可以使用。</div>
+      <button class="primary" onclick="go('login')">去登录</button>
+    </div>
+
+    <!-- 输码（验证码登录 / 忘记密码共用） -->
     <div class="card screen" id="s-code">
       <h1 id="code-title">输入验证码</h1>
       <p class="sub" id="code-sub">验证码已发送到 <b id="code-target"></b>，10 分钟内有效。</p>
-
       <div id="code-alert"></div>
-
       <label class="field"><span>6 位验证码<em>*</em></span>
         <div class="code-row">
           <input id="code-input" inputmode="numeric" maxlength="6" placeholder="000000" />
@@ -195,29 +184,22 @@
       <div class="links"><button class="link" onclick="go('login')">返回登录</button></div>
     </div>
 
-    <!-- ============ 忘记密码 1：填邮箱 ============ -->
+    <!-- 忘记密码 -->
     <div class="card screen" id="s-forgot">
       <h1>重设密码</h1>
       <p class="sub">验证码发到邮箱，验证通过后设置新密码。</p>
       <div id="forgot-alert"></div>
-      <label class="field"><span>邮箱<em>*</em></span>
-        <input id="fg-email" type="email" placeholder="you@example.com" />
-      </label>
+      <label class="field"><span>邮箱<em>*</em></span><input id="fg-email" type="email" placeholder="you@example.com" /></label>
       <button class="primary" onclick="sendCode('reset')">发送验证码</button>
       <div class="links"><button class="link" onclick="go('login')">返回登录</button></div>
     </div>
 
-    <!-- ============ 忘记密码 2：输码 + 新密码 ============ -->
     <div class="card screen" id="s-reset">
       <h1>设置新密码</h1>
       <p class="sub">验证码已发送到 <b id="reset-target"></b>。</p>
       <div id="reset-alert"></div>
-      <label class="field"><span>6 位验证码<em>*</em></span>
-        <input id="reset-code" inputmode="numeric" maxlength="6" placeholder="000000" />
-      </label>
-      <label class="field"><span>新密码<em>*</em></span>
-        <input id="reset-pwd" type="password" placeholder="至少 8 位" />
-      </label>
+      <label class="field"><span>6 位验证码<em>*</em></span><input id="reset-code" inputmode="numeric" maxlength="6" placeholder="000000" /></label>
+      <label class="field"><span>新密码<em>*</em></span><input id="reset-pwd" type="password" placeholder="至少 8 位" /></label>
       <button class="primary" onclick="submitReset()">提交</button>
       <div class="links"><button class="link" onclick="go('login')">返回登录</button></div>
     </div>
@@ -225,27 +207,32 @@
     <p class="state" id="route-state">当前屏：登录</p>
   </div>
 
-  <!-- ============ 调试面板 ============ -->
+  <!-- 调试面板 -->
   <div class="debug">
     <div class="card">
-      <h2>通道开关（对应 AC-73.1 / 74.1 / 75.6）</h2>
-      <label><input type="checkbox" checked onchange="setupChannels()" /><span>邮箱（v1 默认开）</span></label>
-      <label><input type="checkbox" data-toggle="sms" onchange="setupChannels()" /><span>手机短信（需服务商资质）</span></label>
-      <label><input type="checkbox" data-toggle="wechat" onchange="setupChannels()" /><span>微信（需开放平台资质）</span></label>
-      <div class="note">取消勾选后，登录/注册页的对应入口会直接消失，而不是点进去报错。</div>
+      <h2>界面语言（决定姓名顺序）</h2>
+      <div class="row">
+        <button class="chip" id="lang-zh" aria-pressed="true" onclick="setLang('zh')">中文：姓 名</button>
+        <button class="chip" id="lang-en" aria-pressed="false" onclick="setLang('en')">EN: First Last</button>
+      </div>
       <hr />
-      <h2>强制状态（点按查看错误态）</h2>
+      <h2>通道开关</h2>
+      <label><input type="checkbox" checked onchange="setupChannels()" /><span>邮箱（v1 默认开）</span></label>
+      <label><input type="checkbox" data-toggle="sms" onchange="setupChannels()" /><span>手机短信（需资质）</span></label>
+      <label><input type="checkbox" data-toggle="wechat" onchange="setupChannels()" /><span>微信（需资质）</span></label>
+      <hr />
+      <h2>强制状态</h2>
       <div class="row" style="flex-direction:column;align-items:stretch;gap:8px">
-        <button class="chip" onclick="forceState('409')">409 已注册 → 去登录</button>
-        <button class="chip" onclick="forceState('404')">404 未注册 → 去注册</button>
-        <button class="chip" onclick="forceState('429')">429 太频繁</button>
-        <button class="chip" onclick="forceState('sendfail')">邮件发送失败</button>
-        <button class="chip" onclick="forceState('code5')">验证码错 5 次</button>
+        <button class="chip" onclick="force('409')">已激活再注册 → 409</button>
+        <button class="chip" onclick="force('pending')">未激活登录 → 403 PENDING</button>
+        <button class="chip" onclick="force('expired')">激活链接过期</button>
+        <button class="chip" onclick="force('used')">链接已用过</button>
+        <button class="chip" onclick="force('429')">重发太频繁 → 429</button>
       </div>
       <hr />
       <div class="note">
         原型只表达流程与状态，不连接后端。<br />
-        校验规则照着 spec：密码 ≥8 位在发码前校验；注册碰已存在 409 不发码；登录碰不存在 404 不发码。
+        v2 变化：注册不再用验证码，改为激活链接；验证码只剩「验证码登录」与「忘记密码」两处。
       </div>
     </div>
   </div>
@@ -253,48 +240,54 @@
 
 <script>
 const state = {
-  route: 'login',
-  method: 'password',
-  channel: 'email',
-  regChannel: 'email',
-  flow: 'login',     // login | register | reset
-  target: '',
-  cooldown: 0,
-  timer: null,
+  route: 'login', method: 'password', channel: 'email', regChannel: 'email',
+  flow: 'login', target: '', cooldown: 0, timer: null, lang: 'zh',
   channels: { email: true, sms: false, wechat: false },
+  pendingEmail: '', activated: false,
 };
-
 const $ = (id) => document.getElementById(id);
-const screens = {
-  login: 's-login', register: 's-register', code: 's-code',
-  forgot: 's-forgot', reset: 's-reset',
-};
-const labels = { login: '登录', register: '注册', code: '输入验证码', forgot: '忘记密码', reset: '设置新密码' };
+const screens = { login: 's-login', register: 's-register', sent: 's-sent', activate: 's-activate',
+  activated: 's-activated', code: 's-code', forgot: 's-forgot', reset: 's-reset' };
+const labels = { login: '登录', register: '注册', sent: '激活邮件已发送', activate: '确认激活',
+  activated: '已激活', code: '输入验证码', forgot: '忘记密码', reset: '设置新密码' };
 
-function go(route) {
+function go(r) {
   Object.values(screens).forEach((id) => $(id).classList.remove('on'));
-  $(screens[route]).classList.add('on');
-  state.route = route;
-  $('route-state').textContent = '当前屏：' + labels[route];
+  $(screens[r]).classList.add('on');
+  state.route = r;
+  $('route-state').textContent = '当前屏：' + labels[r];
+}
+function alertInto(id, kind, title, body) {
+  const el = $(id);
+  el.innerHTML = kind ? `<div class="alert ${kind}"><b>${title}</b>${body || ''}</div>` : '';
 }
 
-function alertInto(hostId, kind, title, body) {
-  const host = $(hostId);
-  if (!kind) { host.innerHTML = ''; return; }
-  host.innerHTML = `<div class="alert ${kind}"><b>${title}</b>${body || ''}</div>`;
+function setLang(lang) {
+  state.lang = lang;
+  $('lang-zh').setAttribute('aria-pressed', lang === 'zh');
+  $('lang-en').setAttribute('aria-pressed', lang === 'en');
+  const row = $('name-row');
+  const first = $('f-first'), last = $('f-last');
+  if (lang === 'en') { row.appendChild(first); row.appendChild(last); } else { row.appendChild(last); row.appendChild(first); }
+  $('lab-first').textContent = lang === 'en' ? 'First name' : '名';
+  $('lab-last').textContent = lang === 'en' ? 'Last name' : '姓';
+  $('rg-first').placeholder = lang === 'en' ? 'Jianzhong' : '建中';
+  $('rg-last').placeholder = lang === 'en' ? 'Feng' : '冯';
+  $('order-note').textContent = lang === 'en'
+    ? '英文界面：First name 在前 → display_name 合成为「名 姓」。'
+    : '中文界面：姓在前 → display_name 合成为「姓 名」。';
 }
 
 function setupChannels() {
   state.channels.email = true;
   state.channels.sms = !!document.querySelector('[data-toggle="sms"]').checked;
   state.channels.wechat = !!document.querySelector('[data-toggle="wechat"]').checked;
-  ['login-channels', 'reg-channels'].forEach((hostId) => {
-    $(hostId).querySelectorAll('[data-ch]').forEach((el) => {
+  ['login-channels', 'reg-channels'].forEach((hid) => {
+    $(hid).querySelectorAll('[data-ch]').forEach((el) => {
       el.style.display = state.channels[el.dataset.ch] ? '' : 'none';
     });
   });
 }
-
 function loginMethod(m) {
   state.method = m;
   const tabs = document.querySelectorAll('#s-login .tab');
@@ -304,169 +297,149 @@ function loginMethod(m) {
   $('m-code').style.display = m === 'code' ? '' : 'none';
   alertInto('login-alert', null);
 }
+function pickChannel(ch) { state.channel = ch; }
+function pickRegChannel(ch) { state.regChannel = ch; }
 
-function pickChannel(ch) { state.channel = ch; markChips('login-channels', ch); }
-function pickRegChannel(ch) { state.regChannel = ch; markChips('reg-channels', ch); }
-function markChips(hostId, ch) {
-  $(hostId).querySelectorAll('.chip').forEach((el) => {
-    el.setAttribute('aria-pressed', el.textContent.trim() === ({ email: '邮箱', sms: '手机', wechat: '微信' })[ch]);
-  });
-}
-
-/* ---------- 密码登录 ---------- */
 function doPasswordLogin() {
   const email = $('li-email').value.trim();
   const pwd = $('li-pwd').value;
   alertInto('login-alert', null);
   if (!email) return alertInto('login-alert', 'err', '请输入邮箱');
   if (!pwd) return alertInto('login-alert', 'err', '请输入密码');
-  if (email === 'new@example.com') {
-    return alertInto('login-alert', 'err', '邮箱或密码不正确', '为安全起见，不区分「账号不存在」与「密码错误」（AC-73.11）。');
+  if (state.pendingEmail && email === state.pendingEmail && !state.activated) {
+    return alertInto('login-alert', 'err', '账号尚未激活',
+      '（403 ACCOUNT_PENDING）请先点激活邮件里的链接。<br /><button class="link" onclick="go(\'sent\')">重新发送激活邮件 →</button>');
   }
-  alertInto('login-alert', 'ok', '登录成功', '（原型：真实环境会跳转到首页）');
+  if (email === 'typo@example.com') return alertInto('login-alert', 'err', '邮箱或密码不正确', '不区分「账号不存在」与「密码错误」（AC-73.11）。');
+  alertInto('login-alert', 'ok', '登录成功', '（原型：真实环境会跳转首页）');
 }
 
-/* ---------- 发码 ---------- */
-function sendCode(flow) {
-  const isRegister = flow === 'register';
-  const isReset = flow === 'reset';
-  state.flow = flow;
-
-  const emailEl = isRegister ? $('rg-email') : isReset ? $('fg-email') : $('lc-email');
-  const pwdEl = isRegister ? $('rg-pwd') : null;
-  const alertHost = isRegister ? 'register-alert' : isReset ? 'forgot-alert' : 'login-alert';
-  const email = emailEl.value.trim();
-  alertInto(alertHost, null);
-
-  if (!email) return alertInto(alertHost, 'err', '请输入邮箱');
-
-  // 密码在发码前校验（AC-73.2）
-  if (isRegister && pwdEl.value.length < 8) {
-    return alertInto(alertHost, 'err', '密码至少 8 位', '校验发生在发码之前，不合格不会发出邮件。');
+function submitRegister() {
+  const email = $('rg-email').value.trim();
+  const pwd = $('rg-pwd').value;
+  alertInto('register-alert', null);
+  if (!email) return alertInto('register-alert', 'err', '请输入邮箱');
+  if (pwd.length < 8) return alertInto('register-alert', 'err', '密码至少 8 位', '提交即校验，不会创建账号、也不会发信。');
+  if (email === 'active@example.com') {
+    return alertInto('register-alert', 'err', '这个邮箱已经注册过了',
+      '（409 ALREADY_REGISTERED，不发信）<br /><button class="link" onclick="go(\'login\')">直接用这个邮箱登录 →</button>');
   }
-
-  // 通道未启用：入口本来就不该出现
-  const ch = isRegister ? state.regChannel : state.channel;
-  if (!state.channels[ch]) return;
-
-  // 邮箱通道的各种状态
-  if (ch === 'email') {
-    if (isRegister && email === 'exists@example.com') {
-      return alertInto(alertHost, 'err', '这个邮箱已经注册过了',
-        '（409 ALREADY_REGISTERED，不发码）<br /><button class="link" onclick="go(\'login\')">直接用这个邮箱登录 →</button>');
-    }
-    if (!isRegister && email === 'nobody@example.com') {
-      return alertInto(alertHost, 'err', '这个邮箱还没有注册',
-        '（404 NOT_REGISTERED，不发码）<br /><button class="link" onclick="go(\'register\')">去创建账号 →</button>');
-    }
-    if (email === 'ratelimit@example.com') {
-      return alertInto(alertHost, 'err', '发送太频繁', '（429 + Retry-After）请 42 秒后再试。');
-    }
-    if (email === 'broken@example.com') {
-      return alertInto(alertHost, 'err', '邮件发送失败', '（502）本次验证码已作废，30 秒后可重试；这次不计入小时配额。');
-    }
-  }
-
-  // 成功进入输码屏
-  state.target = email;
-  $('code-target').textContent = email;
-  $('code-title').textContent = isRegister ? '验证注册邮箱' : isReset ? '验证邮箱' : '登录验证';
-  alertInto('code-alert', null);
+  state.pendingEmail = email;
+  state.activated = false;
+  $('sent-to').textContent = email;
+  $('act-email').textContent = email;
+  alertInto('sent-alert', null);
   startCooldown();
-  go('code');
+  go('sent');
 }
 
-/* ---------- 倒计时 ---------- */
 function startCooldown() {
   state.cooldown = 60;
-  $('resend').disabled = true;
-  $('resend').textContent = state.cooldown + 's 后重发';
+  $('resend-btn').disabled = true;
+  $('resend-btn').textContent = state.cooldown + 's 后可重发';
   clearInterval(state.timer);
   state.timer = setInterval(() => {
     state.cooldown -= 1;
     if (state.cooldown <= 0) {
       clearInterval(state.timer);
-      $('resend').disabled = false;
-      $('resend').textContent = '重新发送';
+      $('resend-btn').disabled = false;
+      $('resend-btn').textContent = '重新发送激活邮件';
       return;
     }
-    $('resend').textContent = state.cooldown + 's 后重发';
+    $('resend-btn').textContent = state.cooldown + 's 后可重发';
   }, 1000);
 }
-function resendCode() { alertInto('code-alert', 'ok', '验证码已重新发送', '同一邮箱 1 小时最多 5 次。'); startCooldown(); }
+function resendActivation() { alertInto('sent-alert', 'ok', '已重新发送', '同一邮箱 1 小时最多 5 次。'); startCooldown(); }
 
-/* ---------- 输码校验 ---------- */
+function confirmActivate() {
+  const forced = $('activate-alert').dataset.force;
+  if (forced === 'expired') {
+    return alertInto('activate-alert', 'err', '激活链接已过期', '（TOKEN_EXPIRED）24 小时内有效，请重新发送。<br /><button class="link" onclick="go(\'sent\')">重新发送 →</button>');
+  }
+  if (forced === 'used') {
+    return alertInto('activate-alert', 'err', '这个链接已经用过了', '（TOKEN_USED）账号已激活，直接去登录即可。<br /><button class="link" onclick="go(\'login\')">去登录 →</button>');
+  }
+  state.activated = true;
+  $('activated-sub').textContent = '现在用 ' + state.pendingEmail + ' 和刚才设的密码登录。';
+  go('activated');
+}
+
+function sendCode(flow) {
+  state.flow = flow;
+  const isReset = flow === 'reset';
+  const emailEl = isReset ? $('fg-email') : $('lc-email');
+  const host = isReset ? 'forgot-alert' : 'login-alert';
+  const email = emailEl.value.trim();
+  alertInto(host, null);
+  if (!email) return alertInto(host, 'err', '请输入邮箱');
+  if (!isReset && email === 'nobody@example.com') {
+    return alertInto(host, 'err', '这个邮箱还没有注册',
+      '（404 NOT_REGISTERED，不发码）<br /><button class="link" onclick="go(\'register\')">去创建账号 →</button>');
+  }
+  if (email === 'ratelimit@example.com') return alertInto(host, 'err', '发送太频繁', '（429）请 42 秒后再试。');
+  if (email === 'broken@example.com') return alertInto(host, 'err', '邮件发送失败', '（502）本次验证码作废，30 秒后可重试，不计入小时配额。');
+  state.target = email;
+  $('code-target').textContent = email;
+  $('code-title').textContent = isReset ? '验证邮箱' : '登录验证';
+  alertInto('code-alert', null);
+  startCooldown();
+  go('code');
+}
+function resendCode() { alertInto('code-alert', 'ok', '验证码已重新发送', '同一邮箱 1 小时最多 5 次。'); startCooldown(); }
 function verifyCode() {
   const code = $('code-input').value.trim();
   alertInto('code-alert', null);
   if (code.length !== 6) return alertInto('code-alert', 'err', '请输入 6 位验证码');
-
-  if (code === '000000') {
-    return alertInto('code-alert', 'err', '验证码已过期', '（CODE_EXPIRED）请重新获取。');
-  }
-  if (code === '111111') {
-    return alertInto('code-alert', 'err', '错误次数过多，该验证码已作废', '（CODE_ATTEMPTS_EXCEEDED）请重新获取。');
-  }
-  if (code !== '123456') {
-    return alertInto('code-alert', 'err', '验证码不正确', '（CODE_INVALID）不显示还剩几次。');
-  }
-
-  if (state.flow === 'register') {
-    alertInto('code-alert', 'ok', '账号已创建', '角色固定 STUDENT，密码已保存。');
-    setTimeout(() => go('login'), 900);
-    return;
-  }
-  if (state.flow === 'reset') {
-    $('reset-target').textContent = state.target;
-    alertInto('reset-alert', null);
-    go('reset');
-    return;
-  }
+  if (code === '000000') return alertInto('code-alert', 'err', '验证码已过期', '（CODE_EXPIRED）请重新获取。');
+  if (code === '111111') return alertInto('code-alert', 'err', '错误次数过多，该验证码已作废', '（CODE_ATTEMPTS_EXCEEDED）请重新获取。');
+  if (code !== '123456') return alertInto('code-alert', 'err', '验证码不正确', '（CODE_INVALID）不显示还剩几次。');
+  if (state.flow === 'reset') { $('reset-target').textContent = state.target; alertInto('reset-alert', null); go('reset'); return; }
   alertInto('code-alert', 'ok', '登录成功', '（原型：真实环境跳转首页）');
 }
-
-/* ---------- 重设密码 ---------- */
 function submitReset() {
   const code = $('reset-code').value.trim();
   const pwd = $('reset-pwd').value;
   alertInto('reset-alert', null);
   if (code !== '123456') return alertInto('reset-alert', 'err', '验证码不正确');
   if (pwd.length < 8) return alertInto('reset-alert', 'err', '新密码至少 8 位');
-  alertInto('reset-alert', 'ok', '密码已重设',
-    '该账号所有已有会话已失效（AC-77.3），现在用新密码登录一次。');
+  alertInto('reset-alert', 'ok', '密码已重设', '该账号所有已有会话已失效（AC-77.3），现在用新密码登录一次。');
   setTimeout(() => go('login'), 1200);
 }
 
-/* ---------- 调试：强制状态 ---------- */
-function forceState(kind) {
-  go('login');
-  loginMethod('code');
-  const map = {
-    '409': ['exists@example.com', 'register'],
-    '404': ['nobody@example.com', 'login'],
-    '429': ['ratelimit@example.com', 'login'],
-    sendfail: ['broken@example.com', 'login'],
-    code5: ['zhun.lee@163.com', 'login'],
-  };
-  const [email, flow] = map[kind];
-  if (flow === 'register') {
+function force(kind) {
+  $('activate-alert').dataset.force = '';
+  if (kind === '409') {
     go('register');
-    $('rg-email').value = email;
+    $('rg-email').value = 'active@example.com';
     $('rg-pwd').value = 'password123';
-    sendCode('register');
+    submitRegister();
     return;
   }
-  $('lc-email').value = email;
-  if (kind === 'code5') {
-    sendCode('login');
-    $('code-input').value = '111111';
-    verifyCode();
+  if (kind === 'pending') {
+    state.pendingEmail = 'waiting@example.com';
+    state.activated = false;
+    go('login'); loginMethod('password');
+    $('li-email').value = 'waiting@example.com';
+    $('li-pwd').value = 'password123';
+    doPasswordLogin();
     return;
   }
-  sendCode('login');
+  if (kind === 'expired' || kind === 'used') {
+    go('activate');
+    $('act-email').textContent = 'waiting@example.com';
+    $('activate-alert').dataset.force = kind;
+    confirmActivate();
+    return;
+  }
+  if (kind === '429') {
+    go('sent');
+    $('sent-to').textContent = 'waiting@example.com';
+    alertInto('sent-alert', 'err', '发送太频繁', '（429 + Retry-After）请 42 秒后再试；同一邮箱 1 小时最多 5 次。');
+  }
 }
 
 setupChannels();
+setLang('zh');
 </script>
 </body>
 </html>
