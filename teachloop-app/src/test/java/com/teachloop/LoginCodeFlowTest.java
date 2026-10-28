@@ -61,6 +61,7 @@ class LoginCodeFlowTest {
         r.add("teachloop.grading.dispatch-ms", () -> "3600000");
         r.add("teachloop.grading.sweep-ms", () -> "3600000");
         r.add("teachloop.exam.scan-ms", () -> "3600000");
+        r.add("teachloop.outbound.poll-ms", () -> "100");
     }
 
     @TestConfiguration
@@ -78,7 +79,7 @@ class LoginCodeFlowTest {
     }
 
     static class CapturingMail2 implements SmtpMailSenderFactory {
-        final List<String> bodies = new ArrayList<>();
+        final List<String> bodies = java.util.Collections.synchronizedList(new ArrayList<>());
 
         @Override
         public void send(SmtpMailSender.Settings settings, String to, String subject, String body) {
@@ -101,6 +102,15 @@ class LoginCodeFlowTest {
 
     private final HttpClient client = HttpClient.newHttpClient();
 
+    /** 2026-10-28：发信改异步队列，等 worker 真正投递出来再断言（最多 15 秒）。 */
+    private void awaitMails(int count) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 15_000;
+        while (mail.bodies.size() < count && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100);
+        }
+        assertThat(mail.bodies).as("等待异步队列投递").hasSize(count);
+    }
+
     @BeforeEach
     void enableEmail() {
         jdbc.update("""
@@ -110,6 +120,7 @@ class LoginCodeFlowTest {
                  where channel = 'email'
                 """, secretBox.encrypt("test-secret"));
         mail.bodies.clear();
+        jdbc.update("delete from outbound_messages");
         jdbc.update("delete from verification_codes");
     }
 
@@ -121,6 +132,7 @@ class LoginCodeFlowTest {
 
         assertThat(post(base, "/api/auth/login/challenge",
                 "{\"channel\":\"email\",\"email\":\"codelogin@test.local\"}").statusCode()).isEqualTo(200);
+        awaitMails(1);
         String code = mail.lastCode();
         assertThat(code).hasSize(6);
 
@@ -175,6 +187,7 @@ class LoginCodeFlowTest {
 
         assertThat(post(base, "/api/auth/password-reset/challenge",
                 "{\"channel\":\"email\",\"email\":\"reset@test.local\"}").statusCode()).isEqualTo(200);
+        awaitMails(1);
         String code = mail.lastCode();
 
         assertThat(post(base, "/api/auth/password-reset/verify",

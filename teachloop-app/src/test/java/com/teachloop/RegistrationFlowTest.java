@@ -55,6 +55,7 @@ class RegistrationFlowTest {
         r.add("teachloop.grading.sweep-ms", () -> "3600000");
         r.add("teachloop.exam.scan-ms", () -> "3600000");
         r.add("teachloop.app.base-url", () -> "https://test.teachloop.org");
+        r.add("teachloop.outbound.poll-ms", () -> "100");
     }
 
     @TestConfiguration
@@ -72,8 +73,8 @@ class RegistrationFlowTest {
     }
 
     static class CapturingMail implements SmtpMailSenderFactory {
-        final List<String> bodies = new ArrayList<>();
-        final List<String> subjects = new ArrayList<>();
+        final List<String> bodies = java.util.Collections.synchronizedList(new ArrayList<>());
+        final List<String> subjects = java.util.Collections.synchronizedList(new ArrayList<>());
 
         @Override
         public void send(SmtpMailSender.Settings settings, String to, String subject, String body) {
@@ -102,6 +103,7 @@ class RegistrationFlowTest {
                 """, secretBox.encrypt("test-secret"));
         mail.bodies.clear();
         mail.subjects.clear();
+        jdbc.update("delete from outbound_messages");
     }
 
     @Test
@@ -115,7 +117,7 @@ class RegistrationFlowTest {
                 "{\"channel\":\"email\",\"email\":\"newbie@test.local\",\"password\":\"password123\",\"displayName\":\"新同学\"}");
         assertThat(reg.statusCode()).isEqualTo(200);
         assertThat(users.findByEmail("newbie@test.local").orElseThrow().getStatus()).isEqualTo(UserStatus.PENDING);
-        assertThat(mail.bodies).hasSize(1);
+        awaitMails(1);
 
         String token = tokenFrom(mail.bodies.get(0));
         assertThat(token).isNotBlank();
@@ -159,7 +161,16 @@ class RegistrationFlowTest {
                 "{\"channel\":\"email\",\"email\":\"dup@test.local\",\"password\":\"password123\"}");
         assertThat(again.statusCode()).isEqualTo(200);
         assertThat(again.body()).contains("resent");
-        assertThat(mail.bodies).hasSize(2);
+        awaitMails(2);
+    }
+
+    /** 2026-10-28：发信改异步队列，等 worker 真正投递出来再断言（最多 15 秒）。 */
+    private void awaitMails(int count) throws InterruptedException {
+        long deadline = System.currentTimeMillis() + 15_000;
+        while (mail.bodies.size() < count && System.currentTimeMillis() < deadline) {
+            Thread.sleep(100);
+        }
+        assertThat(mail.bodies).as("等待异步队列投递").hasSize(count);
     }
 
     private String baseUrl() {

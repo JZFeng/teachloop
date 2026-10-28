@@ -7,6 +7,7 @@
   注册激活 / 密码登录 / 验证码登录 / 频控 / 忘记密码），测试 **27/27 绿**；
   前端 T536–T539 已交付（注册 / 激活 / 登录改造 / 忘记密码，界面已实测、流程待后端联调）；
   **T534–T535 已交付**（管理端通道配置 + 面板，嵌在系统设置页里；2026-10-28 按用户要求改版，见 T535 行）；
+  **T545 已交付**（2026-10-28：出站消息改异步队列，T525 的「发送失败即作废令牌」随之作废）；
   剩余 T524（HTTP 网关驱动）、T540 收尾、T541–T544（短信 / 微信 / 改邮箱验证码）
 - 约定：每个任务自带可判定验收；依赖见列；无孤儿任务（覆盖矩阵见 §10）
 
@@ -17,7 +18,7 @@
 ```
 T517–T519 表
     └→ T520 状态机
-T521 通道端口 → T522 验证码服务 → T523/T524 邮件驱动 → T525 发送失败语义
+T521 通道端口 → T522 验证码服务 → T523/T524 邮件驱动 → T545 异步投递（T525 已作废）
     └→ T526 注册 → T527 激活 → T528 重发 → T529 通道端点
     └→ T530 密码登录 → T531 验证码登录 → T532 频控
     └→ T533 忘记密码
@@ -43,11 +44,12 @@ T544 收尾验收
 
 | T | 任务 | 依赖 | 验收 |
 | :--- | :--- | :--- | :--- |
-| T521 | `VerificationChannel` 端口 + `ChannelRegistry`：按 `enabled && configured()` 计算可用集合；每次请求读库（3 行，不缓存） | T518 | 真值表测试 4 种组合（enabled×configured）；关掉 `email` 后 `registry.available()` 不含它；改库后**下一次调用**即变化 |
+| T521 | `MessageChannel` 端口（2026-10-28 由 `VerificationChannel` 改名）+ `ChannelRegistry`：按 `enabled && configured()` 计算可用集合；每次请求读库（3 行，不缓存） | T518 | 真值表测试 4 种组合（enabled×configured）；关掉 `email` 后 `registry.available()` 不含它；改库后**下一次调用**即变化 |
 | T522 | `CodeService`：生成 6 位码/32 字节令牌、SHA-256 哈希落库、`consume` 条件更新（`consumed_at is null`）、错误计数 +5 次作废、过期清理 | T517 | 并发两个 consume 只有一个成功；错误 5 次后再校验返回 `ATTEMPTS_EXCEEDED`；过期码返回 `EXPIRED` |
 | T523 | `SmtpEmailChannel`（`spring-boot-starter-mail`），发件人/主机/端口/授权码全部来自 `identity_channels` | T521 | 用本地 `HttpServer`/GreenMail 替身发送成功 1 封；`configured()` 在缺 from 或缺 secret 时为 false |
 | T524 | `HttpApiEmailChannel`：可配 endpoint + Bearer key，POST JSON；超时 5s | T521 | 替身返回 200 → 发送成功；返回 500 → 抛 `MAIL_SEND_FAILED` |
-| T525 | 发送失败语义：502 + 该 challenge/令牌立即作废 + 写审计（不含正文与收件人明文）+ 不扣小时配额 | T523/T524 | 失败后再用同一码校验返回已作废；审计表出现一条 `channel` + `error_code`，不含邮箱字符串 |
+| ~~T525~~ | ~~发送失败语义：502 + 该 challenge/令牌立即作废~~ **2026-10-28 作废**：改为异步投递后不再「发信失败就作废令牌」，失败由队列退避重试，见 T545 | ~~T523/T524~~ | — |
+| T545 | **出站消息异步投递（2026-10-28）**：`outbound_messages`（V074）+ `OutboundMessageQueue`（入队，正文 `SecretBox` 加密存）+ `OutboundMessageWorker`（`@Scheduled` 2s 一批，`for update skip locked` 抢件，30s/5min 退避，3 次失败置 FAILED）。注册激活、登录/重置验证码、管理端测试邮件三处改为入队；测试邮件改「入队 + 前端轮询状态」 | T521/T523 | `OutboundMessageWorkerTest` 4/4（成功清正文 / 退避 / 重试成功 / 三次失败终态）；`RegistrationFlowTest` 2/2 与 `LoginCodeFlowTest` 4/4 在异步下仍能拿到邮件内容；注册接口实测从 ~3.8s 降到毫秒级 |
 
 ## 4. 批 C：注册与激活
 
@@ -121,6 +123,7 @@ T544 收尾验收
 | AC-75.1–75.8 微信 | T542 |
 | AC-76.1–76.5 通道配置 | T534 / T535 |
 | AC-77.1–77.5 忘记密码 | T533 / T539 |
+| AC-78.1–78.5 出站消息异步 | T545 |
 | FR-173 文案最小化 | T540 |
 
 **孤儿任务检查**：T517–T544 每个都能在矩阵里找到落点，无孤儿。

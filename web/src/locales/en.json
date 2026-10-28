@@ -102,6 +102,11 @@
     "descriptor": "AI teaching platform",
     "brandLine": "Better Practice. More Insights.",
     "channels": {
+      "testHint": "The test email goes to the saved sender address and uses the saved configuration. Save first, then test.",
+      "testSending": "Queued; waiting for the delivery result ({{to}})…",
+      "testTimeout": "Queued, but no result within 30 seconds — SMTP may be slow. Check {{to}} shortly, or look at the server log.",
+      "testOk": "Test email sent to {{to}} · {{ms}}ms",
+      "testFail": "Test failed: {{message}}",
       "title": "Global communication channels",
       "sub": "Which channel serves sign-up, sign-in and password reset. Changes apply on the next request.",
       "enable": "Email service",
@@ -128,9 +133,6 @@
       "secretHint": "For 163 and similar, this is the app auth code, not the login password. Leave blank to keep the current one; only a mask is shown after saving.",
       "saveSettings": "Save settings",
       "sendTest": "Send test email",
-      "testHint": "The test email goes to the saved sender address and uses the saved configuration. Save first, then test.",
-      "testOk": "Test email sent to {{to}} · {{ms}}ms",
-      "testFail": "Test failed: {{message}}",
       "issue": {
         "host": "Enter the SMTP server host.",
         "port": "The port must be a whole number between 1 and 65535.",
@@ -142,8 +144,7 @@
         "disabled": "Saved but not enabled — the sign-up page shows no email entry, so nobody can sign up. Tick the switch and save again.",
         "incomplete": "Incomplete — sender address, SMTP server and auth code must all be set.",
         "unreadable": "The stored auth code cannot be decrypted (security secret changed?). Enter it again."
-      },
-      "testUnknown": "No result was returned"
+      }
     }
   },
   "audit": {

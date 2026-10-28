@@ -41,6 +41,7 @@ class IdentityChannelAdminTest {
 
     @Autowired Environment env;
     @Autowired AdminService adminService;
+    @Autowired org.springframework.jdbc.core.JdbcTemplate jdbc;
 
     private final HttpClient client = HttpClient.newHttpClient();
 
@@ -169,7 +170,7 @@ class IdentityChannelAdminTest {
     }
 
     @Test
-    @DisplayName("发送测试邮件：通道没配齐时回 ok=false 与原因，不发起真实连接")
+    @DisplayName("发送测试邮件：通道没配齐时 400 并说明原因，不入队、不发起真实连接")
     void testSendReportsMissingConfig() throws Exception {
         String base = base();
         adminService.createAdmin("chan-admin6@test.local", "adminpass123");
@@ -181,9 +182,9 @@ class IdentityChannelAdminTest {
                         + "\"baseUrl\":\"smtp.163.com:465\",\"secret\":\"\",\"extra\":null}");
 
         HttpResponse<String> res = post(base, "/api/admin/identity-channels/email/test", admin, "");
-        assertThat(res.statusCode()).isEqualTo(200);
-        assertThat(res.body()).contains("\"ok\":false");
-        assertThat(res.body()).contains("error.identity.channel.notConfigured");
+        assertThat(res.statusCode()).isEqualTo(400);
+        assertThat(res.body()).containsAnyOf("notConfigured", "not ready", "配齐");
+        assertThat(jdbc.queryForObject("select count(*) from outbound_messages", Integer.class)).isZero();
     }
 
     private String base() {

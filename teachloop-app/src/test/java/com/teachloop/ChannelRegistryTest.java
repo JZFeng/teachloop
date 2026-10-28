@@ -4,7 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teachloop.identity.auth.channel.ChannelRegistry;
 import com.teachloop.identity.auth.channel.IdentityChannelRepository;
-import com.teachloop.identity.auth.channel.VerificationChannel;
+import com.teachloop.identity.auth.channel.MessageChannel;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
@@ -32,7 +32,7 @@ class ChannelRegistryTest {
         }
     }
 
-    private static final class FakeChannel implements VerificationChannel {
+    private static final class FakeChannel implements MessageChannel {
         private final String name;
         private final boolean configured;
 

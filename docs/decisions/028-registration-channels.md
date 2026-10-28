@@ -23,7 +23,7 @@
 
 | 议题 | 决定 | 被否掉的选项与原因 |
 | :--- | :--- | :--- |
-| 结构 | `VerificationChannel` 端口 + email/sms/wechat 三实现，共用一套验证码流程 | B（只做 email 留空壳）违背第 2 条；C（合并成单一「验证码即身份」端点）把注册/登录/绑定/改邮箱挤进一个端点，角色判断散在分支里 |
+| 结构 | `VerificationChannel` 端口（2026-10-28 改名 `MessageChannel`）+ email/sms/wechat 三实现，共用一套验证码流程 | B（只做 email 留空壳）违背第 2 条；C（合并成单一「验证码即身份」端点）把注册/登录/绑定/改邮箱挤进一个端点，角色判断散在分支里 |
 | 配置 | `identity_channels` 单行多通道表 + `SecretBox` 加密密钥，管理员页可改、**即时生效** | 环境变量方案要重启容器；且用户明确说「以后可替换，甚至接 Email Grid」 |
 | 注册与登录 | **两个行为、两组端点**（`/register/*`、`/login/*`），底层共用验证码服务 | 最初写成「一个 verify 端点自动判断」，用户 2026-10-27 指出「login 和 register 本就是两个行为」——登录时打错一个字母会静默建出空账号，学生的作业全进错号 |
 | 注册碰已存在 / 登录碰不存在 | 分别回 **409 `ALREADY_REGISTERED`** 与 **404 `NOT_REGISTERED`**，都不发码 | 让用户白等一封不会来的信是最差体验；存在性可探测的风险由频控（60s / 1h 5 次 / 24h 20 次）与审计承担 |
@@ -75,3 +75,25 @@
 **2026-10-28 当天二次简化**：用户要求「直接把认证账号拿掉吧，前面填啥邮箱就用啥，功能简单」。
 `extra.user` 废弃、不再读写；`SmtpEmailChannel` 的 AUTH 账号恒等于 `from_address`
 （163/QQ 本来就要求两者一致）。面板从七字段降到六字段。
+
+## 2026-10-28 修订 — 出站消息统一接口 + 异步投递
+
+用户三问：认证账号能不能拿掉（已办，见上）；「我之前好像让你 abstract 通知模块吧，mail、sms 都走一个接口」；
+「发送邮件要异步，以后 sms 也要异步，注册信和测试邮件都要」。
+
+**盘点（当天的真实状态）**：
+
+- 统一接口**存在**：`MessageChannel`（当天由 `VerificationChannel` 改名）+ `ChannelRegistry`，
+  邮件、短信、微信都按它插拔；但**只有邮件一个实现**（T541 短信、T542 微信仍未做）。
+- `Ports.NotificationPort` 是**站内通知**（写 `notifications` 表），与邮件短信无关，别混为一谈。
+- 发信共三处，**全部同步**，实测一封 3.8 秒：`RegistrationEndpoint.issueAndSend`（注册/重发激活信）、
+  `AuthEndpoint.sendCode`（登录码 / 重置密码码）、`IdentityChannelAdminEndpoint.test`（测试邮件）。
+
+**决定（用户选 A + A）**：
+
+1. 持久化 outbox：`outbound_messages`（V074），业务只入队；`OutboundMessageWorker` 每 2 秒派发，
+   `for update skip locked` 抢件，30s / 5min 退避，3 次失败置 `FAILED`。重启不丢消息。
+2. 正文用 `SecretBox` 加密存 `body_cipher`，发出后立刻清空——激活链接等于一次性凭据。
+3. 注册/验证码接口立刻返回「已发送」，不再「失败就作废令牌」（T525 作废）；用户收不到就点重发。
+4. 管理端测试邮件返回消息 id，前端轮询 `GET /{channel}/test/{id}`，按 PENDING / SENT / FAILED 显示。
+5. 未来的短信沿用同一条队列与同一个接口，不改调用方。

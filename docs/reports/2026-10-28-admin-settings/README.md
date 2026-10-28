@@ -29,11 +29,19 @@
 | :--- | :--- |
 | `01-settings-top.png` | 侧栏与页标题都是「系统设置」；AI 只剩一张卡 |
 | `02-smtp-form.png` / `02b-smtp-form-bottom.png` | 邮件六个字段（无认证账号）+ 加密方式单选 + 两个按钮；开关读作「启用邮件服务 ☑ 开启」；短信 / 微信不渲染 |
-| `03-test-email-sent.png` | 点「发送测试邮件」→ 绿色「测试邮件已发送到 19725156124@163.com · 3794ms」——**真发出去了**（SSL/TLS 465 + 真实授权码） |
-| `04-models-loaded-green.png` | 对接本地假 `/v1/models`（127.0.0.1:8099）→「已加载 2 个模型」是**绿色** |
+| `03-test-email-queued.png` | 点「发送测试邮件」→ 立刻蓝色「已交给发送队列，正在等投递结果…」（按钮禁用，后台在发） |
+| `04-test-email-sent.png` | 轮询到 SENT → 绿色「测试邮件已发送到 19725156124@163.com · 4099ms」——**真发出去了**（SSL/TLS 465 + 真实授权码） |
+| `05-models-loaded-green.png` | 对接本地假 `/v1/models`（127.0.0.1:8099）→「已加载 2 个模型」是**绿色** |
 
 保存链路：把加密方式切到 STARTTLS → 保存 → `GET /api/admin/identity-channels` 的
 `extra.encryption == "starttls"`；再切回 SSL/TLS 保存 → 恢复 `"ssl"`（dev 库保持可用状态）。
+
+异步化实测（dev，2026-10-28 11:33）：
+
+- `POST /api/auth/register`（真实队列 + 真实 SMTP 配置）返回 **200，用时 113ms**——改前同一路径要等
+  整封 SMTP 会话（实测一封 3.8s 量级）；随后 `outbound_messages` 出现 1 行且状态 `SENT`、`body_cipher` 已清空；
+- 顺序：`PENDING → SENT`，`attempts=1`；
+- 注册探针用的账号与消息已从 dev 库删除（`users` / `verification_codes` / `outbound_messages` 各 1 行）。
 
 自动化：
 
@@ -43,4 +51,5 @@
 - `tsc --noEmit` 0、`vite build` 0、`check-ui` 0、`check-i18n` 0（zh/en 各 1791 键）。
 
 **没验到的**：STARTTLS（587）与「无加密」两档没有真实服务商可对；代码路径写好了，
-真机只跑了 SSL/TLS 465。生产环境未部署（按约定要单独授权）。
+真机只跑了 SSL/TLS 465。**短信 / 微信仍未实现**（只有接口与配置行，T541/T542 未做），
+所以「sms 也异步」今天只到「同一条队列、同一个接口」这一层。生产环境未部署（按约定要单独授权）。

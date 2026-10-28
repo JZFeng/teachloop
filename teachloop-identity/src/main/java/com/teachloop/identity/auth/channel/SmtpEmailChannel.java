@@ -24,7 +24,7 @@ import tools.jackson.databind.ObjectMapper;
  * <p>密钥解不开时 {@link #configured()} 为 false——通道按「未配置」处理，不抛 500（AC-76.4）。
  */
 @Component
-public class SmtpEmailChannel implements VerificationChannel {
+public class SmtpEmailChannel implements MessageChannel {
 
     private static final Logger log = LoggerFactory.getLogger(SmtpEmailChannel.class);
     private static final int DEFAULT_PORT = 465;

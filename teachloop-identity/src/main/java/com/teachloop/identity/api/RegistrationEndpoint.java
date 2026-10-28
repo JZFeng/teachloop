@@ -3,8 +3,8 @@ package com.teachloop.identity.api;
 import com.teachloop.identity.auth.CodeService;
 import com.teachloop.identity.auth.VerificationPurpose;
 import com.teachloop.identity.auth.channel.ChannelRegistry;
-import com.teachloop.identity.auth.channel.ChannelSendException;
-import com.teachloop.identity.auth.channel.VerificationChannel;
+import com.teachloop.identity.auth.channel.MessageChannel;
+import com.teachloop.identity.messaging.OutboundMessageQueue;
 import com.teachloop.identity.domain.User;
 import com.teachloop.identity.domain.UserRepository;
 import com.teachloop.identity.domain.UserRole;
@@ -49,16 +49,18 @@ public class RegistrationEndpoint {
     private final PasswordEncoder encoder;
     private final CodeService codes;
     private final ChannelRegistry channels;
+    private final OutboundMessageQueue outbound;
     private final Clock clock;
     private final String baseUrl;
 
     public RegistrationEndpoint(UserRepository users, PasswordEncoder encoder, CodeService codes,
-                                ChannelRegistry channels, Clock clock,
+                                ChannelRegistry channels, OutboundMessageQueue outbound, Clock clock,
                                 @Value("${teachloop.app.base-url:https://www.teachloop.org}") String baseUrl) {
         this.users = users;
         this.encoder = encoder;
         this.codes = codes;
         this.channels = channels;
+        this.outbound = outbound;
         this.clock = clock;
         this.baseUrl = baseUrl;
     }
@@ -77,7 +79,7 @@ public class RegistrationEndpoint {
     @PostMapping("/register")
     public Map<String, Object> register(@RequestBody @Valid RegisterRequest body) {
         String email = normalize(body.email());
-        VerificationChannel channel = channels.usable(body.channel())
+        MessageChannel channel = channels.usable(body.channel())
                 .orElseThrow(() -> ApiException.notFound("该注册方式不可用"));
 
         var existing = users.findByEmail(email);
@@ -139,25 +141,25 @@ public class RegistrationEndpoint {
         if (user.getStatus() != UserStatus.PENDING) {
             throw ApiException.conflict("该邮箱已激活");
         }
-        VerificationChannel channel = channels.usable("email")
+        MessageChannel channel = channels.usable("email")
                 .orElseThrow(() -> ApiException.notFound("该注册方式不可用"));
         issueAndSend(channel, user, email, false);
         return Map.of("status", "resent");
     }
 
-    /** 冷却与发送失败都在这里：失败要把令牌作废，别让用户拿着一条永远用不了的链接。 */
-    private void issueAndSend(VerificationChannel channel, User user, String email, boolean fresh) {
+    /**
+     * 令牌与邮件分两步：令牌先落库，邮件只入队（2026-10-28 改异步）。
+     *
+     * <p>不再「发信失败就作废令牌」——投递交给 {@code OutboundMessageWorker} 按退避重试，
+     * 接口不必等 SMTP；用户真收不到可以点「重发激活邮件」，那时会换一个新令牌。
+     */
+    private void issueAndSend(MessageChannel channel, User user, String email, boolean fresh) {
         // TODO(T532)：60s 冷却 / 1h 5 次 / IP 1h 20 次，接入 rate_limits 分桶后在这里判。
         var token = codes.issueToken(VerificationPurpose.REGISTER_ACTIVATE, channel.channel(), email, TOKEN_TTL);
         String link = baseUrl.replaceAll("/+$", "") + "/activate?token=" + token.raw();
         String body = "你好，\n\n请点下面的链接激活你的 TeachLoop 账号（24 小时内有效）：\n\n"
                 + link + "\n\n如果不是你本人操作，忽略这封邮件即可。\n";
-        try {
-            channel.send(email, "激活你的 TeachLoop 账号", body);
-        } catch (ChannelSendException ex) {
-            codes.invalidate(token.id());
-            throw new ApiException(ErrorCode.UNAVAILABLE, "激活邮件发送失败，请稍后重试");
-        }
+        outbound.enqueue(channel.channel(), email, "激活你的 TeachLoop 账号", body);
     }
 
     private static String displayName(String given, String email) {

@@ -20,15 +20,22 @@ const READINESS_TONE: Record<ChannelReadiness, NoteTone> = {
   unreadable: 'error',
 }
 
-interface TestResult {
-  ok: boolean
-  /** 可翻译的固定原因；与 message 最多有一个。 */
-  messageKey: string | null
-  /** 底层异常原文（SMTP 返回码这类），只在 messageKey 为空时使用。 */
-  message: string | null
-  target: string | null
-  latencyMs: number
+/** 测试邮件的投递阶段：入队 → 轮询 → 已发送 / 失败 / 超时。 */
+type TestPhase = 'sending' | 'sent' | 'failed' | 'timeout'
+
+interface TestState {
+  phase: TestPhase
+  target: string
+  ms: number
+  /** 失败时后端给的错误原文（SMTP 返回码这类）。 */
+  message?: string | null
 }
+
+/** 入队回执与轮询结果（后端 /api/admin/identity-channels/{channel}/test）。 */
+interface TestQueued { id: string; target: string }
+interface TestDelivery { status: 'PENDING' | 'SENT' | 'FAILED'; target: string; message: string | null }
+
+const sleep = (ms: number) => new Promise<void>((resolve) => { setTimeout(resolve, ms) })
 
 /**
  * 009 T535：全域通讯通道配置面板（嵌在管理端的系统设置页里）。
@@ -52,7 +59,7 @@ export default function IdentityChannelsPanel() {
   const [testing, setTesting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [saved, setSaved] = useState(false)
-  const [test, setTest] = useState<TestResult | null>(null)
+  const [test, setTest] = useState<TestState | null>(null)
 
   const load = () => {
     api.get<EmailChannelRow[]>('/api/admin/identity-channels')
@@ -100,12 +107,34 @@ export default function IdentityChannelsPanel() {
     }
   }
 
+  /**
+   * 2026-10-28：发送改为异步（后端只入队），所以这里要轮询投递结果——
+   * 不轮询的话按钮只能显示「已提交」，管理员没法知道信到底出去没有。
+   */
   const sendTest = async () => {
     setTesting(true)
     setError(null)
     setTest(null)
+    const started = Date.now()
     try {
-      setTest(await api.post<TestResult>('/api/admin/identity-channels/email/test'))
+      const queued = await api.post<TestQueued>('/api/admin/identity-channels/email/test')
+      setTest({ phase: 'sending', target: queued.target, ms: 0 })
+      // 30 秒：派发器 2 秒一轮 + SMTP 握手，正常 4 秒内出结果。
+      for (let i = 0; i < 38; i += 1) {
+        await sleep(800)
+        const delivery = await api.get<TestDelivery>(
+          `/api/admin/identity-channels/email/test/${queued.id}`)
+        const ms = Date.now() - started
+        if (delivery.status === 'SENT') {
+          setTest({ phase: 'sent', target: delivery.target, ms })
+          return
+        }
+        if (delivery.status === 'FAILED') {
+          setTest({ phase: 'failed', target: delivery.target, ms, message: delivery.message })
+          return
+        }
+      }
+      setTest({ phase: 'timeout', target: queued.target, ms: Date.now() - started })
     } catch (e) {
       setError(e instanceof ApiError ? e.message : String(e))
     } finally {
@@ -193,14 +222,18 @@ export default function IdentityChannelsPanel() {
 
           {test && (
             <Alert
-              type={test.ok ? 'success' : 'error'}
+              type={test.phase === 'sending' ? 'info'
+                : test.phase === 'sent' ? 'success'
+                  : test.phase === 'timeout' ? 'warning' : 'error'}
               showIcon
               style={{ marginBottom: 12 }}
-              message={test.ok
-                ? t('app.channels.testOk', { to: test.target ?? '', ms: test.latencyMs })
-                : t('app.channels.testFail', {
-                  message: test.messageKey ? t(test.messageKey) : (test.message ?? t('app.channels.testUnknown')),
-                })}
+              message={test.phase === 'sending'
+                ? t('app.channels.testSending', { to: test.target })
+                : test.phase === 'sent'
+                  ? t('app.channels.testOk', { to: test.target, ms: test.ms })
+                  : test.phase === 'timeout'
+                    ? t('app.channels.testTimeout', { to: test.target })
+                    : t('app.channels.testFail', { message: test.message ?? '' })}
             />
           )}
 

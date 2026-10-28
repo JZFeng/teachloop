@@ -20,12 +20,12 @@ public class ChannelRegistry {
     }
 
     private final IdentityChannelRepository channels;
-    private final Map<String, VerificationChannel> implementations = new LinkedHashMap<>();
+    private final Map<String, MessageChannel> implementations = new LinkedHashMap<>();
 
-    public ChannelRegistry(IdentityChannelRepository channels, List<VerificationChannel> channelBeans) {
+    public ChannelRegistry(IdentityChannelRepository channels, List<MessageChannel> channelBeans) {
         this.channels = channels;
         channelBeans.stream()
-                .sorted(Comparator.comparing(VerificationChannel::channel))
+                .sorted(Comparator.comparing(MessageChannel::channel))
                 .forEach(c -> implementations.put(c.channel(), c));
     }
 
@@ -40,7 +40,7 @@ public class ChannelRegistry {
                 .toList();
     }
 
-    public Optional<VerificationChannel> usable(String channel) {
+    public Optional<MessageChannel> usable(String channel) {
         return available().stream()
                 .filter(a -> a.channel().equals(channel))
                 .findFirst()

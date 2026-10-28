@@ -82,7 +82,7 @@
 ```
 teachloop-identity
   auth/
-    VerificationChannel.java      ← 端口：channelType() / configured() / normalizeTarget() / send(target, code, locale)
+    MessageChannel.java           ← 端口（2026-10-28 由 VerificationChannel 改名）：channel() / configured() / send(target, subject, body)
     CodeService.java              ← 生成、哈希、消费、错误计数
     ActivationService.java        ← 令牌签发/校验（与 CodeService 共用表）
     PasswordLoginProvider.java    ← 取代 PasswordAuthProvider 的白名单判断
@@ -95,7 +95,7 @@ teachloop-identity
     ChannelRegistry.java          ← 读 identity_channels，按 enabled+configured 决定可用集合
 ```
 
-**依赖方向**：`VerificationChannel` 与驱动全部留在 identity 内，**不进 `teachloop-shared`**——它们只服务认证，shared 不应认识「验证码」这个概念。`shared` 只加一个 `ErrorCode.ACCOUNT_PENDING`。
+**依赖方向**：`MessageChannel`（原 `VerificationChannel`）与驱动全部留在 identity 内，**不进 `teachloop-shared`**——它们只服务认证，shared 不应认识「验证码」这个概念。`shared` 只加一个 `ErrorCode.ACCOUNT_PENDING`。
 
 ## 4. API 契约
 

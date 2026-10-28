@@ -1,10 +1,11 @@
 package com.teachloop.identity.api;
 
 import com.teachloop.identity.ai.SecretBox;
-import com.teachloop.identity.auth.channel.ChannelSendException;
 import com.teachloop.identity.auth.channel.ChannelTestMail;
 import com.teachloop.identity.auth.channel.IdentityChannelRepository;
-import com.teachloop.identity.auth.channel.VerificationChannel;
+import com.teachloop.identity.auth.channel.MessageChannel;
+import com.teachloop.identity.messaging.OutboundMessageQueue;
+import com.teachloop.identity.messaging.OutboundMessageRepository;
 import com.teachloop.shared.audit.AuditEvent;
 import com.teachloop.shared.audit.AuditPort;
 import com.teachloop.shared.error.ApiException;
@@ -43,14 +44,12 @@ public class IdentityChannelAdminEndpoint {
                                 Integer dailyQuota, JsonNode extra) {
     }
 
-    /**
-     * 「发送测试邮件」的结果。
-     *
-     * <p>{@code messageKey} 是可翻译的固定原因（由 messages*.properties 提供），
-     * {@code message} 是底层异常的原文（例如 SMTP 返回码），二者最多有一个。
-     * {@code target} 是这封信实际发去的地址，成功时前端用它拼「已发送到 X」。
-     */
-    public record TestResult(boolean ok, String messageKey, String message, String target, long latencyMs) {
+    /** 「发送测试邮件」入队回执：前端拿 id 轮询 {@code GET /{channel}/test/{id}}。 */
+    public record TestQueued(UUID id, String target) {
+    }
+
+    /** 投递状态：PENDING / SENT / FAILED；FAILED 时 {@code message} 是底层错误原文。 */
+    public record TestStatus(String status, String target, String message) {
     }
 
     /** 够用的邮箱形状校验：拦「teachloop admin」这类把显示名当发件人的输入。 */
@@ -60,14 +59,17 @@ public class IdentityChannelAdminEndpoint {
     private final SecretBox secretBox;
     private final AuditPort audit;
 
-    private final List<VerificationChannel> implementations;
+    private final List<MessageChannel> implementations;
+    private final OutboundMessageQueue outbound;
     private final ObjectMapper mapper;
 
     public IdentityChannelAdminEndpoint(IdentityChannelRepository channels, SecretBox secretBox, AuditPort audit,
-                                        List<VerificationChannel> implementations, ObjectMapper mapper) {
+                                        List<MessageChannel> implementations, OutboundMessageQueue outbound,
+                                        ObjectMapper mapper) {
         this.channels = channels;
         this.secretBox = secretBox;
         this.implementations = implementations;
+        this.outbound = outbound;
         this.audit = audit;
         this.mapper = mapper;
     }
@@ -104,39 +106,42 @@ public class IdentityChannelAdminEndpoint {
     }
 
     /**
-     * 2026-10-28：管理端「发送测试邮件」。
+     * 2026-10-28：管理端「发送测试邮件」——只入队，立即返回消息 id。
      *
-     * <p>只发**已保存**的配置，收件人就是该通道的发件人邮箱——刚在表单里改完还没保存时，
-     * 点这个按钮验的是旧配置，所以前端必须提示「先保存再测试」。
+     * <p>投递是异步的（`OutboundMessageWorker`），前端拿 id 轮询 {@code /{channel}/test/{id}}
+     * 直到 SENT / FAILED，再告诉用户「真发出去了没有」。收件人是该通道的发件人邮箱，
+     * 所以只发**已保存**的配置；刚改完还没保存时测的是旧配置（页面有提示）。
      *
      * <p>刻意不要求 {@code enabled=true}：先测通再打开开关才是正常顺序。
      */
     @PostMapping("/{channel}/test")
-    public TestResult test(@RequestAttribute("currentUser") CurrentUser me, @PathVariable String channel) {
+    public TestQueued test(@RequestAttribute("currentUser") CurrentUser me, @PathVariable String channel) {
         requireAdmin(me);
         IdentityChannelRepository.Row row = channels.find(channel)
                 .orElseThrow(() -> ApiException.notFound("通道不存在"));
-        VerificationChannel impl = implementations.stream()
+        MessageChannel impl = implementations.stream()
                 .filter(c -> c.channel().equals(channel))
                 .findFirst()
                 .orElseThrow(() -> ApiException.badRequest("error.identity.channel.testUnsupported"));
-        String to = row.fromAddress();
         if (!impl.configured()) {
-            return new TestResult(false, "error.identity.channel.notConfigured", null, to, 0);
+            throw ApiException.badRequest("error.identity.channel.notConfigured");
         }
-        long started = System.nanoTime();
-        try {
-            impl.send(to, ChannelTestMail.SUBJECT, ChannelTestMail.BODY);
-        } catch (ChannelSendException ex) {
-            long ms = (System.nanoTime() - started) / 1_000_000;
-            audit.record(new AuditEvent(me.id(), "identity_channel:test", "identity_channel", channel,
-                    Map.of("ok", false, "latencyMs", ms)));
-            return new TestResult(false, null, ex.getMessage(), to, ms);
-        }
-        long ms = (System.nanoTime() - started) / 1_000_000;
+        String to = row.fromAddress();
+        UUID id = outbound.enqueue(channel, to, ChannelTestMail.SUBJECT, ChannelTestMail.BODY);
         audit.record(new AuditEvent(me.id(), "identity_channel:test", "identity_channel", channel,
-                Map.of("ok", true, "latencyMs", ms)));
-        return new TestResult(true, null, null, to, ms);
+                Map.of("queued", id.toString())));
+        return new TestQueued(id, to);
+    }
+
+    /** 测试投递状态查询；页面每 800ms 拉一次，最多等 30 秒。 */
+    @GetMapping("/{channel}/test/{id}")
+    public TestStatus testStatus(@RequestAttribute("currentUser") CurrentUser me, @PathVariable String channel,
+                                 @PathVariable UUID id) {
+        requireAdmin(me);
+        OutboundMessageRepository.Delivery delivery = outbound.find(id)
+                .filter(d -> d.channel().equals(channel))
+                .orElseThrow(() -> ApiException.notFound("error.identity.channel.testNotFound"));
+        return new TestStatus(delivery.status().name(), delivery.target(), delivery.lastError());
     }
 
     /**

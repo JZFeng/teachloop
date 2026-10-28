@@ -5,8 +5,8 @@ import com.teachloop.identity.auth.PasswordAuthProvider;
 import com.teachloop.identity.auth.VerificationPurpose;
 import com.teachloop.identity.auth.WeChatAuthProvider;
 import com.teachloop.identity.auth.channel.ChannelRegistry;
-import com.teachloop.identity.auth.channel.ChannelSendException;
-import com.teachloop.identity.auth.channel.VerificationChannel;
+import com.teachloop.identity.auth.channel.MessageChannel;
+import com.teachloop.identity.messaging.OutboundMessageQueue;
 import com.teachloop.identity.domain.TeacherInvite;
 import com.teachloop.identity.domain.TeacherInviteRepository;
 import com.teachloop.identity.domain.User;
@@ -48,12 +48,13 @@ public class AuthEndpoint {
     private final WeChatAuthProvider weChatProvider;
     private final CodeService codes;
     private final ChannelRegistry channels;
+    private final OutboundMessageQueue outbound;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     public AuthEndpoint(UserRepository users, TeacherInviteRepository invites, PasswordEncoder passwordEncoder,
                         PasswordAuthProvider passwordProvider, WeChatAuthProvider weChatProvider,
-                        CodeService codes, ChannelRegistry channels, Clock clock) {
+                        CodeService codes, ChannelRegistry channels, OutboundMessageQueue outbound, Clock clock) {
         this.users = users;
         this.invites = invites;
         this.passwordEncoder = passwordEncoder;
@@ -61,6 +62,7 @@ public class AuthEndpoint {
         this.weChatProvider = weChatProvider;
         this.codes = codes;
         this.channels = channels;
+        this.outbound = outbound;
         this.clock = clock;
     }
 
@@ -174,7 +176,7 @@ public class AuthEndpoint {
     }
 
     private Map<String, Object> sendCode(User user, String channelName, VerificationPurpose purpose) {
-        VerificationChannel channel = channels.usable(channelName)
+        MessageChannel channel = channels.usable(channelName)
                 .orElseThrow(() -> ApiException.notFound("该验证方式不可用"));
         long wait = cooldownRemaining(user.getEmail(), purpose);
         if (wait > 0) {
@@ -184,12 +186,9 @@ public class AuthEndpoint {
         String body = purpose == VerificationPurpose.PASSWORD_RESET
                 ? "你正在重设 TeachLoop 密码，验证码：" + issued.raw() + "（10 分钟内有效）\n\n如果不是你本人操作，忽略这封邮件。\n"
                 : "你的 TeachLoop 登录验证码：" + issued.raw() + "（10 分钟内有效）\n";
-        try {
-            channel.send(user.getEmail(), "TeachLoop 验证码", body);
-        } catch (ChannelSendException ex) {
-            codes.invalidate(issued.id());
-            throw new ApiException(ErrorCode.UNAVAILABLE, "验证码发送失败，请稍后重试");
-        }
+        // 2026-10-28：只入队。接口不再等 SMTP；投递失败由队列退避重试，
+        // 用户收不到就再点一次（冷却 60 秒仍由上面拦着）。
+        outbound.enqueue(channel.channel(), user.getEmail(), "TeachLoop 验证码", body);
         return Map.of("status", "sent", "resendAfterSeconds", COOLDOWN.toSeconds());
     }
 
