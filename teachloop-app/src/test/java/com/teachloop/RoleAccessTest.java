@@ -114,7 +114,7 @@ class RoleAccessTest {
         Map<String, Object> adminFeatures = Json.parse(
                 request(base, admin, "GET", "/api/features", null).body());
         assertThat(adminFeatures)
-                .containsEntry("nav.classes", true)
+                .containsEntry("nav.classes", false)
                 .containsEntry("nav.ai", true)
                 .containsEntry("nav.home", false)
                 .containsEntry("nav.reports", false);
@@ -128,14 +128,22 @@ class RoleAccessTest {
     }
 
     @Test
-    @DisplayName("管理员落地班级页后，页面入口不会被 403")
-    void adminCanUseClassPageActions() throws Exception {
+    @DisplayName("管理员对班级接口 403（2026-10-27：班级只属于师生）")
+    void adminIsDeniedClassEndpoints() throws Exception {
         String base = base();
         String admin = adminCookie(base);
+        String teacher = login(base, "teacher@teachloop.local", "teachloop123");
 
-        assertThat(request(base, admin, "GET", "/api/classes", null).statusCode()).isEqualTo(200);
-        // 创建班级参数不全时应是 400；关键是不能是 403 —— 班级页对管理员必须可用。
-        assertThat(request(base, admin, "POST", "/api/classes", Map.of()).statusCode()).isNotEqualTo(403);
+        assertThat(request(base, admin, "GET", "/api/classes", null).statusCode()).isEqualTo(403);
+        assertThat(request(base, admin, "POST", "/api/classes", Map.of("name", "管理员不该建的班"))
+                .statusCode()).isEqualTo(403);
+        // 管理员也不能借 requireOwned 的旧例外去看别人的班或轮换邀请码。
+        assertThat(request(base, admin, "GET", "/api/classes/" + UUID.randomUUID() + "/members", null)
+                .statusCode()).isEqualTo(403);
+        assertThat(request(base, admin, "POST", "/api/classes/" + UUID.randomUUID() + "/invite/regenerate",
+                Map.of()).statusCode()).isEqualTo(403);
+        // 同一批端点对教师仍放行。
+        assertThat(request(base, teacher, "GET", "/api/classes", null).statusCode()).isEqualTo(200);
     }
 
     // ---------- helpers ----------

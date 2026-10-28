@@ -19,13 +19,13 @@ class FeaturesEndpointTest {
     }
 
     @Test
-    @DisplayName("管理员：只有班级与 AI 设置")
-    void adminSeesOnlyClassesAndAi() {
+    @DisplayName("管理员：只有 AI 设置")
+    void adminSeesOnlyAi() {
         Map<String, Boolean> f = new FeaturesEndpoint(false).features(user("ADMIN"));
 
         assertThat(f)
-                .containsEntry("nav.classes", true)
                 .containsEntry("nav.ai", true)
+                .containsEntry("nav.classes", false)
                 .containsEntry("nav.home", false)
                 .containsEntry("nav.reports", false)
                 .containsEntry("nav.papers", false)

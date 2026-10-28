@@ -27,12 +27,15 @@
 ```java
 // teachloop-identity/.../nav/RoleNavMatrix.java
 static final Map<UserRole, Set<String>> ROLE_KEYS = Map.of(
-  ADMIN,   Set.of("nav.classes", "nav.ai"),
+  ADMIN,   Set.of("nav.ai"),                       // 2026-10-27：班级移出管理员
   TEACHER, Set.of("nav.home", "nav.classes", "nav.assignments", "nav.papers",
                   "nav.vocab.sets", "nav.vocab.assign", "nav.grading", "nav.review", "nav.reports"),
-  STUDENT, Set.of("nav.home", "nav.classes", "nav.vocab.library", "nav.vocab.review", "nav.feedback")
+  STUDENT, Set.of("nav.home", "nav.classes", "nav.vocab.library", "nav.vocab.lists", "nav.vocab.review")
 );
 ```
+
+> **2026-10-27 修订**：ADMIN 由 {`nav.classes`,`nav.ai`} 收为 {`nav.ai`}；STUDENT 同步删掉已废弃的
+> `nav.feedback`、补上 `nav.vocab.lists`（原片段落后于 AC-72.8 / AC-69.11）。理由见 spec §1 的 2026-10-27 修订说明。
 
 `GET /api/features` = `ROLE_KEYS(role)` ∪ vocab 模块开关 ∪ 实验订阅（008 服务），输出扁平布尔，含 false 的 key 以便前端明确判断。
 
@@ -50,7 +53,7 @@ export function navSpecs(features: Record<string, boolean>) {
 }
 ```
 
-**三套顺序由同一份目录自然得出**：教师过滤后 = 首页/班级/作业/试卷/词集/发词/批改/复核/报表（9）；学生 = 首页/班级/我的词库/我的词单/今日复习（5，2026-10-26 AC-69.11 修订加词单）；管理员 = 班级/AI 设置（2）。前端没有任何一处写「某角色能看某菜单」。
+**三套顺序由同一份目录自然得出**：教师过滤后 = 首页/班级/作业/试卷/词集/发词/批改/复核/报表（9）；学生 = 首页/班级/我的词库/我的词单/今日复习（5，2026-10-26 AC-69.11 修订加词单）；管理员 = AI 设置（1，2026-10-27 起班级移出管理员）。前端没有任何一处写「某角色能看某菜单」。
 
 ### 2.3 加载态
 

@@ -16,6 +16,7 @@
 | T479 | **后端方法级收口**：按 plan §4 授权表改 `SecurityConfig` 与端点注解；`/api/papers/**` 从 `hasAnyRole(TEACHER,ADMIN)` 收成 `TEACHER`；`POST /api/offerings`、grading、review、class-summary、export、`reject` 收成 TEACHER | — | `IdentityAuthTest` 扩展：授权表里「改后 TEACHER」的每条端点 ADMIN 均 403、TEACHER 均非 403；「不变」行的学生链路（entry/paper/session/my-submissions/answers/提交）全部保持 200（AC-63.7 / 63.8） |
 | T480 | **班级页入口收敛**：`ClassesPage.tsx` 的入口可见性改由矩阵查询（`features['nav.assignments']` 等）决定，删除页面内角色分支 | T479 | ADMIN 登录落在班级页后，页面内不出现「布置作业」「批改」类入口，点击不产生 403；TEACHER 与 STUDENT 页面行为不变（AC-63.9） |
 | T481 | **三档验收与状态文档**：跑 `make test`、`make web-build`；手工三角色各走一遍；更新 `docs/DELIVERY-STATUS.md` 与 `docs/PROGRESS.md` | T475–T480 | `make test` 退出码 0；`make web-build` 退出码 0；三张角色截图/记录（admin 侧栏 2 项、teacher 9 项、student 5 项）；`nav.ts` 内 grep 不到 `role ===` 之类的分支；DELIVERY-STATUS 新增一行 |
+| T516 | **班级移出管理员（2026-10-27 修订 AC-63.2 / 63.5 / 63.6 / 63.9 / 63.10、FR-124 / 125 / 128）**：`RoleNavMatrix` ADMIN → {`nav.ai`}；`SecurityConfig` 加 `/api/classes/**` = TEACHER / STUDENT；删 `ClassEndpoint.requireOwned` 的 ADMIN 例外、建班收紧为仅 TEACHER；`App.tsx` 落地与兜底按 key 选（ADMIN → `/admin/ai`）；同步 `RoleNavMatrixTest`、`FeaturesEndpointTest`、`RoleAccessTest`、`vocab-nav.test.mjs` | T475–T480 | ADMIN：`GET/POST /api/classes`、`/{id}/members`、`/{id}/invite/regenerate` 全 403，`/api/features` 里 `nav.classes=false`、`nav.ai=true`；TEACHER / STUDENT 行为不变；`vocab-nav.test.mjs` 断言管理员只剩 `/admin/ai` |
 
 ---
 
@@ -28,10 +29,12 @@
 - [x] **T479** 后端方法级收口 — `SecurityConfig` 10 条规则；`RoleAccessTest` 4/4 通过（9 端点 × admin 403 / teacher 非 403）；全量 Maven `./mvnw -pl teachloop-app -am test` EXIT=0
 - [x] **T480** 班级页入口收敛 — 核实班级页只有「创建班级 / 成员列表」，`/api/classes/**` 未收口，不会 403；`RoleAccessTest.adminCanUseClassPageActions` 钉住
 - [x] **T481** 三档验收与状态文档 — `check-deps` / `check-boundaries` / `check-i18n` / `check-ui` / 44 组对比度全绿；`pnpm run build` EXIT=0；**三角色浏览器验收通过**：admin 侧栏 2 项且 `/grading`、`/reports` 均落到 `/classes`，教师 9 项、学生 5 项（截图 `docs/reports/role-nav-2026-10-25/`）
+- [x] **T516** 班级移出管理员（2026-10-27）— `RoleNavMatrix` ADMIN → {`nav.ai`}；`SecurityConfig` 加 `/api/classes/**` = TEACHER / STUDENT；`ClassEndpoint` 删 ADMIN 例外、建班只允许 TEACHER；`App.tsx` 落地与兜底按 key 选、`/classes` 包 `RequireFeature`。验证：`RoleNavMatrixTest` 7/7、`FeaturesEndpointTest` 5/5、`RoleAccessTest` 4/4（含 admin 对 classes 四类端点 403）、`vocab-nav.test.mjs` 10/10、全量 `node --test` 125/125、`tsc --noEmit` EXIT=0。**浏览器未验收**（admin 落地 `/admin/ai` 只做了接口 + 结构校验）
 
 ---
 
-### 编号取号记录（2026-10-25）
+### 编号取号记录（2026-10-25，2026-10-27 追加）
 
 - 落笔前全局最大号：`US 69`、`AC 69`、`FR 150`、`T 474`；本文件使用 `T475–T481`，不新增 `US/AC/FR`。
+- 2026-10-27 追加 `T516`（落笔前全局最大 `T 515`）。
 - 已跑 `uniq -d`：本文件无重号。

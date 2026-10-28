@@ -42,11 +42,12 @@ public final class RoleNavMatrix {
             NAV_VOCAB_LIBRARY, NAV_VOCAB_LISTS, NAV_VOCAB_REVIEW, NAV_AI);
 
     /**
-     * 角色默认可见集合。管理员只做班级查看与 AI 配置（2026-10-24 用户拍板）：
-     * 不含首页、作业、试卷、词集、发词、批改、复核、报表。
+     * 角色默认可见集合。管理员只做 AI 配置（2026-10-27 用户拍板，取代 2026-10-24 的
+     * 「班级 + AI」）：班级只属于师生，管理员不需要，也不该能调班级接口。
+     * 管理员因此不含班级、首页、作业、试卷、词集、发词、批改、复核、报表。
      */
     private static final Map<UserRole, Set<String>> ROLE_KEYS = Map.of(
-            UserRole.ADMIN, Set.of(NAV_CLASSES, NAV_AI),
+            UserRole.ADMIN, Set.of(NAV_AI),
             UserRole.TEACHER, Set.of(NAV_HOME, NAV_CLASSES, NAV_ASSIGNMENTS, NAV_PAPERS,
                     NAV_VOCAB_SETS, NAV_VOCAB_ASSIGN, NAV_GRADING, NAV_REVIEW, NAV_REPORTS),
             // 2026-10-26（AC-72.8）：学生不再有「成绩与评语」菜单项——列表页删除，

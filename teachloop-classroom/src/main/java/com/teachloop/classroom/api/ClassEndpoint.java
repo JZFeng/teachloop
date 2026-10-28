@@ -105,16 +105,16 @@ public class ClassEndpoint {
 
     private ClassEntity requireOwned(UUID id, CurrentUser me) {
         ClassEntity c = classes.findById(id).orElseThrow(() -> ApiException.notFound("班级不存在"));
-        // 越权一律 404，不泄漏存在性
-        if (!c.getTeacherId().equals(me.id()) && !me.is("ADMIN")) {
+        // 越权一律 404，不泄漏存在性。班级只属于师生，管理员没有例外（2026-10-27）。
+        if (!c.getTeacherId().equals(me.id())) {
             throw ApiException.notFound("班级不存在");
         }
         return c;
     }
 
     private static void requireTeacher(CurrentUser me) {
-        if (me.is("STUDENT")) {
-            throw ApiException.forbidden("学生不能创建班级");
+        if (!me.is("TEACHER")) {
+            throw ApiException.forbidden("error.class.teacherOnly");
         }
     }
 

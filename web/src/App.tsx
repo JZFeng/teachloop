@@ -62,24 +62,35 @@ function LoginRoute() {
   return me ? <Navigate to={next ?? '/'} replace /> : <LoginPage />
 }
 
+/**
+ * 角色落地页：按后端给的 key 选第一个可用入口（2026-10-27：管理员不再有班级，
+ * 只剩 AI 设置，因此不再固定落 /classes）。
+ */
+function landingFor(features: Record<string, boolean>): string {
+  if (features['nav.home'] === true) return '/'
+  if (features['nav.classes'] === true) return '/classes'
+  if (features['nav.ai'] === true) return '/admin/ai'
+  return '/profile'
+}
+
 /** 根路由按角色分流：教师看跨班首页，学生看自己的考试/作业。 */
 function HomeRouter() {
   const { me } = useAuth()
   const { features, loaded } = useFeatures()
   if (!loaded) return <div style={{ padding: 40 }}><Loading /></div>
-  // 没有 nav.home 的角色（管理员）直接落到班级页（AC-63.5）：这里只看 key，不看角色。
-  if (features['nav.home'] !== true) return <Navigate to="/classes" replace />
+  // 没有 nav.home 的角色（管理员）落到自己唯一的入口（AC-63.5 修订）：这里只看 key，不看角色。
+  if (features['nav.home'] !== true) return <Navigate to={landingFor(features)} replace />
   return me?.role === 'STUDENT' ? <StudentHomePage /> : <TeacherHomePage />
 }
 
 /**
  * 007-role-nav：路由级可见性，key 由后端 `/api/features` 给出。
- * 未加载时不放行也不重定向（避免深链被吃掉）；不具备该 key 时回到班级页。
+ * 未加载时不放行也不重定向（避免深链被吃掉）；不具备该 key 时回到自己的落地页。
  */
 function RequireFeature({ feature, children }: { feature: string; children: ReactNode }) {
   const { features, loaded } = useFeatures()
   if (!loaded) return <div style={{ padding: 40 }}><Loading /></div>
-  if (features[feature] !== true) return <Navigate to="/classes" replace />
+  if (features[feature] !== true) return <Navigate to={landingFor(features)} replace />
   return <>{children}</>
 }
 
@@ -143,7 +154,8 @@ export default function App() {
       <Route element={<RequireAuth />}>
         <Route element={<ShellLayout />}>
           <Route index element={<HomeRouter />} />
-          <Route path="classes" element={<ClassesPage />} />
+          {/* 2026-10-27：班级页按 key 守卫——管理员没有 nav.classes，深链 /classes 直接回落地页（AC-63.6 / 63.9）。 */}
+          <Route path="classes" element={<RequireFeature feature="nav.classes"><ClassesPage /></RequireFeature>} />
           {/* T389：开关关闭时不注册 vocab 路由（AC-56.3 / plan §11）。 */}
           {features.vocab && (
             <>

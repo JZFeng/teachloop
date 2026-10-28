@@ -16,7 +16,8 @@ function featuresFor(keys, vocab = false) {
   return out
 }
 
-const ADMIN_KEYS = ['nav.classes', 'nav.ai']
+// 2026-10-27：班级移出管理员矩阵（班级只属于师生），管理员只剩 AI 设置。
+const ADMIN_KEYS = ['nav.ai']
 const TEACHER_KEYS = [
   'nav.home', 'nav.classes', 'nav.assignments', 'nav.papers',
   'nav.vocab.sets', 'nav.vocab.assign', 'nav.grading', 'nav.review', 'nav.reports',
@@ -32,13 +33,13 @@ const paths = (features) => navSpecs(features).map((item) => item.to)
 /** 模拟后端在 vocab 关闭时的行为：vocab 类 key 不会被授予。 */
 const withoutVocab = (keys) => keys.filter((key) => !key.startsWith('nav.vocab.'))
 
-test('管理员恰好两项：班级 → AI 设置', () => {
-  assert.deepEqual(paths(featuresFor(ADMIN_KEYS)), ['/classes', '/admin/ai'])
+test('管理员恰好一项：AI 设置', () => {
+  assert.deepEqual(paths(featuresFor(ADMIN_KEYS)), ['/admin/ai'])
 })
 
-test('管理员看不到任何教师项（首页/试卷/批改/复核/报表/作业）', () => {
+test('管理员看不到任何教师项与班级页（首页/班级/试卷/批改/复核/报表/作业）', () => {
   const admin = paths(featuresFor(ADMIN_KEYS))
-  for (const forbidden of ['/', '/papers', '/grading', '/review', '/reports', '/assignments']) {
+  for (const forbidden of ['/', '/classes', '/papers', '/grading', '/review', '/reports', '/assignments']) {
     assert.ok(!admin.includes(forbidden), `管理员不应看到 ${forbidden}`)
   }
 })

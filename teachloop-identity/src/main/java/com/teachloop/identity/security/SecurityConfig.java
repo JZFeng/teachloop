@@ -74,7 +74,10 @@ public class SecurityConfig {
                         "/api/setup/**",
                         "/api/auth/login", "/api/auth/wechat", "/api/auth/teacher-invite").permitAll()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                // 007-role-nav：教师专属功能。管理员只做班级查看与 AI 配置，
+                // 2026-10-27：班级只属于师生。管理员既没有班级菜单，也不该能调班级接口
+                // （此前 requireOwned 里的 ADMIN 例外允许管理员轮换任意班的邀请码）。
+                .requestMatchers("/api/classes/**").hasAnyRole("TEACHER", "STUDENT")
+                // 007-role-nav：教师专属功能。管理员只做 AI 配置，
                 // 因此这里不再沿用 hasAnyRole(TEACHER, ADMIN)。
                 .requestMatchers("/api/papers/**").hasRole("TEACHER")
                 .requestMatchers("/api/reports/**").hasRole("TEACHER")
