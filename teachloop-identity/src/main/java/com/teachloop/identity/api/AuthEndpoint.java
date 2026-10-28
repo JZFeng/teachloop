@@ -126,7 +126,10 @@ public class AuthEndpoint {
         if (user.getStatus() != UserStatus.ACTIVE) {
             throw ApiException.forbidden("账号已停用");
         }
-        request.getSession(true).setAttribute(SessionAuthFilter.SESSION_UID, user.getId().toString());
+        var session = request.getSession(true);
+        session.setAttribute(SessionAuthFilter.SESSION_UID, user.getId().toString());
+        // 2026-10-27：记录会话建立时间，供「改密码踢会话」比较。
+        session.setAttribute(SessionAuthFilter.SESSION_LOGIN_AT, Instant.now(clock));
         return me(user);
     }
 

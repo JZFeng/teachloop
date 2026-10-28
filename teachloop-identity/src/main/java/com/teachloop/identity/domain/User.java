@@ -47,6 +47,10 @@ public class User {
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
 
+    /** 2026-10-27：改密码后置为 now()，早于该时间登录的会话全部作废。 */
+    @Column(name = "session_invalid_before")
+    private Instant sessionInvalidBefore;
+
     protected User() {
     }
 
@@ -70,6 +74,7 @@ public class User {
     public UserStatus getStatus() { return status; }
     public Instant getCreatedAt() { return createdAt; }
     public boolean isPasswordLoginEnabled() { return passwordLoginEnabled; }
+    public Instant getSessionInvalidBefore() { return sessionInvalidBefore; }
 
     public void setRole(UserRole role) { this.role = role; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
@@ -80,4 +85,5 @@ public class User {
     public void setEmail(String email) { this.email = email; }
     public void setWechatOpenId(String openId) { this.wechatOpenId = openId; }
     public void setPasswordLoginEnabled(boolean passwordLoginEnabled) { this.passwordLoginEnabled = passwordLoginEnabled; }
+    public void setSessionInvalidBefore(Instant sessionInvalidBefore) { this.sessionInvalidBefore = sessionInvalidBefore; }
 }

@@ -68,6 +68,21 @@ public class AdminService {
         return users.save(user);
     }
 
+    /**
+     * 2026-10-27：管理员重置某个账号的密码（朋友忘密码时用，不需要旧密码）。
+     * 同时把 {@code session_invalid_before} 置为 now()，该账号已有会话全部作废。
+     */
+    @Transactional
+    public User setPassword(String email, String password) {
+        User user = users.findByEmail(email).orElseThrow(() -> ApiException.notFound("账号不存在"));
+        if (password == null || password.isBlank()) {
+            throw ApiException.badRequest("密码不能为空");
+        }
+        user.setPasswordHash(encoder.encode(password));
+        user.setSessionInvalidBefore(Instant.now(clock));
+        return users.save(user);
+    }
+
     @Transactional
     public TeacherInvite createTeacherInvite(UUID createdBy, int validDays) {
         String code = newCode();

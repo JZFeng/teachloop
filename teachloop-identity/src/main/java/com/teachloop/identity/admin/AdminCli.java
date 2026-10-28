@@ -43,6 +43,9 @@ public class AdminCli implements ApplicationRunner {
         if (args.containsOption("create-user")) {
             createUser(args);
         }
+        if (args.containsOption("set-password")) {
+            setPassword(args);
+        }
     }
 
     private void createAdmin(ApplicationArguments args) {
@@ -101,6 +104,30 @@ public class AdminCli implements ApplicationRunner {
             System.out.println("请立即保存该密码；该账号可在生产环境用邮箱 + 密码登录。");
         } else {
             System.out.println("CREATED USER " + email + " ROLE " + role);
+        }
+    }
+
+    /**
+     * 2026-10-27：管理员重置密码。用法
+     * {@code --set-password=email}，密码取 {@code USER_PASSWORD}，缺省随机生成并打印。
+     */
+    private void setPassword(ApplicationArguments args) {
+        String email = firstValue(args, "set-password");
+        if (email == null) {
+            log.error("--set-password 需要邮箱，例如 --set-password=friend@example.com");
+            return;
+        }
+        String password = System.getenv("USER_PASSWORD");
+        boolean generated = password == null || password.isBlank();
+        if (generated) {
+            password = randomPassword();
+        }
+        admin.setPassword(email, password);
+        if (generated) {
+            System.out.println("RESET PASSWORD " + email + " PASSWORD " + password);
+            System.out.println("该账号已有会话已全部作废，请把新密码发给本人。");
+        } else {
+            System.out.println("RESET PASSWORD " + email);
         }
     }
 

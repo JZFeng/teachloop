@@ -460,6 +460,15 @@
     "unreadOnly": "Unread only"
   },
   "profile": {
+    "passwordTitle": "Change password",
+    "passwordSub": "Saving signs out your other devices. This one stays signed in.",
+    "passwordOld": "Current password",
+    "passwordNew": "New password (at least 8 characters)",
+    "passwordConfirm": "Confirm new password",
+    "passwordSave": "Save new password",
+    "passwordSaved": "Password changed. Other devices have been signed out.",
+    "passwordTooShort": "New password must be at least 8 characters",
+    "passwordMismatch": "The two new passwords do not match",
     "completeAction": "Complete profile",
     "email": "Email",
     "emailRequired": "Enter your email",
