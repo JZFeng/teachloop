@@ -248,3 +248,14 @@ make check-ui                      # 8 条硬规则 + 基线
 python3 scripts/ui/contrast.py     # 44 组对比度
 echo "手写 btn: $(grep -rc 'className=.*\bbtn\b' web/src --include=*.tsx | awk -F: '{s+=$2} END {print s}')"
 ```
+
+D3 的平板矩阵目前是手动跑（不新增依赖：DevTools 设备模拟或 ego 脚本切 `deviceMetricsOverride`）。
+在任一设备视口下，控制台粘这两行就得到两个数：
+
+```js
+document.documentElement.scrollWidth > innerWidth + 2                     // true = 横向溢出，必须修
+[...document.querySelectorAll('button,a,[role=button]')].filter(e => e.offsetParent)
+  .map(e => e.getBoundingClientRect()).filter(r => r.height < 36 || r.width < 36).length   // 小触达个数
+```
+
+按 D3 表格的 6 个视口各跑一次：横向溢出必须为 0；小触达个数记进评审记录（当前存量见 D3）。
