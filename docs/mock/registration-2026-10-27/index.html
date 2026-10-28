@@ -118,14 +118,12 @@
       <div id="register-alert"></div>
 
       <label class="field"><span>姓名</span>
-        <input id="rg-name" type="text" placeholder="想填什么填什么，可留空" />
-        <div class="hint">不做格式校验；留空时用邮箱前缀当显示名。</div>
+        <input id="rg-name" type="text" placeholder="姓名" />
       </label>
 
       <label class="field"><span>邮箱<em>*</em></span><input id="rg-email" type="email" placeholder="you@example.com" /></label>
       <label class="field"><span>密码<em>*</em></span>
-        <input id="rg-pwd" type="password" placeholder="至少 8 位" />
-        <div class="hint">密码在提交时就校验；不合格不会创建账号，也不会发信。</div>
+        <input id="rg-pwd" type="password" placeholder="密码（至少 8 位）" />
       </label>
       <button class="primary" onclick="submitRegister()">注册</button>
       <div class="links"><button class="link" onclick="go('login')">已有账号？去登录</button></div>
@@ -139,7 +137,7 @@
         <div class="from">TeachLoop &lt;no-reply@teachloop.org&gt; · 主题：激活你的 TeachLoop 账号</div>
         你好，点下面的链接确认激活账号：<br />
         <a href="javascript:void(0)" onclick="go('activate')">https://www.teachloop.org/activate?token=8f3c…d2</a>
-        <div class="hint">（原型里点这行就等于在邮箱里点链接）</div>
+        <div class="hint">原型：点这行等于在邮箱里点链接</div>
       </div>
       <div id="sent-alert"></div>
       <button class="primary" id="resend-btn" disabled onclick="resendActivation()">60s 后可重发</button>
@@ -149,10 +147,9 @@
     <!-- 确认激活 -->
     <div class="card screen" id="s-activate">
       <h1>确认激活</h1>
-      <p class="sub">这个链接只做展示，只有点了下面的按钮才会真正激活。</p>
+      <p class="sub">确认后即可用邮箱和密码登录。</p>
       <div class="mail">
         即将激活的账号：<b id="act-email"></b>
-        <div class="hint">邮件网关会预取链接，所以 GET 不能产生副作用（AC-73.4）。</div>
       </div>
       <div id="activate-alert"></div>
       <button class="primary" onclick="confirmActivate()">确认激活这个账号</button>
@@ -177,7 +174,6 @@
           <input id="code-input" inputmode="numeric" maxlength="6" placeholder="000000" />
           <button id="resend" disabled onclick="resendCode()">60s 后重发</button>
         </div>
-        <div class="hint">输错 5 次该验证码作废，需要重新获取。</div>
       </label>
       <button class="primary" onclick="verifyCode()">下一步</button>
       <div class="links"><button class="link" onclick="go('login')">返回登录</button></div>
@@ -225,7 +221,8 @@
       <hr />
       <div class="note">
         原型只表达流程与状态，不连接后端。<br />
-        v2 变化：注册不再用验证码，改为激活链接；验证码只剩「验证码登录」与「忘记密码」两处。
+        v2：注册走激活链接；验证码只剩「验证码登录」与「忘记密码」。<br />
+        本面板只供评审，产品界面不出现这些按钮。
       </div>
     </div>
   </div>
@@ -285,9 +282,9 @@ function doPasswordLogin() {
   if (!pwd) return alertInto('login-alert', 'err', '请输入密码');
   if (state.pendingEmail && email === state.pendingEmail && !state.activated) {
     return alertInto('login-alert', 'err', '账号尚未激活',
-      '（403 ACCOUNT_PENDING）请先点激活邮件里的链接。<br /><button class="link" onclick="go(\'sent\')">重新发送激活邮件 →</button>');
+      '<button class="link" onclick="go(\'sent\')">重新发送激活邮件</button>');
   }
-  if (email === 'typo@example.com') return alertInto('login-alert', 'err', '邮箱或密码不正确', '不区分「账号不存在」与「密码错误」（AC-73.11）。');
+  if (email === 'typo@example.com') return alertInto('login-alert', 'err', '邮箱或密码不正确');
   alertInto('login-alert', 'ok', '登录成功', '（原型：真实环境会跳转首页）');
 }
 
@@ -299,7 +296,7 @@ function submitRegister() {
   if (pwd.length < 8) return alertInto('register-alert', 'err', '密码至少 8 位', '提交即校验，不会创建账号、也不会发信。');
   if (email === 'active@example.com') {
     return alertInto('register-alert', 'err', '这个邮箱已经注册过了',
-      '（409 ALREADY_REGISTERED，不发信）<br /><button class="link" onclick="go(\'login\')">直接用这个邮箱登录 →</button>');
+      '<button class="link" onclick="go(\'login\')">直接用这个邮箱登录</button>');
   }
   state.pendingEmail = email;
   state.activated = false;
@@ -331,10 +328,10 @@ function resendActivation() { alertInto('sent-alert', 'ok', '已重新发送', '
 function confirmActivate() {
   const forced = $('activate-alert').dataset.force;
   if (forced === 'expired') {
-    return alertInto('activate-alert', 'err', '激活链接已过期', '（TOKEN_EXPIRED）24 小时内有效，请重新发送。<br /><button class="link" onclick="go(\'sent\')">重新发送 →</button>');
+    return alertInto('activate-alert', 'err', '激活链接已过期', '<button class="link" onclick="go(\'sent\')">重新发送激活邮件</button>');
   }
   if (forced === 'used') {
-    return alertInto('activate-alert', 'err', '这个链接已经用过了', '（TOKEN_USED）账号已激活，直接去登录即可。<br /><button class="link" onclick="go(\'login\')">去登录 →</button>');
+    return alertInto('activate-alert', 'err', '这个链接已经用过了', '<button class="link" onclick="go(\'login\')">去登录</button>');
   }
   state.activated = true;
   $('activated-sub').textContent = '现在用 ' + state.pendingEmail + ' 和刚才设的密码登录。';
@@ -351,10 +348,10 @@ function sendCode(flow) {
   if (!email) return alertInto(host, 'err', '请输入邮箱');
   if (!isReset && email === 'nobody@example.com') {
     return alertInto(host, 'err', '这个邮箱还没有注册',
-      '（404 NOT_REGISTERED，不发码）<br /><button class="link" onclick="go(\'register\')">去创建账号 →</button>');
+      '<button class="link" onclick="go(\'register\')">去创建账号</button>');
   }
-  if (email === 'ratelimit@example.com') return alertInto(host, 'err', '发送太频繁', '（429）请 42 秒后再试。');
-  if (email === 'broken@example.com') return alertInto(host, 'err', '邮件发送失败', '（502）本次验证码作废，30 秒后可重试，不计入小时配额。');
+  if (email === 'ratelimit@example.com') return alertInto(host, 'err', '发送太频繁，请稍后再试');
+  if (email === 'broken@example.com') return alertInto(host, 'err', '邮件没发出去，请稍后重试');
   state.target = email;
   $('code-target').textContent = email;
   $('code-title').textContent = isReset ? '验证邮箱' : '登录验证';
@@ -367,9 +364,9 @@ function verifyCode() {
   const code = $('code-input').value.trim();
   alertInto('code-alert', null);
   if (code.length !== 6) return alertInto('code-alert', 'err', '请输入 6 位验证码');
-  if (code === '000000') return alertInto('code-alert', 'err', '验证码已过期', '（CODE_EXPIRED）请重新获取。');
-  if (code === '111111') return alertInto('code-alert', 'err', '错误次数过多，该验证码已作废', '（CODE_ATTEMPTS_EXCEEDED）请重新获取。');
-  if (code !== '123456') return alertInto('code-alert', 'err', '验证码不正确', '（CODE_INVALID）不显示还剩几次。');
+  if (code === '000000') return alertInto('code-alert', 'err', '验证码已过期，请重新获取');
+  if (code === '111111') return alertInto('code-alert', 'err', '尝试次数过多，请重新获取验证码');
+  if (code !== '123456') return alertInto('code-alert', 'err', '验证码不正确');
   if (state.flow === 'reset') { $('reset-target').textContent = state.target; alertInto('reset-alert', null); go('reset'); return; }
   alertInto('code-alert', 'ok', '登录成功', '（原型：真实环境跳转首页）');
 }
@@ -379,7 +376,7 @@ function submitReset() {
   alertInto('reset-alert', null);
   if (code !== '123456') return alertInto('reset-alert', 'err', '验证码不正确');
   if (pwd.length < 8) return alertInto('reset-alert', 'err', '新密码至少 8 位');
-  alertInto('reset-alert', 'ok', '密码已重设', '该账号所有已有会话已失效（AC-77.3），现在用新密码登录一次。');
+  alertInto('reset-alert', 'ok', '密码已重设', '其他设备需要重新登录。');
   setTimeout(() => go('login'), 1200);
 }
 
@@ -411,7 +408,7 @@ function force(kind) {
   if (kind === '429') {
     go('sent');
     $('sent-to').textContent = 'waiting@example.com';
-    alertInto('sent-alert', 'err', '发送太频繁', '（429 + Retry-After）请 42 秒后再试；同一邮箱 1 小时最多 5 次。');
+    alertInto('sent-alert', 'err', '发送太频繁，请稍后再试');
   }
 }
 
