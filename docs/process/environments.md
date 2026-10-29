@@ -32,8 +32,28 @@
 | CSRF（`teachloop.security.csrf`） | 关 | **开** | 开 |
 | 强制补全资料（`teachloop.security.require-profile-completion`） | 关 | **开** | 开 |
 | session cookie `secure` | 否 | 否（走 http://LAN-IP:5174，Secure cookie 会被浏览器丢） | 是 |
+| session cookie `domain` | 不设（host-only） | 不设（根域对不上 `.teachloop.org`，设了会丢 cookie） | 默认不设；要子域共享登录时由 `.env` 注入 `SERVER_SERVLET_SESSION_COOKIE_DOMAIN=.teachloop.org` |
 | 种子账号（`teachloop.seed.enabled`） | 开 | 开（只建库时 seed） | 关 |
 | 判分引擎 | 环境变量（默认 ai，`--stub` 用替身） | 环境变量（默认 ai） | ai（替身引擎 `@Profile("!prod")` 不可用） |
+
+## 3.1 子域与共享登录（2026-10-29 决定）
+
+以后 TeachLoop 拆成多个 app（`word.teachloop.org` 等）时，**共享登录**，做法分三步：
+
+1. **开 cookie 域**：在部署机的 `.env` 里设
+   `SERVER_SERVLET_SESSION_COOKIE_DOMAIN=.teachloop.org`。
+   **不写进 `application-prod.yml`**——写死会让任何非 `teachloop.org` 的环境都拿不到 cookie。
+   实测：把 `domain` 硬编码进 prod overlay 后，`ProdAuthTest` 三个用例全变 401
+   （测试跑在 `127.0.0.1`，`Domain=.teachloop.org` 的 cookie 被客户端丢弃），
+   还原成环境变量注入后 3/3 通过。
+2. **会话同源**：会话存 Postgres（`spring.session.jdbc`），所以**各 app 必须连同一个 session 表**；
+   若拆成不同库，先要把 session 表独立出去（单独库或 Redis），否则 cookie 域放开了也认不到会话。
+3. **路由**：单隧道 + 显式 public hostname + nginx 按 Host 分流（`deploy/nginx.conf`）；
+   Cloudflare Universal SSL 覆盖 `teachloop.org` 与 `*.teachloop.org`（**只覆盖一级**，
+   `a.b.teachloop.org` 不在免费证书内）。
+
+代价（必须写清楚）：cookie 域放宽后，**任一子域被 XSS 等于整个 `teachloop.org` 的会话被拿走**，
+子域必须与主域同级对待（同样的 CSP、同样的依赖审计）。
 
 ## 4. 自查
 

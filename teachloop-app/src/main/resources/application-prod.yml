@@ -8,6 +8,10 @@ server:
         http-only: true
         secure: true
         same-site: lax
+        # 子域共享登录（2026-10-29 决定）：需要 word.teachloop.org 这类子域与主域共用会话时，
+        # 在部署机的 .env 里设 SERVER_SERVLET_SESSION_COOKIE_DOMAIN=.teachloop.org。
+        # 故意不写死在这里：写死会让「非 teachloop.org 域名」的环境（测试跑在 127.0.0.1）拿不到 cookie，
+        # 实测 ProdAuthTest 三个用例全变 401；构建也要与环境无关，见 docs/process/environments.md §3.1。
 teachloop:
   security:
     csrf: true

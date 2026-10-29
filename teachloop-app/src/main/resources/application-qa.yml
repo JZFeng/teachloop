@@ -6,6 +6,8 @@
 # 有意不对齐的两项：
 #   * cookie.secure：qa 走 http://<LAN-IP>:5174 给手机验收，Secure cookie 会被浏览器丢弃；
 #   * session.timeout：8 小时是生产体验参数，qa 不需要。
+#   * cookie.domain：需要子域共享登录时由 prod 的 .env 注入（qa 走 127.0.0.1 / LAN-IP，
+#     根域对不上 .teachloop.org，设了浏览器会直接丢 cookie），见 environments.md §3.1。
 teachloop:
   security:
     csrf: true
