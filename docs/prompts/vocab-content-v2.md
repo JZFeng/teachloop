@@ -28,7 +28,17 @@
 - **必须关 thinking**：默认会先吐 9k–24k reasoning tokens，把 `max_tokens` 吃光导致正文截断。
 - **必须带非默认 User-Agent**：Python urllib 默认 UA 会被 Cloudflare 拦成 `403 error 1010`。
 - OpenCode Go 需要每请求随机 `x-opencode-session`（缺失返回 `400 MissingSessionID`，它只是路由头）。
-- 单请求超时按 provider：opencode 20s、本地单槽 90s。
+- 单请求超时按 provider：opencode 20s、deepseek 60s、本地单槽 90s。
+
+### provider 档案（`providers`，按 baseUrl 前缀匹配）
+
+| 档案 | baseUrl 前缀 | 关思考字段 | 超时 | 说明 |
+| :--- | :--- | :--- | :--- | :--- |
+| `opencode` | `https://opencode.ai/inference/go/openai/v1` | `thinking` | 20s | 另需每请求随机 `x-opencode-session` |
+| `deepseek` | `https://api.deepseek.com` | `thinking` | 60s | 2026-10-29 补；前缀只写主机名，`/v1` 形态也能命中 |
+| `local` | `http://192.168.68.101:8080/v1` | `chat_template_kwargs` | 90s | 单槽模型，排队会超时 |
+
+**系统设置里换 provider 时，契约里必须已有同前缀的档案**：没命中档案就不发关思考字段，模型默认开思考会把 `max_tokens` 吃满——2026-10-29 prod 切到 `deepseek` 后 10 个词 9 个 `内容生成失败`（worker 日志 `thinking not disabled (reasoning_tokens=…)`）。失败信息现在会直接点名「不在 prompt 契约的 providers 档案里」。
 
 ## 2. 结构（v2.5）
 

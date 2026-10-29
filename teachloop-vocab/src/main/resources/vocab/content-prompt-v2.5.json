@@ -34,6 +34,13 @@
       "sessionHeader": null,
       "disableThinking": "chat_template_kwargs",
       "timeoutSeconds": 90
+    },
+    "deepseek": {
+      "baseUrl": "https://api.deepseek.com",
+      "model": "deepseek-flash",
+      "sessionHeader": null,
+      "disableThinking": "thinking",
+      "timeoutSeconds": 60
     }
   },
   "notes": [
@@ -41,6 +48,7 @@
     "User-Agent 不能留库默认值：Python urllib 默认的 Python-urllib/x.y 会被 Cloudflare 拦成 403 error 1010；显式写产品 UA 即可（Java-http-client/.. 也能过）。",
     "disableThinking=thinking → 发 {\"thinking\":{\"type\":\"disabled\"}}；=chat_template_kwargs → 发 {\"chat_template_kwargs\":{\"enable_thinking\":false}}。不关会先吐 9k-24k reasoning tokens，把 max_tokens 吃光导致正文截断。",
     "x-opencode-session 是网关路由头（缺了 400 MissingSessionID），不是对话上下文，每次请求随机 UUID 即可。",
+    "deepseek 档案（2026-10-29 补）：api.deepseek.com 的 deepseek-flash 默认开思考，实测带 {\"thinking\":{\"type\":\"disabled\"}} 后 reasoning_tokens 消失、finish=stop、单请求 5.6–6.1s；不带会被 reasoning 吃满 6000 max_tokens（prod 2026-10-29 9/10 词失败即此因）。baseUrl 只写主机名，provider 配置带不带 /v1 都能前缀命中。",
     "只产 zh/en，不产 es（2026-10-25 用户确认）；meanings 与 translations 不应出现 es 键。",
     "chain 规则：起始步用词素组合；后续每步只加一个显式词缀且该词缀必须出现在 parts；不允许 from==[to] 的空步；wordFamily 里的派生词要出现在 chain 的 to（屈折变化可省）。",
     "bound root 不许映射成别的现代词（struggle = strug- + -le，不是 strive + -le）。",

@@ -137,7 +137,24 @@ public class AiVocabularyContentGenerator implements VocabularyContentGenerator 
             }
         }
         throw new ContentGenerationException(
-                "AI content rejected after " + ATTEMPTS + " attempts: " + String.join("; ", problems));
+                "AI content rejected after " + ATTEMPTS + " attempts: " + String.join("; ", problems)
+                        + unknownProviderHint(profile, ai.baseUrl()));
+    }
+
+    /**
+     * 2026-10-29 prod 故障（10 个词 9 个 FAILED）的教训：系统设置里换 provider 是管理员的日常动作，
+     * 但「关思考」只对契约 {@code providers} 档案里的厂商发。没命中档案时请求照发，模型默认开思考
+     * → reasoning tokens 吃满 max_tokens → 每个词都判失败，日志里只有「thinking not disabled」看不出根因。
+     * 失败信息里点名这一点，管理员照着补档案即可，不必读代码。
+     */
+    private static String unknownProviderHint(Optional<ContentPromptContract.ProviderProfile> profile,
+                                              String baseUrl) {
+        if (profile.isPresent()) {
+            return "";
+        }
+        return "；AI provider " + baseUrl
+                + " 不在 prompt 契约的 providers 档案里，本次未发关思考字段"
+                + "（content-prompt-v2.5.json → providers.<name>.disableThinking）";
     }
 
     private String buildBody(String model, String form, String language, double temperature,

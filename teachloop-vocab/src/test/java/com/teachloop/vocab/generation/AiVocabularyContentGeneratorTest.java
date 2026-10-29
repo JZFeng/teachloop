@@ -149,7 +149,23 @@ class AiVocabularyContentGeneratorTest {
 
         assertThatThrownBy(() -> generator(baseUrl()).generate("apple", "en"))
                 .isInstanceOf(ContentGenerationException.class)
-                .hasMessageContaining("thinking not disabled");
+                .hasMessageContaining("thinking not disabled")
+                // 命中契约档案时不该把责任推给「没档案」
+                .hasMessageNotContaining("不在 prompt 契约的 providers 档案里");
+    }
+
+    /** 2026-10-29 prod 故障：provider 不在契约档案里时，失败信息要直接点出可修的配置点。 */
+    @Test
+    void failureNamesTheUnknownProviderSoTheContractCanBeFixed() {
+        queued.add(envelope("", "stop", 4000, 3600));
+        queued.add(envelope("", "stop", 4000, 3600));
+
+        assertThatThrownBy(() -> generator("http://127.0.0.1:" + server.getAddress().getPort() + "/v1")
+                .generate("apple", "en"))
+                .isInstanceOf(ContentGenerationException.class)
+                .hasMessageContaining("thinking not disabled")
+                .hasMessageContaining("不在 prompt 契约的 providers 档案里")
+                .hasMessageContaining("disableThinking");
     }
 
     @Test

@@ -47,9 +47,24 @@ class ContentPromptContractTest {
         assertThat(profile.timeoutSeconds()).isEqualTo(20);
     }
 
+    /**
+     * 2026-10-29 prod 故障回归：系统设置切到 DeepSeek 后，契约里没有 deepseek 档案 →
+     * 不发 thinking:disabled → 模型先吐 reasoning tokens 吃满 6000 预算 → 10 个词 9 个 FAILED。
+     */
+    @Test
+    void deepseekProfileDisablesThinkingForBothBaseUrlShapes() {
+        for (String baseUrl : List.of("https://api.deepseek.com", "https://api.deepseek.com/v1")) {
+            ContentPromptContract.ProviderProfile profile = contract.providerFor(baseUrl).orElseThrow();
+            assertThat(profile.name()).isEqualTo("deepseek");
+            assertThat(profile.disableThinking()).isEqualTo("thinking");
+            assertThat(profile.sendsSessionHeader()).isFalse();
+            assertThat(profile.timeoutSeconds()).isEqualTo(60);
+        }
+    }
+
     @Test
     void unknownProviderGetsNoVendorSpecificFields() {
-        assertThat(contract.providerFor("https://api.deepseek.com")).isEmpty();
+        assertThat(contract.providerFor("https://api.example.com/v1")).isEmpty();
         assertThat(contract.providerFor("")).isEmpty();
         assertThat(contract.providerFor(null)).isEmpty();
     }
@@ -76,7 +91,7 @@ class ContentPromptContractTest {
 
     @Test
     void everyProviderHasBaseUrlAndModelDocumented() {
-        assertThat(contract.providerNames()).contains("opencode", "local");
+        assertThat(contract.providerNames()).contains("opencode", "local", "deepseek");
     }
 
     @Test
