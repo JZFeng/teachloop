@@ -254,7 +254,7 @@ def conditions(cfg: dict) -> list[dict]:
         if deep:
             detail += f"，db={deep.get('db')} pdfFont={deep.get('pdfFont')}"
         elif public.get("body"):
-            detail += f"（{public['body'][:80]}）"
+            detail += f"（{' '.join(str(public['body']).split())[:80]}）"
         out.append({"id": "public", "level": "down", "title": "公网入口不通",
                     "detail": detail})
 
