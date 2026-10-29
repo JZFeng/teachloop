@@ -163,6 +163,8 @@ make compose-up           # 对外 :8010；首次打开 /setup 建管理员
 
 生产必须 `SPRING_PROFILES_ACTIVE=prod`、`TEACHLOOP_SEED_ENABLED=false`，并经 HTTPS 访问（prod 会启用 Secure Cookie）。健康探针用 `/healthz?deep=1`（数据库或 PDF 中文字体异常返回 503）。
 
+日常体检一条命令：`make prod-health`（`scripts/prod-health.sh`，只读）。输出公网 deep 探针、四容器状态与重启次数、回环 :8011/:8010、今日 5xx 条数、worker 近 24h 错误数、磁盘/内存/load；`exit 1` 表示有致命项。
+
 ## 隐私
 
 真实试卷与真实学生作答**不进入本仓库**（宪法第七条）。仓库内的样例提交与评语是脱敏的教学样例，仅用于测试评分流程。

@@ -17,7 +17,7 @@ OSS_MINIO_PASSWORD ?= teachloop-minio-secret
 OSS_TEST_BUCKET ?= teachloop-minio
 OSS_ENV_FILE ?= .envs/oss.env
 
-.PHONY: help status dev build test test-ai test-oss run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-test web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status oss-dev oss-down vocab-lexicon vocab-lexicon-test
+.PHONY: help status dev build test test-ai test-oss run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-test web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status prod-health oss-dev oss-down vocab-lexicon vocab-lexicon-test
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -43,8 +43,9 @@ help:
 	@echo "make qa           构建快照并起第二个环境（8011/5174），我改代码不影响它"
 	@echo "make qa-up        起已有快照（不构建）"
 	@echo "make qa-down      停掉第二个环境"
-	@echo "make qa-status    两个环境的健康与版本
-	@echo "make qa-logs      跟踪测试台后端日志""
+	@echo "make qa-status    两个环境的健康与版本"
+	@echo "make qa-logs      跟踪测试台后端日志"
+	@echo "make prod-health  看 prod 健康（公网探针/容器/5xx/worker/资源，只读，exit≠0 即有致命项）"
 
 start-db:
 	@docker start teachloop-pg 2>/dev/null || docker run -d --name teachloop-pg \
@@ -168,6 +169,9 @@ qa-down:
 
 qa-status:
 	@bash scripts/env.sh status
+
+prod-health:
+	@bash scripts/prod-health.sh
 
 qa-logs:
 	@bash scripts/env.sh logs qa
