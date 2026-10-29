@@ -131,6 +131,13 @@ if [ "$BUILD" = "1" ]; then
 fi
 [ -f "$JAR" ] || die "找不到 ${JAR}；去掉 --no-build 再试"
 
+# 2026-10-29：并行会话跑 `make build` 会**覆盖** target 里的 jar；正在运行的 JVM 之后
+# 加载不到类，会以 `NoClassDefFoundError: ch/qos/logback/classic/spi/ThrowableProxy`
+# 退出（当天实际发生过一次，dev 被连坐清理）。启动前拷一份副本再跑，副本不受重建影响。
+RUN_JAR="$ROOT/.dsh/run/teachloop-dev.jar"
+mkdir -p "$ROOT/.dsh/run"
+cp "$JAR" "$RUN_JAR" || die "拷贝运行副本失败：${RUN_JAR}"
+
 # ---------- 可选 seed ----------
 if [ "$SEED" = "1" ]; then
   say "写入演示数据（可重复）…"
@@ -151,7 +158,7 @@ DB_URL="jdbc:postgresql://localhost:$DB_PORT/$DB_NAME" DB_USER=teachloop DB_PASS
   PORT="$BACKEND_PORT" TEACHLOOP_GRADING_ENGINE="$AI_ENV" \
   TEACHLOOP_APP_BASE_URL="${TEACHLOOP_APP_BASE_URL:-http://127.0.0.1:5173}" \
   VOCAB_GENERATION_ENGINE="$AI_ENV" \
-  "$JAVA_HOME/bin/java" -jar "$JAR" > "$LOG_DIR/dev-backend.log" 2>&1 &
+  "$JAVA_HOME/bin/java" -jar "$RUN_JAR" > "$LOG_DIR/dev-backend.log" 2>&1 &
 BACK_PID=$!
 
 say "等待后端健康检查…"
