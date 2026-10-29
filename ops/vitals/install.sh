@@ -101,7 +101,10 @@ ok "python3 $pyv"
 
 mkdir -p "$TARGET"
 cp "$HERE/vitals.py" "$HERE/page.html" "$TARGET/"
-ok "已复制 vitals.py / page.html"
+# 安装脚本自己也留一份：之后可以直接 bash ~/vitals/install.sh status
+cp "$HERE/install.sh" "$TARGET/install.sh" 2>/dev/null || cp "$0" "$TARGET/install.sh"
+[ -f "$HERE/README.md" ] && cp "$HERE/README.md" "$TARGET/README.md" || true
+ok "已复制 vitals.py / page.html / install.sh"
 
 if [ ! -f "$TARGET/config.env" ]; then
   cat > "$TARGET/config.env" <<'EOS'
