@@ -46,6 +46,22 @@ class IdentityChannelAdminTest {
     private final HttpClient client = HttpClient.newHttpClient();
 
     @Test
+    @DisplayName("越权 403 的响应体是可解析的 ApiError：前端靠 code 区分「没权限」和「服务故障」")
+    void forbiddenBodyIsParseableApiError() throws Exception {
+        String base = base();
+        adminService.createUser("chan-teacher2@test.local", UserRole.TEACHER, "老师2", "password123", true);
+        String teacher = login(base, "chan-teacher2@test.local", "password123");
+
+        HttpResponse<String> res = get(base, "/api/admin/identity-channels", teacher);
+        // 2026-10-29：安全链拒绝发生在 Controller 之前，GlobalExceptionHandler 接不到；
+        // 以前这里 sendError(403) 给的是空 body，前端只能显示「HTTP 403」。
+        assertThat(res.statusCode()).isEqualTo(403);
+        assertThat(res.body()).contains("\"code\":\"FORBIDDEN\"");
+        assertThat(res.body()).contains("\"message\"");
+        assertThat(res.body()).doesNotContain("\"message\":null").doesNotContain("\"message\":\"\"");
+    }
+
+    @Test
     @DisplayName("非管理员访问配置接口 403；管理员可读")
     void onlyAdmin() throws Exception {
         String base = base();

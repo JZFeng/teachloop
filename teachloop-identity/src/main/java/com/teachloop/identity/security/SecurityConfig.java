@@ -3,13 +3,20 @@ package com.teachloop.identity.security;
 import com.teachloop.identity.domain.UserRepository;
 import com.teachloop.identity.profile.ProfileCompletionFilter;
 import com.teachloop.identity.rate.RateLimitFilter;
+import com.teachloop.shared.error.ApiError;
+import com.teachloop.shared.error.ErrorCode;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.context.MessageSource;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.i18n.LocaleContextHolder;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.core.env.Environment;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -18,7 +25,9 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.HttpStatusEntryPoint;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
+import org.springframework.security.web.csrf.CsrfException;
 import org.springframework.security.web.csrf.CsrfFilter;
+import tools.jackson.databind.ObjectMapper;
 
 /**
  * 2026-10-25：只有 servlet 相关的两个 bean 限制在 Web 环境。
@@ -27,6 +36,9 @@ import org.springframework.security.web.csrf.CsrfFilter;
  */
 @Configuration
 public class SecurityConfig {
+
+    /** 只用来把 403 写成 ApiError；没有自定义序列化需求，静态一个够用。 */
+    private static final ObjectMapper JSON = new ObjectMapper();
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -48,7 +60,8 @@ public class SecurityConfig {
     @org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication(type = org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication.Type.SERVLET)
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http, UserRepository users,
-                                           RateLimitFilter rateLimitFilter, Environment environment) throws Exception {
+                                           RateLimitFilter rateLimitFilter, Environment environment,
+                                           MessageSource messages) throws Exception {
         // 2026-10-28：CSRF 改由属性控制，不再用 acceptsProfiles("prod")。
         // 旧写法有两个坑：qa 无法开启 CSRF 复现生产行为；application-prod.yml 里的
         // teachloop.security.csrf 成了没人读的死配置（改它没有任何效果）。
@@ -105,11 +118,14 @@ public class SecurityConfig {
                 .anyRequest().authenticated())
             .exceptionHandling(e -> e
                     // 未认证 = 401；已认证但 CSRF 失败 = 403（T033 契约）。
-                    .authenticationEntryPoint((req, res, ex) -> res.sendError(
-                            Boolean.TRUE.equals(req.getAttribute("teachloop.authenticated"))
-                                    ? HttpServletResponse.SC_FORBIDDEN
-                                    : HttpServletResponse.SC_UNAUTHORIZED))
-                    .accessDeniedHandler((req, res, ex) -> res.sendError(HttpServletResponse.SC_FORBIDDEN)))
+                    .authenticationEntryPoint((req, res, ex) -> {
+                        if (Boolean.TRUE.equals(req.getAttribute("teachloop.authenticated"))) {
+                            writeForbidden(res, messages, true);
+                        } else {
+                            res.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                        }
+                    })
+                    .accessDeniedHandler((req, res, ex) -> writeForbidden(res, messages, ex instanceof CsrfException)))
             // 会话认证必须在 CSRF 之前：否则已登录用户的写请求缺 token 会被当成匿名 401。
             .addFilterBefore(new SessionAuthFilter(users), CsrfFilter.class)
             // 顺序：会话认证（设置 currentUser）→ 限流 → 授权判断。
@@ -122,5 +138,24 @@ public class SecurityConfig {
             .httpBasic(b -> b.disable())
             .logout(l -> l.disable());
         return http.build();
+    }
+
+    /**
+     * 403 也必须是可解析的 ApiError（2026-10-29）。
+     *
+     * <p>此前走 {@code res.sendError(403)}，响应体是空的，前端拿到 ApiError(403, null) 只能显示
+     * 「HTTP 403」——跟网关 502 之类的故障长得一样，页面没法把「你没权限」和「服务坏了」分开。
+     * 安全链层拒绝发生在 Controller 之前，{@link com.teachloop.shared.error.GlobalExceptionHandler}
+     * 接不到，所以这里手工写一份同形状的 body。CSRF 失败单独给一条消息：那是「页面过期」，
+     * 不是「你没权限」，前端自动重试的也正是这一种。
+     */
+    private static void writeForbidden(HttpServletResponse res, MessageSource messages, boolean csrf)
+            throws IOException {
+        res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        res.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        res.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        String key = csrf ? "error.csrf.invalid" : "error.FORBIDDEN";
+        String text = messages.getMessage(key, null, key, LocaleContextHolder.getLocale());
+        res.getWriter().write(JSON.writeValueAsString(ApiError.of(ErrorCode.FORBIDDEN, text)));
     }
 }
