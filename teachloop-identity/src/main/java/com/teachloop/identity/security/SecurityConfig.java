@@ -120,12 +120,16 @@ public class SecurityConfig {
                     // 未认证 = 401；已认证但 CSRF 失败 = 403（T033 契约）。
                     .authenticationEntryPoint((req, res, ex) -> {
                         if (Boolean.TRUE.equals(req.getAttribute("teachloop.authenticated"))) {
-                            writeForbidden(res, messages, true);
+                            writeError(res, messages, HttpServletResponse.SC_FORBIDDEN,
+                                    ErrorCode.FORBIDDEN, "error.csrf.invalid");
                         } else {
-                            res.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+                            writeError(res, messages, HttpServletResponse.SC_UNAUTHORIZED,
+                                    ErrorCode.UNAUTHORIZED, "error.UNAUTHORIZED");
                         }
                     })
-                    .accessDeniedHandler((req, res, ex) -> writeForbidden(res, messages, ex instanceof CsrfException)))
+                    .accessDeniedHandler((req, res, ex) -> writeError(res, messages,
+                            HttpServletResponse.SC_FORBIDDEN, ErrorCode.FORBIDDEN,
+                            ex instanceof CsrfException ? "error.csrf.invalid" : "error.FORBIDDEN")))
             // 会话认证必须在 CSRF 之前：否则已登录用户的写请求缺 token 会被当成匿名 401。
             .addFilterBefore(new SessionAuthFilter(users), CsrfFilter.class)
             // 顺序：会话认证（设置 currentUser）→ 限流 → 授权判断。
@@ -141,21 +145,20 @@ public class SecurityConfig {
     }
 
     /**
-     * 403 也必须是可解析的 ApiError（2026-10-29）。
+     * 安全链层拒绝（401 / 403）也必须是可解析的 ApiError（2026-10-29）。
      *
-     * <p>此前走 {@code res.sendError(403)}，响应体是空的，前端拿到 ApiError(403, null) 只能显示
-     * 「HTTP 403」——跟网关 502 之类的故障长得一样，页面没法把「你没权限」和「服务坏了」分开。
+     * <p>此前走 {@code res.sendError(...)}，响应体是空的，前端拿到 ApiError(401, null) 只能显示
+     * 「HTTP 401」——跟网关故障长得一样：会话中途过期时用户看到的就是这句话，而不是「请先登录」。
      * 安全链层拒绝发生在 Controller 之前，{@link com.teachloop.shared.error.GlobalExceptionHandler}
      * 接不到，所以这里手工写一份同形状的 body。CSRF 失败单独给一条消息：那是「页面过期」，
      * 不是「你没权限」，前端自动重试的也正是这一种。
      */
-    private static void writeForbidden(HttpServletResponse res, MessageSource messages, boolean csrf)
-            throws IOException {
-        res.setStatus(HttpServletResponse.SC_FORBIDDEN);
+    private static void writeError(HttpServletResponse res, MessageSource messages, int status,
+                                   ErrorCode code, String key) throws IOException {
+        res.setStatus(status);
         res.setContentType(MediaType.APPLICATION_JSON_VALUE);
         res.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        String key = csrf ? "error.csrf.invalid" : "error.FORBIDDEN";
         String text = messages.getMessage(key, null, key, LocaleContextHolder.getLocale());
-        res.getWriter().write(JSON.writeValueAsString(ApiError.of(ErrorCode.FORBIDDEN, text)));
+        res.getWriter().write(JSON.writeValueAsString(ApiError.of(code, text)));
     }
 }

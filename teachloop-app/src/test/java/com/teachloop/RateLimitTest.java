@@ -192,8 +192,11 @@ class RateLimitTest {
         assertThat(Json.parse(eventsLimited.body()).get("code")).isEqualTo("RATE_LIMITED");
         assertThat(eventsLimited.headers().firstValue("retry-after")).isPresent();
 
-        // 未登录访问受保护接口仍然由授权层返回 401（限流不吞掉 401）
-        assertThat(raw(null, "GET", "/api/offerings", null).statusCode()).isEqualTo(401);
+        // 未登录访问受保护接口仍然由授权层返回 401（限流不吞掉 401），且 body 是可解析的 ApiError
+        // （2026-10-29：以前是空 body，前端只能显示「HTTP 401」，会话过期时看不出该去登录）
+        HttpResponse<String> anonymous = raw(null, "GET", "/api/offerings", null);
+        assertThat(anonymous.statusCode()).isEqualTo(401);
+        assertThat(Json.parse(anonymous.body()).get("code")).isEqualTo("UNAUTHORIZED");
 
         // 未被限流覆盖的普通请求反复调用也不受影响
         for (int i = 0; i < 10; i++) {
