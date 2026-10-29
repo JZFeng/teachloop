@@ -9,6 +9,7 @@
 # 装完的目录布局（默认 ~/vitals）：
 #   vitals.py  page.html  config.env(600)  vitals.log  vitals.pid
 set -euo pipefail
+# 注意：启动用 `setsid --fork` + `</dev/null`，否则 ssh 远程执行时调用者会一直等这个子进程（2026-10-29 实测挂住 2 分钟+）
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 TARGET="${VITALS_HOME:-$HOME/vitals}"
@@ -18,6 +19,18 @@ say()  { printf '\033[1m%s\033[0m\n' "$*"; }
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$*"; }
 warn() { printf '  \033[33m!\033[0m %s\n' "$*"; }
 die()  { printf '  \033[31m✗\033[0m %s\n' "$*" >&2; exit 1; }
+
+# 只用 python3 发 HTTP（监控机上可能没有 curl，实测 ai-ubuntu 就没有）
+http_code() { python3 -c "import sys,urllib.request
+try:
+    print(urllib.request.urlopen(sys.argv[1], timeout=3).status)
+except Exception:
+    print('000')" "$1"; }
+http_body() { python3 -c "import sys,urllib.request
+try:
+    print(urllib.request.urlopen(sys.argv[1], timeout=5).read().decode('utf-8','replace'))
+except Exception as exc:
+    print('ERR', exc)" "$1"; }
 
 lan_ip() {
   local ip
@@ -71,10 +84,11 @@ if [ "$ACTION" = "status" ]; then
   port="$(port_of)"
   [ -f "$TARGET/vitals.pid" ] && kill -0 "$(cat "$TARGET/vitals.pid")" 2>/dev/null \
     && ok "进程在跑（pid $(cat "$TARGET/vitals.pid")）" || warn "进程不在"
-  code="$(curl -s -o /dev/null -w '%{http_code}' -m 3 "http://127.0.0.1:$port/vitals/healthz" || true)"
+  code="$(http_code "http://127.0.0.1:$port/vitals/healthz")"
   [ "$code" = "200" ] && ok "自检 /vitals/healthz 200" || warn "自检返回 $code"
   curl -s -m 5 -u "$(sed -n 's/^VITALS_USER=//p' "$TARGET/config.env" 2>/dev/null):$(sed -n 's/^VITALS_PASS=//p' "$TARGET/config.env" 2>/dev/null)" \
-    "http://127.0.0.1:$port/vitals/api" 2>/dev/null | head -c 400 | sed 's/^/  /' || true
+    "http://127.0.0.1:$port/vitals/api" 2>/dev/null | head -c 400 | sed 's/^/  /' || \
+    http_body "http://127.0.0.1:$port/vitals/healthz" | sed 's/^/  /' 
   echo
   exit 0
 fi
@@ -151,9 +165,11 @@ if [ -f "$TARGET/vitals.pid" ]; then
   kill "$(cat "$TARGET/vitals.pid")" 2>/dev/null || true
   sleep 0.3
 fi
-pkill -f "python3 .*vitals\.py" 2>/dev/null || true
+pkill -f "python3 [v]itals\.py" 2>/dev/null || true
 sleep 0.3
-( cd "$TARGET" && nohup python3 vitals.py >> vitals.log 2>&1 & echo $! > vitals.pid )
+( cd "$TARGET" && setsid --fork python3 vitals.py </dev/null >> vitals.log 2>&1 ; echo started > /dev/null )
+sleep 0.5
+pidof python3 >/dev/null 2>&1 && pgrep -f "python3 [v]itals\.py" | tail -1 > "$TARGET/vitals.pid"
 sleep 0.5
 
 # @reboot 自启（用户 crontab，不需要 sudo）
@@ -167,7 +183,7 @@ fi
 
 port="$(port_of)"
 for _ in $(seq 1 40); do
-  [ "$(curl -s -o /dev/null -w '%{http_code}' -m 2 "http://127.0.0.1:$port/vitals/healthz" || true)" = "200" ] && break
+  [ "$(http_code "http://127.0.0.1:$port/vitals/healthz")" = "200" ] && break
   sleep 0.25
 done
 

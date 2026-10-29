@@ -30,6 +30,8 @@
 
 ### 4.1 监控机（一次性）
 
+**实际部署（2026-10-29）**：`ai-ubuntu`（192.168.68.101，Python 3.12.3），看板 `http://192.168.68.101:8099/vitals/`，目录 `~/vitals/`，口令在 `~/vitals/config.env`（600）。
+
 ```bash
 scp -r ops/vitals ai-ubuntu:~/
 ssh ai-ubuntu
@@ -39,6 +41,9 @@ bash install.sh                          # 再跑一次：启动 + 加 crontab @
 ```
 
 不需要 Docker、不需要 sudo；只需要 `python3`（3.8+）。
+
+**这台机器上没有 `curl`**（实测），所以 `install.sh` 的自检与 `vitals.py` 的探针都只用 Python 标准库；
+启动用 `setsid --fork` + `</dev/null`，否则从 SSH 远程执行时安装脚本会一直等那个后台子进程（实测挂住 2 分钟+）。
 
 ### 4.2 prod（一次性，两个文件）
 
@@ -113,6 +118,8 @@ ssh ai-ubuntu 'bash ~/vitals/install.sh stop && crontab -l | grep -v teachloop-v
 | 09:59–10:00 | 公网开始 502（Cloudflare 边缘），随后变 **530**（隧道/源站不可达） |
 | 10:00–10:11 | `ping 192.168.68.166` 100% 丢包、`ssh` 超时——整机离线（人工重启，非崩溃） |
 | 10:11:22 | 恢复：公网 200；`make prod-health` 15/15 全绿；四容器 Up 40 秒、重启次数 0 |
+| 10:12:16 | 又一次 `Power key pressed short` → 干净 poweroff（用户手动），10:12:44 重新开机 |
+| 10:33 | **vitals 正式部署到 ai-ubuntu**：`overall=ok`，公网 207ms、四容器 healthy、磁盘 16%、内存 26%、今日 3604 请求 / 5xx 0 |
 
 结论：
 1. **判据正确**——同一套代码在故障期间给出 `overall=down` + 两条告警（`HTTP 530（error code: 1033）`、`ssh … Host is down`），恢复后自动回绿。
