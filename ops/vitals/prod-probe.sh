@@ -45,10 +45,10 @@ for c in $(docker compose -f docker-compose.prod.yml ps -q 2>/dev/null); do
   docker inspect -f 'RESTART={{.Name}}|{{.RestartCount}}' "$c" 2>/dev/null
 done
 
-# 今日请求与 5xx：容器内日期按容器时区（+8），与文件名一致
+# 今日请求与 5xx：文件名按 UTC 日期（实测：容器本地是 10-30 01:11，最新文件仍是 requests-2026-10-29.jsonl）
 docker exec teachloop-app-1 sh -c '
-  f=/app/logs/requests-$(date +%F).jsonl
-  echo "DAY=$(date +%F)"
+  f=/app/logs/requests-$(date -u +%F).jsonl
+  echo "DAY=$(date -u +%F) UTC"
   if [ -f "$f" ]; then
     echo "REQS=$(wc -l < "$f")"
     echo "S5XX=$(grep -c "\"status\":5" "$f" || true)"
