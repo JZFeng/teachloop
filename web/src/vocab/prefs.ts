@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 
 /** US-88：背单词偏好（与后端 `ReviewPrefs` record 对应）。 */
@@ -18,8 +19,6 @@ export function saveReviewPrefs(prefs: ReviewPrefs): Promise<ReviewPrefs> {
 }
 
 // ---- 只读视图：卡面按偏好渲染（设置页负责写）----
-
-import { useEffect, useState } from 'react'
 
 let cachedPrefs: ReviewPrefs | null = null
 

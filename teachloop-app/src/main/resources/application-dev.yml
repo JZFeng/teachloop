@@ -9,3 +9,7 @@ teachloop:
   seed:
     # 显式写出来：DevDataSeeder 的 matchIfMissing=true 虽然也是开，但「默认开」是不可见的行为。
     enabled: true
+  vocab:
+    quiz:
+      # US-87：小测默认关（base=false），dev 打开便于验收；关闭时端点 404、入口不渲染。
+      enabled: true
