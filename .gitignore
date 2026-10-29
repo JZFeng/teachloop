@@ -99,3 +99,8 @@ __pycache__/
 
 # 本地验证截图（Bug 复现/修复证据，不入库）
 .dsh/reports/
+
+# vitals 监控机的本地配置与运行产物（含口令与 SMTP 授权码，2026-10-29）
+ops/vitals/config.env
+ops/vitals/*.log
+ops/vitals/*.pid

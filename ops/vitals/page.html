@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TeachLoop · prod 生命体征</title>
+<style>
+  /* 只用 web/src/ui/tokens.ts 里的值：主色 #1A63E0，圆角 12/8/6，正文 14px，无渐变、无彩色投影。 */
+  :root{
+    --bg:#F6F8FC; --card:#FFFFFF; --line:#DCE4F2; --text:#0E2340; --muted:#41536E;
+    --faint:#7C8BA3; --primary:#1A63E0; --primary-bg:#E8EFFD;
+    --ok:#17703F; --ok-bg:#E6F5EC; --warn:#8A5A00; --warn-bg:#FFF3D6;
+    --err:#B42338; --err-bg:#FDE6E8;
+    --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;background:var(--bg);color:var(--text);
+    font:14px/1.65 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC","Segoe UI",sans-serif;
+  }
+  header{
+    position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);
+    padding:12px 24px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;
+  }
+  header h1{font-size:16px;font-weight:600;margin:0}
+  header .spacer{flex:1}
+  header .meta{color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums}
+  .pill{display:inline-flex;align-items:center;gap:6px;border-radius:6px;padding:2px 10px;font-size:13px;font-weight:600}
+  .pill.ok{color:var(--ok);background:var(--ok-bg)}
+  .pill.warn{color:var(--warn);background:var(--warn-bg)}
+  .pill.down{color:var(--err);background:var(--err-bg)}
+  .pill.idle{color:var(--muted);background:var(--bg)}
+  main{max-width:1180px;margin:0 auto;padding:20px 24px 48px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px 18px;box-shadow:0 1px 2px rgba(14,54,118,.05)}
+  .card h2{font-size:13px;font-weight:600;color:var(--muted);margin:0 0 12px;letter-spacing:.02em}
+  .big{font:600 32px/1.2 var(--mono);font-variant-numeric:tabular-nums}
+  .big small{font-size:14px;font-weight:500;color:var(--muted);font-family:inherit}
+  .row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;padding:4px 0}
+  .row + .row{border-top:1px solid var(--bg)}
+  .row .k{color:var(--muted);font-size:13px}
+  .row .v{font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:13px}
+  .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:8px;vertical-align:1px}
+  .dot.ok{background:var(--ok)} .dot.warn{background:var(--warn)} .dot.down{background:var(--err)} .dot.idle{background:var(--faint)}
+  .bar{height:6px;border-radius:6px;background:var(--bg);overflow:hidden;margin-top:10px}
+  .bar > i{display:block;height:100%;border-radius:6px;background:var(--primary)}
+  .bar.warn > i{background:var(--warn)} .bar.down > i{background:var(--err)}
+  .containers{display:flex;flex-direction:column;gap:2px}
+  .container{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:6px 0}
+  .container + .container{border-top:1px solid var(--bg)}
+  .container .name{font-family:var(--mono);font-size:13px}
+  .container .st{color:var(--muted);font-size:12px}
+  footer{margin-top:20px;color:var(--faint);font-size:12px}
+  .banner{border-radius:8px;padding:10px 14px;margin-bottom:16px;font-weight:600}
+  .banner.down{background:var(--err-bg);color:var(--err)}
+  .banner.warn{background:var(--warn-bg);color:var(--warn)}
+  .log{list-style:none;margin:8px 0 0;padding:0;font-size:12px;color:var(--muted)}
+  .log li{padding:3px 0}
+  svg{display:block;width:100%;height:44px}
+</style>
+</head>
+<body>
+<header>
+  <h1>TeachLoop · prod 生命体征</h1>
+  <span id="overall" class="pill idle">连接中</span>
+  <span class="spacer"></span>
+  <span class="meta" id="meta">—</span>
+</header>
+<main>
+  <div id="banner"></div>
+  <div class="grid">
+    <section class="card">
+      <h2>公网入口（Tunnel → nginx → app → DB）</h2>
+      <div class="big"><span id="pub-ms">—</span><small id="pub-ms-unit"></small></div>
+      <div class="row"><span class="k">HTTP</span><span class="v" id="pub-code">—</span></div>
+      <div class="row"><span class="k">数据库</span><span class="v" id="pub-db">—</span></div>
+      <div class="row"><span class="k">PDF 中文字体</span><span class="v" id="pub-font">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>容器（docker compose prod）</h2>
+      <div class="containers" id="containers"></div>
+    </section>
+
+    <section class="card">
+      <h2>磁盘</h2>
+      <div class="big" id="disk-pct">—</div>
+      <div class="bar" id="disk-bar"><i style="width:0"></i></div>
+      <div class="row"><span class="k">可用 / 总量</span><span class="v" id="disk-size">—</span></div>
+      <div class="row"><span class="k">prod 运行</span><span class="v" id="host-uptime">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>内存</h2>
+      <div class="big" id="mem-pct">—</div>
+      <div class="bar" id="mem-bar"><i style="width:0"></i></div>
+      <div class="row"><span class="k">已用 / 总量</span><span class="v" id="mem-size">—</span></div>
+      <div class="row"><span class="k">可用</span><span class="v" id="mem-avail">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2>CPU（最近 5 分钟）</h2>
+      <div class="big" id="cpu-pct">—</div>
+      <svg id="cpu-spark" viewBox="0 0 300 44" preserveAspectRatio="none"></svg>
+      <div class="row"><span class="k">load 1 / 5 / 15</span><span class="v" id="load">—</span></div>
+    </section>
+
+    <section class="card">
+      <h2 id="reqs-title">今日请求</h2>
+      <div class="big" id="reqs">—</div>
+      <div class="row"><span class="k">5xx</span><span class="v" id="s5xx">—</span></div>
+      <div class="row"><span class="k">采集耗时</span><span class="v" id="probe-ms">—</span></div>
+    </section>
+  </div>
+
+  <footer id="alerts"></footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var timer = null;
+  var lastOk = 0;
+
+  function $(id) { return document.getElementById(id); }
+  function set(id, text) { var el = $(id); if (el) el.textContent = text; }
+  function cls(el, base, state) { el.className = base + ' ' + state; }
+
+  function humanUptime(s) {
+    if (!s && s !== 0) return '—';
+    var d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60);
+    if (d > 0) return d + ' 天 ' + h + ' 小时';
+    if (h > 0) return h + ' 小时 ' + m + ' 分';
+    return m + ' 分';
+  }
+  function ago(sec) {
+    if (sec === null || sec === undefined) return '从未';
+    if (sec < 2) return '刚刚';
+    if (sec < 60) return sec + ' 秒前';
+    return Math.floor(sec / 60) + ' 分钟前';
+  }
+  function verdict(v) {
+    if (v === 'UP') return 'ok';
+    if (!v) return 'idle';
+    return 'down';
+  }
+  function paintBar(id, pct) {
+    var bar = $(id);
+    if (!bar) return;
+    bar.className = 'bar' + (pct >= 90 ? ' down' : pct >= 80 ? ' warn' : '');
+    bar.firstElementChild.style.width = Math.max(0, Math.min(100, pct || 0)) + '%';
+  }
+  function spark(svgId, values, color) {
+    var svg = $(svgId);
+    if (!svg) return;
+    var w = 300, h = 44, pts = values.length, d = '';
+    if (pts > 1) {
+      d = values.map(function (v, i) {
+        var x = (i / (pts - 1)) * w;
+        var y = h - (Math.max(0, Math.min(100, v)) / 100) * h;
+        return (i ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+      }).join(' ');
+    }
+    svg.innerHTML = '<path d="' + d + '" fill="none" stroke="' + color + '" stroke-width="1.5" />';
+  }
+
+  function render(d) {
+    var overall = $('overall');
+    var text = { ok: '全绿', warn: '需要看一眼', down: '异常' }[d.overall] || '未知';
+    cls(overall, 'pill', d.overall);
+    overall.textContent = text;
+
+    var banner = $('banner');
+    if (d.alerts.active && d.alerts.active.length) {
+      banner.innerHTML = '';
+      var b = document.createElement('div');
+      b.className = 'banner ' + (d.overall === 'down' ? 'down' : 'warn');
+      b.textContent = d.alerts.active.map(function (a) { return a.title + '：' + a.detail; }).join(' ｜ ');
+      banner.appendChild(b);
+    } else {
+      banner.innerHTML = '';
+    }
+
+    set('meta', '最后更新 ' + new Date(d.ts * 1000).toLocaleTimeString() +
+      ' · 采集 ' + (d.probe.age_s === null ? '从未成功' : d.probe.age_s + 's 前'));
+
+    // 公网入口
+    set('pub-ms', d.public.ms === null ? '—' : d.public.ms);
+    set('pub-ms-unit', d.public.ms === null ? '' : ' ms');
+    set('pub-code', d.public.code || '无响应');
+    var db = d.public.deep && d.public.deep.db;
+    var font = d.public.deep && d.public.deep.pdfFont;
+    set('pub-db', db || '—');
+    set('pub-font', font || '—');
+
+    // 容器
+    var box = $('containers');
+    box.innerHTML = '';
+    (d.containers || []).forEach(function (c) {
+      var row = document.createElement('div');
+      row.className = 'container';
+      var left = document.createElement('span');
+      var dot = document.createElement('i');
+      dot.className = 'dot ' + (c.up ? (c.health ? 'down' : 'ok') : 'down');
+      left.appendChild(dot);
+      var name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = c.svc;
+      left.appendChild(name);
+      var right = document.createElement('span');
+      right.className = 'st';
+      right.textContent = c.status.replace(/^Up /, '') + (c.restarts !== '0' ? ' · 重启 ' + c.restarts : '');
+      row.appendChild(left);
+      row.appendChild(right);
+      box.appendChild(row);
+    });
+    if (!d.containers || !d.containers.length) {
+      box.textContent = '采集不到容器（SSH 探针未成功）';
+    }
+
+    // 磁盘 / 内存 / CPU
+    set('disk-pct', d.host.disk.pct + '%');
+    paintBar('disk-bar', d.host.disk.pct);
+    set('disk-size', (d.host.disk.avail || '—') + ' / ' + (d.host.disk.total || '—'));
+    set('host-uptime', humanUptime(d.host.uptime_s));
+
+    set('mem-pct', d.host.mem.pct + '%');
+    paintBar('mem-bar', d.host.mem.pct);
+    set('mem-size', (d.host.mem.used || '—') + ' / ' + (d.host.mem.total || '—') + ' MB');
+    set('mem-avail', (d.host.mem.avail || '—') + ' MB');
+
+    set('cpu-pct', (d.host.cpu === null || d.host.cpu === undefined) ? '—' : d.host.cpu + '%');
+    set('load', d.host.load || '—');
+    spark('cpu-spark', (d.history || []).map(function (p) { return p.cpu; }), '#1A63E0');
+
+    set('reqs', (d.http.requests_today === undefined || d.http.requests_today === null || d.http.requests_today === '')
+      ? '—' : d.http.requests_today);
+    set('s5xx', (d.http.s5xx === undefined || d.http.s5xx === null || d.http.s5xx === '') ? '—' : d.http.s5xx);
+    set('probe-ms', d.probe.ms ? d.probe.ms + ' ms' : '—');
+    set('reqs-title', '今日请求' + (d.http.day ? '（' + d.http.day + '）' : ''));
+
+    // 页脚诊断
+    var parts = [];
+    parts.push('看板已运行 ' + humanUptime(d.uptime_s));
+    parts.push('prod 主机 ' + (d.host.hostname || '—'));
+    parts.push('采集 ' + (d.probe.fresh ? '正常' : '失联') + (d.probe.err ? '（' + d.probe.err + '）' : ''));
+    if (d.alerts.mail_ok === false && d.alerts.mail_err) parts.push('邮件通道：' + d.alerts.mail_err);
+    var foot = $('alerts');
+    foot.innerHTML = '';
+    var p = document.createElement('div');
+    p.textContent = parts.join(' · ');
+    foot.appendChild(p);
+    if (d.alerts.log && d.alerts.log.length) {
+      var ul = document.createElement('ul');
+      ul.className = 'log';
+      d.alerts.log.slice().reverse().forEach(function (a) {
+        var li = document.createElement('li');
+        var kind = { down: '异常', repeat: '仍然异常', up: '恢复' }[a.kind] || a.kind;
+        li.textContent = new Date(a.at * 1000).toLocaleTimeString() + ' · ' + kind + ' · ' + a.title;
+        ul.appendChild(li);
+      });
+      foot.appendChild(ul);
+    }
+  }
+
+  function fail(msg) {
+    var overall = $('overall');
+    cls(overall, 'pill', 'idle');
+    overall.textContent = '看板未连接';
+    var banner = $('banner');
+    banner.innerHTML = '';
+    var b = document.createElement('div');
+    b.className = 'banner warn';
+    b.textContent = '拿不到数据：' + msg + '（看板服务本身可能挂了）';
+    banner.appendChild(b);
+  }
+
+  function tick() {
+    fetch('/vitals/api', { cache: 'no-store', credentials: 'same-origin' })
+      .then(function (r) {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(function (d) { lastOk = Date.now(); render(d); })
+      .catch(function (e) { fail(e.message); })
+      .finally(function () { clearTimeout(timer); timer = setTimeout(tick, 2000); });
+  }
+
+  tick();
+})();
+</script>
+</body>
+</html>
