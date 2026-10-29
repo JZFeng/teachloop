@@ -96,10 +96,21 @@ public class ReviewPreparationEndpoint {
         int failed = 0;
         for (WordStatus row : rows) {
             if ("READY".equals(row.status())) {
-                ready++;
-                // 存量行可能还没有 content_id（P1/P2 过渡期）：能解析就补上引用。
-                if (row.contentId() == null) {
-                    resolve(row).ifPresent(content -> markReady(row, content));
+                // READY 不能盲信（2026-10-29 用户报 Bug）：内容包换版 / 提示词升级 / delta 被清之后，
+                // 词行还写着 READY，但内容已经解析不到——盲信会让复习卡渲染成一张没有音标和释义的空卡，
+                // 而且因为状态是 READY，永远不会重新入队生成。这里在读路径上核对一次：
+                // 解析得到就沿用（顺手把过期的 content_id 改成当前命中项的 id），解析不到就打回 PENDING 重排。
+                Optional<StoredContent> hit = resolve(row);
+                if (hit.isPresent()) {
+                    StoredContent content = hit.get();
+                    ready++;
+                    if (row.contentId() == null || row.contentId().longValue() != content.id()) {
+                        markReady(row, content);
+                    }
+                } else {
+                    pending++;
+                    missing.add(row.id());
+                    markPending(row);
                 }
             } else if ("FAILED".equals(row.status())) {
                 failed++;
@@ -189,8 +200,32 @@ public class ReviewPreparationEndpoint {
                 wordId, userId);
     }
 
+    /**
+     * 先按 {@code content_id} 取（包内是内存索引、delta 是主键查询，都很快），
+     * 取不到或 id 已过期再按 {@code (language, normalizedForm)} 兜底——内容包重建后
+     * id 会指向别的词，这条兜底是卡片能重新拿到内容的唯一路径。
+     */
     private Optional<StoredContent> resolve(WordStatus row) {
+        Long contentId = row.contentId();
+        if (contentId != null && contentId > 0) {
+            Optional<StoredContent> byId = contentStore.getById(contentId);
+            if (byId.isPresent()) {
+                return byId;
+            }
+        }
         return contentStore.get(row.language(), row.normalizedForm());
+    }
+
+    /**
+     * 内容解析不到时把词打回待生成：否则读路径会永远把「空内容」当 ready，
+     * 学生看到的就是一张永远空白的卡（2026-10-29 用户报 Bug）。
+     */
+    private void markPending(WordStatus row) {
+        jdbc.update("""
+                update vocab_words
+                   set content_id = null, content_status = 'PENDING', updated_at = ?
+                 where id = ?
+                """, Timestamp.from(Instant.now(clock)), row.id());
     }
 
     /** T431：命中全局内容后只写引用 + 状态；用户行不再保存内容副本（V063 已删列）。 */

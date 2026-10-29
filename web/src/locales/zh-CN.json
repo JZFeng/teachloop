@@ -1653,6 +1653,7 @@
       "front": "正面",
       "back": "背面",
       "showAnswer": "点击卡片或按空格看答案",
+      "contentMissing": "这个词的内容还没准备好（音标、释义、例句暂时为空）",
       "known": "认识",
       "unknown": "不认识",
       "next": "下一个 →",

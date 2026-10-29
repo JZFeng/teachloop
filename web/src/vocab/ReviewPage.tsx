@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom'
 import { api } from '../api/client'
 import { Button, Empty, ErrorState, InlineNote, Loading, PageHeader, Progress, useConfirm, useToast } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
+import { reviewCardPhase } from './reviewCardState'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
@@ -112,9 +113,12 @@ export default function VocabReviewPage() {
     return () => clearTimeout(timer)
   }, [done, refetched, refresh])
 
-  const currentReady = current?.contentStatus === 'READY'
-  const currentFailed = current?.contentStatus === 'FAILED'
-  const preparing = !!current && !currentReady && !currentFailed
+  // 状态 + 内容一起看：READY 但内容解析不到（内容包换版/提示词升级）时按「准备中」处理，
+  // 不渲染空卡（2026-10-29 用户报 Bug）。
+  const currentPhase = reviewCardPhase(current?.contentStatus, current?.content)
+  const currentReady = currentPhase === 'ready'
+  const currentFailed = currentPhase === 'failed'
+  const preparing = !!current && currentPhase === 'preparing'
   const gateWaiting = items.length > 0 && !gateOpen
 
   // 兜底：等待超过 60 秒（例如 AI 未配置/生成服务不工作）时允许手动开始，避免整页卡死
@@ -454,6 +458,7 @@ export default function VocabReviewPage() {
             onDelete={() => void removeCurrent()}
             onRate={(rating) => void submit(rating)}
             ratingDisabled={disabled}
+            emptyHint={t('vocab.review.contentMissing')}
             centered
           />
         </div>

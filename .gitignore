@@ -96,3 +96,6 @@ __pycache__/
 # 部署用的 SSH 私钥与含密钥的临时 .env（2026-10-27）
 .dsh/keys/
 .dsh/tmp/
+
+# 本地验证截图（Bug 复现/修复证据，不入库）
+.dsh/reports/

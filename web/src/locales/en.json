@@ -1653,6 +1653,7 @@
       "front": "Front",
       "back": "Back",
       "showAnswer": "Click the card or press Space to reveal",
+      "contentMissing": "Content for this word is not ready yet (no phonetics, senses or examples)",
       "known": "Known",
       "unknown": "Don't know",
       "next": "Next →",

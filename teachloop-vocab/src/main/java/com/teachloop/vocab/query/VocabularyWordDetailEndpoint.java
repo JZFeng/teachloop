@@ -153,11 +153,17 @@ public class VocabularyWordDetailEndpoint {
         String normalized = WordNormalizer.normalized(form);
         FamilyView family = familyOf(WordNormalizer.display(form));
         return words.detail(me.id(), language, normalized)
-                .map(row -> new DetailView(true, row.id(), row.form(), row.language(),
-                        row.contentStatus(), row.favorite(), row.paused(), parseTags(row.tagsJson()),
-                        row.state(), row.dueAt(), row.intervalDays(), row.ease(),
-                        ContentView.resolve(contentStore, row.contentId(), row.language(), row.form()),
-                        sources(me.id(), row.id()), family))
+                .map(row -> {
+                    var content = ContentView.resolve(contentStore, row.contentId(),
+                            row.language(), row.form());
+                    // 查词页与复习卡同一口径：库里过期的 READY 不能当「有内容」，否则页面是空卡
+                    //（2026-10-29 用户报 Bug：内容包换版后所有卡都没有释义）。
+                    return new DetailView(true, row.id(), row.form(), row.language(),
+                            ContentView.statusFor(row.contentStatus(), content), row.favorite(),
+                            row.paused(), parseTags(row.tagsJson()), row.state(), row.dueAt(),
+                            row.intervalDays(), row.ease(), content,
+                            sources(me.id(), row.id()), family);
+                })
                 .orElseGet(() -> {
                     // 不在库的词也能查：全局内容命中（包/delta）就展示，只是不进复习队列
                     var content = ContentView.resolve(contentStore, null, language, normalized);

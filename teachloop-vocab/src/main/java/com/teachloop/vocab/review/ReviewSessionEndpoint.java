@@ -119,9 +119,15 @@ public class ReviewSessionEndpoint {
         }
         UUID wordId = ids.get(session.cursor());
         return sessions.currentWord(wordId, me.id())
-                .map(row -> new CurrentWord(row.id(), row.form(), row.language(),
-                        ContentView.resolve(contentStore, row.contentId(), row.language(), row.form()),
-                        row.contentStatus(), row.favorite(), row.paused(), session.cursor(), session.total()))
+                .map(row -> {
+                    JsonNode content = ContentView.resolve(contentStore, row.contentId(),
+                            row.language(), row.form());
+                    // 状态跟随内容：库里的 READY 过期（内容包换版 / 提示词升级）时降级成 PENDING，
+                    // 前端才会显示「数据准备中」而不是一张空卡（2026-10-29 用户报 Bug）。
+                    return new CurrentWord(row.id(), row.form(), row.language(), content,
+                            ContentView.statusFor(row.contentStatus(), content), row.favorite(),
+                            row.paused(), session.cursor(), session.total());
+                })
                 .orElse(null);
     }
 

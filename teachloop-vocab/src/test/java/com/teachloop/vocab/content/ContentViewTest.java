@@ -152,6 +152,20 @@ class ContentViewTest {
         assertThat(kettle.path("senses").get(0).path("zh").asString()).isEqualTo("kettle 水壶");
     }
 
+    @Test
+    @DisplayName("读路径状态：READY 但解析不到内容时降级成 PENDING，其余状态原样返回")
+    void statusFollowsResolvedContent() {
+        // 内容包换版 / 提示词升级后，词行还写着 READY，但内容已经取不到：
+        // 前端会渲染空卡并永久卡住（2026-10-29 用户报 Bug），所以读路径必须降级。
+        assertThat(ContentView.statusFor("READY", null)).isEqualTo("PENDING");
+        assertThat(ContentView.statusFor("READY", parse("{\"senses\":[{\"zh\":\"奋斗\"}]}")))
+                .isEqualTo("READY");
+        // 生成中 / 失败 / 未设置：原样透传，不覆盖后端的失败路径（页面要显示「重试」）
+        assertThat(ContentView.statusFor("PENDING", null)).isEqualTo("PENDING");
+        assertThat(ContentView.statusFor("FAILED", null)).isEqualTo("FAILED");
+        assertThat(ContentView.statusFor(null, null)).isNull();
+    }
+
     /** 测试替身：只实现 resolve 需要的 getById 与按词形读取。 */
     private static final class InMemoryStore implements ContentStore {
 

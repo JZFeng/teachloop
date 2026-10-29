@@ -298,12 +298,16 @@ class ContentPackReaderTest {
         Path dir = realPackDir();
         Assumptions.assumeTrue(dir != null,
                 "fixtures-local/vocab-content/manifest.json 不存在：跳过真实产物互操作校验");
-        ContentPackReader reader = new ContentPackReader(dir.toString(), PROMPT_VERSION, true, true);
+        JsonNode manifest = new ObjectMapper().readTree(dir.resolve(ContentPackManifest.FILE_NAME));
+        // 用包自己的 promptVersion 装载：本地包随生成脚本换版（v2.3 → v2.5），
+        // 这条测的是「Python 构建器写出的产物 Java 端能读回来」，不是版本号本身。
+        String promptVersion = manifest.get("promptVersion").asString();
+        ContentPackReader reader = new ContentPackReader(dir.toString(), promptVersion, true, true);
 
         assertThat(reader.available()).isTrue();
-        assertThat(reader.count()).isGreaterThan(1000);
-        JsonNode manifest = new ObjectMapper().readTree(dir.resolve(ContentPackManifest.FILE_NAME));
-        assertThat(reader.count()).isEqualTo(manifest.get("count").asInt());
+        // 本地包大小由 fixtures 决定（v2.5 试点包只有 113 条），只校验与 manifest 一致。
+        assertThat(reader.count()).isPositive()
+                .isEqualTo(manifest.get("count").asInt());
 
         StoredContent first = reader.getById(1).orElseThrow();
         assertThat(first.source()).isEqualTo("pack");

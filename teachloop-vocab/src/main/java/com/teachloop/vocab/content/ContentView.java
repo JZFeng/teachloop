@@ -109,6 +109,22 @@ public final class ContentView {
                 .orElse(null);
     }
 
+    /**
+     * 读路径的状态口径：库里的 {@code content_status} 可能已经过期（内容包换版、提示词升级、
+     * delta 被清），此时仍写着 READY 但内容解析不到。前端只认这个状态，所以必须在这里降级成
+     * PENDING（= 内容待准备），否则会渲染一张没有音标/释义/例句的空卡，而且永远不会重新生成
+     * （2026-10-29 用户报 Bug）。
+     *
+     * @param storedStatus {@code vocab_words.content_status}
+     * @param content      按 id/词形解析后的内容；null 表示解析不到
+     */
+    public static String statusFor(String storedStatus, JsonNode content) {
+        if (content == null && "READY".equals(storedStatus)) {
+            return "PENDING";
+        }
+        return storedStatus;
+    }
+
     private static boolean isSchemaV2(JsonNode raw) {
         JsonNode version = raw.get("schemaVersion");
         return version != null && version.isNumber() && version.asInt() == SCHEMA_V2;

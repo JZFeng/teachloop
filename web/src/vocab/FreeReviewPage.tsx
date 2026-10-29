@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next'
 import { api } from '../api/client'
 import { Button, Empty, ErrorState, InlineNote, Loading, PageHeader, Progress, useConfirm, useToast } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
+import { reviewCardPhase } from './reviewCardState'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import { fetchLists } from './lists'
 import './vocab.css'
@@ -150,8 +151,11 @@ export default function VocabFreeReviewPage() {
     return () => { alive = false }
   }, [sessionId])
 
-  const preparing = !!word && word.contentStatus !== 'READY' && word.contentStatus !== 'FAILED'
-  const contentFailed = word?.contentStatus === 'FAILED'
+  // 状态之外再核一次内容（2026-10-29 用户报 Bug）：库里写着 READY 但内容解析不到时，
+  // 直接渲染卡面会得到一张没有音标/释义/例句的空卡；这里降级成「准备中」，等 prepare 重新入队。
+  const phase = reviewCardPhase(word?.contentStatus, word?.content)
+  const contentFailed = phase === 'failed'
+  const preparing = !!word && phase === 'preparing'
   const gateWaiting = !!word && !gateOpen
 
   // 兜底：等待超过 60 秒时允许手动开始，避免整页卡死
@@ -520,6 +524,7 @@ export default function VocabFreeReviewPage() {
             onRate={(rating) => { void (rating === 'DONT_KNOW' ? rateDontKnow() : advance('KNOWN')) }}
             ratingDisabled={busy || !!word.paused || rated !== null}
             notice={word.paused ? t('vocab.freeReview.pausedHint') : undefined}
+            emptyHint={t('vocab.review.contentMissing')}
             centered
           />
           <div className="review-session-foot">

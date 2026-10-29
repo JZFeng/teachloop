@@ -72,7 +72,10 @@ public class ReviewQueueEndpoint {
                             BigDecimal intervalDays, BigDecimal ease, boolean newCard) {
 
         QueueItem toItem(JsonNode content) {
-            return new QueueItem(id, form, language, content, contentStatus, favorite, state,
+            // 状态跟随内容：库里写的 READY 可能已经解析不到内容（内容包换版 / 提示词升级），
+            // 这时按 PENDING 报给前端，页面显示「数据准备中」而不是一张空卡（2026-10-29 用户报 Bug）。
+            return new QueueItem(id, form, language, content,
+                    ContentView.statusFor(contentStatus, content), favorite, state,
                     dueAt, intervalDays, ease, newCard);
         }
     }
