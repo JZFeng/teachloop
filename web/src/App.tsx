@@ -28,6 +28,7 @@ import ActivatePage from './app/ActivatePage'
 import ForgotPasswordPage from './app/ForgotPasswordPage'
 import { loginNextFrom, loginPath, safeNextPath } from './app/redirect'
 import { PROFILE_PATH, profileDetour, profilePathWithNext } from './app/profileGate'
+import { featureGate } from './app/featureGate'
 import NotificationsPage from './app/NotificationsPage'
 import ProfilePage from './app/ProfilePage'
 import SetupPage from './app/SetupPage'
@@ -130,8 +131,10 @@ function HomeRouter() {
  */
 function RequireFeature({ feature, children }: { feature: string; children: ReactNode }) {
   const { features, loaded } = useFeatures()
-  if (!loaded) return <div style={{ padding: 40 }}><Loading /></div>
-  if (features[feature] !== true) return <Navigate to={landingFor(features)} replace />
+  // 判定收在 featureGate.ts：三态（等开关 / 放行 / 退回落地页）由纯函数决定，测试直接跑它。
+  const gate = featureGate({ loaded, features, feature })
+  if (gate === 'loading') return <div style={{ padding: 40 }}><Loading /></div>
+  if (gate === 'deny') return <Navigate to={landingFor(features)} replace />
   return <>{children}</>
 }
 
@@ -237,9 +240,12 @@ function AppRoutes() {
           {/* 2026-10-26（AC-72.8）：`/feedback` 列表页删除，只留详情；入口在首页卡片与作业页行内。 */}
           <Route path="feedback/:offeringId" element={<FeedbackDetailPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
-          <Route path="admin/ai" element={<AdminAiPage />} />
+          {/* 2026-10-29（Bug）：`/admin/ai` 之前没挂守卫，学生/教师深链进来能整页渲染系统设置，
+              只有接口被后端 403 挡住。按 AC-63.6 的反向镜像处理：没有 nav.ai 的人退回自己的落地页，
+              页面壳与内容一律不渲染。别名 `/admin/settings` 同样要拦。 */}
+          <Route path="admin/ai" element={<RequireFeature feature="nav.ai"><AdminAiPage /></RequireFeature>} />
           {/* 2026-10-28：页面改叫「系统设置」，/admin/settings 作为别名收口到同一屏。 */}
-          <Route path="admin/settings" element={<Navigate to="/admin/ai" replace />} />
+          <Route path="admin/settings" element={<RequireFeature feature="nav.ai"><Navigate to="/admin/ai" replace /></RequireFeature>} />
           <Route path="profile" element={<ProfilePage />} />
           {/* 组件标准不再单独成页：旧链接到资料页偏好设置里的面板，不再占侧栏入口。 */}
           <Route path="ui-kit" element={<Navigate to="/profile?panel=ui-kit" replace />} />
