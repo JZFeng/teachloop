@@ -25,6 +25,8 @@
 - 监听 `0.0.0.0:8099`，页面 `http://<监控机 LAN IP>:8099/vitals/`，**HTTP Basic 口令**（凭据在 `config.env`，600 权限，不进 git）。
 - 只走局域网：**不碰 Cloudflare、不碰 prod 的 nginx**。这也是为什么 `status.teachloop.org` 那个方案被放弃——它要求隧道把公网流量转到监控机，且只能在 Cloudflare 后台配。
 - `/vitals/healthz` 免认证（给本机自检用），`/vitals/api` 与页面都要口令。
+- 页面右上角两个开关：**中文 / EN** 与 **☀ 亮色 / ☾ 暗色**，选择记在 `localStorage`（`vitals.lang` / `vitals.theme`），刷新与换设备不共享。
+- 暗色用 `tokens.ts` 的 dark 色板（`#0A1120` 底 / `#2A6FD6` 主色）；告警文案按服务端返回的 `code` 在前端翻译，**邮件正文仍为中文**（收件人只有你自己，先不做双语邮件）。
 
 ## 4. 部署
 

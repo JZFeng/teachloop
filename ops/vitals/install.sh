@@ -100,9 +100,11 @@ python3 -c 'import sys;raise SystemExit(0 if sys.version_info>=(3,8) else 1)' ||
 ok "python3 $pyv"
 
 mkdir -p "$TARGET"
-cp "$HERE/vitals.py" "$HERE/page.html" "$TARGET/"
+if [ "$HERE" != "$TARGET" ]; then
+  cp "$HERE/vitals.py" "$HERE/page.html" "$TARGET/"
+fi
 # 安装脚本自己也留一份：之后可以直接 bash ~/vitals/install.sh status
-cp "$HERE/install.sh" "$TARGET/install.sh" 2>/dev/null || cp "$0" "$TARGET/install.sh"
+[ "$HERE" = "$TARGET" ] || cp "$HERE/install.sh" "$TARGET/install.sh"
 [ -f "$HERE/README.md" ] && cp "$HERE/README.md" "$TARGET/README.md" || true
 ok "已复制 vitals.py / page.html / install.sh"
 

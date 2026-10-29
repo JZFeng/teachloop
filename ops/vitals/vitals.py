@@ -256,20 +256,26 @@ def conditions(cfg: dict) -> list[dict]:
         elif public.get("body"):
             detail += f"（{' '.join(str(public['body']).split())[:80]}）"
         out.append({"id": "public", "level": "down", "title": "公网入口不通",
-                    "detail": detail})
+                    "detail": detail, "code": "public_down",
+                    "args": {"http": public.get("code"),
+                             "db": deep.get("db"), "font": deep.get("pdfFont"),
+                             "body": " ".join(str(public.get("body") or "").split())[:120]}})
 
     ssh_interval = num(cfg, "SSH_INTERVAL", 5)
     if now - facts_at > max(ssh_interval * 3, 20):
         out.append({"id": "prod_ssh", "level": "down", "title": "采集失联（SSH 探针）",
-                    "detail": facts_err or "尚未成功采集过一次"})
+                    "detail": facts_err or "尚未成功采集过一次",
+                    "code": "probe_down", "args": {"err": facts_err or ""}})
 
     for c in facts.get("containers", []):
         if not c["up"]:
             out.append({"id": f"container:{c['svc']}", "level": "down",
-                        "title": f"容器 {c['svc']} 不在运行", "detail": c["status"]})
+                        "title": f"容器 {c['svc']} 不在运行", "detail": c["status"],
+                        "code": "container_down", "args": {"svc": c["svc"], "status": c["status"]}})
         elif c["svc"] in ("app", "db") and c["health"]:
             out.append({"id": f"health:{c['svc']}", "level": "warn",
-                        "title": f"容器 {c['svc']} unhealthy", "detail": c["status"]})
+                        "title": f"容器 {c['svc']} unhealthy", "detail": c["status"],
+                        "code": "container_unhealthy", "args": {"svc": c["svc"], "status": c["status"]}})
 
     disk = facts.get("disk") or {}
     try:
@@ -279,7 +285,10 @@ def conditions(cfg: dict) -> list[dict]:
     if disk and disk_pct >= num(cfg, "DISK_WARN", 90):
         out.append({"id": "disk", "level": "warn", "title": "磁盘快满了",
                     "detail": f"已用 {disk.get('pct')}（{disk.get('used')}/{disk.get('total')}，"
-                              f"剩 {disk.get('avail')}）"})
+                              f"剩 {disk.get('avail')}）",
+                    "code": "disk_high",
+                    "args": {"pct": disk.get("pct"), "used": disk.get("used"),
+                             "total": disk.get("total"), "avail": disk.get("avail")}})
 
     mem = facts.get("mem") or {}
     try:
@@ -288,7 +297,9 @@ def conditions(cfg: dict) -> list[dict]:
         mem_pct = 0
     if mem and mem_pct >= num(cfg, "MEM_WARN", 90):
         out.append({"id": "mem", "level": "warn", "title": "内存快满了",
-                    "detail": f"已用 {mem_pct}%（{mem.get('used')}/{mem.get('total')} MB）"})
+                    "detail": f"已用 {mem_pct}%（{mem.get('used')}/{mem.get('total')} MB）",
+                    "code": "mem_high",
+                    "args": {"pct": mem_pct, "used": mem.get("used"), "total": mem.get("total")}})
     return out
 
 
@@ -364,20 +375,24 @@ def apply_alerts(cfg: dict) -> None:
             if old is None:
                 prev[cid] = {"since": now, "last": now, "cond": cond}
                 sends.append(alert_text("down", cond, now))
-                STATE["alert_log"].append({"at": now, "kind": "down", "title": cond["title"]})
+                STATE["alert_log"].append({"at": now, "kind": "down", "title": cond["title"],
+                                           "code": cond.get("code"), "args": cond.get("args")})
             else:
                 old["cond"] = cond
                 if now - old["last"] >= cooldown:
                     old["last"] = now
                     sends.append(alert_text("repeat", cond, old["since"]))
-                    STATE["alert_log"].append({"at": now, "kind": "repeat", "title": cond["title"]})
+                    STATE["alert_log"].append({"at": now, "kind": "repeat", "title": cond["title"],
+                                           "code": cond.get("code"), "args": cond.get("args")})
         for cid in list(prev):
             if cid not in active:
                 old = prev.pop(cid)
                 if old.get("last") is not None:
                     sends.append(alert_text("up", old["cond"], old["since"]))
                     STATE["alert_log"].append({"at": now, "kind": "up",
-                                               "title": old["cond"]["title"]})
+                                               "title": old["cond"]["title"],
+                                               "code": old["cond"].get("code"),
+                                               "args": old["cond"].get("args")})
 
     for subject, body in sends:
         threading.Thread(target=mail, args=(cfg, subject, body), daemon=True).start()
