@@ -1598,7 +1598,9 @@
       "orderHint": "顺序只决定先后，不决定有无；关掉用上面的开关。",
       "moveUp": "上移",
       "moveDown": "下移",
-      "saving": "保存中…"
+      "saving": "保存中…",
+      "open": "背单词设置",
+      "moreInProfile": "内容开关与反面顺序在「我的资料 → 背单词」里改。"
     },
     "blocks": {
       "core": "核心语义",

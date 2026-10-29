@@ -20,7 +20,7 @@ const SWITCHES = ['derivation', 'synonyms', 'antonyms', 'family'] as const
  * <p>任务量用三档按钮 + 数字框：档位只决定「区间与一键取值」，数字框仍可填 3–200，
  * 档位由数值自动判定——这样「三档」与「连续可配」不打架。
  */
-export function VocabPrefsCard() {
+export function VocabPrefsCard({ compact = false }: { compact?: boolean } = {}) {
   const { t } = useTranslation()
   const [prefs, setPrefs] = useState<ReviewPrefs | null>(null)
   const [saving, setSaving] = useState(false)
@@ -115,6 +115,12 @@ export function VocabPrefsCard() {
         <p className="muted small">{t(`vocab.prefs.strategyHint.${prefs.strategy}`)}</p>
       </div>
 
+      {compact && (
+        <p className="muted small">{t('vocab.prefs.moreInProfile')}</p>
+      )}
+
+      {!compact && (
+      <>
       <div className="pref-block">
         <div className="pref-title">{t('vocab.prefs.content')}</div>
         <div className="pref-switches">
@@ -156,6 +162,8 @@ export function VocabPrefsCard() {
           {saving ? ` · ${t('vocab.prefs.saving')}` : ''}
         </p>
       </div>
+      </>
+      )}
     </div>
   )
 }

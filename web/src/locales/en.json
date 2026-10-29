@@ -1598,7 +1598,9 @@
       "orderHint": "Order only sets sequence, not visibility — use the switches above to hide a block.",
       "moveUp": "Move up",
       "moveDown": "Move down",
-      "saving": "Saving…"
+      "saving": "Saving…",
+      "open": "Vocabulary settings",
+      "moreInProfile": "Content switches and card order live in Profile → Vocabulary."
     },
     "blocks": {
       "core": "Core meaning",

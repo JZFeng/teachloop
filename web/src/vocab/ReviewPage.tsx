@@ -2,12 +2,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { Button, Empty, ErrorState, InlineNote, Loading, PageHeader, Progress, useConfirm, useToast } from '../ui'
+import { Button, Drawer, Empty, ErrorState, InlineNote, Loading, PageHeader, Progress, SettingOutlined, useConfirm, useToast } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
 import { reviewCardPhase } from './reviewCardState'
 import { useVocabAudioConfig } from './audioConfig'
 import { createQuiz } from './quiz'
 import { useWordBlocks } from './prefs'
+import { VocabPrefsCard } from './VocabPrefsCard'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
@@ -68,6 +69,7 @@ export default function VocabReviewPage() {
   const wordBlocks = useWordBlocks()
   const [startingQuiz, setStartingQuiz] = useState(false)
   const [prefetching, setPrefetching] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const prefetched = useRef(false)
   const toast = useToast()
   const confirm = useConfirm()
@@ -385,10 +387,26 @@ export default function VocabReviewPage() {
   ), [queue, t])
 
   const header = (
-    <PageHeader
-      title={t('vocab.review.title')}
-      info={info}
-    />
+    <>
+      <PageHeader
+        title={t('vocab.review.title')}
+        info={info}
+        actions={(
+          <Button size="small" icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)}>
+            {t('vocab.prefs.open')}
+          </Button>
+        )}
+      />
+      <Drawer
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        title={t('vocab.prefs.title')}
+        placement="right"
+        width={420}
+      >
+        <VocabPrefsCard compact />
+      </Drawer>
+    </>
   )
 
   if (loading) return <Loading label={t('common.loading')} />
