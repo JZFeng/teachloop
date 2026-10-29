@@ -257,4 +257,6 @@
 | T555 偏好 UI | 完成 | `VocabPrefsCard`（三档 + 数字框 + 三策略 + 4 开关 + ↑↓）嵌入 `/profile` |
 | T556 游标与预取 | 完成 | `VocabQueueCursorTest` 1/1；前端 80% 预取（`after=<ISO>|<id>` + `newServed`） |
 
-**未做**（明确留白）：复习页的齿轮抽屉（当前从 `/profile` 改，AC-88.1 的抽屉形态待补）；`shared/FeatureFlags` 接口；移动端宽度验收。
+**未做**（明确留白）：`shared/FeatureFlags` 接口（当前 `@Value` + 运行时判定，接缝可后补）；手机宽度与暗色主题的界面验收。
+
+**补完**（2026-10-29）：复习页齿轮抽屉（`ReviewPage` 右上角 `SettingOutlined` → 右侧 `Drawer`，`VocabPrefsCard compact` 只放任务量与策略）；顺手修掉 `check-i18n` 的一个存量误报（`App.tsx` 里一段中文代码注释被当成界面文案，改为英文注释而非放宽基线）。
