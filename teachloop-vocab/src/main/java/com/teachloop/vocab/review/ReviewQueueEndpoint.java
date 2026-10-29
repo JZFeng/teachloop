@@ -43,16 +43,16 @@ public class ReviewQueueEndpoint {
     private final JdbcTemplate jdbc;
     private final ContentStore contentStore;
     private final Clock clock;
-    private final int dailyNewCards;
+    private final ReviewPrefsStore prefs;
     private final int pageSize;
 
     public ReviewQueueEndpoint(JdbcTemplate jdbc, ContentStore contentStore, Clock clock,
-                               @Value("${teachloop.vocab.review.daily-new-cards:20}") int dailyNewCards,
+                               ReviewPrefsStore prefs,
                                @Value("${teachloop.vocab.review.queue-page-size:100}") int pageSize) {
         this.jdbc = jdbc;
         this.contentStore = contentStore;
         this.clock = clock;
-        this.dailyNewCards = Math.max(0, dailyNewCards);
+        this.prefs = prefs;
         this.pageSize = Math.max(1, pageSize);
     }
 
@@ -93,7 +93,9 @@ public class ReviewQueueEndpoint {
                            @RequestAttribute("currentUser") CurrentUser me) {
         String lang = language == null || language.isBlank() ? "en" : language;
         int cap = Math.min(limit == null || limit <= 0 ? pageSize : limit, pageSize);
-        int newCap = dailyNewCards;
+        // AC-88.3：拿用户偏好，再被全局硬上限压一次（属性值退化为「上限 + 缺省值」）
+        ReviewPrefs pref = prefs.load(me.id());
+        int newCap = Math.min(pref.dailyNewCards(), prefs.maxCards());
 
         List<QueueRow> due = jdbc.query("""
                 select w.id, w.form, w.language, w.content_id, w.content_status, w.favorite,
@@ -130,6 +132,19 @@ public class ReviewQueueEndpoint {
                 selected.add(row);
             } else if (selected.size() < cap) {
                 selected.add(row);
+            }
+        }
+        // AC-88.4：策略只改「谁先出」，不改配额与计数
+        if (pref.reviewFirst() || pref.newFirst()) {
+            List<QueueRow> reviews = selected.stream().filter(row -> !row.newCard()).toList();
+            List<QueueRow> news = selected.stream().filter(QueueRow::newCard).toList();
+            selected.clear();
+            if (pref.newFirst()) {
+                selected.addAll(news);
+                selected.addAll(reviews);
+            } else {
+                selected.addAll(reviews);
+                selected.addAll(news);
             }
         }
         int remaining = due.size() - Math.max(0, newDueTotal - Math.min(newDueTotal, newCap));

@@ -1,3 +1,4 @@
+import { Fragment } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   BookOutlined,
@@ -12,6 +13,7 @@ import {
 import { SpeakerButton } from './SpeakerButton'
 import type { AudioLanguage } from './SpeakerButton'
 import { useVocabAudioConfig } from './audioConfig'
+import { WORD_BLOCKS, type WordBlock } from './wordBlocks'
 
 export interface ReviewCardSense {
   pos?: string
@@ -51,6 +53,12 @@ export interface ReviewCardCoreSemantics {
   image?: string
 }
 
+export interface ReviewCardWordPair {
+  word?: string
+  pos?: string
+  nuance?: string
+}
+
 export interface ReviewCardContent {
   phonetic?: { uk?: string; us?: string }
   coreSemantics?: ReviewCardCoreSemantics
@@ -58,6 +66,11 @@ export interface ReviewCardContent {
   examples?: ReviewCardExample[]
   analysis?: string
   derivation?: ReviewCardDerivation
+  /** US-88：近义 / 反义（后端 ContentView 从 v2 memoryAids 映射） */
+  synonyms?: ReviewCardWordPair[]
+  antonyms?: ReviewCardWordPair[]
+  /** 词族：同族词，最多 8 个 */
+  family?: string[]
 }
 
 export interface ReviewCardWord {
@@ -100,6 +113,8 @@ export function VocabReviewCard({
   emptyHint,
   notice,
   centered = false,
+  blocks,
+  hidden,
 }: {
   word: ReviewCardWord
   flipped: boolean
@@ -125,6 +140,10 @@ export function VocabReviewCard({
    * T510（2026-10-26 用户要求）起查词页（WordDetailPage）的正面也用这套版式，所以三个调用点都传 true。
    */
   centered?: boolean
+  /** 反面 8 块的顺序（US-88）；不传 = 默认顺序 */
+  blocks?: string[]
+  /** 关掉的块：顺序不决定有无，这一段才决定 */
+  hidden?: string[]
 }) {
   const { t } = useTranslation()
   // 决策 019 / AC-57.6：服务端关掉例句朗读时整卡不渲染例句喇叭。
@@ -134,6 +153,129 @@ export function VocabReviewCard({
   // 019：例句喇叭跟随词条语言，避免中文 / 西语词条被硬编码读成英文音。
   const exampleLang: AudioLanguage =
     word.language === 'zh' ? 'zh' : word.language === 'es' ? 'es' : 'en'
+
+  // US-88：顺序来自偏好；关掉的块不渲染（有无与先后是两个系统）
+  const off = new Set(hidden ?? [])
+  const visibleOrder = (blocks ?? WORD_BLOCKS).filter(
+    (key) => WORD_BLOCKS.includes(key as WordBlock) && !off.has(key),
+  )
+
+  /** 每块自己判断「有没有内容」，没内容就不占位。 */
+  const renderBlock = (key: string) => {
+    if (key === 'core' && content?.coreSemantics) {
+      const core = content.coreSemantics
+      return (
+        <div className="core-semantics">
+          <div className="core-semantics-text">
+            {core.core && <p className="core-semantics-core">{core.core}</p>}
+            {core.notThis && <p className="core-semantics-not muted">{core.notThis}</p>}
+            {core.mentalImage && <p className="core-semantics-image">{core.mentalImage}</p>}
+          </div>
+          {core.image && (
+            <div className="core-semantics-art" aria-hidden="true"
+              dangerouslySetInnerHTML={{ __html: core.image }} />
+          )}
+        </div>
+      )
+    }
+    if (key === 'senses' && (content?.senses?.length ?? 0) > 0) {
+      return (
+        <ul className="vocab-sense">
+          {content!.senses!.map((sense, senseIndex) => (
+            <li key={senseIndex}>
+              {sense.pos && <span className="chip">{sense.pos}</span>} {sense.zh ?? sense.en}
+            </li>
+          ))}
+        </ul>
+      )
+    }
+    if (key === 'examples' && (content?.examples?.length ?? 0) > 0) {
+      return (
+        <div className="review-examples">
+          {content!.examples!.map((example, exampleIndex) => (
+            <div key={exampleIndex} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+              <div style={{ flex: '1 1 auto', minWidth: 0, overflowWrap: 'anywhere' }}>
+                {example.en && <div>{example.en}</div>}
+                {example.zh && <div className="muted">{example.zh}</div>}
+              </div>
+              {sentenceAudio && example.en && (
+                <span style={{ flex: '0 0 auto' }}
+                  onClick={(event) => event.stopPropagation()}
+                  onKeyDown={(event) => event.stopPropagation()}>
+                  <SpeakerButton text={example.en} lang={exampleLang} compact variant="text" />
+                </span>
+              )}
+            </div>
+          ))}
+        </div>
+      )
+    }
+    if ((key === 'synonyms' || key === 'antonyms') && (content?.[key]?.length ?? 0) > 0) {
+      return (
+        <div className="word-pairs">
+          <div className="derivation-title">{t(`vocab.blocks.${key}`)}</div>
+          <ul className="word-pair-list">
+            {content![key]!.map((pair, index) => (
+              <li key={`${pair.word}-${index}`}>
+                <b>{pair.word}</b>
+                {pair.pos && <em>{pair.pos}</em>}
+                {pair.nuance && <span className="muted">{pair.nuance}</span>}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )
+    }
+    if (key === 'family' && (content?.family?.length ?? 0) > 0) {
+      return (
+        <div className="word-pairs">
+          <div className="derivation-title">{t('vocab.blocks.family')}</div>
+          <div className="word-family-row">
+            {content!.family!.slice(0, 8).map((member) => (
+              <span className="chip" key={member}>{member}</span>
+            ))}
+          </div>
+        </div>
+      )
+    }
+    if (key === 'derivation' && content?.derivation) {
+      const derivation = content.derivation
+      return (
+        <div className="derivation">
+          <div className="derivation-title">{t('vocab.detail.derivation')}</div>
+          {(derivation.parts?.length ?? 0) > 0 && (
+            <div className="derivation-parts">
+              {derivation.parts!.map((part, index) => (
+                <span className="derivation-part" key={`${part.text}-${index}`}>
+                  <b className="mono">{part.text}</b>
+                  {part.type && <em>{part.type}</em>}
+                  {part.meaning && <span>{part.meaning}</span>}
+                  {part.origin && <span className="muted">{part.origin}</span>}
+                </span>
+              ))}
+            </div>
+          )}
+          {(derivation.chain?.length ?? 0) > 0 && (
+            <ol className="derivation-chain">
+              {derivation.chain!.map((step, index) => (
+                <li key={`${step.to}-${index}`}>
+                  <span className="mono">{(step.from ?? []).join(' + ')}</span>
+                  <span className="derivation-arrow">→</span>
+                  <b className="mono">{step.to}</b>
+                  {step.partOfSpeech && <em>{step.partOfSpeech}</em>}
+                  {step.meaning && <span className="muted">{step.meaning}</span>}
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )
+    }
+    if (key === 'analysis' && content?.analysis) {
+      return <p className="muted">{content.analysis}</p>
+    }
+    return null
+  }
 
   return (
     <div
@@ -227,101 +369,15 @@ export function VocabReviewCard({
 
         {flipped && (
           <div className="review-back">
-            {content?.coreSemantics && (
-              <div className="core-semantics">
-                <div className="core-semantics-text">
-                  {content.coreSemantics.core && (
-                    <p className="core-semantics-core">{content.coreSemantics.core}</p>
-                  )}
-                  {content.coreSemantics.notThis && (
-                    <p className="core-semantics-not muted">{content.coreSemantics.notThis}</p>
-                  )}
-                  {content.coreSemantics.mentalImage && (
-                    <p className="core-semantics-image">{content.coreSemantics.mentalImage}</p>
-                  )}
-                </div>
-                {content.coreSemantics.image && (
-                  <div
-                    className="core-semantics-art"
-                    aria-hidden="true"
-                    dangerouslySetInnerHTML={{ __html: content.coreSemantics.image }}
-                  />
-                )}
-              </div>
-            )}
             {(content?.senses?.length ?? 0) === 0
               && (content?.examples?.length ?? 0) === 0
               && !content?.analysis
               && emptyHint && <p className="muted">{emptyHint}</p>}
-            {(content?.senses?.length ?? 0) > 0 && (
-              <ul className="vocab-sense">
-                {content!.senses!.map((sense, senseIndex) => (
-                  <li key={senseIndex}>
-                    {sense.pos && <span className="chip">{sense.pos}</span>} {sense.zh ?? sense.en}
-                  </li>
-                ))}
-              </ul>
-            )}
-            {(content?.examples?.length ?? 0) > 0 && (
-              <div className="review-examples">
-                {content!.examples!.map((example, exampleIndex) => (
-                  // 决策 019 / AC-57.6：每条例句右侧一个小喇叭；句子与翻译竖排，
-                  // 喇叭与文本行 flex 同行，长句在文本列里换行、不挤压喇叭。
-                  <div
-                    key={exampleIndex}
-                    style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}
-                  >
-                    <div style={{ flex: '1 1 auto', minWidth: 0, overflowWrap: 'anywhere' }}>
-                      {example.en && <div>{example.en}</div>}
-                      {example.zh && <div className="muted">{example.zh}</div>}
-                    </div>
-                    {sentenceAudio && example.en && (
-                      // 卡片整体是「点击翻面」，喇叭上的点击/回车必须留在本地。
-                      <span
-                        style={{ flex: '0 0 auto' }}
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => event.stopPropagation()}
-                      >
-                        <SpeakerButton text={example.en} lang={exampleLang} compact variant="text" />
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
+            {visibleOrder.map((key) => (
+              <Fragment key={key}>{renderBlock(key)}</Fragment>
+            ))}
             {word.lastQuizWrongAt && (
               <p className="quiz-flag">{t('vocab.quiz.lastWrong', { date: shortDate(word.lastQuizWrongAt) })}</p>
-            )}
-            {content?.analysis && <p className="muted">{content.analysis}</p>}
-            {content?.derivation && (
-              <div className="derivation">
-                <div className="derivation-title">{t('vocab.detail.derivation')}</div>
-                {content.derivation.parts && content.derivation.parts.length > 0 && (
-                  <div className="derivation-parts">
-                    {content.derivation.parts.map((part, index) => (
-                      <span className="derivation-part" key={`${part.text}-${index}`}>
-                        <b className="mono">{part.text}</b>
-                        {part.type && <em>{part.type}</em>}
-                        {part.meaning && <span>{part.meaning}</span>}
-                        {part.origin && <span className="muted">{part.origin}</span>}
-                      </span>
-                    ))}
-                  </div>
-                )}
-                {content.derivation.chain && content.derivation.chain.length > 0 && (
-                  <ol className="derivation-chain">
-                    {content.derivation.chain.map((step, index) => (
-                      <li key={`${step.to}-${index}`}>
-                        <span className="mono">{(step.from ?? []).join(' + ')}</span>
-                        <span className="derivation-arrow">→</span>
-                        <b className="mono">{step.to}</b>
-                        {step.partOfSpeech && <em>{step.partOfSpeech}</em>}
-                        {step.meaning && <span className="muted">{step.meaning}</span>}
-                      </li>
-                    ))}
-                  </ol>
-                )}
-              </div>
             )}
           </div>
         )}

@@ -61,6 +61,7 @@ public final class ContentView {
         putCoreSemantics(view, raw);
         putDerivation(view, raw);
         putFamily(view, raw);
+        putMemoryAids(view, raw);
         putPhonetic(view, raw);
         return view;
     }
@@ -322,6 +323,44 @@ public final class ContentView {
     }
 
     /** 词族：v2 是 items[{word, ...}]，v1 只要词形列表；重复词形只留一次。 */
+    /**
+     * US-88 / T554：近义词与反义词（v2 {@code memoryAids.synonyms/antonyms} → v1 同名字段）。
+     *
+     * <p>这两块之前在读路径里**完全没有映射**，所以卡面即使想显示也拿不到数据；
+     * 每项保留 {@code word / pos / nuance}——{@code nuance} 是「与目标词的差别」，是这个块真正的价值。
+     */
+    private static void putMemoryAids(ObjectNode view, JsonNode raw) {
+        JsonNode aids = raw.path("memoryAids");
+        if (!aids.isObject()) {
+            return;
+        }
+        putWordList(view, "synonyms", aids.path("synonyms"));
+        putWordList(view, "antonyms", aids.path("antonyms"));
+    }
+
+    private static void putWordList(ObjectNode view, String field, JsonNode source) {
+        if (!source.isArray() || source.isEmpty()) {
+            return;
+        }
+        ArrayNode out = view.putArray(field);
+        for (JsonNode item : source) {
+            String word = item.path("word").asString("");
+            if (word.isBlank()) {
+                continue;
+            }
+            ObjectNode node = out.addObject();
+            node.put("word", word);
+            String pos = item.path("partOfSpeech").asString("");
+            if (!pos.isBlank()) {
+                node.put("pos", pos);
+            }
+            String nuance = item.path("nuance").asString("");
+            if (!nuance.isBlank()) {
+                node.put("nuance", nuance);
+            }
+        }
+    }
+
     private static void putFamily(ObjectNode view, JsonNode raw) {
         Set<String> words = new LinkedHashSet<>();
         JsonNode items = raw.path("wordFamily").path("items");

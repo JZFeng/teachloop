@@ -1569,6 +1569,55 @@
       "wordsUnit": " 个词",
       "lastWrong": "上次小测没答对 · {{date}}，再看一眼？"
     },
+    "prefs": {
+      "title": "背单词",
+      "sub": "每天背多少、先复习还是先学新词、卡面显示什么",
+      "cards": "每日任务量",
+      "cardsUnit": "张 / 天",
+      "cardsHint": "20 张新卡约 8–12 分钟，是多数人的可持续节奏。",
+      "cardsWarn": "超过 50 张时当天的生词会明显更难记，这一档是给冲刺期用的。",
+      "tier": {
+        "normal": "正常",
+        "hard": "进阶",
+        "extreme": "挑战"
+      },
+      "strategy": "学习策略",
+      "strategyOptions": {
+        "REVIEW_FIRST": "复习优先",
+        "MIXED": "混合",
+        "NEW_FIRST": "新词优先"
+      },
+      "strategyHint": {
+        "REVIEW_FIRST": "先把到期卡清完再出新词；到期卡很多时，今天可能一个生词都见不到。",
+        "MIXED": "到期卡与新词按到期时间交错出，最接近原来的行为。",
+        "NEW_FIRST": "先出当天配额内的新词，再回到复习卡。"
+      },
+      "content": "卡片反面显示什么",
+      "imageSkipped": "图片暂不提供：内容里还没有图，开关打开也是空的。",
+      "order": "反面顺序",
+      "orderHint": "顺序只决定先后，不决定有无；关掉用上面的开关。",
+      "moveUp": "上移",
+      "moveDown": "下移",
+      "saving": "保存中…"
+    },
+    "blocks": {
+      "core": "核心语义",
+      "senses": "释义",
+      "examples": "例句",
+      "synonyms": "近义词",
+      "antonyms": "反义词",
+      "family": "词族",
+      "derivation": "构词与词根",
+      "analysis": "构词分析",
+      "coreDesc": "一句话语义核心 + 它不是什么",
+      "sensesDesc": "按词性的中文释义",
+      "examplesDesc": "例句 + 中文翻译，例句可朗读",
+      "synonymsDesc": "含「与目标词的差别」说明",
+      "antonymsDesc": "没有反义词的词整块不占位",
+      "familyDesc": "同族词，最多 8 个",
+      "derivationDesc": "前缀 / 词根 / 后缀拆分 + 派生链",
+      "analysisDesc": "一段文字说明词源与构成"
+    },
     "nav": {
       "library": "我的词库",
       "lists": "我的词单",

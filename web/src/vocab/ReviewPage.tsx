@@ -7,6 +7,7 @@ import { VocabReviewCard } from './VocabReviewCard'
 import { reviewCardPhase } from './reviewCardState'
 import { useVocabAudioConfig } from './audioConfig'
 import { createQuiz } from './quiz'
+import { useWordBlocks } from './prefs'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
@@ -56,6 +57,7 @@ export default function VocabReviewPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const { quiz: quizEnabled } = useVocabAudioConfig()
+  const wordBlocks = useWordBlocks()
   const [startingQuiz, setStartingQuiz] = useState(false)
   const toast = useToast()
   const confirm = useConfirm()
@@ -502,6 +504,8 @@ export default function VocabReviewPage() {
             onDelete={() => void removeCurrent()}
             onRate={(rating) => void submit(rating)}
             ratingDisabled={disabled}
+            blocks={wordBlocks.blocks}
+            hidden={wordBlocks.hidden}
             emptyHint={t('vocab.review.contentMissing')}
             centered
           />

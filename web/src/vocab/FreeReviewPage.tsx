@@ -9,6 +9,7 @@ import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } fr
 import { fetchLists } from './lists'
 import { useVocabAudioConfig } from './audioConfig'
 import { createQuiz } from './quiz'
+import { useWordBlocks } from './prefs'
 import './vocab.css'
 
 interface SessionWord {
@@ -89,6 +90,7 @@ export default function VocabFreeReviewPage() {
   const [word, setWord] = useState<SessionWord | null | undefined>(undefined)
   const [summary, setSummary] = useState<Summary | null>(null)
   const { quiz: quizEnabled } = useVocabAudioConfig()
+  const wordBlocks = useWordBlocks()
   const [startingQuiz, setStartingQuiz] = useState(false)
   const [flipped, setFlipped] = useState(false)
   /** 已评「不认识」：仍停在这一张，等「下一个」推走（照 today-review，AC-53.8）。 */
@@ -543,6 +545,8 @@ export default function VocabFreeReviewPage() {
             onTogglePause={() => void advance('TOGGLE_PAUSE')}
             onRate={(rating) => { void (rating === 'DONT_KNOW' ? rateDontKnow() : advance('KNOWN')) }}
             ratingDisabled={busy || !!word.paused || rated !== null}
+            blocks={wordBlocks.blocks}
+            hidden={wordBlocks.hidden}
             notice={word.paused ? t('vocab.freeReview.pausedHint') : undefined}
             emptyHint={t('vocab.review.contentMissing')}
             centered

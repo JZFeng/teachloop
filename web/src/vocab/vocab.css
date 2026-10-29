@@ -340,3 +340,31 @@
 .quiz-flag { display: inline-block; margin: 16px 0 0; padding: 4px 10px; font-size: 12px;
              color: var(--amber); background: var(--amber-weak);
              border: 1px solid var(--line); border-radius: 6px; }
+
+/* ---------------- 背单词偏好设置（US-88 / T555） ---------------- */
+.vocab-prefs { display: flex; flex-direction: column; gap: 18px; margin-top: 12px; }
+.pref-block { border-top: 1px solid var(--line); padding-top: 14px; }
+.pref-block:first-child { border-top: 0; padding-top: 0; }
+.pref-title { font-size: 14px; font-weight: 600; margin-bottom: 8px; }
+.pref-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pref-tiers { display: flex; gap: 8px; flex-wrap: wrap; }
+.pref-tier--normal { border-color: var(--green); color: var(--green); }
+.pref-tier--hard { border-color: var(--amber); color: var(--amber); }
+.pref-tier--extreme { border-color: var(--red); color: var(--red); }
+.pref-number { width: 84px; padding: 5px 10px; font: inherit; color: var(--text); background: var(--panel);
+               border: 1px solid var(--line); border-radius: 6px; text-align: center; }
+.pref-switches { display: flex; flex-direction: column; gap: 8px; }
+.pref-switch { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; }
+.pref-switch span { display: flex; flex-direction: column; }
+.pref-order { display: flex; flex-direction: column; gap: 6px; }
+.pref-order-row { display: grid; grid-template-columns: 22px 1fr auto; gap: 10px; align-items: center;
+                  padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; }
+.pref-order-no { font-size: 12px; color: var(--muted); text-align: right; font-variant-numeric: tabular-nums; }
+.pref-order-ops { display: flex; gap: 2px; }
+
+/* 近义 / 反义 / 词族（卡面反面新增块） */
+.word-pairs { margin-top: 12px; }
+.word-pair-list { margin: 6px 0 0; padding-left: 18px; }
+.word-pair-list li { margin-bottom: 4px; font-size: 13.5px; }
+.word-pair-list em { color: var(--muted); font-style: normal; margin: 0 6px; font-size: 12.5px; }
+.word-family-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }

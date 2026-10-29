@@ -1569,6 +1569,55 @@
       "wordsUnit": " words",
       "lastWrong": "Missed in the last quiz · {{date}} — worth another look?"
     },
+    "prefs": {
+      "title": "Vocabulary",
+      "sub": "How many cards a day, what comes first, and what the card shows",
+      "cards": "Daily new cards",
+      "cardsUnit": " cards / day",
+      "cardsHint": "20 new cards takes about 8–12 minutes — a pace most people can keep.",
+      "cardsWarn": "Above 50 the day's new words get much harder to retain; that tier is for a final push.",
+      "tier": {
+        "normal": "Normal",
+        "hard": "Hard",
+        "extreme": "Extreme"
+      },
+      "strategy": "Order of work",
+      "strategyOptions": {
+        "REVIEW_FIRST": "Reviews first",
+        "MIXED": "Mixed",
+        "NEW_FIRST": "New words first"
+      },
+      "strategyHint": {
+        "REVIEW_FIRST": "Clear due cards before new words; with a big backlog you may see no new words today.",
+        "MIXED": "Due cards and new words interleave by due time — the original behaviour.",
+        "NEW_FIRST": "New words first, then back to reviews."
+      },
+      "content": "What the card back shows",
+      "imageSkipped": "Images are not available yet — the content has none, so a toggle would be empty.",
+      "order": "Order on the card back",
+      "orderHint": "Order only sets sequence, not visibility — use the switches above to hide a block.",
+      "moveUp": "Move up",
+      "moveDown": "Move down",
+      "saving": "Saving…"
+    },
+    "blocks": {
+      "core": "Core meaning",
+      "senses": "Definitions",
+      "examples": "Examples",
+      "synonyms": "Synonyms",
+      "antonyms": "Antonyms",
+      "family": "Word family",
+      "derivation": "Word formation",
+      "analysis": "Etymology note",
+      "coreDesc": "One-line semantic core plus what it is not",
+      "sensesDesc": "Definitions grouped by part of speech",
+      "examplesDesc": "Example sentences with translations (audio available)",
+      "synonymsDesc": "Includes how each differs from the target word",
+      "antonymsDesc": "Blocks with no antonyms simply do not render",
+      "familyDesc": "Up to 8 related words",
+      "derivationDesc": "Prefix / root / suffix breakdown plus derivation chain",
+      "analysisDesc": "A short note on origin and structure"
+    },
     "nav": {
       "library": "My library",
       "lists": "My lists",

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { VocabPrefsCard } from '../vocab/VocabPrefsCard'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
@@ -271,6 +272,12 @@ export default function ProfilePage() {
             )}
           </>
         )}
+      </div>
+
+      <div className="card" style={{ maxWidth: 760, marginTop: 16 }}>
+        <h2>{t('vocab.prefs.title')}</h2>
+        <p className="small muted">{t('vocab.prefs.sub')}</p>
+        <VocabPrefsCard />
       </div>
 
       {isTeacher && (
