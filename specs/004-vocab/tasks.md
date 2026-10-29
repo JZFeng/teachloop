@@ -240,3 +240,21 @@
 | T554 | **反面块渲染**：`ContentView` 补 `synonyms/antonyms` 映射；`wordBlocks.ts`（8 key + 默认序 + 归一化）；`VocabReviewCard` 按数组渲染 + 近义/反义/词族三块 | T552 | `ContentViewTest` 补映射用例；关掉的块不渲染；顺序改后渲染顺序随之变化 |
 | T555 | **偏好设置 UI**：`VocabPrefs.tsx`（三档任务量 + 数字框 + 三策略 + 4 开关 + 8 块顺序）+ `ProfilePage` 嵌入 + 复习页齿轮抽屉 + i18n | T554 | `check-ui` 无新增违规；三档配色只用 token；顺序 ↑↓ 首末行边界禁用 |
 | T556 | **队列游标与预取**：`?after=<dueAt,id>`；前端 80% 静默拉取、按 word_id 去重追加；完成卡改为「预取也空」 | T553 | 200 张任务量下不出现空态闪烁；预取失败回落现有路径；同一条不重复出现 |
+
+### 阶段 K 完成记录（2026-10-30）
+
+| 任务 | 状态 | 证据 |
+| :--- | :--- | :--- |
+| T546 迁移 V075 | 完成 | `vocab_quizzes` / `vocab_quiz_items` + `vocab_user_prefs.review`；`check-boundaries` 59 表通过；Testcontainers 空库实跑 |
+| T547 QuizBuilder | 完成 | `QuizBuilderTest` 6/6：`-e` 屈折回退、降级填空、同句不复用、同词冷却 5 题、seed 可复现 |
+| T548 QuizEndpoint | 完成 | `VocabQuizTest` 2/2 + `VocabQuizDisabledTest` 1/1：答案不下发、判分、幂等、重做、他人 404、开关 404 |
+| T549 开关接缝 | 部分 | `/api/vocab/config` 已返回 `quiz`；`shared` 的 `FeatureFlags` 接口未建（当前用 `@Value`，端点已是运行时判定，接缝可后补） |
+| T550 小测页 | 完成 | `QuizPage.tsx` 整卷 + 交卷解析；`typecheck` / `build` 0；`check-ui` 无新增、`check-i18n` 1852 键对齐 |
+| T551 入口 + 标记 | 完成 | 完成卡 / 小结页入口 / 卡面琥珀提示（`lastQuizWrongAt` 取 30 天内最近一次答错） |
+| T552 偏好存储 | 完成 | V075 已含列；`ReviewPrefs` + `ReviewPrefsStore` + `/api/vocab/review-prefs`；`ReviewPrefsTest` 6/6 |
+| T553 队列读偏好 | 完成 | `VocabPrefsTest` 1/1：用户配额生效、`REVIEW_FIRST` 顺序、非法值被纠正 |
+| T554 反面块渲染 | 完成 | `ContentView` 补 synonyms/antonyms；`wordBlocks.ts` 8 key；卡面按 `blocks` 顺序、`hidden` 决定有无 |
+| T555 偏好 UI | 完成 | `VocabPrefsCard`（三档 + 数字框 + 三策略 + 4 开关 + ↑↓）嵌入 `/profile` |
+| T556 游标与预取 | 完成 | `VocabQueueCursorTest` 1/1；前端 80% 预取（`after=<ISO>|<id>` + `newServed`） |
+
+**未做**（明确留白）：复习页的齿轮抽屉（当前从 `/profile` 改，AC-88.1 的抽屉形态待补）；`shared/FeatureFlags` 接口；移动端宽度验收。

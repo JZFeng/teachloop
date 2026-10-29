@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
@@ -26,6 +26,8 @@ interface QueueItem {
   favorite: boolean
   state: string
   newCard: boolean
+  /** 排序键之一（AC-89.1 的游标由它和 id 组成） */
+  dueAt: string
   /** AC-87.9：该词最近一次小测答错的时间（30 天内），没有则为 null */
   lastQuizWrongAt?: string | null
 }
@@ -40,6 +42,12 @@ interface QueueView {
 }
 
 type Rated = 'KNOWN' | 'DONT_KNOW' | null
+
+/**
+ * AC-89.2：消费到 80% 就去拉下一批。等内容全部预生成之后，第二批只是一次查询，
+ * 但「批尾闪一下空态」是真的——预取主要修这个，不是省那几百毫秒。
+ */
+const PREFETCH_AT = 0.8
 
 /** T427：快捷键表（顺序即展示顺序）；发音两行与卡片上的喇叭一一对应。 */
 const SHORTCUTS = [
@@ -59,6 +67,8 @@ export default function VocabReviewPage() {
   const { quiz: quizEnabled } = useVocabAudioConfig()
   const wordBlocks = useWordBlocks()
   const [startingQuiz, setStartingQuiz] = useState(false)
+  const [prefetching, setPrefetching] = useState(false)
+  const prefetched = useRef(false)
   const toast = useToast()
   const confirm = useConfirm()
   const [queue, setQueue] = useState<QueueView | null>(null)
@@ -94,6 +104,7 @@ export default function VocabReviewPage() {
         setFlipped(false)
         setRated(null)
         setRefetched(false)
+        prefetched.current = false
         // T426：进入复习就只为前 N 个词准备内容，不再等全量生成
         if (value.items.length > 0) {
           const result = await prepareWords('TODAY', PREPARE_STEPS[0]).catch(() => null)
@@ -125,6 +136,34 @@ export default function VocabReviewPage() {
   // 状态 + 内容一起看：READY 但内容解析不到（内容包换版/提示词升级）时按「准备中」处理，
   // 不渲染空卡（2026-10-29 用户报 Bug）。
   const currentPhase = reviewCardPhase(current?.contentStatus, current?.content)
+  // AC-89.1/89.2：到 80% 就静默拉下一批并追加；失败不阻塞，用户走到批尾还有原来的兜底路径。
+  useEffect(() => {
+    if (loading || error || !queue || prefetching || prefetched.current) return
+    if (items.length === 0 || queue.remaining <= 0) return
+    if (index < Math.floor(items.length * PREFETCH_AT)) return
+    const last = items[items.length - 1]
+    prefetched.current = true
+    setPrefetching(true)
+    const cursor = `${last.dueAt}|${last.id}`
+    api.get<QueueView>(`/api/vocab/review/queue?after=${encodeURIComponent(cursor)}&newServed=${queue.newToday}`)
+      .then((next) => {
+        if (!next.items.length) return
+        setQueue((previous) => {
+          if (!previous) return previous
+          const seen = new Set(previous.items.map((item) => item.id))
+          const appended = next.items.filter((item) => !seen.has(item.id))
+          return {
+            ...previous,
+            items: [...previous.items, ...appended],
+            newToday: previous.newToday + next.newToday,
+            remaining: next.remaining,
+          }
+        })
+      })
+      .catch(() => undefined)
+      .finally(() => setPrefetching(false))
+  }, [index, items, queue, loading, error, prefetching])
+
   const currentReady = currentPhase === 'ready'
   const currentFailed = currentPhase === 'failed'
   const preparing = !!current && currentPhase === 'preparing'

@@ -90,12 +90,31 @@ public class ReviewQueueEndpoint {
     @GetMapping("/queue")
     public QueueView queue(@RequestParam(required = false) String language,
                            @RequestParam(required = false) Integer limit,
+                           /* AC-89.1：预取的游标，格式 "<ISO instant>|<wordId>"；与排序键 (due_at, id) 同构。
+                              不用 epoch 毫秒：timestamptz 是微秒精度，截到毫秒会让同一行在下一页再出现一次。 */
+                           @RequestParam(required = false) String after,
+                           /* 已经出过的新卡数：预取时配额要接着算，不能每页重新给满 */
+                           @RequestParam(required = false, defaultValue = "0") int newServed,
                            @RequestAttribute("currentUser") CurrentUser me) {
         String lang = language == null || language.isBlank() ? "en" : language;
+        Timestamp afterTs = null;
+        UUID afterId = null;
+        if (after != null && !after.isBlank()) {
+            String[] parts = after.split("\\|", 2);
+            try {
+                afterTs = Timestamp.from(java.time.Instant.parse(parts[0]));
+                afterId = parts.length > 1 ? UUID.fromString(parts[1]) : null;
+            } catch (RuntimeException badCursor) {
+                throw com.teachloop.shared.error.ApiException.badRequest("after must be <isoInstant>|<wordId>");
+            }
+            if (afterId == null) {
+                throw com.teachloop.shared.error.ApiException.badRequest("after must be <isoInstant>|<wordId>");
+            }
+        }
         int cap = Math.min(limit == null || limit <= 0 ? pageSize : limit, pageSize);
         // AC-88.3：拿用户偏好，再被全局硬上限压一次（属性值退化为「上限 + 缺省值」）
         ReviewPrefs pref = prefs.load(me.id());
-        int newCap = Math.min(pref.dailyNewCards(), prefs.maxCards());
+        int newCap = Math.max(0, Math.min(pref.dailyNewCards(), prefs.maxCards()) - Math.max(0, newServed));
 
         List<QueueRow> due = jdbc.query("""
                 select w.id, w.form, w.language, w.content_id, w.content_status, w.favorite,
@@ -104,6 +123,9 @@ public class ReviewQueueEndpoint {
                   join vocab_progress p on p.word_id = w.id
                  where w.user_id = ? and w.language = ? and w.deleted = false and w.removed = false
                    and p.due_at <= ?
+                   and (cast(? as timestamptz) is null
+                        or p.due_at > cast(? as timestamptz)
+                        or (p.due_at = cast(? as timestamptz) and w.id > cast(? as uuid)))
                  order by p.due_at asc, w.id asc
                 """, (rs, rowNumber) -> new QueueRow(
                         rs.getObject(1, UUID.class),
@@ -117,7 +139,8 @@ public class ReviewQueueEndpoint {
                         rs.getBigDecimal(9),
                         rs.getBigDecimal(10),
                         "NEW".equals(rs.getString(7))),
-                me.id(), lang, Timestamp.from(clock.instant()));
+                me.id(), lang, Timestamp.from(clock.instant()),
+                afterTs, afterTs, afterTs, afterId);
 
         int newDueTotal = 0;
         List<QueueRow> selected = new ArrayList<>();
