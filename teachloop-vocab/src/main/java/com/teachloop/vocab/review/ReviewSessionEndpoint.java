@@ -70,7 +70,7 @@ public class ReviewSessionEndpoint {
     /** language 供前端按词条语言选例句音色（en/zh/es）。 */
     public record CurrentWord(UUID id, String form, String language, JsonNode content,
                               String contentStatus, boolean favorite, boolean paused, int cursor,
-                              int total) {
+                              int total, Instant lastQuizWrongAt) {
     }
 
     public record AdvanceRequest(String action, Integer elapsedMs) {
@@ -126,7 +126,8 @@ public class ReviewSessionEndpoint {
                     // 前端才会显示「数据准备中」而不是一张空卡（2026-10-29 用户报 Bug）。
                     return new CurrentWord(row.id(), row.form(), row.language(), content,
                             ContentView.statusFor(row.contentStatus(), content), row.favorite(),
-                            row.paused(), session.cursor(), session.total());
+                            row.paused(), session.cursor(), session.total(),
+                            wrongQuizMark(me.id(), row.id()));
                 })
                 .orElse(null);
     }
@@ -197,6 +198,11 @@ public class ReviewSessionEndpoint {
         sessions.end(id, clock.instant());
         return new Summary(session.total(), session.cursor(),
                 sessions.countLogs(id, 2), sessions.countLogs(id, 1), session.pausedCount());
+    }
+
+    /** AC-87.9：自由复习的卡面也要能看到「上次小测没答对」，与今日复习同一口径（30 天内）。 */
+    private Instant wrongQuizMark(UUID userId, UUID wordId) {
+        return sessions.wrongQuizMark(userId, wordId, clock.instant().minus(java.time.Duration.ofDays(30)));
     }
 
     private SessionRow requireSession(UUID id, UUID userId) {

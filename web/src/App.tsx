@@ -21,6 +21,7 @@ import VocabAddWordsPage from './vocab/AddWordsPage'
 import VocabAssignmentPreviewPage from './vocab/AssignmentPreviewPage'
 import VocabListsPage from './vocab/ListsPage'
 import VocabListDetailPage from './vocab/ListDetailPage'
+import VocabQuizPage from './vocab/QuizPage'
 import LoginPage from './app/LoginPage'
 import RegisterPage from './app/RegisterPage'
 import ActivatePage from './app/ActivatePage'
@@ -209,6 +210,7 @@ function AppRoutes() {
                  * 词库工具条的「词单」按钮仍保留，两个入口到同一页。 */}
               <Route path="vocab/lists" element={<VocabListsPage />} />
               <Route path="vocab/lists/:id" element={<VocabListDetailPage />} />
+              <Route path="vocab/quiz/:id" element={<VocabQuizPage />} />
               <Route path="vocab/sets/new" element={<VocabSetEditPage />} />
               <Route path="vocab/sets/:id" element={<VocabSetEditPage />} />
               <Route path="vocab/assign" element={<VocabAssignPage />} />

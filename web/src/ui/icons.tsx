@@ -14,6 +14,7 @@ export {
   BookOutlined,
   CheckCircleOutlined,
   CheckOutlined,
+  CloseOutlined,
   CodeOutlined,
   CommentOutlined,
   CompressOutlined,

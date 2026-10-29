@@ -103,6 +103,23 @@ public class ReviewSessionRepository {
                 Integer.class, sessionId, rating);
     }
 
+    /**
+     * AC-87.9：该词最近一次小测答错（{@code correct = false}）的交卷时间；{@code since} 之前的不算。
+     */
+    public Instant wrongQuizMark(UUID userId, UUID wordId, Instant since) {
+        return jdbc.query("""
+                select max(q.submitted_at)
+                  from vocab_quiz_items i
+                  join vocab_quizzes q on q.id = i.quiz_id
+                 where i.user_id = ? and i.word_id = ? and i.correct = false and q.submitted_at >= ?
+                """, rs -> {
+            if (!rs.next() || rs.getTimestamp(1) == null) {
+                return null;
+            }
+            return rs.getTimestamp(1).toInstant();
+        }, userId, wordId, java.sql.Timestamp.from(since));
+    }
+
     public boolean isPaused(UUID wordId) {
         List<Boolean> removed = jdbc.query(
                 "select removed from vocab_words where id = ?",

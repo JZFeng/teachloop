@@ -3,17 +3,20 @@ import { useEffect, useState } from 'react'
 /** `GET /api/vocab/config` 的返回（目前只有例句朗读开关）。 */
 interface VocabConfigResponse {
   sentenceAudio?: boolean
+  quiz?: boolean
 }
 
 export interface VocabAudioConfig {
   /** 是否渲染例句喇叭；请求失败时为 true，靠浏览器语音兜底。 */
   sentenceAudio: boolean
+  /** 小测开关（AC-87.10）：默认关，服务端说开才渲染入口。 */
+  quiz: boolean
   /** 是否已经拿到服务端答案；`false` 时 `sentenceAudio` 是默认值。 */
   loaded: boolean
 }
 
-const DEFAULT_CONFIG: VocabAudioConfig = { sentenceAudio: true, loaded: false }
-const FALLBACK_CONFIG: VocabAudioConfig = { sentenceAudio: true, loaded: true }
+const DEFAULT_CONFIG: VocabAudioConfig = { sentenceAudio: true, quiz: false, loaded: false }
+const FALLBACK_CONFIG: VocabAudioConfig = { sentenceAudio: true, quiz: false, loaded: true }
 
 // 模块级缓存 + in-flight 去重：复习页一屏多个喇叭，或者查词页来回翻面，
 // 都只该打一次 /api/vocab/config。
@@ -34,7 +37,7 @@ export function loadVocabAudioConfig(): Promise<VocabAudioConfig> {
     .then(async (response) => {
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const body = (await response.json()) as VocabConfigResponse
-      const config: VocabAudioConfig = { sentenceAudio: body.sentenceAudio !== false, loaded: true }
+      const config: VocabAudioConfig = { sentenceAudio: body.sentenceAudio !== false, quiz: body.quiz === true, loaded: true }
       cached = config
       return config
     })

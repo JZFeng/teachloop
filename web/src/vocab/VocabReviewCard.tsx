@@ -67,6 +67,15 @@ export interface ReviewCardWord {
   language?: string
   favorite?: boolean
   content: ReviewCardContent | null
+  /** AC-87.9：该词最近一次小测答错的时间；有值才渲染提示 */
+  lastQuizWrongAt?: string | null
+}
+
+/** 提示里只显示 M-D，年份对「上次小测」没有意义。 */
+function shortDate(iso: string): string {
+  const date = new Date(iso)
+  if (Number.isNaN(date.getTime())) return iso
+  return `${date.getMonth() + 1}-${String(date.getDate()).padStart(2, '0')}`
 }
 
 /**
@@ -279,6 +288,9 @@ export function VocabReviewCard({
                   </div>
                 ))}
               </div>
+            )}
+            {word.lastQuizWrongAt && (
+              <p className="quiz-flag">{t('vocab.quiz.lastWrong', { date: shortDate(word.lastQuizWrongAt) })}</p>
             )}
             {content?.analysis && <p className="muted">{content.analysis}</p>}
             {content?.derivation && (

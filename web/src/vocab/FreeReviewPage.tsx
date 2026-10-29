@@ -7,6 +7,8 @@ import { VocabReviewCard } from './VocabReviewCard'
 import { reviewCardPhase } from './reviewCardState'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import { fetchLists } from './lists'
+import { useVocabAudioConfig } from './audioConfig'
+import { createQuiz } from './quiz'
 import './vocab.css'
 
 interface SessionWord {
@@ -23,6 +25,8 @@ interface SessionWord {
   contentStatus: string
   favorite?: boolean
   paused?: boolean
+  /** AC-87.9：最近一次小测答错的时间，卡面用它渲染提示 */
+  lastQuizWrongAt?: string | null
   cursor: number
   total: number
 }
@@ -84,6 +88,8 @@ export default function VocabFreeReviewPage() {
   const [skipped, setSkipped] = useState(0)
   const [word, setWord] = useState<SessionWord | null | undefined>(undefined)
   const [summary, setSummary] = useState<Summary | null>(null)
+  const { quiz: quizEnabled } = useVocabAudioConfig()
+  const [startingQuiz, setStartingQuiz] = useState(false)
   const [flipped, setFlipped] = useState(false)
   /** 已评「不认识」：仍停在这一张，等「下一个」推走（照 today-review，AC-53.8）。 */
   const [rated, setRated] = useState<'KNOWN' | 'DONT_KNOW' | null>(null)
@@ -399,6 +405,20 @@ export default function VocabFreeReviewPage() {
             <span>{t('vocab.freeReview.summarySkipped', { count: skipped })}</span>
           </div>
           <div className="row" style={{ gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
+            {quizEnabled && sessionId && (
+              <Button
+                variant="primary"
+                loading={startingQuiz}
+                onClick={() => {
+                  setStartingQuiz(true)
+                  createQuiz('SESSION', sessionId)
+                    .then((created) => navigate(`/vocab/quiz/${created.id}`))
+                    .catch(() => setStartingQuiz(false))
+                }}
+              >
+                {t('vocab.quiz.startSession')}
+              </Button>
+            )}
             {fromListId && (
               <Button variant="primary" onClick={() => navigate(`/vocab/lists/${fromListId}`)}>
                 {t('vocab.freeReview.backToList')}

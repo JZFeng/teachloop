@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { Button, Empty, ErrorState, InlineNote, Loading, PageHeader, Progress, useConfirm, useToast } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
 import { reviewCardPhase } from './reviewCardState'
+import { useVocabAudioConfig } from './audioConfig'
+import { createQuiz } from './quiz'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import './vocab.css'
 
@@ -23,6 +25,8 @@ interface QueueItem {
   favorite: boolean
   state: string
   newCard: boolean
+  /** AC-87.9：该词最近一次小测答错的时间（30 天内），没有则为 null */
+  lastQuizWrongAt?: string | null
 }
 
 interface QueueView {
@@ -50,6 +54,9 @@ const SHORTCUTS = [
 
 export default function VocabReviewPage() {
   const { t } = useTranslation()
+  const navigate = useNavigate()
+  const { quiz: quizEnabled } = useVocabAudioConfig()
+  const [startingQuiz, setStartingQuiz] = useState(false)
   const toast = useToast()
   const confirm = useConfirm()
   const [queue, setQueue] = useState<QueueView | null>(null)
@@ -429,15 +436,52 @@ export default function VocabReviewPage() {
   }
 
   if (!current) {
+    // US-87 / AC-87.1：队列真的空了、而且今天确实复习过 → 完成卡 + 小测入口；
+    // 否则保持原来的空态（新用户第一天没卡可复习，不该被推销小测）。
+    const reviewed = queue?.todayReviewed ?? 0
+    const canQuiz = quizEnabled && reviewed >= 3
     return (
       <>
         {header}
-        <Empty>
-          <div>{t('vocab.review.empty')}</div>
-          <div style={{ marginTop: 8 }}>
-            <Link to="/vocab/library">{t('vocab.review.goLibrary')}</Link>
+        {reviewed > 0 ? (
+          <div className="card quiz-entry">
+            <div className="quiz-entry-num">
+              {reviewed}
+              <small>{t('vocab.quiz.wordsUnit')}</small>
+            </div>
+            <p className="muted small">{t('vocab.quiz.entryTitle')}</p>
+            {canQuiz ? (
+              <>
+                <Button
+                  variant="primary"
+                  size="large"
+                  loading={startingQuiz}
+                  onClick={() => {
+                    setStartingQuiz(true)
+                    createQuiz('TODAY')
+                      .then((created) => navigate(`/vocab/quiz/${created.id}`))
+                      .catch((quizError) => {
+                        setStartingQuiz(false)
+                        toast.error((quizError as Error).message)
+                      })
+                  }}
+                >
+                  {t('vocab.quiz.startToday')}
+                </Button>
+                <p className="muted small quiz-entry-hint">{t('vocab.quiz.entryBody')}</p>
+              </>
+            ) : (
+              <p className="muted small">{t('vocab.quiz.tooFew')}</p>
+            )}
           </div>
-        </Empty>
+        ) : (
+          <Empty>
+            <div>{t('vocab.review.empty')}</div>
+            <div style={{ marginTop: 8 }}>
+              <Link to="/vocab/library">{t('vocab.review.goLibrary')}</Link>
+            </div>
+          </Empty>
+        )}
       </>
     )
   }

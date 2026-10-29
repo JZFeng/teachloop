@@ -94,7 +94,8 @@ public class QuizEndpoint {
     }
 
     public record QuizView(UUID id, String kind, String status, int itemCount, Integer correctCount,
-                           Instant createdAt, Instant submittedAt, List<ItemView> items) {
+                           Instant createdAt, Instant submittedAt, UUID sourceSessionId,
+                           List<ItemView> items) {
     }
 
     // ---------------------------------------------------------------- 接口
@@ -317,7 +318,8 @@ public class QuizEndpoint {
     }
 
     private record QuizRow(UUID id, UUID userId, String kind, String status, int itemCount,
-                           Integer correctCount, Instant createdAt, Instant submittedAt) {
+                           Integer correctCount, Instant createdAt, Instant submittedAt,
+                           UUID sourceSessionId) {
     }
 
     private record ItemRow(UUID id, UUID wordId, int position, String questionType, String stem,
@@ -326,12 +328,14 @@ public class QuizEndpoint {
 
     private QuizRow requireQuiz(UUID id, UUID userId) {
         QuizRow row = jdbc.query("""
-                select id, user_id, kind, status, item_count, correct_count, created_at, submitted_at
+                select id, user_id, kind, status, item_count, correct_count, created_at, submitted_at,
+                       source_session_id
                   from vocab_quizzes where id = ?
                 """, (rs, n) -> new QuizRow(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
                 rs.getString(3), rs.getString(4), rs.getInt(5),
                 (Integer) rs.getObject(6), rs.getTimestamp(7).toInstant(),
-                rs.getTimestamp(8) == null ? null : rs.getTimestamp(8).toInstant()), id)
+                rs.getTimestamp(8) == null ? null : rs.getTimestamp(8).toInstant(),
+                rs.getObject(9, UUID.class)), id)
                 .stream().findFirst()
                 .orElseThrow(() -> ApiException.notFound("quiz not found"));
         // 他人卷子一律 404：不泄露存在性（AC-87.11）
@@ -375,7 +379,8 @@ public class QuizEndpoint {
                     options, submitted ? item.given() : null, submitted ? item.correct() : null, answer));
         }
         return new QuizView(quiz.id(), quiz.kind(), quiz.status(), quiz.itemCount(),
-                submitted ? quiz.correctCount() : null, quiz.createdAt(), quiz.submittedAt(), items);
+                submitted ? quiz.correctCount() : null, quiz.createdAt(), quiz.submittedAt(),
+                quiz.sourceSessionId(), items);
     }
 
     private static String optionText(List<OptionView> options, String key) {

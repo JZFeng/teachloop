@@ -11,6 +11,7 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -58,7 +59,9 @@ public class ReviewQueueEndpoint {
     /** language 供前端按词条语言选例句音色（en/zh/es），不再硬编码英文音。 */
     public record QueueItem(UUID id, String form, String language, JsonNode content,
                             String contentStatus, boolean favorite, String state, Instant dueAt,
-                            BigDecimal intervalDays, BigDecimal ease, boolean newCard) {
+                            BigDecimal intervalDays, BigDecimal ease, boolean newCard,
+                            /* AC-87.9：该词最近一次小测答错的时间（30 天内），没有则为 null */
+                            Instant lastQuizWrongAt) {
     }
 
     /**
@@ -71,12 +74,12 @@ public class ReviewQueueEndpoint {
                             String contentStatus, boolean favorite, String state, Instant dueAt,
                             BigDecimal intervalDays, BigDecimal ease, boolean newCard) {
 
-        QueueItem toItem(JsonNode content) {
+        QueueItem toItem(JsonNode content, Instant lastQuizWrongAt) {
             // 状态跟随内容：库里写的 READY 可能已经解析不到内容（内容包换版 / 提示词升级），
             // 这时按 PENDING 报给前端，页面显示「数据准备中」而不是一张空卡（2026-10-29 用户报 Bug）。
             return new QueueItem(id, form, language, content,
                     ContentView.statusFor(contentStatus, content), favorite, state,
-                    dueAt, intervalDays, ease, newCard);
+                    dueAt, intervalDays, ease, newCard, lastQuizWrongAt);
         }
     }
 
@@ -131,12 +134,33 @@ public class ReviewQueueEndpoint {
         }
         int remaining = due.size() - Math.max(0, newDueTotal - Math.min(newDueTotal, newCap));
         long todayReviewed = countReviewedToday(me.id());
+        Map<UUID, Instant> quizMarks = wrongQuizMarks(me.id());
         List<QueueItem> items = selected.stream()
                 .map(row -> row.toItem(ContentView.resolve(contentStore, row.contentId(),
-                        row.language(), row.form())))
+                        row.language(), row.form()), quizMarks.get(row.id())))
                 .toList();
         return new QueueView(items, due.size(), todayReviewed, remaining, newSelected,
                 newDueTotal > newCap);
+    }
+
+    /**
+     * AC-87.9：每个词最近一次「小测答错」的交卷时间。
+     *
+     * <p>一次查完整批（不按词逐个查），并且只取 30 天内的——一行提示挂一辈子就没人看了。
+     */
+    private Map<UUID, Instant> wrongQuizMarks(UUID userId) {
+        Map<UUID, Instant> marks = new java.util.HashMap<>();
+        Instant since = clock.instant().minus(java.time.Duration.ofDays(30));
+        jdbc.query("""
+                select i.word_id, max(q.submitted_at) as last_at
+                  from vocab_quiz_items i
+                  join vocab_quizzes q on q.id = i.quiz_id
+                 where i.user_id = ? and i.correct = false and q.submitted_at >= ?
+                 group by i.word_id
+                """, rs -> {
+            marks.put(rs.getObject(1, UUID.class), rs.getTimestamp(2).toInstant());
+        }, userId, Timestamp.from(since));
+        return marks;
     }
 
     private long countReviewedToday(UUID userId) {
