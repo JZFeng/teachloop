@@ -70,7 +70,9 @@ Worker 进程（同一 jar，profile=worker）—— 独占批改工作项并调
 | 框架 | **Spring Boot 4.1.1**（已验证） | Spring Framework 7.0.9 |
 | 构建 | **Maven**（聚合 POM + 九模块） | 用户选定 |
 | Web | Spring MVC | 进度用轮询，不维护长连接 |
-| 持久化 | Spring Data JPA + **Flyway** | 迁移可审阅、可按模块分目录 |
+| 持久化（实体） | Spring Data JPA | 有生命周期的业务实体（用户、试卷、提交、复核）：26 个 `@Entity` + 24 个 `JpaRepository` |
+| 持久化（SQL） | **JdbcTemplate** 手写 SQL | 队列抢件（`for update skip locked`）、批量 upsert、统计与只读聚合——这些 JPA 表达不了或表达很差；SQL 只写在 `*Repository` / `*Store` |
+| 迁移 | **Flyway** | 迁移可审阅、可按模块分目录 |
 | JSON | **Jackson 3.1.5**（包名 `tools.jackson`） | Spring Boot 4 已从 `com.fasterxml.jackson` 迁到 Jackson 3，**两者不可混用** |
 | 驱动 | PostgreSQL JDBC | |
 | 会话 | **Spring Session JDBC** | 多实例共享、可服务端吊销 |
@@ -167,6 +169,22 @@ teachloop-app ──▶ paper / sitting / grading / report / observability
 - Flyway 在 `teachloop-app` 统一调度，按上表顺序执行；文件名 `V<序号>__<模块>_<描述>.sql`。
 - **一条迁移只写一个模块的表**。跨模块写即为越界，属 Code Review 检查项，T204 自动验证。
 - 跨模块外键**允许**（单库，完整性与级联删除需要它），但**禁止跨模块 JOIN 读数据**——读要走 §3.2 的端口。这个不对称是刻意的：**外键是数据完整性，JOIN 是耦合**。
+
+#### 3.3.1 持久层的两条规则（2026-10-29 用户拍板）
+
+原本这里只写了「Spring Data JPA」，与代码事实不符：库里 **JPA（26 个 `@Entity` / 24 个 `JpaRepository`）与手写 SQL（26 个生产文件）并存**，且最新最大的 `vocab` 模块（25 张表）100% 手写 SQL。用户 2026-10-29 决定：**不引入 MyBatis，不把 JPA 改写成 SQL（也不反过来）**，只把分工与边界写死。
+
+- **规则一：SQL 只在 `*Repository` / `*Store` 里。** `*Endpoint.java` / `*Controller.java` 不得持有 `JdbcTemplate`。理由不是风格——是同一个口径会在两处各写一遍（「到期词」曾同时写在今日队列与按需准备里），且 `check-boundaries.py` 只扫 `@Query` 里的表名，端点里的裸 SQL 完全不受监控。**已由 `scripts/check-boundaries.py` 的 `check_endpoint_persistence` 强制**（`app` 模块豁免：`DeepHealthEndpoint` 的深探需要一条 `select 1`）。
+- **规则二：一张表只允许一种访问方式**，用哪种由属主模块决定：有生命周期的业务实体走 JPA，队列/批量/统计走手写 SQL。
+
+已知存量重叠（不属本次回收范围，改到那里时顺手收敛）：
+
+| 表 | JPA 侧 | SQL 侧 |
+| :--- | :--- | :--- |
+| `submissions` | `sitting/domain/Submission.java` | `sitting/service/ClassSubmissionStatsImpl.java:24` |
+| `offerings` | `sitting/domain/Offering.java` | `sitting/service/PaperUsageImpl.java:20` |
+
+> 2026-10-29 收口记录：vocab 的 5 个端点（`QuizEndpoint` 12 条、`ReviewQueueEndpoint` 3 条、`ReviewSubmitEndpoint` 5 条、`ReviewPreparationEndpoint` 5 条、`ReviewPrefsEndpoint` 1 条，共 26 条 SQL）已搬进 `QuizStore` / `ReviewQueueStore` / `ReviewProgressStore` / `ReviewPreparationStore` / `ReviewPrefsStore`，HTTP 契约与 `@Transactional` 位置未变。
 
 ### 3.4 未来模块怎么接（背单词是第一个试验）
 

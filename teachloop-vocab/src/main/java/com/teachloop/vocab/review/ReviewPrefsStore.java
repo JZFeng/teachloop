@@ -45,6 +45,19 @@ public class ReviewPrefsStore {
         return ReviewPrefs.defaults(defaultCards);
     }
 
+    /**
+     * 写偏好（US-88 / T552）：只有这一处能写 {@code vocab_user_prefs.review}。
+     *
+     * <p>收口规则（2026-10-29）：SQL 只写在 Store，Endpoint 不持有 {@code JdbcTemplate}。
+     */
+    public void save(UUID userId, ReviewPrefs prefs) {
+        jdbc.update("""
+                insert into vocab_user_prefs (user_id, review, updated_at)
+                values (?, cast(? as jsonb), now())
+                on conflict (user_id) do update set review = excluded.review, updated_at = excluded.updated_at
+                """, userId, prefs.toJson());
+    }
+
     public int maxCards() {
         return maxCards;
     }

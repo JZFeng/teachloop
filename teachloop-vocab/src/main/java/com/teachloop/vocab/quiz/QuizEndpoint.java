@@ -19,7 +19,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -54,7 +53,7 @@ public class QuizEndpoint {
     /** 少于 3 个词不出卷：一道题的小测没有意义，也容易被当成页面出错。 */
     private static final int MIN_WORDS = 3;
 
-    private final JdbcTemplate jdbc;
+    private final QuizStore store;
     private final ContentStore contentStore;
     private final Clock clock;
     private final ObjectMapper mapper = new ObjectMapper();
@@ -62,11 +61,11 @@ public class QuizEndpoint {
     private final int sizeToday;
     private final int sizeSession;
 
-    public QuizEndpoint(JdbcTemplate jdbc, ContentStore contentStore, Clock clock,
+    public QuizEndpoint(QuizStore store, ContentStore contentStore, Clock clock,
                         @Value("${teachloop.vocab.quiz.enabled:false}") boolean quizEnabled,
                         @Value("${teachloop.vocab.quiz.size.today:10}") int sizeToday,
                         @Value("${teachloop.vocab.quiz.size.session:20}") int sizeSession) {
-        this.jdbc = jdbc;
+        this.store = store;
         this.contentStore = contentStore;
         this.clock = clock;
         this.quizEnabled = quizEnabled;
@@ -122,11 +121,8 @@ public class QuizEndpoint {
     @Transactional
     public QuizView retry(@PathVariable UUID id, @RequestAttribute("currentUser") CurrentUser me) {
         requireEnabled();
-        QuizRow quiz = requireQuiz(id, me.id());
-        List<UUID> wrong = jdbc.query("""
-                select distinct word_id from vocab_quiz_items
-                 where quiz_id = ? and correct = false
-                """, (rs, n) -> rs.getObject(1, UUID.class), quiz.id());
+        QuizStore.QuizRow quiz = requireQuiz(id, me.id());
+        List<UUID> wrong = store.wrongWordIds(quiz.id());
         if (wrong.isEmpty()) {
             throw ApiException.badRequest("no wrong answers to retry");
         }
@@ -144,7 +140,7 @@ public class QuizEndpoint {
     public QuizView submit(@PathVariable UUID id, @RequestBody(required = false) SubmitRequest request,
                            @RequestAttribute("currentUser") CurrentUser me) {
         requireEnabled();
-        QuizRow quiz = requireQuiz(id, me.id());
+        QuizStore.QuizRow quiz = requireQuiz(id, me.id());
         if ("SUBMITTED".equals(quiz.status())) {
             return view(quiz);   // 幂等：重复交卷不重算、不改写（AC-87.4）
         }
@@ -157,31 +153,25 @@ public class QuizEndpoint {
             }
         }
 
-        List<ItemRow> items = items(quiz.id());
+        List<QuizStore.ItemRow> items = store.items(quiz.id());
         int correctCount = 0;
         Instant now = clock.instant();
-        for (ItemRow item : items) {
+        for (QuizStore.ItemRow item : items) {
             String text = given.get(item.id());
             boolean correct = !text.isBlank() && judge(item, text);
             if (correct) {
                 correctCount++;
             }
-            jdbc.update("""
-                    update vocab_quiz_items set given = ?, correct = ?, answered_at = ? where id = ?
-                    """, text.isBlank() ? null : text, correct, java.sql.Timestamp.from(now), item.id());
+            store.updateItemAnswer(item.id(), text.isBlank() ? null : text, correct, now);
         }
-        jdbc.update("""
-                update vocab_quizzes
-                   set status = 'SUBMITTED', correct_count = ?, submitted_at = ?, last_seen_at = ?
-                 where id = ?
-                """, correctCount, java.sql.Timestamp.from(now), java.sql.Timestamp.from(now), quiz.id());
+        store.markSubmitted(quiz.id(), correctCount, now);
         log.debug("quiz submitted user={} quiz={} correct={}/{}", me.id(), quiz.id(), correctCount, items.size());
         return view(requireQuiz(id, me.id()));
     }
 
     // ---------------------------------------------------------------- 判分
 
-    private boolean judge(ItemRow item, String given) {
+    private boolean judge(QuizStore.ItemRow item, String given) {
         if ("SINGLE_CHOICE".equals(item.questionType())) {
             return given.trim().equalsIgnoreCase(item.answerKey());
         }
@@ -201,12 +191,10 @@ public class QuizEndpoint {
     private LinkedHashSet<String> acceptedForms(UUID wordId, String answerKey) {
         LinkedHashSet<String> forms = new LinkedHashSet<>();
         forms.add(answerKey);
-        jdbc.query("""
-                select form, language, content_id from vocab_words where id = ?
-                """, rs -> {
-            forms.add(rs.getString(1));
-            JsonNode view = ContentView.resolve(contentStore, rs.getObject(3, Long.class),
-                    rs.getString(2), rs.getString(1));
+        store.word(wordId).ifPresent(row -> {
+            forms.add(row.form());
+            JsonNode view = ContentView.resolve(contentStore, row.contentId(),
+                    row.language(), row.form());
             JsonNode family = view == null ? null : view.path("family");
             if (family != null && family.isArray()) {
                 for (JsonNode member : family) {
@@ -216,7 +204,7 @@ public class QuizEndpoint {
                     }
                 }
             }
-        }, wordId);
+        });
         return forms;
     }
 
@@ -234,15 +222,10 @@ public class QuizEndpoint {
         }
         List<QuizBuilder.SourceWord> sources = new ArrayList<>(unique.size());
         for (UUID wordId : unique) {
-            jdbc.query("""
-                    select form, language, content_id from vocab_words
-                     where id = ? and user_id = ? and deleted = false and removed = false
-                    """, rs -> {
-                String form = rs.getString(1);
-                sources.add(new QuizBuilder.SourceWord(wordId, form,
-                        ContentView.resolve(contentStore, rs.getObject(3, Long.class),
-                                rs.getString(2), form)));
-            }, wordId, userId);
+            store.ownedWord(wordId, userId).ifPresent(row -> sources.add(
+                    new QuizBuilder.SourceWord(wordId, row.form(),
+                            ContentView.resolve(contentStore, row.contentId(),
+                                    row.language(), row.form()))));
         }
 
         long seed = Math.abs(new java.util.Random().nextLong());
@@ -253,21 +236,11 @@ public class QuizEndpoint {
 
         UUID quizId = UUID.randomUUID();
         Instant now = clock.instant();
-        jdbc.update("""
-                insert into vocab_quizzes
-                    (id, user_id, kind, source_session_id, source_quiz_id, status, item_count,
-                     correct_count, seed, created_at, last_seen_at)
-                values (?, ?, ?, ?, ?, 'IN_PROGRESS', ?, null, ?, ?, ?)
-                """, quizId, userId, kind, sourceSessionId, sourceQuizId, built.size(), seed,
-                java.sql.Timestamp.from(now), java.sql.Timestamp.from(now));
+        store.insertQuiz(quizId, userId, kind, sourceSessionId, sourceQuizId, built.size(), seed, now);
 
         for (int i = 0; i < built.size(); i++) {
             QuizBuilder.Item item = built.get(i);
-            jdbc.update("""
-                    insert into vocab_quiz_items
-                        (id, quiz_id, user_id, word_id, position, question_type, stem, options, answer_key)
-                    values (?, ?, ?, ?, ?, ?, ?, cast(? as jsonb), ?)
-                    """, UUID.randomUUID(), quizId, userId, item.wordId(), i,
+            store.insertItem(UUID.randomUUID(), quizId, userId, item.wordId(), i,
                     item.type().name(), item.stem(), mapper.writeValueAsString(item.options()),
                     item.answerKey());
         }
@@ -279,14 +252,7 @@ public class QuizEndpoint {
     /** 今天复习过的词（不含小测自己：小测不写 review_logs）。 */
     private List<UUID> todayWords(UUID userId) {
         Instant dayStart = LocalDate.ofInstant(clock.instant(), ZONE).atStartOfDay(ZONE).toInstant();
-        return jdbc.query("""
-                select distinct l.word_id
-                  from vocab_review_logs l
-                  join vocab_words w on w.id = l.word_id
-                 where l.user_id = ? and l.reviewed_at >= ?
-                   and w.deleted = false and w.removed = false
-                """, (rs, n) -> rs.getObject(1, UUID.class), userId,
-                java.sql.Timestamp.from(dayStart));
+        return store.todayReviewedWordIds(userId, dayStart);
     }
 
     /** 本次会话「看过的」词 = scope.wordIds[0..cursor)。 */
@@ -294,10 +260,7 @@ public class QuizEndpoint {
         if (sessionId == null) {
             throw ApiException.badRequest("sessionId is required for SESSION quiz");
         }
-        SessionRow row = jdbc.query("""
-                select scope, cursor from vocab_review_sessions where id = ? and user_id = ?
-                """, (rs, n) -> new SessionRow(rs.getString(1), rs.getInt(2)), sessionId, userId)
-                .stream().findFirst()
+        QuizStore.SessionRow row = store.session(sessionId, userId)
                 .orElseThrow(() -> ApiException.notFound("session not found"));
 
         JsonNode scope = mapper.readTree(row.scope());
@@ -314,29 +277,8 @@ public class QuizEndpoint {
 
     // ---------------------------------------------------------------- 读
 
-    private record SessionRow(String scope, int cursor) {
-    }
-
-    private record QuizRow(UUID id, UUID userId, String kind, String status, int itemCount,
-                           Integer correctCount, Instant createdAt, Instant submittedAt,
-                           UUID sourceSessionId) {
-    }
-
-    private record ItemRow(UUID id, UUID wordId, int position, String questionType, String stem,
-                           String options, String answerKey, String given, Boolean correct) {
-    }
-
-    private QuizRow requireQuiz(UUID id, UUID userId) {
-        QuizRow row = jdbc.query("""
-                select id, user_id, kind, status, item_count, correct_count, created_at, submitted_at,
-                       source_session_id
-                  from vocab_quizzes where id = ?
-                """, (rs, n) -> new QuizRow(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                rs.getString(3), rs.getString(4), rs.getInt(5),
-                (Integer) rs.getObject(6), rs.getTimestamp(7).toInstant(),
-                rs.getTimestamp(8) == null ? null : rs.getTimestamp(8).toInstant(),
-                rs.getObject(9, UUID.class)), id)
-                .stream().findFirst()
+    private QuizStore.QuizRow requireQuiz(UUID id, UUID userId) {
+        QuizStore.QuizRow row = store.findQuiz(id)
                 .orElseThrow(() -> ApiException.notFound("quiz not found"));
         // 他人卷子一律 404：不泄露存在性（AC-87.11）
         if (!row.userId().equals(userId)) {
@@ -345,22 +287,11 @@ public class QuizEndpoint {
         return row;
     }
 
-    private List<ItemRow> items(UUID quizId) {
-        return jdbc.query("""
-                select id, word_id, position, question_type, stem, cast(options as text), answer_key,
-                       given, correct
-                  from vocab_quiz_items where quiz_id = ? order by position
-                """, (rs, n) -> new ItemRow(rs.getObject(1, UUID.class), rs.getObject(2, UUID.class),
-                rs.getInt(3), rs.getString(4), rs.getString(5), rs.getString(6), rs.getString(7),
-                rs.getString(8), (Boolean) rs.getObject(9)), quizId);
-    }
-
-    private QuizView view(QuizRow quiz) {
-        jdbc.update("update vocab_quizzes set last_seen_at = ? where id = ?",
-                java.sql.Timestamp.from(clock.instant()), quiz.id());
+    private QuizView view(QuizStore.QuizRow quiz) {
+        store.touch(quiz.id(), clock.instant());
         boolean submitted = "SUBMITTED".equals(quiz.status());
         List<ItemView> items = new ArrayList<>();
-        for (ItemRow item : items(quiz.id())) {
+        for (QuizStore.ItemRow item : store.items(quiz.id())) {
             List<OptionView> options = new ArrayList<>();
             JsonNode parsed = mapper.readTree(item.options() == null ? "[]" : item.options());
             if (parsed.isArray()) {

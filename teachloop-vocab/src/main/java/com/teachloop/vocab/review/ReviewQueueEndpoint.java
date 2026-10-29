@@ -6,6 +6,7 @@ import com.teachloop.vocab.content.ContentView;
 import java.math.BigDecimal;
 import java.sql.Timestamp;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -15,7 +16,6 @@ import java.util.Map;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,6 +32,8 @@ import tools.jackson.databind.JsonNode;
  *
  * <p>响应同时给 T403 要的三个数：今日已复习（review_logs）、剩余待复习、本次新卡；
  * 「今日」按部署时区 Asia/Shanghai 计算（spec A-3）。
+ *
+ * <p>SQL 在 {@link ReviewQueueStore}：Endpoint 不持有 {@code JdbcTemplate}（2026-10-29 收口）。
  */
 @RestController
 @RequestMapping("/api/vocab/review")
@@ -40,16 +42,19 @@ public class ReviewQueueEndpoint {
 
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
 
-    private final JdbcTemplate jdbc;
+    /** AC-87.9：小测错题提示只回看 30 天。 */
+    private static final Duration QUIZ_MARK_WINDOW = Duration.ofDays(30);
+
+    private final ReviewQueueStore store;
     private final ContentStore contentStore;
     private final Clock clock;
     private final ReviewPrefsStore prefs;
     private final int pageSize;
 
-    public ReviewQueueEndpoint(JdbcTemplate jdbc, ContentStore contentStore, Clock clock,
+    public ReviewQueueEndpoint(ReviewQueueStore store, ContentStore contentStore, Clock clock,
                                ReviewPrefsStore prefs,
                                @Value("${teachloop.vocab.review.queue-page-size:100}") int pageSize) {
-        this.jdbc = jdbc;
+        this.store = store;
         this.contentStore = contentStore;
         this.clock = clock;
         this.prefs = prefs;
@@ -62,25 +67,6 @@ public class ReviewQueueEndpoint {
                             BigDecimal intervalDays, BigDecimal ease, boolean newCard,
                             /* AC-87.9：该词最近一次小测答错的时间（30 天内），没有则为 null */
                             Instant lastQuizWrongAt) {
-    }
-
-    /**
-     * 到期行的原始数据：内容先不解析。
-     *
-     * <p>队列可能一次扫出几千条到期卡再按 cap 截断；内容查找只对真正返回的卡片做，
-     * 避免按 content_id 为整条队列做无用查找（plan §4.1.6 命中路径目标）。
-     */
-    private record QueueRow(UUID id, String form, String language, Long contentId,
-                            String contentStatus, boolean favorite, String state, Instant dueAt,
-                            BigDecimal intervalDays, BigDecimal ease, boolean newCard) {
-
-        QueueItem toItem(JsonNode content, Instant lastQuizWrongAt) {
-            // 状态跟随内容：库里写的 READY 可能已经解析不到内容（内容包换版 / 提示词升级），
-            // 这时按 PENDING 报给前端，页面显示「数据准备中」而不是一张空卡（2026-10-29 用户报 Bug）。
-            return new QueueItem(id, form, language, content,
-                    ContentView.statusFor(contentStatus, content), favorite, state,
-                    dueAt, intervalDays, ease, newCard, lastQuizWrongAt);
-        }
     }
 
     public record QueueView(List<QueueItem> items, int total, long todayReviewed, int remaining,
@@ -102,7 +88,7 @@ public class ReviewQueueEndpoint {
         if (after != null && !after.isBlank()) {
             String[] parts = after.split("\\|", 2);
             try {
-                afterTs = Timestamp.from(java.time.Instant.parse(parts[0]));
+                afterTs = Timestamp.from(Instant.parse(parts[0]));
                 afterId = parts.length > 1 ? UUID.fromString(parts[1]) : null;
             } catch (RuntimeException badCursor) {
                 throw com.teachloop.shared.error.ApiException.badRequest("after must be <isoInstant>|<wordId>");
@@ -116,36 +102,12 @@ public class ReviewQueueEndpoint {
         ReviewPrefs pref = prefs.load(me.id());
         int newCap = Math.max(0, Math.min(pref.dailyNewCards(), prefs.maxCards()) - Math.max(0, newServed));
 
-        List<QueueRow> due = jdbc.query("""
-                select w.id, w.form, w.language, w.content_id, w.content_status, w.favorite,
-                       p.state, p.due_at, p.interval_days, p.ease
-                  from vocab_words w
-                  join vocab_progress p on p.word_id = w.id
-                 where w.user_id = ? and w.language = ? and w.deleted = false and w.removed = false
-                   and p.due_at <= ?
-                   and (cast(? as timestamptz) is null
-                        or p.due_at > cast(? as timestamptz)
-                        or (p.due_at = cast(? as timestamptz) and w.id > cast(? as uuid)))
-                 order by p.due_at asc, w.id asc
-                """, (rs, rowNumber) -> new QueueRow(
-                        rs.getObject(1, UUID.class),
-                        rs.getString(2),
-                        rs.getString(3),
-                        rs.getObject(4, Long.class),
-                        rs.getString(5),
-                        rs.getBoolean(6),
-                        rs.getString(7),
-                        rs.getTimestamp(8).toInstant(),
-                        rs.getBigDecimal(9),
-                        rs.getBigDecimal(10),
-                        "NEW".equals(rs.getString(7))),
-                me.id(), lang, Timestamp.from(clock.instant()),
-                afterTs, afterTs, afterTs, afterId);
+        List<ReviewQueueStore.DueRow> due = store.due(me.id(), lang, clock.instant(), afterTs, afterId);
 
         int newDueTotal = 0;
-        List<QueueRow> selected = new ArrayList<>();
+        List<ReviewQueueStore.DueRow> selected = new ArrayList<>();
         int newSelected = 0;
-        for (QueueRow row : due) {
+        for (ReviewQueueStore.DueRow row : due) {
             if (row.newCard()) {
                 newDueTotal++;
                 if (newSelected >= newCap || selected.size() >= cap) {
@@ -159,8 +121,8 @@ public class ReviewQueueEndpoint {
         }
         // AC-88.4：策略只改「谁先出」，不改配额与计数
         if (pref.reviewFirst() || pref.newFirst()) {
-            List<QueueRow> reviews = selected.stream().filter(row -> !row.newCard()).toList();
-            List<QueueRow> news = selected.stream().filter(QueueRow::newCard).toList();
+            List<ReviewQueueStore.DueRow> reviews = selected.stream().filter(row -> !row.newCard()).toList();
+            List<ReviewQueueStore.DueRow> news = selected.stream().filter(ReviewQueueStore.DueRow::newCard).toList();
             selected.clear();
             if (pref.newFirst()) {
                 selected.addAll(news);
@@ -172,41 +134,26 @@ public class ReviewQueueEndpoint {
         }
         int remaining = due.size() - Math.max(0, newDueTotal - Math.min(newDueTotal, newCap));
         long todayReviewed = countReviewedToday(me.id());
-        Map<UUID, Instant> quizMarks = wrongQuizMarks(me.id());
+        Map<UUID, Instant> quizMarks = store.wrongQuizMarks(me.id(),
+                clock.instant().minus(QUIZ_MARK_WINDOW));
         List<QueueItem> items = selected.stream()
-                .map(row -> row.toItem(ContentView.resolve(contentStore, row.contentId(),
-                        row.language(), row.form()), quizMarks.get(row.id())))
+                .map(row -> toItem(row, quizMarks.get(row.id())))
                 .toList();
         return new QueueView(items, due.size(), todayReviewed, remaining, newSelected,
                 newDueTotal > newCap);
     }
 
-    /**
-     * AC-87.9：每个词最近一次「小测答错」的交卷时间。
-     *
-     * <p>一次查完整批（不按词逐个查），并且只取 30 天内的——一行提示挂一辈子就没人看了。
-     */
-    private Map<UUID, Instant> wrongQuizMarks(UUID userId) {
-        Map<UUID, Instant> marks = new java.util.HashMap<>();
-        Instant since = clock.instant().minus(java.time.Duration.ofDays(30));
-        jdbc.query("""
-                select i.word_id, max(q.submitted_at) as last_at
-                  from vocab_quiz_items i
-                  join vocab_quizzes q on q.id = i.quiz_id
-                 where i.user_id = ? and i.correct = false and q.submitted_at >= ?
-                 group by i.word_id
-                """, rs -> {
-            marks.put(rs.getObject(1, UUID.class), rs.getTimestamp(2).toInstant());
-        }, userId, Timestamp.from(since));
-        return marks;
+    private QueueItem toItem(ReviewQueueStore.DueRow row, Instant lastQuizWrongAt) {
+        JsonNode content = ContentView.resolve(contentStore, row.contentId(), row.language(), row.form());
+        // 状态跟随内容：库里写的 READY 可能已经解析不到内容（内容包换版 / 提示词升级），
+        // 这时按 PENDING 报给前端，页面显示「数据准备中」而不是一张空卡（2026-10-29 用户报 Bug）。
+        return new QueueItem(row.id(), row.form(), row.language(), content,
+                ContentView.statusFor(row.contentStatus(), content), row.favorite(), row.state(),
+                row.dueAt(), row.intervalDays(), row.ease(), row.newCard(), lastQuizWrongAt);
     }
 
     private long countReviewedToday(UUID userId) {
         Instant dayStart = LocalDate.ofInstant(clock.instant(), ZONE).atStartOfDay(ZONE).toInstant();
-        Long count = jdbc.queryForObject("""
-                select count(*) from vocab_review_logs
-                 where user_id = ? and reviewed_at >= ? and session_id is null
-                """, Long.class, userId, Timestamp.from(dayStart));
-        return count == null ? 0 : count;
+        return store.countReviewedToday(userId, dayStart);
     }
 }

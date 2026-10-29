@@ -2,7 +2,6 @@ package com.teachloop.vocab.review;
 
 import com.teachloop.shared.security.CurrentUser;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -21,17 +20,17 @@ import tools.jackson.databind.JsonNode;
  * 两种所有权不能共用一个契约。
  *
  * <p>所有非法值都纠正（clamp / 白名单 / 归一化），不返回 500——偏好写坏了不该让复习页打不开。
+ *
+ * <p>SQL 在 {@link ReviewPrefsStore}：Endpoint 不持有 {@code JdbcTemplate}（2026-10-29 收口）。
  */
 @RestController
 @RequestMapping("/api/vocab/review-prefs")
 @ConditionalOnProperty(name = "teachloop.vocab.enabled", havingValue = "true")
 public class ReviewPrefsEndpoint {
 
-    private final JdbcTemplate jdbc;
     private final ReviewPrefsStore store;
 
-    public ReviewPrefsEndpoint(JdbcTemplate jdbc, ReviewPrefsStore store) {
-        this.jdbc = jdbc;
+    public ReviewPrefsEndpoint(ReviewPrefsStore store) {
         this.store = store;
     }
 
@@ -45,11 +44,7 @@ public class ReviewPrefsEndpoint {
     public ReviewPrefs save(@RequestBody(required = false) JsonNode body,
                             @RequestAttribute("currentUser") CurrentUser me) {
         ReviewPrefs prefs = ReviewPrefs.parse(body, store.defaults().dailyNewCards(), store.maxCards());
-        jdbc.update("""
-                insert into vocab_user_prefs (user_id, review, updated_at)
-                values (?, cast(? as jsonb), now())
-                on conflict (user_id) do update set review = excluded.review, updated_at = excluded.updated_at
-                """, me.id(), prefs.toJson());
+        store.save(me.id(), prefs);
         return prefs;
     }
 

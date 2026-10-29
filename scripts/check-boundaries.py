@@ -205,6 +205,32 @@ def check_migrations(root: Path, problems: list[str]) -> None:
                             f"先在 plan §3.5 登记再改这里")
 
 
+def check_endpoint_persistence(root: Path, problems: list[str]) -> None:
+    """SQL 只能写在 Repository/Store：端点不得直接持有 JdbcTemplate（2026-10-29 收口）。
+
+    起因：vocab 的 5 个 `*Endpoint.java` 各自拿着 `JdbcTemplate` 写了 26 条 SQL，
+    「怎么取数」和「怎么判业务」焊在同一个类里，同一条口径（如「到期词」）在两处各写一遍。
+    收口后 SQL 只出现在 `*Repository` / `*Store`，端点只调方法。
+
+    `app` 模块跳过：它是装配层，`DeepHealthEndpoint` 的深探需要一条 `select 1`，
+    与 check_module_isolation 对 app 的豁免一致。
+    """
+    for module in MODULES:
+        if module == "app":
+            continue
+        src = root / f"teachloop-{module}" / "src" / "main" / "java"
+        if not src.exists():
+            continue
+        for java_file in sorted(src.rglob("*.java")):
+            if not java_file.name.endswith(("Endpoint.java", "Controller.java")):
+                continue
+            text = strip_comments(java_file.read_text(encoding="utf-8"))
+            if "JdbcTemplate" in text:
+                problems.append(
+                    f"SQL 漏到端点：teachloop-{module}/{java_file.name} 直接持有 JdbcTemplate；"
+                    f"SQL 要写在 Repository/Store，端点只调方法（plan §3.3 持久层规则）")
+
+
 def check_module_isolation(root: Path, problems: list[str]) -> None:
     """业务模块不得 import 其他模块的内部类型，也不得用原生 SQL 查别人的表。"""
     for module in MODULES:
@@ -341,6 +367,7 @@ def main() -> int:
 
     problems: list[str] = []
     check_migrations(root, problems)
+    check_endpoint_persistence(root, problems)
     check_module_isolation(root, problems)
     check_port_signatures(root, problems)
 
@@ -348,7 +375,8 @@ def main() -> int:
         print("[check-boundaries] 失败：\n" + "\n".join("  - " + p for p in problems), file=sys.stderr)
         return 1
     print(f"[check-boundaries] 通过：{len(TABLE_OWNER)} 张表归属清晰，"
-          f"{len(ALLOWED_CROSS_FKS)} 条跨模块外键已登记，{len(REQUIRED_PORTS)} 个端口只收发 record")
+          f"{len(ALLOWED_CROSS_FKS)} 条跨模块外键已登记，{len(REQUIRED_PORTS)} 个端口只收发 record，"
+          f"端点不持有 JdbcTemplate")
     return 0
 
 
