@@ -19,7 +19,9 @@ DB_CONTAINER="${DB_CONTAINER:-teachloop-pg}"
 # 不设时行为与以前完全一致（库 teachloop、附件 ./uploads）。
 DB_NAME="${DB_NAME:-teachloop}"
 STORAGE_LOCAL_DIR="${STORAGE_LOCAL_DIR:-$ROOT/uploads}"
-LOG_DIR="$ROOT/.dsh/logs"
+# 2026-10-29：并行会话要能在同一台机器上再起一个隔离实例（不同端口 + 不同运行副本
+# + 不同日志文件）时，用 DEV_LOG_DIR / DEV_RUN_JAR 覆盖，互不覆盖对方的日志与 jar。
+LOG_DIR="${DEV_LOG_DIR:-$ROOT/.dsh/logs}"
 JAR="$ROOT/teachloop-app/target/teachloop-app-0.1.0-SNAPSHOT.jar"
 
 SEED=0
@@ -47,6 +49,7 @@ done
 mkdir -p "$LOG_DIR"
 BACK_PID=""
 WEB_PID=""
+STALE_PID=""
 STARTED_DB=0
 CLEANED=0
 
@@ -61,22 +64,30 @@ cleanup() {
   CLEANED=1
   trap - EXIT INT TERM
   say "正在清理…"
+  if [ -n "$STALE_PID" ] && kill -0 "$STALE_PID" 2>/dev/null; then
+    kill -TERM "$STALE_PID" 2>/dev/null || true
+  fi
   for pid in "$WEB_PID" "$BACK_PID"; do
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
       kill -TERM "$pid" 2>/dev/null || true
     fi
   done
   sleep 1
-  # 兜底：只杀本脚本启动前确认空闲的端口，避免误伤其他进程
-  for p in "$WEB_PORT" "$BACKEND_PORT"; do
-    pid="$(port_pid "$p")"
-    if [ -n "$pid" ]; then
-      kill -TERM "$pid" 2>/dev/null || true
-      sleep 1
+  # 兜底：清掉本脚本起的进程残留的端口占用。
+  # 2026-10-29 事故：第二个 dev.sh 在下面的「端口已被占用」检查处 die，清理逻辑却把
+  # **第一个** dev.sh 的后端与 vite 一起杀了（两个会话互相踢）。所以只在本次确实启动过
+  # 服务时才扫描端口：在端口检查处 die 的实例，BACK_PID/WEB_PID 都为空，不该动别人。
+  if [ -n "$BACK_PID" ] || [ -n "$WEB_PID" ]; then
+    for p in "$WEB_PORT" "$BACKEND_PORT"; do
       pid="$(port_pid "$p")"
-      [ -n "$pid" ] && kill -KILL "$pid" 2>/dev/null || true
-    fi
-  done
+      if [ -n "$pid" ]; then
+        kill -TERM "$pid" 2>/dev/null || true
+        sleep 1
+        pid="$(port_pid "$p")"
+        [ -n "$pid" ] && kill -KILL "$pid" 2>/dev/null || true
+      fi
+    done
+  fi
   if [ "$KEEP_DB" = "0" ] && [ "$STARTED_DB" = "1" ]; then
     say "停止 Postgres 容器 $DB_CONTAINER"
     docker stop "$DB_CONTAINER" >/dev/null 2>&1 || true
@@ -134,7 +145,7 @@ fi
 # 2026-10-29：并行会话跑 `make build` 会**覆盖** target 里的 jar；正在运行的 JVM 之后
 # 加载不到类，会以 `NoClassDefFoundError: ch/qos/logback/classic/spi/ThrowableProxy`
 # 退出（当天实际发生过一次，dev 被连坐清理）。启动前拷一份副本再跑，副本不受重建影响。
-RUN_JAR="$ROOT/.dsh/run/teachloop-dev.jar"
+RUN_JAR="${DEV_RUN_JAR:-$ROOT/.dsh/run/teachloop-dev.jar}"
 mkdir -p "$ROOT/.dsh/run"
 cp "$JAR" "$RUN_JAR" || die "拷贝运行副本失败：${RUN_JAR}"
 
@@ -214,6 +225,26 @@ cat <<BANNER
 BANNER
 
 [ "$OPEN" = "1" ] && command -v open >/dev/null && open "http://127.0.0.1:$WEB_PORT" >/dev/null 2>&1 || true
+
+# ---------- 过期代码提示 ----------
+# 用副本跑挡住了「别的构建覆盖 jar → 运行中的 JVM 崩掉」，但代价是可能静默跑旧代码。
+# 每 10 秒比一次 mtime：target jar 变得比运行副本新，就明确提示「重启 dev 生效」。
+# `make dev` 本身永远是「现编现跑」，这条只管「dev 已经开着、别人又构建了」的情况。
+(
+  last=""
+  while kill -0 "$BACK_PID" 2>/dev/null; do
+    sleep 10
+    [ -f "$JAR" ] || continue
+    if [ "$JAR" -nt "$RUN_JAR" ]; then
+      stamp="$(date -r "$JAR" "+%H:%M:%S" 2>/dev/null || date -d "@$(stat -c %Y "$JAR" 2>/dev/null)" "+%H:%M:%S" 2>/dev/null)"
+      if [ "$stamp" != "$last" ]; then
+        last="$stamp"
+        warn "target jar 已更新（${stamp}），当前 dev 仍跑旧代码 —— 重启 dev 生效"
+      fi
+    fi
+  done
+) &
+STALE_PID=$!
 
 # ---------- 守候 ----------
 while kill -0 "$BACK_PID" 2>/dev/null && kill -0 "$WEB_PID" 2>/dev/null; do
