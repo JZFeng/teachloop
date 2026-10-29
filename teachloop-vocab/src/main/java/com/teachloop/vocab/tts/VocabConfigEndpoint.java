@@ -20,14 +20,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class VocabConfigEndpoint {
 
     private final boolean sentenceAudio;
+    private final boolean quiz;
 
     public VocabConfigEndpoint(
-            @Value("${teachloop.vocab.tts.sentences.enabled:true}") boolean sentenceAudio) {
+            @Value("${teachloop.vocab.tts.sentences.enabled:true}") boolean sentenceAudio,
+            @Value("${teachloop.vocab.quiz.enabled:false}") boolean quiz) {
         this.sentenceAudio = sentenceAudio;
+        this.quiz = quiz;
     }
 
+    /** 前端启动时拉一次，决定例句喇叭与「小测」入口是否渲染（AC-57.8 / AC-87.10）。 */
     @GetMapping("/config")
     public Map<String, Boolean> config() {
-        return Map.of("sentenceAudio", sentenceAudio);
+        return Map.of("sentenceAudio", sentenceAudio, "quiz", quiz);
     }
 }

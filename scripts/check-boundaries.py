@@ -28,6 +28,11 @@ TABLE_OWNER: dict[str, str] = {
     "teacher_invites": "identity",
     "rate_limits": "identity",
     "notifications": "identity",
+    # 009-registration（V074）：对外消息发送记录（非本轮改动，补登记以恢复守卫）
+    "outbound_messages": "identity",
+    "user_identities": "identity",
+    "verification_codes": "identity",
+    "identity_channels": "identity",
     "ai_settings": "identity",
     "ai_providers": "identity",
     "ai_circuit_state": "identity",
@@ -73,6 +78,9 @@ TABLE_OWNER: dict[str, str] = {
     "vocab_word_sources": "vocab",
     "vocab_progress": "vocab",
     "vocab_review_logs": "vocab",
+    # US-87 / T546：复习小测（练习记录，不参与成绩）
+    "vocab_quizzes": "vocab",
+    "vocab_quiz_items": "vocab",
     "vocab_decks": "vocab",
     "vocab_review_sessions": "vocab",
     "vocab_sets": "vocab",
