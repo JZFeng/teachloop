@@ -28,6 +28,26 @@
 - 页面右上角两个开关：**中文 / EN** 与 **☀ 亮色 / ☾ 暗色**，选择记在 `localStorage`（`vitals.lang` / `vitals.theme`），刷新与换设备不共享。
 - 暗色用 `tokens.ts` 的 dark 色板（`#0A1120` 底 / `#2A6FD6` 主色）；告警文案按服务端返回的 `code` 在前端翻译，**邮件正文仍为中文**（收件人只有你自己，先不做双语邮件）。
 
+### 3.1 外网访问（可选，Cloudflare Tunnel + Access，2026-10-29 定）
+
+局域网之外想打开，唯一推荐的路是**在监控机自己身上跑第二条隧道**（不是 prod 的隧道，prod 挂了它照样活）：
+
+```bash
+# 监控机上（token 从 Zero Trust → Networks → Tunnels → Create a tunnel → Cloudflared 复制）
+bash ~/vitals/expose-cloudflare.sh <token>
+```
+
+脚本负责：token 落盘（600）、拉起 `cloudflared tunnel run --token-file`、加 `crontab @reboot`、打印后台要点的三步。
+**公网主机名与 Access 策略在 Cloudflare 后台配**（token 托管型隧道的路由表在云端，本机没有配置文件）：
+
+1. Public Hostname：`status.teachloop.org` → `HTTP → localhost:8099`
+2. Access → Applications → Self-hosted：域名 `status.teachloop.org`，策略 `Include → Emails → 你的邮箱`
+3. 验证 `https://status.teachloop.org/vitals/`
+
+两层认证都要：**Access 挡匿名，Basic 口令挡拿到 URL 的人**。
+
+不选的方案：路由器端口映射（家庭 IP 动态、HTTP 明文会暴露 Basic 口令）；Tailscale（可行，但每台设备要装客户端）。
+
 ## 4. 部署
 
 ### 4.1 监控机（一次性）
