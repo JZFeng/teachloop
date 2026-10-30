@@ -148,3 +148,27 @@ ssh ai-ubuntu 'bash ~/vitals/install.sh stop && crontab -l | grep -v teachloop-v
 1. **判据正确**——同一套代码在故障期间给出 `overall=down` + 两条告警（`HTTP 530（error code: 1033）`、`ssh … Host is down`），恢复后自动回绿。
 2. **当时没有人知道**——vitals 尚未部署、UptimeRobot 还在 Preparing，整段 12 分钟只靠手动 curl 发现。这就是“屋外哨兵”的必要性。
 3. 顺带修掉一个真 bug：请求日志文件名按 **UTC**，探针原先按容器本地日期取文件，导致「今日请求」恒为 0。
+
+## 11. prod 主机更换（2026-10-29 深夜）
+
+旧机（迷你主机，7.7G 内存）当天发生 3 次断电事故（09:59 硬断、10:12 电源键、20:33 硬断），
+每次重启都伴随 `system.journal corrupted` 与 Postgres 崩溃恢复，内核还报 `[Firmware Bug]: Corrupted DMI table`。
+决定换机。
+
+| | 旧 | 新 |
+|---|---|---|
+| 主机名 | `teachloop`（现 `teachloop-bck`） | `teachloop` |
+| IP | 192.168.68.166（现 192.168.68.71） | **192.168.68.166**（IP 不变，CF/DNS 不用改） |
+| 硬件 | 迷你主机 4 核 / 7.7G / 233G | HP Pavilion i5-13400 / 16 线程 / 31.7G / 468G |
+| 角色 | 迁出后保留 24h 作回滚 | 现役 |
+
+迁移做法（可复现）：
+
+1. 旧机 `pg_dump -Fc`（144K）+ `tar` 打包 `docker-compose.prod.yml / .env / deploy / web/dist / docker / Dockerfile`（6.7M）+ 导出镜像（`docker save` 三个镜像，gzip 后 1.4G，1 分 48 秒）。
+2. 新机装 Docker 29.1.3 + Compose 2.40.3，起 `db` → `pg_restore`（55 张表、66 条 Flyway 迁移、2 个用户）→ 起 `app/worker/web`。
+3. 旧机 `/etc/cloudflared/token` 搬到新机（`cloudflared service install <token>`），**先停旧后起新**，避免两条连接器同时在线导致读写分叉。
+4. 新 prod 上重装 vitals 只读探针（`~/vitals-probe/probe.sh` + `command=` 限制的公钥）；采集机 `known_hosts` 里旧机的指纹要删（`ssh-keygen -R 192.168.68.166`），否则 `Host key verification failed`。
+
+验证：公网 `/healthz?deep=1` 200、`/` 200、四容器 healthy、重启次数 0、数据 2 用户 / 66 迁移、vitals 显示 `host teachloop | mem 31775MB | disk 468G`。
+
+**注意**：旧机 `.env` 含 `TEACHLOOP_SECURITY_SECRET`、DB 密码、AI Key，卷里是用户数据 —— 卖掉前必须清空（`docker compose down -v` + 删 `.env` + 清 `~/.ssh/authorized_keys`）。
