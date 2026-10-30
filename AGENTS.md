@@ -76,9 +76,10 @@
 |---|---|---|---|
 | **dev** | 本机 | 前端 `127.0.0.1:5173`、后端 `127.0.0.1:8010` | `make dev` / `scripts/dev.sh` |
 | **qa** | **本机测试台**（跑快照产物，不改源码） | 前端 `127.0.0.1:5174`、后端 `127.0.0.1:8011`、库 `127.0.0.1:55433` | `./scripts/env.sh deploy qa`，产物在 `.envs/qa/` |
-| **prod** | 小主机 `192.168.68.166` | `https://teachloop.org`（Cloudflare Tunnel → nginx `:8010` → app `:8011`） | `docker compose -f docker-compose.prod.yml up -d` |
+| **prod** | HP Pavilion（i5-13400 / 16 线程 / 31.7G 内存 / 468G 盘）`192.168.68.166` | `https://teachloop.org`（Cloudflare Tunnel → nginx `:8010` → app `:8011`） | `docker compose -f docker-compose.prod.yml up -d` |
 
 - `scripts/deploy-ai-ubuntu.sh`（默认 `192.168.68.101`）是另一条独立远部署路径，**不属于**上面三者，别混用。
+- 旧的迷你主机（7.7G 内存那台，今天一天断电三次）已于 2026-10-29 深夜迁出，现为 `teachloop-bck` @ `192.168.68.71`，**只作短期回滚，不是生产**；迁移动机与步骤见 `docs/release/vitals.md` §11。
 - **配置分层的四条规则见 `docs/process/environments.md`（2026-10-28 定稿）**：base 只放与环境无关的默认值；overlay 只写差异；「本环境默认开/关」只走属性 + overlay，不许写进代码的 profile 判断；构建与环境无关（`make build` 只出一个 jar）。现状：dev=`dev`、qa=`qa`、prod=`prod`/`worker` 四份 overlay。
 - **2026-10-27 决定：qa 暂不独立成一台机器**——只有一个人用，本机 5174 最省事。等出现第二个人参与或需要多人验收时再拆，候选机是 `jz-ubuntu`。**拆之前不要自作主张迁环境。**
 - qa 前端 `vite preview` 已绑 `--host 0.0.0.0`（`scripts/env.sh`），**手机同 WiFi 可直连** `http://<本机 LAN IP>:5174`（banner 会打印这个地址，2026-10-27 起）。
