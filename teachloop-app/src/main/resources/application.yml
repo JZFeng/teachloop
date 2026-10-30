@@ -32,6 +32,10 @@ spring:
       max-request-size: 100MB
 
 teachloop:
+  # 011 / US-99：用户可见的「按天」口径（今日复习数、每日新卡上限）按学生时区；
+  # 请求头缺失且用户未设置时回落这里。AI 生成日预算仍用本值（成本口径不随学生漂移）。
+  timezone:
+    default: ${TEACHLOOP_TIMEZONE:Asia/Shanghai}
   security:
     # 2026-10-28：安全基线由属性决定，环境差异只写在 application-<env>.yml。
     # 这里给默认值（本机/测试不拦），dev / qa / prod 各自在 overlay 里覆盖。

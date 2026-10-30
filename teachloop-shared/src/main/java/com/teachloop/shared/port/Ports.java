@@ -3,6 +3,7 @@ package com.teachloop.shared.port;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /** 跨模块端口的数据契约：只有 record，没有实体，避免懒加载跨模块泄漏。 */
@@ -462,5 +463,77 @@ public final class Ports {
 
         /** 一份判分成功（用于累计成功连续数并判断能否回切主 provider）。 */
         void onGradingSuccess(String providerKey, Instant now);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // 011-self-study-mode：今日页聚合所需的三段契约
+    // ────────────────────────────────────────────────────────────────
+
+    /** 复习切片：待复习 / 今日已复习 / 今日新词 / 每日新卡上限。 */
+    public record ReviewSlice(int due, int reviewedToday, int newToday, int newLimit) {
+    }
+
+    /** 待交作业的一行：班级名由调用方用 ClassMembership 批量补，不跨模块 join。 */
+    public record AssignmentRow(UUID id, String title, String className,
+                                Instant dueAt, String status) {
+    }
+
+    /** 未来考试的一行。 */
+    public record ExamRow(UUID id, String title, String className, Instant startsAt) {
+    }
+
+    /** 学生的时区（IANA 名）。空 Optional = 未设置，由调用方回落产品默认。 */
+    public record UserZone(String iana) {
+    }
+
+    /** 由 teachloop-vocab 实现：按学生时区算「今天」的复习切片。 */
+    public interface ReviewSlicePort {
+
+        ReviewSlice today(UUID userId, String iana);
+    }
+
+    /** 由 teachloop-sitting 实现：学生的待交作业与未来考试。 */
+    public interface AgendaPort {
+
+        List<AssignmentRow> pending(UUID studentId);
+
+        List<ExamRow> upcoming(UUID studentId, Instant from, Instant to);
+    }
+
+    /** 由 teachloop-identity 实现：读 users.timezone（只读单行）。 */
+    public interface UserZonePort {
+
+        Optional<UserZone> of(UUID userId);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // 013-word-books：系统词书推荐
+    // ────────────────────────────────────────────────────────────────
+
+    /** 推荐位展示所需的最小字段（覆盖率实时算，不落库）。 */
+    public record BookRef(UUID id, String name, int wordCount, int readyCount) {
+    }
+
+    /**
+     * 词书推荐规则。v1 按「已发布 → position → 加入人数」；以后按水平/班级推荐时只换实现，
+     * 控制器与前端不动（013 FR-250）。
+     */
+    public interface BookRecommendation {
+
+        List<BookRef> recommended(UUID userId, int limit);
+    }
+
+    // ────────────────────────────────────────────────────────────────
+    // 012-class-lifecycle：班级状态只读查询
+    // ────────────────────────────────────────────────────────────────
+
+    /** 一个班的生命周期状态：是否结课、当前用户是否仍在班。 */
+    public record ClassState(UUID classId, boolean archived, boolean active) {
+    }
+
+    /** 由 teachloop-classroom 实现：sitting / app 判断能否提交、能否计入今日页。 */
+    public interface ClassLifecycle {
+
+        Optional<ClassState> state(UUID classId);
     }
 }

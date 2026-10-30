@@ -17,6 +17,9 @@ import re
 import sys
 from pathlib import Path
 
+# app 装配层唯一允许持有 SQL 的类（探活用 select 1）
+APP_SQL_ALLOWLIST = {"DeepHealthEndpoint.java"}
+
 MODULES = ["shared", "identity", "classroom", "paper", "sitting",
            "grading", "report", "observability", "vocab", "app"]
 
@@ -95,6 +98,10 @@ TABLE_OWNER: dict[str, str] = {
     # T448：学生词单（V064，只引用 word_id 的容器；word_id 不建外键）
     "vocab_lists": "vocab",
     "vocab_list_items": "vocab",
+    # 013-word-books（V079）：系统词书、词条、加入记录
+    "vocab_books": "vocab",
+    "vocab_book_entries": "vocab",
+    "vocab_book_joins": "vocab",
 }
 
 # plan §3.5：允许的跨模块外键（(引用方表, 被引用表)）。新增一条要在这里和 plan 同时登记。
@@ -212,23 +219,25 @@ def check_endpoint_persistence(root: Path, problems: list[str]) -> None:
     「怎么取数」和「怎么判业务」焊在同一个类里，同一条口径（如「到期词」）在两处各写一遍。
     收口后 SQL 只出现在 `*Repository` / `*Store`，端点只调方法。
 
-    `app` 模块跳过：它是装配层，`DeepHealthEndpoint` 的深探需要一条 `select 1`，
-    与 check_module_isolation 对 app 的豁免一致。
+    `app` 模块**也扫描**（2026-10-30 / 011 FR-230）：它是装配层，除 `DeepHealthEndpoint` 的
+    深探外不得出现任何 SQL；装配层一旦自己 join 业务表，跨模块边界就名存实亡。
     """
     for module in MODULES:
-        if module == "app":
-            continue
         src = root / f"teachloop-{module}" / "src" / "main" / "java"
         if not src.exists():
             continue
         for java_file in sorted(src.rglob("*.java")):
-            if not java_file.name.endswith(("Endpoint.java", "Controller.java")):
+            if module == "app":
+                if java_file.name in APP_SQL_ALLOWLIST:
+                    continue
+            elif not java_file.name.endswith(("Endpoint.java", "Controller.java")):
                 continue
             text = strip_comments(java_file.read_text(encoding="utf-8"))
-            if "JdbcTemplate" in text:
+            if "JdbcTemplate" in text or "JdbcClient" in text:
+                target = "装配层不得持有 SQL（仅 DeepHealthEndpoint 例外）" if module == "app" \
+                    else "SQL 要写在 Repository/Store，端点只调方法（plan §3.3 持久层规则）"
                 problems.append(
-                    f"SQL 漏到端点：teachloop-{module}/{java_file.name} 直接持有 JdbcTemplate；"
-                    f"SQL 要写在 Repository/Store，端点只调方法（plan §3.3 持久层规则）")
+                    f"SQL 漏到端点：teachloop-{module}/{java_file.name} 直接持有 JdbcTemplate；{target}")
 
 
 def check_module_isolation(root: Path, problems: list[str]) -> None:
