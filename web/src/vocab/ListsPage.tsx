@@ -12,6 +12,7 @@ import {
   Modal,
   PageHeader,
   RowActions,
+  Tag,
   TextArea,
   useConfirm,
   useListState,
@@ -26,6 +27,8 @@ import {
   fetchReviewWords,
 } from './lists'
 import type { VocabList } from './lists'
+import BookRecommendations from './books/BookRecommendations'
+import { bc } from './books/copy'
 import './vocab.css'
 
 type Editor = 'new' | VocabList | null
@@ -202,9 +205,13 @@ export default function VocabListsPage() {
       sortable: true,
       render: (list) => (
         <div>
-          <Button variant="text" size="small" onClick={() => navigate(`/vocab/lists/${list.id}`)}>
-            {list.name}
-          </Button>
+          <span className="row" style={{ gap: 6 }}>
+            <Button variant="text" size="small" onClick={() => navigate(`/vocab/lists/${list.id}`)}>
+              {list.name}
+            </Button>
+            {/* 013 / FR-247：词书副本在列表里要能认出来（数据来自 lists 的 bookId）。 */}
+            {list.bookId ? <Tag tone="blue">{bc('vocab.books.copyTag')}</Tag> : null}
+          </span>
           <div className="muted sm">{list.description || '—'}</div>
         </div>
       ),
@@ -302,6 +309,10 @@ export default function VocabListsPage() {
       />
 
       <p className="muted sm">{t('vocab.lists.limitNote', { count: lists.length, max: LIST_MAX })}</p>
+
+      {/* AC-104.1：推荐词书在**词单列表下方**（先看自己的东西，再看推荐）。
+        * AC-104.4：它自己失败只在自己区块里出重试，不影响上面的列表与「新建词单」。 */}
+      <BookRecommendations />
 
       <Modal
         open={editor !== null}

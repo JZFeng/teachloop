@@ -28,14 +28,14 @@ public class VocabularyListRepository {
 
     /** 词单视图（列表与单条共用同一份投影，避免两处漂移）。 */
     private static final String LIST_VIEW_SELECT = """
-            select l.id, l.name, l.description, l.position, l.updated_at,
+            select l.id, l.name, l.description, l.position, l.updated_at, l.book_id,
                    (select count(*) from vocab_list_items i where i.list_id = l.id) as word_count
               from vocab_lists l
             """;
 
     private static final RowMapper<ListView> LIST_VIEW_MAPPER = (rs, rowNumber) -> new ListView(
             rs.getObject(1, UUID.class), rs.getString(2), rs.getString(3), rs.getInt(4),
-            rs.getInt(6), rs.getTimestamp(5).toInstant());
+            rs.getInt(7), rs.getTimestamp(5).toInstant(), rs.getObject(6, UUID.class));
 
     private static final RowMapper<ListWordView> LIST_WORD_MAPPER = (rs, rowNumber) -> new ListWordView(
             rs.getObject(1, UUID.class), rs.getString(2), rs.getObject(3) == null ? null : rs.getInt(3),
@@ -50,8 +50,9 @@ public class VocabularyListRepository {
         this.jdbc = jdbc;
     }
 
+    /** `bookId` 非空 = 这份词单是某本词书的副本（界面据此打「词书副本」标签，AC-102.5）。 */
     public record ListView(UUID id, String name, String description, int position, int wordCount,
-                           Instant updatedAt) {
+                           Instant updatedAt, UUID bookId) {
     }
 
     /** 词单里的一行：词条 + 进度摘要；`deleted` / `paused` 由界面标注（不参与复习）。 */
@@ -116,6 +117,29 @@ public class VocabularyListRepository {
                                          created_at, updated_at)
                 values (?, ?, ?, ?, ?, false, ?, ?)
                 """, id, userId, name, description, position, Timestamp.from(now),
+                Timestamp.from(now));
+    }
+
+    /**
+     * 某本书给我的副本词单（T575 / AC-102.2：「同一本书同一学生只有一份」）。
+     * 软删的不算——删掉副本后再加入应当新建一份，而不是复活已删的词单。
+     */
+    public Optional<UUID> findCopyListId(UUID userId, UUID bookId) {
+        return jdbc.query("""
+                select id from vocab_lists
+                 where user_id = ? and book_id = ? and deleted = false
+                """, (rs, rowNumber) -> rs.getObject(1, UUID.class), userId, bookId)
+                .stream().findFirst();
+    }
+
+    /** 建副本词单：除名字/描述外多写 `book_id`，唯一索引 `(user_id, book_id)` 兜住并发重复建。 */
+    public void createCopy(UUID id, UUID userId, String name, String description, int position,
+                           UUID bookId, Instant now) {
+        jdbc.update("""
+                insert into vocab_lists (id, user_id, name, description, position, deleted,
+                                         book_id, created_at, updated_at)
+                values (?, ?, ?, ?, ?, false, ?, ?, ?)
+                """, id, userId, name, description, position, bookId, Timestamp.from(now),
                 Timestamp.from(now));
     }
 

@@ -6,7 +6,9 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
@@ -91,6 +93,78 @@ public class VocabWordRepository {
                         """,
                 id, userId, timestamp, timestamp);
         return id;
+    }
+
+    /**
+     * 批量按词形取已有词（T575 加入词书）：一次问清 ≤500 个词形，避免逐词一条 SQL。
+     *
+     * <p>返回「规范形 → 词条」，软删的词也在结果里（调用方要 `restore` 而不是新建，AC-55.3）。
+     */
+    public Map<String, ExistingWord> findByNormalized(UUID userId, String language,
+                                                      Collection<String> normalizedForms) {
+        Map<String, ExistingWord> found = new LinkedHashMap<>();
+        if (normalizedForms == null || normalizedForms.isEmpty()) {
+            return found;
+        }
+        List<String> all = new ArrayList<>(normalizedForms);
+        for (int start = 0; start < all.size(); start += IN_CHUNK) {
+            List<String> chunk = all.subList(start, Math.min(start + IN_CHUNK, all.size()));
+            List<Object> arguments = new ArrayList<>(chunk.size() + 2);
+            arguments.add(userId);
+            arguments.add(language);
+            arguments.addAll(chunk);
+            jdbc.query("select id, form, normalized_form, deleted from vocab_words"
+                            + " where user_id = ? and language = ? and normalized_form in ("
+                            + String.join(",", java.util.Collections.nCopies(chunk.size(), "?")) + ")",
+                    rs -> {
+                        found.put(rs.getString(3), new ExistingWord(
+                                rs.getObject(1, UUID.class), rs.getString(2), rs.getBoolean(4)));
+                    }, arguments.toArray());
+        }
+        return found;
+    }
+
+    /** 一批新词的行（加入词书时先解析出词族/频段，再一次性写库）。 */
+    public record NewWord(String form, String normalizedForm, Long familyId, Integer band) {
+    }
+
+    /**
+     * 批量新词入库（T575 / FR-237「写库分批，每批 ≤500 行」）：词条 PENDING + 一条 NEW 进度。
+     *
+     * <p>与 {@link #insert} 语义完全一致（当天进队列、state=NEW、due_at=now），只是把
+     * 2N 条单行 SQL 换成 2 次 `batchUpdate`；2000 词的书加入时差别是几千次往返。
+     *
+     * @return 按入参顺序的词条 id
+     */
+    public List<UUID> insertBatch(UUID userId, String language, List<NewWord> rows) {
+        List<UUID> ids = new ArrayList<>(rows.size());
+        if (rows.isEmpty()) {
+            return ids;
+        }
+        Instant now = clock.instant();
+        Timestamp timestamp = Timestamp.from(now);
+        List<Object[]> wordArgs = new ArrayList<>(rows.size());
+        List<Object[]> progressArgs = new ArrayList<>(rows.size());
+        for (NewWord row : rows) {
+            UUID id = UUID.randomUUID();
+            ids.add(id);
+            wordArgs.add(new Object[] {id, userId, language, row.form(), row.normalizedForm(),
+                    row.familyId(), row.band(), timestamp, timestamp});
+            progressArgs.add(new Object[] {id, userId, timestamp, timestamp});
+        }
+        jdbc.batchUpdate("""
+                        insert into vocab_words
+                            (id, user_id, language, form, normalized_form, content_status,
+                             family_id, band, removed, deleted, created_at, updated_at)
+                        values (?, ?, ?, ?, ?, 'PENDING', ?, ?, false, false, ?, ?)
+                        """, wordArgs);
+        jdbc.batchUpdate("""
+                        insert into vocab_progress
+                            (word_id, user_id, state, due_at, interval_days, ease,
+                             lapses, reviewed_count, updated_at)
+                        values (?, ?, 'NEW', ?, 0, 2.50, 0, 0, ?)
+                        """, progressArgs);
+        return ids;
     }
 
     /** 软删除恢复：词条重新可见，进度原样保留（AC-55.3）。 */
@@ -289,6 +363,26 @@ public class VocabWordRepository {
                         values (?, 'ASSIGNMENT', ?, ?, ?)
                         on conflict do nothing
                         """, wordId, assignmentId, teacherId, Timestamp.from(clock.instant()));
+    }
+
+    /**
+     * 追加词书来源（T575 / AC-102.3、AC-102.2）：`kind='BOOK'`，`book_id` 指向书。
+     *
+     * <p>**唯一键的用法**：`uk_vocab_word_sources` 是
+     * `(word_id, kind, assignment_id, set_id, batch_id)`，不含 `book_id`。把 `batch_id` 填成
+     * 书 id 之后，这个键恰好表示「一个词对一本书只有一条来源」——同一本书重复加入不会堆出
+     * 重复行，同一个词来自两本书则各一条。`label` 存书名，来源筛选里可直接展示。
+     *
+     * <p>为什么不直接靠 `book_id` 判重：唯一键没覆盖它，`on conflict do nothing` 判的是那五列；
+     * 把书 id 放进 `batch_id` 才让「只追加、不重复追加」在库层成立（plan §11 待定 2 的答案）。
+     */
+    public void addBookSource(UUID wordId, UUID bookId, String bookLabel) {
+        jdbc.update("""
+                        insert into vocab_word_sources
+                            (word_id, kind, book_id, batch_id, label, created_at)
+                        values (?, 'BOOK', ?, ?, ?, ?)
+                        on conflict do nothing
+                        """, wordId, bookId, bookId, bookLabel, Timestamp.from(clock.instant()));
     }
 
     /** 追加来源；同一批次内重复调用由唯一键兜底（on conflict do nothing）。 */

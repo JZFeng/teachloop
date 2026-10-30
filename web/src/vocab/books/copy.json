@@ -1,0 +1,330 @@
+{
+  "vocab.books.reco.title": {
+    "zh-CN": "推荐词书",
+    "en": "Recommended books"
+  },
+  "vocab.books.reco.sub": {
+    "zh-CN": "按热门排序；以后按你的水平推荐。",
+    "en": "Sorted by popularity today; ranked by your level later."
+  },
+  "vocab.books.reco.failed": {
+    "zh-CN": "推荐词书没能加载出来（不影响下面的词单）。",
+    "en": "Recommended books could not be loaded. Your word lists below are unaffected."
+  },
+  "vocab.books.reco.empty": {
+    "zh-CN": "暂时没有可推荐的词书。",
+    "en": "No books to recommend right now."
+  },
+  "vocab.books.reco.viewBook": {
+    "zh-CN": "看看里面有什么",
+    "en": "See what is inside"
+  },
+  "vocab.books.wordCount": {
+    "zh-CN": "{count} 词",
+    "en": "{count} words"
+  },
+  "vocab.books.coverage": {
+    "zh-CN": "内容就绪 {ready} / {total}",
+    "en": "{ready} / {total} ready"
+  },
+  "vocab.books.coverageShort": {
+    "zh-CN": "覆盖率 {percent}%",
+    "en": "{percent}% ready"
+  },
+  "vocab.books.join": {
+    "zh-CN": "加入并开始背",
+    "en": "Join and start"
+  },
+  "vocab.books.continue": {
+    "zh-CN": "继续背",
+    "en": "Keep reviewing"
+  },
+  "vocab.books.copyTag": {
+    "zh-CN": "词书副本",
+    "en": "Book copy"
+  },
+  "vocab.books.libraryEmptyLink": {
+    "zh-CN": "还没有词？去词单页挑一本词书",
+    "en": "No words yet? Pick a book on the word lists page"
+  },
+  "vocab.books.detail.back": {
+    "zh-CN": "我的词单",
+    "en": "My word lists"
+  },
+  "vocab.books.detail.words": {
+    "zh-CN": "词数",
+    "en": "Words"
+  },
+  "vocab.books.detail.ready": {
+    "zh-CN": "内容就绪",
+    "en": "Content ready"
+  },
+  "vocab.books.detail.joinedProgress": {
+    "zh-CN": "已加入 {joined} / {total}",
+    "en": "{joined} of {total} joined"
+  },
+  "vocab.books.detail.notJoined": {
+    "zh-CN": "尚未加入",
+    "en": "Not joined yet"
+  },
+  "vocab.books.detail.preview": {
+    "zh-CN": "预览",
+    "en": "Preview"
+  },
+  "vocab.books.detail.previewSub": {
+    "zh-CN": "每页 50 词；内容与复习卡用的是同一份。",
+    "en": "50 words per page; the cards use the same content."
+  },
+  "vocab.books.detail.colForm": {
+    "zh-CN": "词形",
+    "en": "Word"
+  },
+  "vocab.books.detail.colStatus": {
+    "zh-CN": "内容",
+    "en": "Content"
+  },
+  "vocab.books.detail.readyTag": {
+    "zh-CN": "内容就绪",
+    "en": "Ready"
+  },
+  "vocab.books.detail.pendingTag": {
+    "zh-CN": "生成中",
+    "en": "Generating"
+  },
+  "vocab.books.detail.total": {
+    "zh-CN": "共 {count} 词",
+    "en": "{count} words in total"
+  },
+  "vocab.books.detail.joinNote": {
+    "zh-CN": "加入后会在「我的词单」生成一份副本，并立刻可以开始背；已背过的词进度不变。",
+    "en": "Joining creates one copy in My word lists and lets you start at once. Progress on words you already study does not change."
+  },
+  "vocab.books.detail.noWords": {
+    "zh-CN": "这本书还没有词条，暂时不能加入。",
+    "en": "This book has no entries yet, so it cannot be joined."
+  },
+  "vocab.books.detail.joinedToast": {
+    "zh-CN": "已加入：新增 {created} 词，词库里已有 {duplicated} 词。",
+    "en": "Joined: {created} words added, {duplicated} already in your library."
+  },
+  "vocab.books.detail.emptyEntries": {
+    "zh-CN": "这本书还没有词条。",
+    "en": "This book has no entries yet."
+  },
+  "vocab.books.review.title": {
+    "zh-CN": "正在进入复习",
+    "en": "Opening your review"
+  },
+  "vocab.books.review.preparing": {
+    "zh-CN": "正在准备复习会话…",
+    "en": "Preparing your review session…"
+  },
+  "vocab.books.review.failed": {
+    "zh-CN": "复习没能开始。",
+    "en": "The review could not start."
+  },
+  "vocab.books.review.missingBook": {
+    "zh-CN": "缺少词书编号，无法开始复习。",
+    "en": "The book id is missing, so the review cannot start."
+  },
+  "vocab.books.review.backToDetail": {
+    "zh-CN": "返回词书详情",
+    "en": "Back to the book"
+  },
+  "vocab.books.admin.title": {
+    "zh-CN": "词书管理",
+    "en": "Book management"
+  },
+  "vocab.books.admin.sub": {
+    "zh-CN": "只有管理员能改；学生只读。词书只能下架，不能删除。",
+    "en": "Only administrators can edit. Students read these books. Books can be unpublished but never deleted."
+  },
+  "vocab.books.admin.new": {
+    "zh-CN": "新建词书",
+    "en": "New book"
+  },
+  "vocab.books.admin.newTitle": {
+    "zh-CN": "新建词书",
+    "en": "New book"
+  },
+  "vocab.books.admin.editTitle": {
+    "zh-CN": "编辑：{name}",
+    "en": "Edit {name}"
+  },
+  "vocab.books.admin.selectHint": {
+    "zh-CN": "从左边选一本书开始编辑，或者新建一本。",
+    "en": "Pick a book on the left to edit it, or create a new one."
+  },
+  "vocab.books.admin.emptyList": {
+    "zh-CN": "还没有词书。先新建一本，再批量导入词条。",
+    "en": "No books yet. Create one, then import its entries."
+  },
+  "vocab.books.admin.colName": {
+    "zh-CN": "书名",
+    "en": "Book"
+  },
+  "vocab.books.admin.colWords": {
+    "zh-CN": "词数",
+    "en": "Words"
+  },
+  "vocab.books.admin.colCoverage": {
+    "zh-CN": "覆盖率",
+    "en": "Ready"
+  },
+  "vocab.books.admin.colJoins": {
+    "zh-CN": "加入人数",
+    "en": "Members"
+  },
+  "vocab.books.admin.colStatus": {
+    "zh-CN": "状态",
+    "en": "Status"
+  },
+  "vocab.books.admin.colUpdated": {
+    "zh-CN": "更新时间",
+    "en": "Updated"
+  },
+  "vocab.books.admin.colActions": {
+    "zh-CN": "操作",
+    "en": "Actions"
+  },
+  "vocab.books.admin.published": {
+    "zh-CN": "已发布",
+    "en": "Published"
+  },
+  "vocab.books.admin.draft": {
+    "zh-CN": "草稿",
+    "en": "Draft"
+  },
+  "vocab.books.admin.edit": {
+    "zh-CN": "编辑",
+    "en": "Edit"
+  },
+  "vocab.books.admin.publish": {
+    "zh-CN": "发布",
+    "en": "Publish"
+  },
+  "vocab.books.admin.unpublish": {
+    "zh-CN": "下架",
+    "en": "Unpublish"
+  },
+  "vocab.books.admin.importEntries": {
+    "zh-CN": "导入词条",
+    "en": "Import entries"
+  },
+  "vocab.books.admin.name": {
+    "zh-CN": "名称",
+    "en": "Name"
+  },
+  "vocab.books.admin.namePlaceholder": {
+    "zh-CN": "如 托福核心",
+    "en": "e.g. TOEFL Core"
+  },
+  "vocab.books.admin.description": {
+    "zh-CN": "简介",
+    "en": "Description"
+  },
+  "vocab.books.admin.descriptionPlaceholder": {
+    "zh-CN": "这本书收什么词、按什么分册",
+    "en": "What this book covers and how it is organised"
+  },
+  "vocab.books.admin.language": {
+    "zh-CN": "语言",
+    "en": "Language"
+  },
+  "vocab.books.admin.level": {
+    "zh-CN": "级别",
+    "en": "Level"
+  },
+  "vocab.books.admin.position": {
+    "zh-CN": "排序位",
+    "en": "Position"
+  },
+  "vocab.books.admin.positionHint": {
+    "zh-CN": "数字小的排在前面；同位置按加入人数降序。",
+    "en": "Smaller numbers come first; ties sort by member count."
+  },
+  "vocab.books.admin.entries": {
+    "zh-CN": "词条",
+    "en": "Entries"
+  },
+  "vocab.books.admin.entriesCount": {
+    "zh-CN": "共 {count} 条",
+    "en": "{count} entries"
+  },
+  "vocab.books.admin.entriesHint": {
+    "zh-CN": "与「加词」页共用同一套粘贴/上传与预览，含格式清洗与拼写检查。",
+    "en": "Uses the same paste, upload and preview flow as the add-words page, including cleanup and spelling checks."
+  },
+  "vocab.books.admin.coverageLine": {
+    "zh-CN": "覆盖率 {percent}%（{ready} / {total}）",
+    "en": "{percent}% ready ({ready} of {total})"
+  },
+  "vocab.books.admin.statusRow": {
+    "zh-CN": "发布状态",
+    "en": "Publishing"
+  },
+  "vocab.books.admin.noDelete": {
+    "zh-CN": "词书只能下架、不能删除；下架不会清掉学生已加入的词与副本。",
+    "en": "Books can only be unpublished, never deleted. Unpublishing keeps every word and copy students already joined."
+  },
+  "vocab.books.admin.saved": {
+    "zh-CN": "已保存",
+    "en": "Saved"
+  },
+  "vocab.books.admin.created": {
+    "zh-CN": "已新建词书「{name}」",
+    "en": "Created the book {name}"
+  },
+  "vocab.books.admin.publishedToast": {
+    "zh-CN": "已发布「{name}」",
+    "en": "Published {name}"
+  },
+  "vocab.books.admin.unpublishedToast": {
+    "zh-CN": "已下架「{name}」",
+    "en": "Unpublished {name}"
+  },
+  "vocab.books.admin.nameRequired": {
+    "zh-CN": "名称不能为空。",
+    "en": "Name is required."
+  },
+  "vocab.books.admin.nameTooLong": {
+    "zh-CN": "名称最多 80 字。",
+    "en": "Name is limited to 80 characters."
+  },
+  "vocab.books.admin.positionInvalid": {
+    "zh-CN": "排序位要填整数。",
+    "en": "Position must be a whole number."
+  },
+  "vocab.books.import.title": {
+    "zh-CN": "导入词条 · {name}",
+    "en": "Import entries · {name}"
+  },
+  "vocab.books.import.sub": {
+    "zh-CN": "与「加词」共用同一套解析、清洗与预览，只是提交目标换成这本书。",
+    "en": "Same parser, cleanup and preview as the add-words page; only the destination changes to this book."
+  },
+  "vocab.books.import.commit": {
+    "zh-CN": "确认导入",
+    "en": "Import entries"
+  },
+  "vocab.books.import.back": {
+    "zh-CN": "返回词书",
+    "en": "Back to books"
+  },
+  "vocab.books.import.done": {
+    "zh-CN": "已导入：新建 {created} 个，重复 {duplicated} 个。",
+    "en": "Imported: {created} added, {duplicated} already in the book."
+  },
+  "vocab.books.detail.previewFailed": {
+    "zh-CN": "预览没能加载出来（不影响加入）。",
+    "en": "The preview could not be loaded. Joining still works."
+  },
+  "vocab.books.admin.notFound": {
+    "zh-CN": "找不到这本词书（可能已被下架或删除），刷新列表再看看。",
+    "en": "That book was not found. It may have been unpublished or removed; reload the list."
+  },
+  "vocab.books.review.backToLists": {
+    "zh-CN": "我的词单",
+    "en": "My word lists"
+  }
+}

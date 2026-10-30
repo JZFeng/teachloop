@@ -20,6 +20,7 @@ import type { Column, SortState } from '../ui'
 import AddToListsModal from './AddToListsModal'
 import { fetchLists } from './lists'
 import type { VocabList } from './lists'
+import { bc } from './books/copy'
 import './vocab.css'
 
 type ColumnKey = 'form' | 'meaning' | 'sources' | 'state' | 'due' | 'actions'
@@ -648,6 +649,16 @@ export default function VocabLibraryPage() {
             <div className="row" style={{ gap: 8, justifyContent: 'center', marginTop: 10 }}>
               <Button onClick={() => navigate('/vocab/add?tab=paste')}>{t('vocab.library.addWords')}</Button>
             </div>
+            {/* AC-104.5：词库空态只加**一行文字链接**指向词单页的推荐区；
+              * 这里有意识地不放词书列表/推荐卡，也不加第三个按钮——词库的职责是
+              * 「我有哪些词」，选词书属于词单页。 */}
+            {filterCount === 0 && !q && (
+              <div style={{ marginTop: 6 }}>
+                <Button variant="text" size="small" onClick={() => navigate('/vocab/lists')}>
+                  {bc('vocab.books.libraryEmptyLink')}
+                </Button>
+              </div>
+            )}
           </>
         )}
       />

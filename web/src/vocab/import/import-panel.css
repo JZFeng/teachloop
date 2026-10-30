@@ -1,0 +1,30 @@
+/*
+ * 导入面板（加词页 / 书导入页共用）的动作行。
+ *
+ * 为什么需要 `.is-sticky`：书导入页的预览表可能很长，`确认导入` 一旦被顶出视口，
+ * 平板 834 宽下就要滚回去才能提交（Mock 的 `.pager.sticky` 解决的是同一个问题）。
+ * 颜色/圆角只走令牌（styles/tokens.css），不写字面量。
+ */
+.import-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.import-actions.is-sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: 10px 0;
+  background: var(--panel);
+  border-top: 1px solid var(--line);
+}
+
+/* 触屏才放大（iPad 上 32px 高的按钮在常驻条里不好点），鼠标端保持密度。 */
+@media (pointer: coarse) {
+  .import-actions.is-sticky .ant-btn {
+    min-height: 40px;
+  }
+}

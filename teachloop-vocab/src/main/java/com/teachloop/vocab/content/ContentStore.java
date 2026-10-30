@@ -1,6 +1,8 @@
 package com.teachloop.vocab.content;
 
+import java.util.Collection;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * 全局词内容端口（decisions/017 / plan §4.1.2）：vocab 模块内使用，不跨模块。
@@ -25,4 +27,25 @@ public interface ContentStore {
     long put(String language, String form, String contentJson, String source);
 
     ContentStats stats();
+
+    /**
+     * 批量存在性探测（T572 覆盖率 / FR-240）：返回入参里**已经就绪**的规范化词形子集。
+     *
+     * <p>与 {@link #get} 同一套命中口径（内容包 → delta，且只认当前 promptVersion），
+     * 但只判存在、不返回正文，也不计入 hits/misses 指标。
+     */
+    default Set<String> existingForms(String language, Collection<String> normalizedForms) {
+        Set<String> found = new java.util.LinkedHashSet<>();
+        for (String form : normalizedForms) {
+            if (form != null && !form.isEmpty() && get(language, form).isPresent()) {
+                found.add(form);
+            }
+        }
+        return found;
+    }
+
+    /** 内容索引是否可用；false 时覆盖率回 null（界面显示「—」），而不是假的 0%。 */
+    default boolean available() {
+        return true;
+    }
 }
