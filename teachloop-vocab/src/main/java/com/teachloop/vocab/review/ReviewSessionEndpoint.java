@@ -3,6 +3,7 @@ package com.teachloop.vocab.review;
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.vocab.content.ContentStore;
+import com.teachloop.vocab.lists.VocabularyListRepository;
 import com.teachloop.vocab.content.ContentView;
 import com.teachloop.vocab.review.ReviewSessionRepository.SessionRow;
 import com.teachloop.vocab.word.VocabWordRepository;
@@ -12,8 +13,11 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HexFormat;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.transaction.annotation.Transactional;
@@ -48,20 +52,36 @@ public class ReviewSessionEndpoint {
     private final ReviewSessionRepository sessions;
     private final ReviewSubmitEndpoint submit;
     private final VocabWordRepository words;
+    private final VocabularyListRepository lists;
     private final ContentStore contentStore;
     private final Clock clock;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ReviewSessionEndpoint(ReviewSessionRepository sessions, ReviewSubmitEndpoint submit,
-                                 VocabWordRepository words, ContentStore contentStore, Clock clock) {
+                                 VocabWordRepository words, VocabularyListRepository lists,
+                                 ContentStore contentStore, Clock clock) {
         this.sessions = sessions;
         this.submit = submit;
         this.words = words;
+        this.lists = lists;
         this.contentStore = contentStore;
         this.clock = clock;
     }
 
-    public record CreateRequest(List<UUID> wordIds, boolean fromStart) {
+    /**
+     * 开一轮复习：二选一。
+     * <ul>
+     *   <li>{@code wordIds}：沿用旧行为（前端自己取范围，≤1000）；</li>
+     *   <li>{@code listId}：服务端展开词单里的词（T576 / FR-248），词单属于本人否则 404。
+     *       超过 1000 词时只取「还没进过任何会话」的下一批，批次之间不重叠；一轮背完再从头。</li>
+     * </ul>
+     */
+    /**
+     * `fromStart` 必须是包装类型：Jackson 3 默认 `FAIL_ON_NULL_FOR_PRIMITIVES`，
+     * 只传 `{"listId": ...}` 时基本类型会因「缺失即 null」抛 500（2026-10-30 实测）。
+     * null 按 false 处理，与旧客户端的语义一致。
+     */
+    public record CreateRequest(List<UUID> wordIds, Boolean fromStart, UUID listId) {
     }
 
     public record SessionView(UUID id, int total, int cursor, int lastCursor, String scopeKey) {
@@ -86,8 +106,11 @@ public class ReviewSessionEndpoint {
     @Transactional
     public SessionView create(@RequestBody(required = false) CreateRequest request,
                               @RequestAttribute("currentUser") CurrentUser me) {
+        if (request != null && request.listId() != null) {
+            return createForList(request, me);
+        }
         if (request == null || request.wordIds() == null || request.wordIds().isEmpty()) {
-            throw ApiException.badRequest("wordIds is required");
+            throw ApiException.badRequest("wordIds or listId is required");
         }
         if (request.wordIds().size() > MAX_WORDS) {
             throw ApiException.badRequest("at most " + MAX_WORDS + " words per session");
@@ -103,11 +126,66 @@ public class ReviewSessionEndpoint {
         }
         String scopeKey = scopeKey(eligible);
         SessionRow previous = sessions.latestByScope(me.id(), scopeKey).orElse(null);
-        int cursor = !request.fromStart() && previous != null ? previous.cursor() : 0;
+        int cursor = !restart(request) && previous != null ? previous.cursor() : 0;
         UUID id = UUID.randomUUID();
         String scope = mapper.writeValueAsString(Map.of("key", scopeKey, "wordIds", eligible));
         sessions.insertSession(id, me.id(), scope, eligible.size(), cursor, clock.instant());
         return new SessionView(id, eligible.size(), cursor, cursor, scopeKey);
+    }
+
+    /**
+     * 按词单开会话（T576 / AC-102.4）：范围 = 词单里未暂停、未软删的词（按加入顺序），
+     * 不含词单外的词；沿用单会话 1000 词上限——超出的部分按「已进过会话的词」跳过，
+     * 所以 2000 词的书会分成两批且不重叠。
+     */
+    private SessionView createForList(CreateRequest request, CurrentUser me) {
+        UUID listId = request.listId();
+        lists.findOwned(listId, me.id())
+                .orElseThrow(() -> ApiException.notFound("word list not found"));
+        List<UUID> eligible = lists.reviewableWordIds(listId);
+        if (eligible.isEmpty()) {
+            throw ApiException.badRequest("no reviewable words");
+        }
+        List<UUID> batch = eligible;
+        if (eligible.size() > MAX_WORDS) {
+            Set<UUID> alreadyUsed = usedWordIds(me.id(), listId);
+            List<UUID> remaining = new ArrayList<>();
+            for (UUID wordId : eligible) {
+                if (!alreadyUsed.contains(wordId)) {
+                    remaining.add(wordId);
+                }
+            }
+            if (remaining.isEmpty()) {
+                // 一轮已经背完：重新从头开始，不因为「都背过」卡住学生
+                remaining = eligible;
+            }
+            batch = remaining.subList(0, Math.min(MAX_WORDS, remaining.size()));
+        }
+        String scopeKey = scopeKey(batch);
+        SessionRow previous = sessions.latestByScope(me.id(), scopeKey).orElse(null);
+        int cursor = !restart(request) && previous != null ? previous.cursor() : 0;
+        UUID id = UUID.randomUUID();
+        Map<String, Object> scope = new LinkedHashMap<>();
+        scope.put("key", scopeKey);
+        scope.put("wordIds", batch);
+        scope.put("listId", listId.toString());
+        sessions.insertSession(id, me.id(), mapper.writeValueAsString(scope), batch.size(), cursor,
+                clock.instant());
+        return new SessionView(id, batch.size(), cursor, cursor, scopeKey);
+    }
+
+    /** `fromStart` 缺省（null）按「续位」处理：与旧客户端只传 wordIds 时的行为一致。 */
+    private static boolean restart(CreateRequest request) {
+        return Boolean.TRUE.equals(request.fromStart());
+    }
+
+    /** 这个词单已经进过会话的词（跨会话取并集），用于把 1000+ 词的书切成不重叠的批次。 */
+    private Set<UUID> usedWordIds(UUID userId, UUID listId) {
+        Set<UUID> used = new HashSet<>();
+        for (String scope : sessions.scopesForList(userId, listId)) {
+            used.addAll(wordIds(scope));
+        }
+        return used;
     }
 
     @GetMapping("/{id}/current")

@@ -22,6 +22,8 @@ export interface VocabList {
   wordCount: number
   position?: number | null
   updatedAt?: string | null
+  /** 非 null = 这份词单是某本系统词书的副本（013 / FR-247），列表里显示「词书副本」标签。 */
+  bookId?: string | null
 }
 
 /**

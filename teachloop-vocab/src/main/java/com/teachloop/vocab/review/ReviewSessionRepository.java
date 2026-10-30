@@ -60,6 +60,20 @@ public class ReviewSessionRepository {
                 """, SESSION_ROW_MAPPER, id, userId).stream().findFirst();
     }
 
+    /**
+     * 某个词单开过的会话范围快照（T576 / AC-102.4 的「分批不重叠」依据）。
+     *
+     * <p>只回 `scope` 文本，谁来解析由端点负责（与 `wordIds(...)` 同一处理）；
+     * 书词数 > 1000 时下一次会话从「这本书还没进过任何会话」的词里取，靠的就是这几行。
+     */
+    public List<String> scopesForList(UUID userId, UUID listId) {
+        return jdbc.query("""
+                select cast(scope as text)
+                  from vocab_review_sessions
+                 where user_id = ? and scope->>'listId' = ?
+                """, (rs, rowNumber) -> rs.getString(1), userId, listId.toString());
+    }
+
     /** 同一范围指纹下最近一次会话，用于「再次进入默认续位」。 */
     public Optional<SessionRow> latestByScope(UUID userId, String scopeKey) {
         return jdbc.query("""

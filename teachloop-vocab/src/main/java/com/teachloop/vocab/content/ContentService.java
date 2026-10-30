@@ -1,8 +1,11 @@
 package com.teachloop.vocab.content;
 
 import com.teachloop.vocab.word.WordNormalizer;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.LongAdder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -91,5 +94,37 @@ public class ContentService implements ContentStore {
     public ContentStats stats() {
         ContentStats deltaStats = delta.stats();
         return new ContentStats(hits.sum(), misses.sum(), deltaStats.puts(), deltaStats.failures());
+    }
+
+    /**
+     * 批量存在性探测（T572）：按 reader 顺序逐层问，命中的从待查集合里去掉，
+     * 后面的层不必再查——与 {@link #get} 的优先级完全一致，只是不取正文、不计指标。
+     */
+    @Override
+    public Set<String> existingForms(String language, Collection<String> normalizedForms) {
+        String lang = language == null || language.isBlank() ? "en" : language;
+        Set<String> pending = new LinkedHashSet<>();
+        for (String form : normalizedForms) {
+            String normalized = WordNormalizer.normalized(form);
+            if (!normalized.isEmpty()) {
+                pending.add(normalized);
+            }
+        }
+        Set<String> found = new LinkedHashSet<>();
+        for (ContentReader reader : readers) {
+            if (pending.isEmpty()) {
+                break;
+            }
+            Set<String> layerHits = reader.existingForms(lang, pending);
+            found.addAll(layerHits);
+            pending.removeAll(layerHits);
+        }
+        return found;
+    }
+
+    /** 任一层可用即算可用：只有「包与 delta 都不可用」时覆盖率才回 null。 */
+    @Override
+    public boolean available() {
+        return readers.stream().anyMatch(ContentReader::available);
     }
 }

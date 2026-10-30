@@ -1,0 +1,466 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>系统词书原型 · TeachLoop</title>
+<style>
+  /* 令牌与 docs/mock/vocab-2026-10-23 同一份值（主色 #1A63E0，圆角 12/8/6，正文 14px） */
+  :root {
+    --bg:#f6f8fc; --panel:#fff; --panel-2:#eff4fb;
+    --line:#dce4f2; --line-2:#ebf0f8; --line-strong:#7c8ba3;
+    --text:#0e2340; --muted:#41536e; --muted-2:#55677f;
+    --accent:#1a63e0; --accent-2:#1450bc; --accent-weak:#e8effd; --on-accent:#fff;
+    --green:#17703f; --green-weak:#e6f5ec;
+    --amber:#8a5a00; --amber-weak:#fff3d6;
+    --red:#b42338; --red-weak:#fde6e8;
+    --shadow:0 1px 2px rgba(14,54,118,.05),0 1px 3px rgba(14,54,118,.07);
+    --radius:12px; --radius-sm:8px; --radius-xs:6px;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:var(--font); font-size:14px; line-height:1.65;
+         background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  button, input { font:inherit; color:inherit; }
+  button { cursor:pointer; }
+  [hidden] { display:none !important; }
+
+  .layout { display:grid; grid-template-columns:236px minmax(0,1fr); min-height:100vh; }
+  .layout.full { grid-template-columns:1fr; }
+  .layout.full .side { display:none; }
+
+  .side { background:var(--panel); border-right:1px solid var(--line); padding:16px 12px;
+          height:100vh; position:sticky; top:0; display:flex; flex-direction:column; }
+  .brand { display:flex; align-items:center; gap:9px; padding:4px 8px 18px; font-size:16px; font-weight:600; }
+  .brand .mark { width:26px; height:26px; border-radius:var(--radius-sm); background:#0e3676; color:#fff;
+                 display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .nav-label { font-size:12px; color:var(--muted-2); padding:10px 10px 6px; }
+  .nav-item { display:flex; gap:8px; padding:8px 10px; border-radius:var(--radius-sm); color:var(--muted);
+              border:0; background:transparent; width:100%; text-align:left; margin-bottom:2px; }
+  .nav-item:hover { background:var(--panel-2); }
+  .nav-item.on { background:var(--accent-weak); color:var(--accent); font-weight:500; }
+  .side-foot { margin-top:auto; font-size:12px; color:var(--muted-2); padding:10px; }
+
+  .top { position:sticky; top:0; z-index:5; background:rgba(246,248,252,.94); backdrop-filter:blur(6px);
+         border-bottom:1px solid var(--line); padding:8px 24px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .top .grp { display:flex; gap:6px; align-items:center; }
+  .top .tag { font-size:12px; color:var(--muted-2); }
+  .top button { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-xs);
+                padding:3px 9px; font-size:12px; color:var(--muted); }
+  .top button.on { border-color:var(--accent); color:var(--accent); background:var(--accent-weak); font-weight:500; }
+  #menu { display:none; border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-xs);
+          padding:3px 9px; font-size:12px; color:var(--muted); }
+
+  .main { padding:24px 32px 96px; max-width:1240px; }
+  .page-head { display:flex; align-items:flex-end; gap:12px; margin-bottom:18px; }
+  .page-head h1 { margin:0; font-size:24px; font-weight:600; letter-spacing:-.2px; }
+  .page-head .sub { color:var(--muted-2); font-size:13px; }
+  .page-head .act { margin-left:auto; display:flex; gap:8px; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .card + .card { margin-top:16px; }
+  .card-head { display:flex; align-items:baseline; gap:10px; padding:16px 20px 0; }
+  .card-head h2 { margin:0; font-size:15px; font-weight:600; }
+  .card-head .more { margin-left:auto; font-size:12.5px; color:var(--accent); background:none; border:0; }
+  .card-body { padding:14px 20px 18px; }
+
+  .btn { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-sm);
+         padding:7px 16px; font-size:14px; line-height:1.5; }
+  .btn:hover { border-color:var(--line-strong); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:500; }
+  .btn.ghost { border:0; background:none; color:var(--accent); padding:4px 6px; }
+  .btn.sm { padding:3px 10px; font-size:13px; }
+
+  .tag { display:inline-block; font-size:12px; padding:1px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .tag.blue { color:var(--accent); background:var(--accent-weak); border-color:#cddefb; }
+  .tag.green { color:var(--green); background:var(--green-weak); border-color:#bfe3cd; }
+  .tag.amber { color:var(--amber); background:var(--amber-weak); border-color:#eed9a6; }
+  .tag.red { color:var(--red); background:var(--red-weak); border-color:#f0cfd4; }
+  .muted { color:var(--muted-2); }
+  .small { font-size:12.5px; }
+
+  /* 推荐区 */
+  .reco { display:grid; grid-template-columns:1fr 1fr; gap:12px; padding:14px 20px 18px; }
+  @media (max-width:1100px) { .reco { grid-template-columns:1fr; } }
+  .reco-card { border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px 16px; background:var(--panel); }
+  .reco-card .name { font-weight:600; font-size:14px; }
+  .reco-card .meta { font-size:12.5px; color:var(--muted-2); margin-top:2px; }
+  .reco-card .foot { display:flex; align-items:center; gap:10px; margin-top:12px; }
+
+  .bar { height:6px; border-radius:999px; background:var(--panel-2); overflow:hidden; margin-top:8px; }
+  .bar > i { display:block; height:100%; background:var(--accent); }
+
+  /* 词单卡 */
+  .grid3 { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:12px; padding:14px 20px 18px; }
+  .listcard { border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px 16px; }
+  .listcard .n { font-weight:600; display:flex; gap:8px; align-items:center; }
+  .listcard .d { font-size:12.5px; color:var(--muted-2); margin-top:4px; }
+  .listcard .cfoot { display:flex; gap:8px; margin-top:12px; }
+
+  /* 书详情 */
+  .book-head { display:flex; gap:20px; align-items:flex-start; }
+  .book-title { font-size:20px; font-weight:600; }
+  .stats { display:flex; gap:24px; margin-top:12px; }
+  .stats .k { font-size:12px; color:var(--muted-2); }
+  .stats .v { font-size:18px; font-weight:600; font-variant-numeric:tabular-nums; }
+  .sticky-bar { position:sticky; bottom:0; background:rgba(246,248,252,.96); border-top:1px solid var(--line);
+                padding:12px 0; display:flex; gap:12px; align-items:center; margin-top:16px; }
+  .sticky-bar .note { font-size:12.5px; color:var(--muted-2); margin-right:auto; }
+
+  table.t { width:100%; border-collapse:collapse; }
+  table.t th { text-align:left; font-size:12px; font-weight:500; color:var(--muted-2);
+               padding:8px 10px; border-bottom:1px solid var(--line); background:var(--panel-2); }
+  table.t td { padding:9px 10px; border-bottom:1px solid var(--line-2); font-size:13.5px; }
+  table.t tr:last-child td { border-bottom:0; }
+  .pager { display:flex; align-items:center; gap:8px; padding:12px 20px; }
+  .pager .sp { flex:1; }
+  .pager.sticky { position:sticky; bottom:0; background:var(--panel); border-top:1px solid var(--line-2); }
+
+  /* 会话 */
+  .session-wrap { padding:20px 32px 40px; }
+  .session-top { display:flex; gap:12px; align-items:center; max-width:1240px; margin:0 auto 20px; }
+  .session-body { max-width:720px; margin:0 auto; }
+  .session-card { padding:36px 32px; text-align:center; background:var(--panel); border:1px solid var(--line);
+                  border-radius:var(--radius); box-shadow:var(--shadow); cursor:pointer; }
+  .session-word { font-size:40px; font-weight:600; letter-spacing:-.6px; }
+  .session-answer { margin-top:22px; padding-top:18px; border-top:1px solid var(--line-2); text-align:left;
+                    max-width:520px; margin-left:auto; margin-right:auto; }
+  .session-hint { margin-top:22px; font-size:12.5px; color:var(--muted-2); }
+  .session-actions { display:flex; gap:12px; justify-content:center; margin-top:20px; }
+  .session-btn { min-width:160px; padding:11px 20px; }
+
+  /* 管理端 */
+  .admin-grid { display:grid; grid-template-columns:minmax(0,1.4fr) minmax(0,1fr); gap:16px; align-items:start; }
+  @media (max-width:1100px) { .admin-grid { grid-template-columns:1fr; } }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:12.5px; color:var(--muted-2); margin-bottom:4px; }
+  .field input, .field textarea { width:100%; border:1px solid var(--line); border-radius:var(--radius-xs);
+                                  padding:7px 10px; font-size:13.5px; background:var(--panel); }
+  .field textarea { min-height:96px; resize:vertical; font-family:ui-monospace,Menlo,monospace; font-size:12.5px; }
+  .switch-row { display:flex; align-items:center; justify-content:space-between; gap:12px;
+                padding:10px 0; border-top:1px solid var(--line-2); }
+  /* 编辑面板的操作条：窄屏下表单一长，保存按钮要始终可见（平板验收要求主操作在首屏） */
+  .savebar { position:sticky; bottom:0; display:flex; gap:8px; margin-top:12px;
+             padding:10px 0 2px; background:var(--panel); border-top:1px solid var(--line-2); }
+
+  .note { border-left:3px solid var(--accent); background:var(--accent-weak); color:#123c86;
+          padding:9px 12px; border-radius:var(--radius-xs); font-size:12.5px; margin-bottom:16px; }
+  .foot { max-width:1240px; padding:0 32px 40px; color:var(--muted-2); font-size:12px; }
+  .empty { padding:18px 0; color:var(--muted-2); font-size:13px; }
+
+  @media (max-width:1100px) { .main { padding:20px 20px 80px; } }
+  @media (max-width:1023px) {
+    .layout { grid-template-columns:1fr; }
+    .side { position:fixed; left:0; top:0; width:236px; z-index:20; transform:translateX(-100%);
+            transition:transform .16s ease; box-shadow:var(--shadow); }
+    .side.open { transform:none; }
+    #menu { display:inline-block; }
+  }
+</style>
+</head>
+<body>
+<div class="layout" id="layout">
+  <aside class="side" id="side"></aside>
+  <div>
+    <div class="top">
+      <button id="menu" onclick="document.getElementById('side').classList.toggle('open')">菜单</button>
+      <div class="grp"><span class="tag">角色</span>
+        <button id="r-student" class="on" onclick="setRole('student')">学生</button>
+        <button id="r-admin" onclick="setRole('admin')">管理员</button>
+      </div>
+      <div class="grp"><span class="tag">屏</span>
+        <button id="v-lists" class="on" onclick="go('lists')">我的词单</button>
+        <button id="v-book" onclick="go('book')">书详情</button>
+        <button id="v-session" onclick="go('session')">副本复习</button>
+        <button id="v-admin" onclick="setRole('admin');go('admin')">管理端</button>
+        <button id="v-import" onclick="go('import')">导入词条</button>
+      </div>
+      <div class="grp"><span class="tag">数据</span>
+        <button id="d-full" class="on" onclick="setData('full')">有数据</button>
+        <button id="d-empty" onclick="setData('empty')">空态（新用户）</button>
+      </div>
+    </div>
+    <div class="main" id="main"></div>
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script>
+const S = { role:'student', view:'lists', data:'full', flipped:false };
+
+const BOOKS = [
+  { id:'toefl', name:'托福核心', sub:'TOEFL Core · 800 词', total:800, ready:498, joins:1264 },
+  { id:'biz',   name:'商务英语', sub:'Business English · 500 词', total:500, ready:440, joins:812 },
+  { id:'cs',    name:'计算机英语', sub:'Computer Science · 600 词', total:600, ready:312, joins:507 }
+];
+const LIST = [
+  { name:'Unit 5 生词', meta:'24 个词 · 上次复习 昨天' },
+  { name:'期中高频词', meta:'86 个词 · 上次复习 10-28' },
+  { name:'托福核心', meta:'800 个词 · 词书副本 · 上次复习 今天', copy:true }
+];
+const PREVIEW = [
+  { w:'ubiquitous', ipa:'/juːˈbɪkwɪtəs/', d:'adj. 无所不在的', ready:true },
+  { w:'paradigm', ipa:'/ˈpærədaɪm/', d:'n. 范式；典范', ready:true },
+  { w:'alleviate', ipa:'/əˈliːvieɪt/', d:'v. 减轻；缓解', ready:true },
+  { w:'discrepancy', ipa:'/dɪsˈkrepənsi/', d:'', ready:false },
+  { w:'inevitable', ipa:'/ɪnˈevɪtəbl/', d:'adj. 不可避免的', ready:true }
+];
+
+function setRole(r){ S.role = r; if (r === 'admin' && S.view !== 'admin') S.view = 'admin'; if (r === 'student' && S.view === 'admin') S.view = 'lists'; paint(); }
+function go(v){ S.view = v; if (v === 'session') S.flipped = false; if (v === 'import') S.role = 'admin'; paint(); }
+function setData(d){ S.data = d; paint(); }
+function flip(){ S.flipped = !S.flipped; paint(); }
+function pct(b){ return Math.round(b.ready / b.total * 100); }
+
+function sidebar(){
+  if (S.role === 'admin') {
+    document.getElementById('side').innerHTML = `
+      <div class="brand"><span class="mark">T</span>TeachLoop</div>
+      <div class="nav-label">管理</div>
+      <button class="nav-item on">词书管理</button>
+      <button class="nav-item">系统设置</button>
+      <div class="side-foot">管理员</div>`;
+    return;
+  }
+  const on = S.view === 'lists' ? 'on' : '';
+  document.getElementById('side').innerHTML = `
+    <div class="brand"><span class="mark">T</span>TeachLoop</div>
+    <div class="nav-label">学习</div>
+    <button class="nav-item">今日</button>
+    <button class="nav-item ${on}">背单词</button>
+    <button class="nav-item">作业</button>
+    <button class="nav-item">班级</button>
+    <div class="side-foot">初二（3）班 · 王老师</div>`;
+}
+
+/* ── 我的词单（含推荐词书） ── */
+function listsPage(){
+  const empty = S.data === 'empty';
+  const head = `<div class="page-head">
+    <h1>我的词单</h1><span class="sub">把想背的词攒成一份，或从词书开始</span>
+    <div class="act"><button class="btn">导入</button><button class="btn primary">新建词单</button></div>
+  </div>`;
+
+  const reco = `<div class="card"><div class="card-head"><h2>推荐词书</h2>
+      <span class="small muted">按热门排序 · 以后按你的水平推荐</span>
+      <button class="more">查看全部</button></div>
+    <div class="reco">
+      ${BOOKS.slice(0,2).map(b=>`<div class="reco-card">
+        <div class="name">${b.name}</div>
+        <div class="meta">${b.sub} · ${b.joins} 人加入</div>
+        <div class="bar"><i style="width:${pct(b)}%"></i></div>
+        <div class="meta" style="margin-top:6px">内容就绪 ${b.ready}/${b.total}（${pct(b)}%）</div>
+        <div class="foot"><button class="btn primary sm" onclick="go('book')">加入并开始背</button>
+          <button class="btn ghost sm" onclick="go('book')">看看里面有什么</button></div>
+      </div>`).join('')}
+    </div></div>`;
+
+  const mine = `<div class="card"><div class="card-head"><h2>我的词单</h2>
+      <span class="small muted">${empty ? '' : '3 份'}</span></div>
+    ${empty ? `<div class="card-body"><div class="empty">还没有词单。先挑一本上面的词书开始，或者自己新建一份。</div></div>`
+    : `<div class="grid3">
+      ${LIST.map(x=>`<div class="listcard">
+        <div class="n">${x.name}${x.copy ? '<span class="tag blue">词书副本</span>' : ''}</div>
+        <div class="d">${x.meta}</div>
+        <div class="cfoot">${x.copy
+          ? '<button class="btn primary sm" onclick="go(\'session\')">继续背</button>'
+          : '<button class="btn sm">开始复习</button>'}<button class="btn ghost sm">编辑</button></div>
+      </div>`).join('')}
+    </div>`}</div>`;
+
+  return head + mine + reco;
+}
+
+/* ── 书详情 ── */
+function bookPage(){
+  const b = BOOKS[0];
+  const rows = PREVIEW.map(p=>`<tr>
+      <td><b>${p.w}</b></td><td class="muted">${p.ipa}</td>
+      <td>${p.ready ? p.d : '<span class="tag amber">生成中</span>'}</td>
+      <td><span class="tag ${p.ready?'green':'amber'}">${p.ready?'就绪':'待生成'}</span></td></tr>`).join('');
+  return `<div class="page-head">
+      <button class="btn ghost" onclick="go('lists')">← 我的词单</button>
+      <div><div class="book-title">${b.name}</div>
+        <div class="small muted">${b.sub} · 管理员维护 · 只读</div></div>
+    </div>
+    <div class="card"><div class="card-body book-head">
+      <div style="flex:1">
+        <div class="small muted">托福 / TOEFL 高频词，按词频分册。释义、音标、例句由内容库提供，缺的按需生成。</div>
+        <div class="stats">
+          <div><div class="k">词数</div><div class="v">${b.total}</div></div>
+          <div><div class="k">内容就绪</div><div class="v">${pct(b)}%</div></div>
+          <div><div class="k">已加入</div><div class="v">0 / ${b.total}</div></div>
+          <div><div class="k">加入人数</div><div class="v">${b.joins}</div></div>
+        </div>
+      </div>
+    </div></div>
+
+    <div class="card"><div class="card-head"><h2>预览</h2><span class="small muted">每页 50 词</span></div>
+      <table class="t"><thead><tr><th>词形</th><th>音标</th><th>释义</th><th>内容</th></tr></thead>
+      <tbody>${rows}</tbody></table>
+      <div class="pager"><span class="small muted">第 1 / 16 页 · 共 800 词</span><span class="sp"></span>
+        <button class="btn sm" disabled>上一页</button><button class="btn sm">下一页</button></div>
+    </div>
+
+    <div class="sticky-bar">
+      <span class="note">加入后会在「我的词单」生成一份副本，并立刻可以开始背；已背过的词进度不变。</span>
+      <button class="btn primary" onclick="go('session')">加入并开始背</button>
+    </div>`;
+}
+
+/* ── 副本复习 ── */
+function sessionPage(){
+  return `<div class="session-wrap">
+    <div class="session-top">
+      <span class="small muted">托福核心 · 第 9 张 / 共 800 张</span>
+      <span style="flex:1"></span>
+      <span class="small muted">本会话已背 8</span>
+      <button class="btn sm" onclick="go('lists')">结束复习</button>
+    </div>
+    <div class="session-body">
+      <div class="session-card" onclick="flip()">
+        <div class="session-word">ubiquitous</div>
+        <div class="small muted">/juːˈbɪkwɪtəs/</div>
+        ${S.flipped ? `<div class="session-answer">
+          <div><b>adj.</b> 无所不在的；普遍存在的</div>
+          <div class="small muted" style="margin-top:6px">Smartphones have become ubiquitous in daily life.</div>
+        </div>` : '<div class="session-hint">点击卡片或按空格看答案</div>'}
+      </div>
+      <div class="session-actions">
+        <button class="btn session-btn">不认识</button>
+        <button class="btn primary session-btn">认识</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+/* ── 导入词条（复用 /vocab/add?tab=paste 的粘贴 + 预览） ── */
+function importPage(){
+  return `<div class="page-head">
+      <button class="btn ghost" onclick="go('admin')">← 返回词书</button>
+      <div><h1 style="margin:0;font-size:20px">导入词条 · 托福核心</h1>
+        <div class="small muted">与「加词」共用同一套解析、清洗与预览，只是提交目标换成这本书</div></div>
+    </div>
+    <div class="card"><div class="card-head"><h2>粘贴词表</h2>
+      <span class="small muted">每行一个；也支持逗号 / 空格分隔、CSV、Markdown</span></div>
+      <div class="card-body">
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <button class="btn sm primary">粘贴</button><button class="btn sm">上传文件</button></div>
+        <textarea class="field" style="width:100%;min-height:150px;border:1px solid var(--line);border-radius:8px;padding:10px;font-family:ui-monospace,Menlo,monospace;font-size:12.5px">1. ubiquitous
+2. paradigm,
+3. alleviate　
+4, discrepancy
+5. inevitable
+6. 12345</textarea>
+        <div style="display:flex;gap:8px;margin-top:12px;align-items:center">
+          <button class="btn primary">解析预览</button>
+          <span class="small muted">共 6 行，解析后 5 个词形，1 行被跳过</span></div>
+      </div>
+    </div>
+
+    <div class="card"><div class="card-head"><h2>预览</h2><span class="small muted">确认后才会写入</span></div>
+      <table class="t"><thead><tr><th>词形</th><th>状态</th><th>说明</th></tr></thead><tbody>
+        <tr><td><b>ubiquitous</b></td><td><span class="tag green">新建</span></td><td class="muted">已去掉行首序号「1.」</td></tr>
+        <tr><td><b>paradigm</b></td><td><span class="tag green">新建</span></td><td class="muted">已去掉行尾逗号</td></tr>
+        <tr><td><b>alleviate</b></td><td><span class="tag green">新建</span></td><td class="muted">已去掉行尾全角空格</td></tr>
+        <tr><td><b>discrepancy</b></td><td><span class="tag amber">已在书中</span></td><td class="muted">全角逗号改半角后命中已有词条</td></tr>
+        <tr><td><b>inevitable</b></td><td><span class="tag green">新建</span></td><td class="muted">—</td></tr>
+        <tr><td class="muted">12345</td><td><span class="tag red">跳过</span></td><td class="muted">不是单词</td></tr>
+      </tbody></table>
+      <div class="pager sticky"><span class="small muted">将新增 4 · 已存在 1 · 跳过 1</span><span class="sp"></span>
+        <button class="btn" onclick="go('admin')">取消</button>
+        <button class="btn primary" onclick="go('admin')">确认导入</button></div>
+    </div>`;
+}
+
+/* ── 管理端 ── */
+function adminPage(){
+  const rows = BOOKS.map(b=>`<tr>
+      <td><b>${b.name}</b><div class="small muted">${b.sub}</div></td>
+      <td class="mono">${b.total}</td>
+      <td>${pct(b)}%</td>
+      <td class="mono">${b.joins}</td>
+      <td><span class="tag ${b.id==='cs'?'amber':'green'}">${b.id==='cs'?'草稿':'已发布'}</span></td>
+      <td><button class="btn ghost sm">编辑</button></td></tr>`).join('');
+  return `<div class="page-head"><h1>词书管理</h1>
+      <span class="sub">只有管理员能改；学生只读</span>
+      <div class="act"><button class="btn primary">新建词书</button></div></div>
+    ${S.data === 'empty' ? `<div class="card"><div class="card-body"><div class="empty">还没有词书。先新建一本，再批量导入词条。</div></div></div>` :
+    `<div class="admin-grid">
+      <div class="card"><div class="card-head"><h2>全部词书</h2></div>
+        <table class="t"><thead><tr><th>书名</th><th>词数</th><th>覆盖率</th><th>加入人数</th><th>状态</th><th></th></tr></thead>
+        <tbody>${rows}</tbody></table>
+      </div>
+
+      <div class="card"><div class="card-head"><h2>编辑：托福核心</h2></div><div class="card-body">
+        <div class="field"><label>名称</label><input value="托福核心"></div>
+        <div class="field"><label>语言 / 等级</label><input value="en · TOEFL"></div>
+        <div class="field"><label>简介</label><input value="托福 / TOEFL 高频词，按词频分册"></div>
+        <div class="field"><label>词条</label>
+          <div class="small muted" style="margin-bottom:8px">共 800 条 · 与「加词」共用同一套粘贴/上传与预览（含格式清洗与拼写检查）</div>
+          <button class="btn" onclick="go('import')">导入词条</button>
+          <button class="btn ghost" style="margin-left:6px" onclick="go('import')">上传文件</button>
+        </div>
+        <div class="switch-row"><span>已发布</span><button class="btn sm">已发布</button></div>
+        <div class="switch-row"><span class="small muted">覆盖率 62%（498 / 800）</span>
+          <button class="btn sm">重新计算</button></div>
+        <div class="savebar">
+          <button class="btn primary">保存</button><button class="btn">下架</button></div>
+      </div></div>
+    </div>`}`;
+}
+
+function paint(){
+  sidebar();
+  const isSession = S.view === 'session';
+  const body = isSession ? sessionPage()
+    : S.view === 'lists' ? listsPage()
+    : S.view === 'book' ? bookPage()
+    : S.view === 'import' ? importPage()
+    : adminPage();
+  const note = S.view === 'lists'
+    ? '<div class="note">入口在词单页，不在词库：词库只做「我有哪些词」的总览。推荐区走推荐端口，v1 按热门排序。</div>'
+    : S.view === 'admin'
+    ? '<div class="note">管理端只有 ADMIN 能进；学生端响应里不含价格字段（v1 免费，字段为 v2 预留）。</div>'
+    : '';
+  document.getElementById('main').innerHTML = note + body;
+  document.getElementById('foot').textContent =
+    '示例数据，不是真实账号。规格：specs/013-word-books/spec.md';
+  document.getElementById('layout').classList.toggle('full', isSession);
+
+  const map = {
+    'r-student': S.role==='student', 'r-admin': S.role==='admin',
+    'v-lists': S.view==='lists', 'v-book': S.view==='book',
+    'v-session': S.view==='session', 'v-admin': S.view==='admin', 'v-import': S.view==='import',
+    'd-full': S.data==='full', 'd-empty': S.data==='empty'
+  };
+  for (const id in map) document.getElementById(id).classList.toggle('on', map[id]);
+}
+
+/** 深链：#lists / #book / #session / #admin?data=empty */
+function applyHash(){
+  const raw = (location.hash || '').replace(/^#/, '');
+  const [view, qs] = raw.split('?');
+  if (['lists','book','session','admin','import'].includes(view)) S.view = view;
+  if (view === 'admin' || view === 'import') S.role = 'admin';
+  const p = new URLSearchParams(qs || '');
+  if (p.get('data') === 'empty') S.data = 'empty';
+  if (p.get('flip') === '1') S.flipped = true;
+}
+window.addEventListener('hashchange', () => { applyHash(); paint(); });
+applyHash();
+paint();
+
+// 平板自检（?measure=1）：同步写 body[data-measure]，用 chrome --dump-dom 读取
+if (location.search.indexOf('measure') >= 0) {
+  const sw = document.documentElement.scrollWidth, iw = window.innerWidth;
+  const below = [...document.querySelectorAll('button,a,[role=button]')]
+    .filter((e) => e.offsetParent)
+    .map((e) => e.getBoundingClientRect())
+    .filter((r) => r.bottom > window.innerHeight).length;
+  document.body.setAttribute('data-measure',
+    JSON.stringify({ sw, iw, noHScroll: sw <= iw + 2, actionsBelowFold: below }));
+}
+</script>
+</body>
+</html>

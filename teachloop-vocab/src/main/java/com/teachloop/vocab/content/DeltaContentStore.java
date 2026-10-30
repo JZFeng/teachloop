@@ -8,8 +8,12 @@ import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.concurrent.atomic.LongAdder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -43,6 +47,9 @@ public class DeltaContentStore implements ContentReader {
 
     /** 包内 id 1..N；delta 从 10 亿起，给包留足空间。 */
     public static final long DELTA_ID_START = 1_000_000_000L;
+
+    /** 批量存在性查询的 in (...) 分片大小（与 VocabWordRepository.IN_CHUNK 同口径）。 */
+    private static final int IN_CHUNK = 500;
 
     private final String promptVersion;
     private final LongAdder hits = new LongAdder();
@@ -139,6 +146,45 @@ public class DeltaContentStore implements ContentReader {
                 return Optional.empty();
             }
         }
+    }
+
+    /**
+     * 批量存在性探测（T572）：一次 {@code in (...)} 查询取代逐词一条 SQL。
+     *
+     * <p>覆盖率要对一本书几百个词形各问一次，逐条走 {@link #get} 就是几百次 SQLite 往返；
+     * 这里按 500 一批查 {@code normalized_form}，只认当前 promptVersion（与 {@link #get} 同一口径）。
+     */
+    @Override
+    public Set<String> existingForms(String language, Collection<String> normalizedForms) {
+        Set<String> found = new LinkedHashSet<>();
+        if (!available || normalizedForms == null || normalizedForms.isEmpty()) {
+            return found;
+        }
+        List<String> forms = new ArrayList<>(normalizedForms);
+        synchronized (lock) {
+            for (int start = 0; start < forms.size(); start += IN_CHUNK) {
+                List<String> chunk = forms.subList(start, Math.min(start + IN_CHUNK, forms.size()));
+                String placeholders = String.join(",",
+                        java.util.Collections.nCopies(chunk.size(), "?"));
+                List<Object> arguments = new ArrayList<>(chunk.size() + 2);
+                arguments.add(language);
+                arguments.add(promptVersion);
+                arguments.addAll(chunk);
+                try {
+                    jdbc.query("select distinct normalized_form from word_content_delta"
+                                    + " where language = ? and prompt_version = ?"
+                                    + " and normalized_form in (" + placeholders + ")",
+                            rs -> {
+                                found.add(rs.getString(1));
+                            }, arguments.toArray());
+                } catch (RuntimeException ex) {
+                    failures.increment();
+                    log.warn("内容 delta 批量存在性查询失败（按 miss 处理）language={} count={}：{}",
+                            language, chunk.size(), ex.toString());
+                }
+            }
+        }
+        return found;
     }
 
     @Override
