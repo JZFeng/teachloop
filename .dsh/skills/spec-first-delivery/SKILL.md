@@ -49,8 +49,8 @@ Plan 不会承接、Tasks 不会拆、验收时也没人问。2026-10-28 两个�
 - `document.documentElement.scrollWidth <= innerWidth + 2`（数得出来）；
 - 主按钮 `getBoundingClientRect().bottom <= innerHeight`（量得出来）。
 
-机器强制在 `scripts/ui/tablet-matrix.mjs`（计划中）；在它接进 `make` 之前，手工跑
-`docs/process/ui-review-checklist.md` 的 D3 矩阵，并把结果写进验收记录。
+机器强制见 `docs/process/e2e-playwright.md` 的 `tablet.spec.ts`（Playwright 三 project，2026-10-30 设计定稿、代码未开始）；
+在它落地前，手工跑 `docs/process/ui-review-checklist.md` 的 D3 矩阵，并把结果写进验收记录。
 
 ### Spec ⇄ Mock 是一个循环，不是两段直线
 

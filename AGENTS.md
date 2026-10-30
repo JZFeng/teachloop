@@ -148,6 +148,7 @@
    为什么单列一档：2026-10-28 登录页在 iPad Pro 12.9 竖屏整块卡片悬在屏幕中间（表单标题落在 33% 处），
    而 ≤900 时侧栏被 `display:none` 后**没有任何导航**——两处都不是审美问题，都是能量出来的。
    完整视口矩阵与实测存量见 `docs/process/ui-review-checklist.md` 的 D3。
+   机器强制的落点见 `docs/process/e2e-playwright.md`（Playwright 三个 project，设计定稿、代码未开始）。
 
 **为什么是五行而不是一句形容词**：003 写过「教育行业稳重」，没拦住紫色渐变加彩色投影
 （`docs/research/2026-10-21-design-system.md` 的「项目起点」）；拦住它的是 AC-27.4 的 grep 断言。
