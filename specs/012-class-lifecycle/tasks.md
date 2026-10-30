@@ -59,17 +59,17 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d                   # 期�
 
 | ID | 状态 | 证据 |
 |---|---|---|
-| T581 | ✅ 已完成（S0，2e9ce2b） | `V081__classroom_class_member_status.sql` 已在 main；`make check-boundaries` 通过 |
-| T582 | ✅ | `ClassEndpoint.leave/removeMember` 只写 `LEFT` + `left_at`；审计 `class:leave` / `class:remove-member`；`grep -r "DELETE FROM class_members" teachloop-*` 为空；`ClassLifecycleTest.leaveKeepsRowAndRejoinReusesIt` / `teacherRemoveOnlyOwnerAndListFilters` |
-| T583 | ✅ | 重入复用同一行（`ClassMember.rejoin`），`joined_at` 不变、写 `rejoined_at`；`ClassLifecycleTest` 断言行数仍 1 |
-| T584 | ✅ | `POST /api/classes/{id}/archive|restore` 幂等、仅属主；join 对已结课班 404 且不含归档字样；结课/恢复前后提交与 `vocab_progress` 指纹一致（`archiveAndRestoreLifecycle`） |
-| T585 | ✅ | `Ports.ClassLifecycle` 由 `ClassLifecycleImpl` 实现；提交（submit/submitFile/submitVideo）与新建作业接入；**多班规则**见 `multiClassArchiveKeepsSubmittable`（只结一个班仍可提交；全部结课 409 `CLASS_ARCHIVED`；恢复后可再交） |
-| T586 | ⏳ 待联调 | 011 的 `GET /api/student/today` 在 011 分支（`teachloop-app/.../app/student/StudentTodayEndpoint.java` + sitting `AgendaAdapter`）里在飞且未合并；本分支不造临时端点。联调动作：在 `StudentTodayEndpoint` 组装 `assignments` 时按 `Ports.ClassLifecycle.state(classId).archived` 过滤。**AC-98.4 未勾选** |
-| T587 | ✅ | 成员列表默认 ACTIVE、`?includeLeft=1` 含已离开；`memberCount` 与列表长度同口径（`teacherRemoveOnlyOwnerAndListFilters`） |
-| T588 | ✅（端口级） | `ClassMembershipImpl.membersOf/classIdsOf` 只取 ACTIVE，发词收件人循环取自 `membersOf`；另加「已结课班不能作为发词目标」的 409（FR-224）。旧发词快照表不动（既有快照设计） |
-| T589 | ✅ | 学生两屏 + 老师两屏 + 三套二次确认；已结课班只读、无提交入口；平板 834×1194 与 1024×1366 实测 `scrollWidth == innerWidth`、首屏外按钮 0（学生/老师各一轮） |
-| T590 | ✅ | `ClassLifecycleTest` 5 例全绿；web `pnpm test` 191/191、`check-ui` 退 0；`check-deps`/`check-boundaries` 退 0；`check-i18n` 的 1 处红在纯净 main 复现（`web/src/api/auth.tsx:108`，非本次）；报告 `docs/reports/012-class-lifecycle.md` |
-| T591 | ✅ | `ops/rollback/012-class-lifecycle.sh`（`--dry-run/--apply/--verify`）；qa 真库演练 `--apply` 复位 1 行 0.129s、幂等第二次 0 行、行数 37→37 不变；详见 `docs/reports/012-rollback-drill.md` |
+| **T581** | ✅ 已完成（S0，2e9ce2b） | `V081__classroom_class_member_status.sql` 已在 main；`make check-boundaries` 通过 |
+| **T582** | ✅ | `ClassEndpoint.leave/removeMember` 只写 `LEFT` + `left_at`；审计 `class:leave` / `class:remove-member`；`grep -r "DELETE FROM class_members" teachloop-*` 为空；`ClassLifecycleTest.leaveKeepsRowAndRejoinReusesIt` / `teacherRemoveOnlyOwnerAndListFilters` |
+| **T583** | ✅ | 重入复用同一行（`ClassMember.rejoin`），`joined_at` 不变、写 `rejoined_at`；`ClassLifecycleTest` 断言行数仍 1 |
+| **T584** | ✅ | `POST /api/classes/{id}/archive|restore` 幂等、仅属主；join 对已结课班 404 且不含归档字样；结课/恢复前后提交与 `vocab_progress` 指纹一致（`archiveAndRestoreLifecycle`） |
+| **T585** | ✅ | `Ports.ClassLifecycle` 由 `ClassLifecycleImpl` 实现；提交（submit/submitFile/submitVideo）与新建作业接入；**多班规则**见 `multiClassArchiveKeepsSubmittable`（只结一个班仍可提交；全部结课 409 `CLASS_ARCHIVED`；恢复后可再交） |
+| **T586** | ⏳ 待联调 | 011 的 `GET /api/student/today` 在 011 分支（`teachloop-app/.../app/student/StudentTodayEndpoint.java` + sitting `AgendaAdapter`）里在飞且未合并；本分支不造临时端点。联调动作：在 `StudentTodayEndpoint` 组装 `assignments` 时按 `Ports.ClassLifecycle.state(classId).archived` 过滤。**AC-98.4 未勾选** |
+| **T587** | ✅ | 成员列表默认 ACTIVE、`?includeLeft=1` 含已离开；`memberCount` 与列表长度同口径（`teacherRemoveOnlyOwnerAndListFilters`） |
+| **T588** | ✅（端口级） | `ClassMembershipImpl.membersOf/classIdsOf` 只取 ACTIVE，发词收件人循环取自 `membersOf`；另加「已结课班不能作为发词目标」的 409（FR-224）。旧发词快照表不动（既有快照设计） |
+| **T589** | ✅ | 学生两屏 + 老师两屏 + 三套二次确认；已结课班只读、无提交入口；平板 834×1194 与 1024×1366 实测 `scrollWidth == innerWidth`、首屏外按钮 0（学生/老师各一轮） |
+| **T590** | ✅ | `ClassLifecycleTest` 5 例全绿；web `pnpm test` 191/191、`check-ui` 退 0；`check-deps`/`check-boundaries` 退 0；`check-i18n` 的 1 处红在纯净 main 复现（`web/src/api/auth.tsx:108`，非本次）；报告 `docs/reports/012-class-lifecycle.md` |
+| **T591** | ✅ | `ops/rollback/012-class-lifecycle.sh`（`--dry-run/--apply/--verify`）；qa 真库演练 `--apply` 复位 1 行 0.129s、幂等第二次 0 行、行数 37→37 不变；详见 `docs/reports/012-rollback-drill.md` |
 
 ### 已知取舍与未完成项
 

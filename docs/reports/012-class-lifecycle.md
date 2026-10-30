@@ -120,7 +120,7 @@ document.documentElement.scrollWidth <= innerWidth + 2
 - 老师成员表：默认「成员数 1 → 移出后 0」；勾「含已离开」→ 1 行，状态 `已离开`、`离开于 2026/10/30 15:12`、操作列为 `—`（无移出按钮）。
 - 布置作业页：已结课班 chip 显示 `012 验收班 (0) · 已结束`、`disabled=true`，下方 hint「这个班已结课，不能再布置作业；可在班级页恢复。」
 
-截图：`/tmp/012-student-834.png`、`/tmp/012-student-archived-834.png`、`/tmp/012-student-archived-1024.png`、`/tmp/012-teacher-834.png`、`/tmp/012-teacher-1024.png`（本机临时目录，未入库）。
+截图（已入库）：`docs/reports/012-shots/` 下 5 张 —— `012-student-834.png`、`012-student-archived-834.png`、`012-student-archived-1024.png`、`012-teacher-834.png`、`012-teacher-1024.png`。
 
 ## 5. 存量红（不是本次引入）
 
