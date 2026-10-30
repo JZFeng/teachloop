@@ -17,6 +17,8 @@ interface ClassView {
   id: string
   name: string
   memberCount: number
+  /** 012 / FR-224：已结课的班不能作为发词目标，前端置灰、后端 409 CLASS_ARCHIVED 兜底。 */
+  archived?: boolean
 }
 
 export default function VocabAssignPage() {
@@ -136,15 +138,20 @@ export default function VocabAssignPage() {
         </div>
         <div className="vocab-class-panel">
           {filteredClasses.map((item) => (
-            <label key={item.id} className="vocab-class-chip">
-              <input type="checkbox" checked={selected.has(item.id)}
+            <label key={item.id} className="vocab-class-chip"
+              title={item.archived === true ? t('class.lifecycle.archivedCannotAssign') : undefined}>
+              <input type="checkbox" checked={selected.has(item.id)} disabled={item.archived === true}
                 onChange={() => {
+                  if (item.archived === true) return
                   const next = new Set(selected)
                   if (next.has(item.id)) next.delete(item.id)
                   else next.add(item.id)
                   setSelected(next)
                 }} />
               {item.name}（{item.memberCount}）
+              {item.archived === true && (
+                <span className="muted sm"> {t('class.lifecycle.tagArchived')}</span>
+              )}
             </label>
           ))}
           {filteredClasses.length === 0 && <span className="muted">{t('vocab.assign.noClasses')}</span>}

@@ -228,6 +228,65 @@
       "true": "Yes"
     }
   },
+  "class": {
+    "lifecycle": {
+      "activeSection": "In progress",
+      "archivedSection": "Finished",
+      "count": "{{n}}",
+      "metaActive": "{{n}} students · in progress",
+      "metaArchived": "{{n}} students · finished",
+      "tagArchived": "Finished",
+      "activeEmpty": "No classes in progress yet. Enter an invite code to join one.",
+      "archivedEmpty": "No classes have finished yet.",
+      "enterClass": "Open class",
+      "collapseClass": "Hide assignments",
+      "viewScores": "View scores",
+      "leaveClass": "Leave class",
+      "assignmentsTitle": "Assignments in “{{name}}”",
+      "assignmentsEmpty": "No assignments have been set for this class yet.",
+      "assignmentsError": "Could not load the assignment list: {{message}}",
+      "dueAt": "Due {{time}}",
+      "noDue": "No due date",
+      "archivedReadOnly": "This class has finished, so assignments and scores are read only.",
+      "leaveTitle": "Leave “{{name}}”?",
+      "leavePending": "You still have {{n}} assignment(s) to hand in.",
+      "leaveEffect1": "You will no longer see this class's assignments.",
+      "leaveEffect2": "Assignments you already submitted and their scores are kept.",
+      "leaveEffect3": "Your word lists and review progress are not affected.",
+      "leaveOk": "Leave class",
+      "leaveDone": "You left “{{name}}”.",
+      "archiveAction": "Finish class",
+      "archiveTitle": "Finish “{{name}}”?",
+      "archiveEffect1": "Students can still view past assignments and scores, but they can no longer submit.",
+      "archiveEffect2": "The invite code stops working, so no new student can join.",
+      "archiveEffect3": "You cannot set new assignments for this class.",
+      "archiveEffect4": "You can restore the class at any time.",
+      "archiveOk": "Finish class",
+      "archiveDone": "Class finished: {{name}}",
+      "restoreAction": "Restore",
+      "restoreTitle": "Restore “{{name}}”?",
+      "restoreEffect1": "The invite code works again and new students can join.",
+      "restoreEffect2": "You can set assignments again and students can submit them.",
+      "restoreEffect3": "Past assignments, submissions and scores stay as they are.",
+      "restoreOk": "Restore class",
+      "restoreDone": "Class restored: {{name}}",
+      "removeMember": "Remove",
+      "removeTitle": "Remove “{{name}}”?",
+      "removeEffect1": "The student will no longer see this class's assignments.",
+      "removeEffect2": "Past submissions and scores are kept.",
+      "removeEffect3": "The student can join again with the invite code.",
+      "removeOk": "Remove",
+      "removeDone": "Removed “{{name}}”.",
+      "includeLeft": "Include left",
+      "colMemberStatus": "Status",
+      "memberActive": "Active",
+      "memberLeft": "Left",
+      "leftAt": "Left on {{time}}",
+      "membersHintArchived": "This class has finished: students can only view past assignments and scores, and no new assignment can be set.",
+      "rotateDisabledArchived": "This class has finished, so the invite code no longer works",
+      "archivedCannotAssign": "This class has finished, so no new assignment can be set for it; restore it on the classes page."
+    }
+  },
   "common": {
     "all": "All",
     "auditEmpty": "No audit records.",
@@ -547,7 +606,8 @@
     "profile": "Profile",
     "reports": "Reports",
     "review": "Review",
-    "settings": "Settings"
+    "settings": "Settings",
+    "vocab": "Vocabulary"
   },
   "notifications": {
     "empty": "No notifications",
@@ -1476,6 +1536,67 @@
         "splitting": "Splitting item numbers",
         "writing": "Writing items"
       }
+    }
+  },
+  "today": {
+    "title": "Today",
+    "subtitlePersonal": "Personal study",
+    "subtitleClass": "{{className}}",
+    "zoneNote": "A new day starts at midnight in {{zone}}",
+    "loadError": "This card could not load.",
+    "loading": "Loading today's plan…",
+    "review": {
+      "title": "Today's review",
+      "dueLabel": "Due",
+      "unit": "cards",
+      "stats": "Reviewed today {{reviewed}} · New {{newToday}} · Limit {{limit}}",
+      "start": "Start reviewing",
+      "emptyTitle": "Add your first words",
+      "emptyBody": "Your library is empty. Add a few words to start today's review.",
+      "add": "Add words",
+      "import": "Import a word list"
+    },
+    "assignments": {
+      "title": "To hand in",
+      "empty": "Nothing to hand in.",
+      "due": "Due {{date}}",
+      "overdue": "{{days}} days overdue",
+      "expand": "Show all {{count}}",
+      "collapse": "Show less",
+      "statusTodo": "To do",
+      "statusSubmitted": "Submitted"
+    },
+    "exams": {
+      "title": "Coming up",
+      "inDays": "in {{days}} days",
+      "tomorrow": "Tomorrow",
+      "today": "Today",
+      "starts": "Starts {{date}}"
+    },
+    "lists": {
+      "title": "My lists",
+      "body": "Group words into lists and review by topic.",
+      "open": "Open my lists"
+    },
+    "invite": {
+      "title": "Have an invite code?",
+      "body": "Enter the code from your teacher to join a class.",
+      "placeholder": "Invite code",
+      "submit": "Join class",
+      "joining": "Joining…",
+      "invalid": "That code is invalid, or the class is archived.",
+      "success": "Joined {{className}}."
+    },
+    "welcome": {
+      "title": "Welcome to TeachLoop",
+      "body": "Add your phone number so your teacher can reach you. You can skip this and add it later in your profile.",
+      "phone": "Phone number",
+      "submit": "Save and continue",
+      "skip": "Maybe later"
+    },
+    "prompt": {
+      "text": "Add your phone number so your teacher can reach you.",
+      "action": "Complete profile"
     }
   },
   "ui": {

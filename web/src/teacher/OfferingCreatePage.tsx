@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../api/client'
+import { assignableClasses, isAssignableClass } from '../api/types'
 import type { ClassView, OfferingView, PaperView } from '../api/types'
 import { Empty, ErrorState, Loading, PageHeader } from '../components/States'
 import { InlineNote } from '../ui'
@@ -55,6 +56,7 @@ export default function OfferingCreatePage() {
 
   const papers = data?.papers ?? []
   const classes = data?.classes ?? []
+  const assignable = assignableClasses(classes)
   const paper = papers.find((p) => p.id === paperId) ?? null
 
   // 时长默认继承试卷的 defaultDurationMinutes，本场可覆盖（AC-26.3）。
@@ -63,7 +65,10 @@ export default function OfferingCreatePage() {
     setDuration(paper.defaultDurationMinutes === null ? '' : String(paper.defaultDurationMinutes))
   }, [paperId, paper])
 
+  // AC-98.7：结课的班点不动——禁用只是视觉，选择状态也不能被它改（服务端另有 409 兜底）。
   const toggleClass = (classId: string) => {
+    const target = classes.find((c) => c.id === classId)
+    if (!target || !isAssignableClass(target)) return
     setSelectedClassIds((current) =>
       current.includes(classId) ? current.filter((id) => id !== classId) : [...current, classId],
     )
@@ -226,17 +231,28 @@ export default function OfferingCreatePage() {
                   </p>
                 ) : (
                   <div className="chips" style={{ marginTop: 6, marginBottom: 4 }}>
-                    {classes.map((c) => (
-                      <button
-                        key={c.id}
-                        type="button"
-                        className={`chip${selectedClassIds.includes(c.id) ? ' on' : ''}`}
-                        onClick={() => toggleClass(c.id)}
-                      >
-                        {c.name} ({c.memberCount})
-                      </button>
-                    ))}
+                    {classes.map((c) => {
+                      // AC-98.7：结课的班留在名单里（让人看见它为什么选不了），但禁用并写明原因。
+                      const blocked = !isAssignableClass(c)
+                      return (
+                        <button
+                          key={c.id}
+                          type="button"
+                          className={`chip${selectedClassIds.includes(c.id) ? ' on' : ''}`}
+                          disabled={blocked}
+                          title={blocked ? t('class.lifecycle.archivedCannotAssign') : undefined}
+                          style={blocked ? { opacity: 0.55, cursor: 'not-allowed' } : undefined}
+                          onClick={() => toggleClass(c.id)}
+                        >
+                          {c.name} ({c.memberCount})
+                          {blocked && <> · {t('class.lifecycle.archivedSection')}</>}
+                        </button>
+                      )
+                    })}
                   </div>
+                )}
+                {assignable.length < classes.length && (
+                  <div className="hint">{t('class.lifecycle.archivedCannotAssign')}</div>
                 )}
               </div>
 

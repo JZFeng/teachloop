@@ -87,6 +87,7 @@ class ClassLifecycleTest {
         // 一份历史作业 + 一次真实提交：退班后这些必须还在（AC-96.3「历史提交与成绩仍可查」）。
         String offeringId = publishAssignment(base, teacher, List.of(classId), "退班前的作业");
         submit(base, student, offeringId, "This is my homework before leaving the class.");
+        String vocabBefore = vocabFingerprint();
         Long rowsBefore = count("select count(*) from class_members where class_id = ?", UUID.fromString(classId));
         assertThat(rowsBefore).isEqualTo(1L);
         String joinedAtBefore = str(jdbc.queryForObject(
@@ -108,6 +109,9 @@ class ClassLifecycleTest {
         // 学生班级列表里消失（AC-96.3），作业列表里也消失（不再是参与者）。
         assertThat(classIds(base, student)).doesNotContain(classId);
         assertThat(offeringIds(base, student)).doesNotContain(offeringId);
+
+        // AC-96.4：退班不改写词库进度（vocab_progress 行数与 due_at 逐行一致）。
+        assertThat(vocabFingerprint()).as("退班前后 vocab_progress 必须逐行一致").isEqualTo(vocabBefore);
 
         // 退班后不能再提交：不再是参与者 -> 404（不泄露）。
         assertThat(request(base, student, "POST", "/api/offerings/" + offeringId + "/submissions",
@@ -167,6 +171,10 @@ class ClassLifecycleTest {
         joinClass(base, student, str(clazz.get("inviteCode")));
         String studentId = meId(base, student);
 
+        // 先造一份已交的提交：移出后它必须还在老师的批改表里（AC-97.4）。
+        String offeringId = publishAssignment(base, teacher1, List.of(classId), "移出后仍要批改的作业");
+        submit(base, student, offeringId, "Submitted before the teacher removed me from the class.");
+
         // 非属主（另一个老师）调用：404，不泄露存在性。
         assertThat(request(base, teacher2, "DELETE", "/api/classes/" + classId + "/members/" + studentId, null)
                 .statusCode()).isEqualTo(404);
@@ -192,6 +200,11 @@ class ClassLifecycleTest {
         // 班级列表的 memberCount 只数 ACTIVE（AC-97.2 / 同步统计口径）。
         Map<?, ?> classRow = findClassRow(classRows(base, teacher1), classId);
         assertThat(((Number) classRow.get("memberCount")).longValue()).isZero();
+
+        // AC-97.4：移出后该生的提交仍在老师的批改表里，成绩不丢。
+        List<?> submissionRows = Json.parseList(request(base, teacher1, "GET",
+                "/api/offerings/" + offeringId + "/submissions", null).body());
+        assertThat(submissionRows).as("移出不能把已交的提交从批改表里抹掉").hasSize(1);
 
         // 重复移出：目标已不是 ACTIVE -> 404（幂等语义，不报 500）。
         assertThat(request(base, teacher1, "DELETE",
@@ -224,7 +237,7 @@ class ClassLifecycleTest {
         String submissionBefore = str(jdbc.queryForObject(
                 "select submitted_at from submissions where offering_id = ? order by created_at limit 1",
                 String.class, UUID.fromString(offeringId)));
-        Long vocabRowsBefore = count("select count(*) from vocab_progress");
+        String vocabBefore = vocabFingerprint();
 
         // 非属主不能结课。
         assertThat(request(base, teacher2, "POST", "/api/classes/" + classId + "/archive", Map.of())
@@ -256,7 +269,7 @@ class ClassLifecycleTest {
         assertThat(str(jdbc.queryForObject(
                 "select submitted_at from submissions where offering_id = ? order by created_at limit 1",
                 String.class, UUID.fromString(offeringId)))).isEqualTo(submissionBefore);
-        assertThat(count("select count(*) from vocab_progress")).isEqualTo(vocabRowsBefore);
+        assertThat(vocabFingerprint()).as("结课/恢复不改写 vocab_progress").isEqualTo(vocabBefore);
 
         // 恢复：archived=false、幂等、邀请码重新有效（AC-98.5）。
         HttpResponse<String> restored = request(base, teacher, "POST",
@@ -447,6 +460,16 @@ class ClassLifecycleTest {
     private String meId(String base, String cookie) throws Exception {
         HttpResponse<String> res = request(base, cookie, "GET", "/api/auth/me", null);
         return str(Json.parse(res.body()).get("id"));
+    }
+
+    /** AC-96.4/98.6：词库进度的逐行指纹（行数 + 每行 id/词 id/due_at），用来断言「没有被动过」。 */
+    private String vocabFingerprint() {
+        Long rows = count("select count(*) from vocab_progress");
+        String digest = jdbc.queryForObject(
+                "select coalesce(md5(string_agg(word_id::text || '|' || coalesce(due_at::text, ''), ',' "
+                        + "order by word_id)), 'empty') from vocab_progress",
+                String.class);
+        return rows + ":" + digest;
     }
 
     private Long count(String sql, Object... args) {

@@ -19,7 +19,10 @@ export interface ClassView {
   id: string
   name: string
   inviteCode: string
+  /** 只数 `ACTIVE` 成员（`LEFT` 不算人；SPEC 012 §8 的统计口径）。 */
   memberCount: number
+  /** 结课（归档）：学生仍可见但只读，邀请码失效，不能再布置新作业（AC-98.1 / AC-98.2）。 */
+  archived: boolean
 }
 
 /** T042：成员列表带姓名与提交数（`GET /api/classes/{id}/members`）。 */
@@ -27,6 +30,19 @@ export interface ClassMemberView {
   studentId: string
   displayName: string
   submissionCount: number
+  /** 退班 / 移出只写状态，不删成员行（AC-96.2 / AC-97.2 / FR-215）。 */
+  status: 'ACTIVE' | 'LEFT'
+  /** 离开时间；`ACTIVE` 时为 null。 */
+  leftAt: string | null
+}
+
+/** `GET /api/classes/{id}/leave-preview`：退出确认先报未交份数（AC-96.5）。 */
+export interface ClassLeavePreviewView {
+  classId: string
+  pendingAssignments: number
+  submittedAssignments: number
+  totalAssignments: number
+  archived: boolean
 }
 
 export interface PaperView {
@@ -619,4 +635,54 @@ export interface AiReadinessView {
   source: 'provider' | 'env' | 'stub' | null
   provider: string | null
   model: string | null
+}
+
+/* ——— 班级生命周期的视图层纯函数（SPEC 012 US-96/97/98） ———
+ * 为什么放在 DTO 旁边而不是页面文件里：`ClassesPage.tsx` 是 JSX，`node --test` 只做类型擦除、
+ * 不转 JSX，这两条规则留在页面里就没有单测；`types.ts` 是本次任务里唯一可动的 `.ts` 文件，
+ * 于是「进行中 / 已结束分组」与「按班级筛作业」放在 DTO 旁边，页面与测试共用同一份实现。 */
+
+/** AC-98.2 / FR-224：班级页按「进行中（archived=false）/ 已结束（archived=true）」分组，组内保持后端顺序。 */
+export function splitClassesByLifecycle(classes: ClassView[]): {
+  active: ClassView[]
+  archived: ClassView[]
+} {
+  const active: ClassView[] = []
+  const archived: ClassView[] = []
+  for (const item of classes) {
+    if (item.archived) archived.push(item)
+    else active.push(item)
+  }
+  return { active, archived }
+}
+
+/**
+ * 学生班级页展开后看到的作业列表：只留属于这个班的，按截止时间升序
+ * （最急的在最上，与 AC-72.7 同口径）。解析不出的截止时间沉到最后，不占「最急」的位置。
+ * 入参数组不改动。
+ */
+export function offeringsForClass(offerings: OfferingView[], classId: string): OfferingView[] {
+  const mine = offerings.filter((offering) =>
+    (offering.classes ?? []).some((row) => row.classId === classId),
+  )
+  return mine.sort((a, b) => dueKey(a.dueAt) - dueKey(b.dueAt))
+}
+
+/** AC-98.7 / FR-225：已结课的班不能再当「布置作业 / 布置试卷」的目标（服务端回 409 `CLASS_ARCHIVED`）。 */
+export function isAssignableClass(row: ClassView): boolean {
+  return !row.archived
+}
+
+/**
+ * 可选目标列表：已结课的班被剔出去，但页面**不把它们从名单里删掉**——
+ * 老师要看得见「这个班已结束，所以选不了」，而不是以为班不见了。渲染时禁用 + 写明原因。
+ */
+export function assignableClasses(classes: ClassView[]): ClassView[] {
+  return classes.filter(isAssignableClass)
+}
+
+function dueKey(dueAt: string | null | undefined): number {
+  if (!dueAt) return Number.POSITIVE_INFINITY
+  const time = new Date(dueAt).getTime()
+  return Number.isNaN(time) ? Number.POSITIVE_INFINITY : time
 }
