@@ -17,7 +17,8 @@ export class ApiError extends Error {
 /**
  * 资料未补全的兜底出口（2026-10-27 Bug）。
  *
- * 后端 `ProfileCompletionFilter` 对缺手机号/邮箱的用户一律回 403 `PROFILE_INCOMPLETE`
+ * 2026-10-30（011 / T561）之后只有「教师建班/发词」这类写操作会回 403 `PROFILE_INCOMPLETE`
+ * （普通读取请求已放行）。
  * （`detail` 是 `/profile`）。这不是故障，是「先去补全资料」，所以不能让它落到各页面的
  * 错误卡上（截图里的「出错了：请先补全手机号与邮箱」就是这条 403 被当成异常渲染）。
  * 页面层（`App.tsx` 的 `RequireProfile`）已经先拦；这里兜住「守卫之外」的情形：
@@ -27,6 +28,19 @@ let profileIncompleteHandler: (() => void) | null = null
 
 export function setProfileIncompleteHandler(handler: (() => void) | null): void {
   profileIncompleteHandler = handler
+}
+
+/**
+ * 011 / FR-226：每个请求都带浏览器时区，服务端据此算「今天」（`X-Timezone` &gt; users.timezone
+ * &gt; 产品默认）。取不到就整条不带——服务端会把缺失当成「回落」，不会报错。
+ */
+export function timezoneHeader(): Record<string, string> {
+  try {
+    const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    return zone ? { 'X-Timezone': zone } : {}
+  } catch {
+    return {}
+  }
 }
 
 /** T033：生产环境双提交 CSRF；开发环境没有 cookie 时自然不带。 */
@@ -53,7 +67,9 @@ export async function ensureCsrf(): Promise<void> {
 async function sendWithCsrf<T>(method: string, path: string, body: unknown,
                                extraHeaders?: Record<string, string>): Promise<Response> {
   const build = (): Promise<Response> => {
-    const headers: Record<string, string> = { ...csrfHeaders(), ...extraHeaders }
+    const headers: Record<string, string> = {
+      ...csrfHeaders(), ...timezoneHeader(), ...extraHeaders,
+    }
     // 后端按 Accept-Language 决定 message 语言；跟着界面语言走，而不是浏览器的语言。
     headers['Accept-Language'] = i18n.language || 'zh-CN'
     if (body !== undefined) headers['Content-Type'] = 'application/json'
@@ -89,7 +105,8 @@ async function request<T>(method: string, path: string, body?: unknown,
     } catch {
       // 非 JSON 错误体（网关 502 等）也走 ApiError
     }
-    // 资料未补全：交给页面层改道去 /profile，别让调用方把它当故障弹出来。
+    // 资料未补全（011 起只剩教师写操作会返回它）：刷新顶部提示条状态，不整页改道——
+    // 改道会丢掉刚填的表单内容。页面自己会把 403 文案显示出来。
     if (parsed?.code === 'PROFILE_INCOMPLETE') profileIncompleteHandler?.()
     throw new ApiError(res.status, parsed)
   }
@@ -102,7 +119,11 @@ async function request<T>(method: string, path: string, body?: unknown,
 
 async function requestForm<T>(path: string, form: FormData): Promise<T> {
   // multipart 的 Content-Type（含 boundary）必须由浏览器自己写，手写会丢 boundary。
-  const headers: Record<string, string> = { ...csrfHeaders(), 'Accept-Language': i18n.language || 'zh-CN' }
+  const headers: Record<string, string> = {
+    ...csrfHeaders(),
+    ...timezoneHeader(),
+    'Accept-Language': i18n.language || 'zh-CN',
+  }
   const res = await fetch(path, { method: 'POST', credentials: 'include', headers, body: form })
   if (!res.ok) {
     let parsed: ApiErrorBody | null = null

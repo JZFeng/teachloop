@@ -6,7 +6,7 @@ import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import { useFeatures } from '../api/features'
 import { useEscapeClose } from '../ui'
-import { navSpecs, type NavIcon } from './nav'
+import { navItemActive, navSpecs, type NavIcon } from './nav'
 import {
   AppstoreOutlined,
   AuditOutlined,
@@ -32,6 +32,9 @@ import {
 } from '../ui'
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
 import type { AiModelsView } from '../api/types'
+
+/** 011 / T565：顶部提示条的会话内关闭标记（sessionStorage，不写 localStorage）。 */
+const PROFILE_BANNER_KEY = 'teachloop.profile.bannerDismissed'
 
 /** 导航规格只带 icon 名，真正的 ReactNode 在这里映射（见 app/nav.ts）。 */
 const NAV_ICONS: Record<NavIcon, ReactNode> = {
@@ -61,6 +64,12 @@ export function Shell({ children }: { children: ReactNode }) {
   const [aiMissing, setAiMissing] = useState(false)
   // 平板竖屏（≤1023，见 app.css 的 tablet 断点）侧栏是抽屉：顶栏按钮开合，选中导航后自动收起。
   const [navOpen, setNavOpen] = useState(false)
+  // 011 / T565 / AC-93.3：顶部「补全手机号」提示条，关闭后**本会话**不再出现（sessionStorage：
+  // 刷新仍在，关掉标签页/换会话就重新提醒——它不是永久屏蔽，只是别在同一次使用里反复弹）。
+  const [profileBannerDismissed, setProfileBannerDismissed] = useState(
+    () => typeof sessionStorage !== 'undefined'
+      && sessionStorage.getItem(PROFILE_BANNER_KEY) === '1',
+  )
 
   // 三个功能位（作业/试卷 create、批改/复核 assess、报表/成绩与评语 insights）之外，
   // 首页与班级作为「空间位」各有一个颜色：home 海军蓝、classes 淡紫（决策 006 2026-10-23 修订）。
@@ -118,11 +127,13 @@ export function Shell({ children }: { children: ReactNode }) {
         <nav id="nav" onClick={() => setNavOpen(false)}>
           {items.map((item) => (
             <NavLink
-              key={item.to}
+              key={item.key}
               to={item.to}
               end={item.end}
               data-tone={item.tone}
-              className={({ isActive }) => `nav-link${isActive ? ' on' : ''}`}
+              /* 011 / T563（AC-91.2）：折叠项的选中态按三条路径任一匹配，不能用 NavLink 自带的
+               * isActive——那只看 to，站在「我的词库」时侧栏就没有选中项了。 */
+              className={() => `nav-link${navItemActive(item, pathname) ? ' on' : ''}`}
             >
               <span className="nav-ico" aria-hidden="true">{NAV_ICONS[item.icon]}</span>
               <span>{t(item.labelKey)}</span>
@@ -160,11 +171,6 @@ export function Shell({ children }: { children: ReactNode }) {
             >
               {t('nav.menu')}
             </Button>
-            {profileComplete === false && (
-              <Button size="small" variant="primary" onClick={() => navigate('/profile')}>
-                {t('profile.completeAction')}
-              </Button>
-            )}
             {/* 模型只在 /admin/ai 配；教师页没有 AI 入口，所以教师看到的是提示而不是跳转。 */}
             {aiMissing && (me?.role === 'ADMIN'
               ? (
@@ -181,7 +187,33 @@ export function Shell({ children }: { children: ReactNode }) {
             </Button>
           </div>
         </header>
-        <main className="app-main">{children}</main>
+        <main className="app-main">
+          {/* AC-93.3：提示条同时给「去补全」与「关闭」；不再用顶栏那个小按钮（提示信息在按钮里读不全）。 */}
+          {profileComplete === false && !profileBannerDismissed && (
+            <InlineNote tone="warning" style={{ marginBottom: 16 }}>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span>{t('today.prompt.text')}</span>
+                <Button size="small" variant="primary" onClick={() => navigate('/profile')}>
+                  {t('today.prompt.action')}
+                </Button>
+                <Button
+                  size="small"
+                  onClick={() => {
+                    setProfileBannerDismissed(true)
+                    try {
+                      sessionStorage.setItem(PROFILE_BANNER_KEY, '1')
+                    } catch {
+                      // 隐私模式下 sessionStorage 可能不可写：本次会话内仍然已关闭。
+                    }
+                  }}
+                >
+                  {t('common.close')}
+                </Button>
+              </div>
+            </InlineNote>
+          )}
+          {children}
+        </main>
       </div>
     </div>
   )

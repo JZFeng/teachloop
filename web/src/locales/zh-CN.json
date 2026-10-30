@@ -228,6 +228,65 @@
       "true": "是"
     }
   },
+  "class": {
+    "lifecycle": {
+      "activeSection": "进行中",
+      "archivedSection": "已结束",
+      "count": "{{n}} 个",
+      "metaActive": "{{n}} 人 · 进行中",
+      "metaArchived": "{{n}} 人 · 已结课",
+      "tagArchived": "已结束",
+      "activeEmpty": "还没有进行中的班级，输入邀请码即可加入。",
+      "archivedEmpty": "还没有已结束的班级。",
+      "enterClass": "进入班级",
+      "collapseClass": "收起作业",
+      "viewScores": "查看成绩",
+      "leaveClass": "退出班级",
+      "assignmentsTitle": "「{{name}}」的作业",
+      "assignmentsEmpty": "这个班还没有布置作业。",
+      "assignmentsError": "作业列表没加载出来：{{message}}",
+      "dueAt": "截止 {{time}}",
+      "noDue": "不设截止时间",
+      "archivedReadOnly": "这个班已结课，只能查看作业与成绩。",
+      "leaveTitle": "退出「{{name}}」？",
+      "leavePending": "还有 {{n}} 份作业未交。",
+      "leaveEffect1": "退出后看不到该班的作业。",
+      "leaveEffect2": "已提交的作业与成绩保留。",
+      "leaveEffect3": "词库与复习进度不受影响。",
+      "leaveOk": "退出班级",
+      "leaveDone": "已退出「{{name}}」。",
+      "archiveAction": "结课",
+      "archiveTitle": "结课「{{name}}」？",
+      "archiveEffect1": "学生仍可查看历史作业与成绩，但不能再提交。",
+      "archiveEffect2": "邀请码失效，新学生无法加入。",
+      "archiveEffect3": "不能再给这个班布置新作业。",
+      "archiveEffect4": "可以随时恢复。",
+      "archiveOk": "确认结课",
+      "archiveDone": "已结课：{{name}}",
+      "restoreAction": "恢复",
+      "restoreTitle": "恢复「{{name}}」？",
+      "restoreEffect1": "邀请码重新有效，新学生可以加入。",
+      "restoreEffect2": "可以再布置作业，学生可以重新提交。",
+      "restoreEffect3": "历史作业、提交与成绩不变。",
+      "restoreOk": "恢复班级",
+      "restoreDone": "已恢复：{{name}}",
+      "removeMember": "移出",
+      "removeTitle": "移出「{{name}}」？",
+      "removeEffect1": "移出后该生看不到本班作业。",
+      "removeEffect2": "历史提交与成绩保留。",
+      "removeEffect3": "可以再用邀请码重新加入。",
+      "removeOk": "移出",
+      "removeDone": "已移出「{{name}}」。",
+      "includeLeft": "含已离开",
+      "colMemberStatus": "状态",
+      "memberActive": "在班",
+      "memberLeft": "已离开",
+      "leftAt": "离开于 {{time}}",
+      "membersHintArchived": "该班已结课：学生只能查看历史作业与成绩，不能再布置新作业。",
+      "rotateDisabledArchived": "该班已结课，邀请码不再生效",
+      "archivedCannotAssign": "这个班已结课，不能再布置作业；可在班级页恢复。"
+    }
+  },
   "common": {
     "all": "全部",
     "auditEmpty": "没有审计记录。",
@@ -547,7 +606,8 @@
     "profile": "资料",
     "reports": "报表",
     "review": "复核",
-    "settings": "设置"
+    "settings": "设置",
+    "vocab": "背单词"
   },
   "notifications": {
     "empty": "没有通知",
@@ -1476,6 +1536,67 @@
         "splitting": "切分题号",
         "writing": "写入题项"
       }
+    }
+  },
+  "today": {
+    "title": "今日",
+    "subtitlePersonal": "个人学习",
+    "subtitleClass": "{{className}}",
+    "zoneNote": "新的一天按 {{zone}} 时间 0 点开始",
+    "loadError": "这张卡加载失败。",
+    "loading": "正在加载今日安排…",
+    "review": {
+      "title": "今日复习",
+      "dueLabel": "待复习",
+      "unit": "张",
+      "stats": "今天已复习 {{reviewed}} · 新词 {{newToday}} · 上限 {{limit}}",
+      "start": "开始复习",
+      "emptyTitle": "先加第一批词",
+      "emptyBody": "词库还是空的，加几个词就能开始今天的复习。",
+      "add": "加词",
+      "import": "导入词表"
+    },
+    "assignments": {
+      "title": "待交作业",
+      "empty": "没有要交的作业。",
+      "due": "截止 {{date}}",
+      "overdue": "逾期 {{days}} 天",
+      "expand": "查看全部 {{count}} 条",
+      "collapse": "收起",
+      "statusTodo": "待交",
+      "statusSubmitted": "已交"
+    },
+    "exams": {
+      "title": "即将开始",
+      "inDays": "{{days}} 天后",
+      "tomorrow": "明天",
+      "today": "今天",
+      "starts": "{{date}} 开始"
+    },
+    "lists": {
+      "title": "我的词单",
+      "body": "把词装进词单，按主题复习。",
+      "open": "查看词单"
+    },
+    "invite": {
+      "title": "有邀请码？",
+      "body": "输入老师给的邀请码，就能加入班级。",
+      "placeholder": "邀请码",
+      "submit": "加入班级",
+      "joining": "正在加入…",
+      "invalid": "邀请码无效，或班级已归档。",
+      "success": "已加入 {{className}}。"
+    },
+    "welcome": {
+      "title": "欢迎使用 TeachLoop",
+      "body": "留下手机号，老师才能联系到你。现在不填也可以，之后可以在资料页补。",
+      "phone": "手机号",
+      "submit": "保存并继续",
+      "skip": "以后再说"
+    },
+    "prompt": {
+      "text": "补全手机号，老师才能联系到你。",
+      "action": "去补全"
     }
   },
   "ui": {

@@ -368,3 +368,12 @@
 .word-pair-list li { margin-bottom: 4px; font-size: 13.5px; }
 .word-pair-list em { color: var(--muted); font-style: normal; margin: 0 6px; font-size: 12.5px; }
 .word-family-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+
+/* 011 / T563：背单词模块壳（页内 Tab）与全屏复习会话容器。颜色/圆角只用令牌。 */
+.vocab-shell .tl-tabs { margin-bottom: 16px; }
+.vocab-focus {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 28px 16px 96px;
+}
