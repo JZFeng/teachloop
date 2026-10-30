@@ -135,9 +135,12 @@ public class SecurityConfig {
             // 顺序：会话认证（设置 currentUser）→ 限流 → 授权判断。
             // 限流必须在授权之前，登录接口本身 permitAll，所以登录也在限流覆盖范围内。
             .addFilterAfter(rateLimitFilter, SessionAuthFilter.class)
-            .addFilterAfter(new ProfileCompletionFilter(users,
-                    environment.getProperty("teachloop.security.require-profile-completion", Boolean.class, false)),
-                    RateLimitFilter.class)
+            // T561 / US-93（2026-10-30）：资料补全不再整站 403，过滤器只写请求属性
+            // {@code teachloop.profileIncomplete}，由建班/发词端点自己校验。
+            // 属性 {@code teachloop.security.require-profile-completion} 因此退役：不再被读取，
+            // 开、关两种取值行为一致（避免只改一半环境出现两种语义）。配置文件里的键暂时保留，
+            // 删它要动 teachloop-app/src/main/resources，不在本任务范围内。
+            .addFilterAfter(new ProfileCompletionFilter(users), RateLimitFilter.class)
             .formLogin(f -> f.disable())
             .httpBasic(b -> b.disable())
             .logout(l -> l.disable());

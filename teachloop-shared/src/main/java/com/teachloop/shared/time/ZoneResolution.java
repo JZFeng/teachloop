@@ -34,8 +34,13 @@ public final class ZoneResolution {
         return productDefault;
     }
 
-    /** 只接受 IANA 时区名；空串、超长、未知名称一律返回 null。 */
-    static ZoneId parse(String raw) {
+    /**
+     * 只接受 IANA 时区名；空串、超长、未知名称一律返回 null。
+     *
+     * <p>011 / T557 起改为 public：调用方需要在「头非法」时记一条 warning（AC-99.2），
+     * 解析结果本身仍由 {@link #resolve} 统一决定，不给调用方另写一套回落链。
+     */
+    public static ZoneId parse(String raw) {
         if (raw == null) {
             return null;
         }

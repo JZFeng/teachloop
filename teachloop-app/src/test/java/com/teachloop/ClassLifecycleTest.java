@@ -90,7 +90,7 @@ class ClassLifecycleTest {
         Long rowsBefore = count("select count(*) from class_members where class_id = ?", UUID.fromString(classId));
         assertThat(rowsBefore).isEqualTo(1L);
         String joinedAtBefore = str(jdbc.queryForObject(
-                "select joined_at from class_members where class_id = ?", String.class, UUID.fromString(classId)));
+                "select joined_at::text from class_members where class_id = ?", String.class, UUID.fromString(classId)));
 
         // 退班：204 不是它的语义，这里返回 200 + status=LEFT。
         HttpResponse<String> left = request(base, student, "DELETE", "/api/classes/" + classId + "/membership", null);
@@ -124,7 +124,7 @@ class ClassLifecycleTest {
         assertThat(count("select count(*) from class_members where class_id = ?", UUID.fromString(classId)))
                 .as("重入不能新增第二行").isEqualTo(1L);
         Map<String, Object> rejoined = jdbc.queryForMap(
-                "select status, joined_at, rejoined_at from class_members where class_id = ?",
+                "select status, joined_at::text as joined_at, rejoined_at from class_members where class_id = ?",
                 UUID.fromString(classId));
         assertThat(str(rejoined.get("status"))).isEqualTo("ACTIVE");
         assertThat(str(rejoined.get("joined_at"))).as("joined_at 永远是首次加入时间").isEqualTo(joinedAtBefore);
@@ -181,7 +181,7 @@ class ClassLifecycleTest {
         assertThat(leftRow.get("leftAt")).isNotNull();
 
         // 班级列表的 memberCount 只数 ACTIVE（AC-97.2 / 同步统计口径）。
-        Map<?, ?> classRow = classRows(base, teacher1).stream()
+        Map<?, ?> classRow = (Map<?, ?>) classRows(base, teacher1).stream()
                 .filter(row -> classId.equals(str(((Map<?, ?>) row).get("id"))))
                 .findFirst().orElseThrow();
         assertThat(((Number) classRow.get("memberCount")).longValue()).isZero();
@@ -236,7 +236,7 @@ class ClassLifecycleTest {
         assertThat(Json.parse(again.body()).get("archived")).isEqualTo(Boolean.TRUE);
 
         // 学生仍能看到这个班，且带 archived=true（AC-98.2）。
-        Map<?, ?> studentRow = classRows(base, student).stream()
+        Map<?, ?> studentRow = (Map<?, ?>) classRows(base, student).stream()
                 .filter(row -> classId.equals(str(((Map<?, ?>) row).get("id"))))
                 .findFirst().orElseThrow();
         assertThat(studentRow.get("archived")).isEqualTo(Boolean.TRUE);
@@ -366,8 +366,11 @@ class ClassLifecycleTest {
     /** 复用/创建测试用的二号老师（与 ClassAccessTest 同名不同班，互不影响）。 */
     private String secondTeacher() {
         if (users.findByEmail("teacher2@teachloop.local").isEmpty()) {
-            users.save(new User(UUID.randomUUID(), UserRole.TEACHER, "teacher2@teachloop.local",
-                    encoder.encode("teachloop123"), "二号老师", Instant.now()));
+            User teacher2 = new User(UUID.randomUUID(), UserRole.TEACHER, "teacher2@teachloop.local",
+                    encoder.encode("teachloop123"), "二号老师", Instant.now());
+            // T561 / AC-93.4：资料齐全（有手机号）才能建班，否则 403 PROFILE_INCOMPLETE。
+            teacher2.setPhone("13800000012");
+            users.save(teacher2);
         }
         return "teacher2@teachloop.local";
     }

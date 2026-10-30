@@ -111,7 +111,25 @@ public class DemoSeedRunner implements ApplicationRunner {
     }
 
     private User user(String email, String name, UserRole role) {
-        return users.findByEmail(email).orElseGet(() -> users.save(new User(UUID.randomUUID(), role, email,
-                encoder.encode(PASSWORD), name, Instant.now(clock))));
+        User existing = users.findByEmail(email).orElse(null);
+        // 011 / T561：老库里的演示账号可能没有手机号，只补空值，不覆盖用户自己填的。
+        if (existing != null) {
+            if (existing.getPhone() == null || existing.getPhone().isBlank()) {
+                existing.setPhone(phoneFor(email, role));
+                return users.save(existing);
+            }
+            return existing;
+        }
+        User created = new User(UUID.randomUUID(), role, email, encoder.encode(PASSWORD), name,
+                Instant.now(clock));
+        // 演示账号带联系方式，否则资料补全拦截会让「示例老师建班」403（AC-93.4）。
+        // 手机号在本仓库没有唯一约束；这里只是演示数据，不是真实联系方式。
+        created.setPhone(phoneFor(email, role));
+        return users.save(created);
+    }
+
+    private static String phoneFor(String email, UserRole role) {
+        return role == UserRole.TEACHER ? "13800000001"
+                : "139" + String.format("%08d", Math.abs(email.hashCode() % 100_000_000));
     }
 }

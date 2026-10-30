@@ -8,7 +8,6 @@ import java.sql.Timestamp;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
@@ -18,6 +17,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -30,8 +30,9 @@ import tools.jackson.databind.JsonNode;
  * `teachloop.vocab.review.daily-new-cards` 约束（超出部分次日再进队列），到期卡不限量；
  * 单次最多 `review.queue-page-size`（默认 100）。同一个词只出现一次。
  *
- * <p>响应同时给 T403 要的三个数：今日已复习（review_logs）、剩余待复习、本次新卡；
- * 「今日」按部署时区 Asia/Shanghai 计算（spec A-3）。
+ * <p>响应同时给 T403 要的三个数：今日已复习（review_logs）、剩余待复习、本次新卡。
+ * 「今日」的日界自 011（T557 / FR-228）起按学生时区算（{@code X-Timezone} &gt; users.timezone
+ * &gt; 产品默认，见 {@link VocabZones}），不再硬编码 Asia/Shanghai。
  *
  * <p>SQL 在 {@link ReviewQueueStore}：Endpoint 不持有 {@code JdbcTemplate}（2026-10-29 收口）。
  */
@@ -40,8 +41,6 @@ import tools.jackson.databind.JsonNode;
 @ConditionalOnProperty(name = "teachloop.vocab.enabled", havingValue = "true")
 public class ReviewQueueEndpoint {
 
-    private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
-
     /** AC-87.9：小测错题提示只回看 30 天。 */
     private static final Duration QUIZ_MARK_WINDOW = Duration.ofDays(30);
 
@@ -49,15 +48,17 @@ public class ReviewQueueEndpoint {
     private final ContentStore contentStore;
     private final Clock clock;
     private final ReviewPrefsStore prefs;
+    private final VocabZones zones;
     private final int pageSize;
 
     public ReviewQueueEndpoint(ReviewQueueStore store, ContentStore contentStore, Clock clock,
-                               ReviewPrefsStore prefs,
+                               ReviewPrefsStore prefs, VocabZones zones,
                                @Value("${teachloop.vocab.review.queue-page-size:100}") int pageSize) {
         this.store = store;
         this.contentStore = contentStore;
         this.clock = clock;
         this.prefs = prefs;
+        this.zones = zones;
         this.pageSize = Math.max(1, pageSize);
     }
 
@@ -81,7 +82,9 @@ public class ReviewQueueEndpoint {
                            @RequestParam(required = false) String after,
                            /* 已经出过的新卡数：预取时配额要接着算，不能每页重新给满 */
                            @RequestParam(required = false, defaultValue = "0") int newServed,
-                           @RequestAttribute("currentUser") CurrentUser me) {
+                           @RequestAttribute("currentUser") CurrentUser me,
+                           /* 011 / FR-226：浏览器时区；缺失/非法都回落到资料与产品默认 */
+                           @RequestHeader(value = "X-Timezone", required = false) String timezoneHeader) {
         String lang = language == null || language.isBlank() ? "en" : language;
         Timestamp afterTs = null;
         UUID afterId = null;
@@ -133,7 +136,7 @@ public class ReviewQueueEndpoint {
             }
         }
         int remaining = due.size() - Math.max(0, newDueTotal - Math.min(newDueTotal, newCap));
-        long todayReviewed = countReviewedToday(me.id());
+        long todayReviewed = countReviewedToday(me.id(), zones.resolve(timezoneHeader, me.id()));
         Map<UUID, Instant> quizMarks = store.wrongQuizMarks(me.id(),
                 clock.instant().minus(QUIZ_MARK_WINDOW));
         List<QueueItem> items = selected.stream()
@@ -152,8 +155,8 @@ public class ReviewQueueEndpoint {
                 row.dueAt(), row.intervalDays(), row.ease(), row.newCard(), lastQuizWrongAt);
     }
 
-    private long countReviewedToday(UUID userId) {
-        Instant dayStart = LocalDate.ofInstant(clock.instant(), ZONE).atStartOfDay(ZONE).toInstant();
-        return store.countReviewedToday(userId, dayStart);
+    /** 「今天已复习」的日界：学生时区当天 0 点（AC-99.x）；端口实现共用同一份口径。 */
+    private long countReviewedToday(UUID userId, ZoneId zone) {
+        return store.countReviewedToday(userId, zones.dayStart(zone));
     }
 }

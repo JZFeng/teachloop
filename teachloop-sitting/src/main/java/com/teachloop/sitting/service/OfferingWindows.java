@@ -101,7 +101,7 @@ public class OfferingWindows {
         try {
             return lifecycle.state(classId).map(Ports.ClassState::archived).orElse(false);
         } catch (RuntimeException e) {
-            log.warn("查询班级 {} 的结课状态失败，按未归档放行：{}", classId, e.toString());
+            log.warn("class lifecycle lookup failed for {}, treating it as not archived: {}", classId, e.toString());
             return false;
         }
     }

@@ -4,9 +4,9 @@ import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.vocab.content.ContentStore;
 import com.teachloop.vocab.content.ContentView;
+import com.teachloop.vocab.review.VocabZones;
 import java.time.Clock;
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestAttribute;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.JsonNode;
@@ -48,7 +49,6 @@ import tools.jackson.databind.ObjectMapper;
 public class QuizEndpoint {
 
     private static final Logger log = LoggerFactory.getLogger(QuizEndpoint.class);
-    private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
 
     /** 少于 3 个词不出卷：一道题的小测没有意义，也容易被当成页面出错。 */
     private static final int MIN_WORDS = 3;
@@ -56,18 +56,20 @@ public class QuizEndpoint {
     private final QuizStore store;
     private final ContentStore contentStore;
     private final Clock clock;
+    private final VocabZones zones;
     private final ObjectMapper mapper = new ObjectMapper();
     private final boolean quizEnabled;
     private final int sizeToday;
     private final int sizeSession;
 
-    public QuizEndpoint(QuizStore store, ContentStore contentStore, Clock clock,
+    public QuizEndpoint(QuizStore store, ContentStore contentStore, Clock clock, VocabZones zones,
                         @Value("${teachloop.vocab.quiz.enabled:false}") boolean quizEnabled,
                         @Value("${teachloop.vocab.quiz.size.today:10}") int sizeToday,
                         @Value("${teachloop.vocab.quiz.size.session:20}") int sizeSession) {
         this.store = store;
         this.contentStore = contentStore;
         this.clock = clock;
+        this.zones = zones;
         this.quizEnabled = quizEnabled;
         this.sizeToday = Math.max(MIN_WORDS, sizeToday);
         this.sizeSession = Math.max(MIN_WORDS, sizeSession);
@@ -102,7 +104,9 @@ public class QuizEndpoint {
     @PostMapping
     @Transactional
     public QuizView create(@RequestBody(required = false) CreateRequest request,
-                           @RequestAttribute("currentUser") CurrentUser me) {
+                           @RequestAttribute("currentUser") CurrentUser me,
+                           /* 011 / FR-226：小测「今天复习过的词」的日界跟随学生时区 */
+                           @RequestHeader(value = "X-Timezone", required = false) String timezoneHeader) {
         requireEnabled();
         String kind = request == null || request.kind() == null ? "TODAY"
                 : request.kind().trim().toUpperCase(Locale.ROOT);
@@ -111,7 +115,7 @@ public class QuizEndpoint {
         }
         List<UUID> wordIds = kind.equals("SESSION")
                 ? sessionWords(me.id(), request == null ? null : request.sessionId())
-                : todayWords(me.id());
+                : todayWords(me.id(), zones.resolve(timezoneHeader, me.id()));
         return buildQuiz(me.id(), kind, wordIds,
                 kind.equals("SESSION") ? sizeSession : sizeToday,
                 kind.equals("SESSION") ? (request == null ? null : request.sessionId()) : null, null);
@@ -250,9 +254,8 @@ public class QuizEndpoint {
     // ---------------------------------------------------------------- 取词
 
     /** 今天复习过的词（不含小测自己：小测不写 review_logs）。 */
-    private List<UUID> todayWords(UUID userId) {
-        Instant dayStart = LocalDate.ofInstant(clock.instant(), ZONE).atStartOfDay(ZONE).toInstant();
-        return store.todayReviewedWordIds(userId, dayStart);
+    private List<UUID> todayWords(UUID userId, ZoneId zone) {
+        return store.todayReviewedWordIds(userId, zones.dayStart(zone));
     }
 
     /** 本次会话「看过的」词 = scope.wordIds[0..cursor)。 */

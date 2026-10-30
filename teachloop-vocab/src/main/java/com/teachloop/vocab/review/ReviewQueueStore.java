@@ -105,4 +105,28 @@ public class ReviewQueueStore {
                 """, Long.class, userId, Timestamp.from(dayStart));
         return count == null ? 0 : count;
     }
+
+    /**
+     * 011 / T558：今日复习卡只需要三个数，不要为它把整条到期队列的行读出来。
+     *
+     * <p>过滤条件必须与 {@link #due} 完全一致（同一份「什么算到期」），否则今日页的张数
+     * 会和复习队列对不上；区别只是这里用聚合而不是逐行返回。
+     *
+     * @param due   到期的卡（含 NEW）
+     * @param newDue 其中还是 NEW 的卡：受每日新卡上限约束的那部分
+     */
+    public record DueCounts(long due, long newDue) {
+    }
+
+    /** 到期卡与其中 NEW 卡的数量（一次聚合查询）。 */
+    public DueCounts countDue(UUID userId, String language, Instant now) {
+        return jdbc.queryForObject("""
+                select count(*), count(*) filter (where p.state = 'NEW')
+                  from vocab_words w
+                  join vocab_progress p on p.word_id = w.id
+                 where w.user_id = ? and w.language = ? and w.deleted = false and w.removed = false
+                   and p.due_at <= ?
+                """, (rs, rowNumber) -> new DueCounts(rs.getLong(1), rs.getLong(2)),
+                userId, language, Timestamp.from(now));
+    }
 }

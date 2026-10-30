@@ -123,7 +123,7 @@ public class ClassEndpoint {
         // 011 / AC-95.3：付费班暂未开放。校验放在「归档」之后——归档班的邀请码仍按 404 处理，
         // 不因为收费字段多暴露一种状态。
         if (c.isPaid()) {
-            throw ApiException.conflict(ClassPay.PAID_NOT_AVAILABLE);
+            throw ApiException.conflict(ClassPay.MESSAGE_PAID_NOT_AVAILABLE);
         }
         Instant now = Instant.now(clock);
         ClassMember existing = members.findByClassIdAndStudentId(c.getId(), me.id()).orElse(null);
@@ -268,7 +268,7 @@ public class ClassEndpoint {
         boolean cny = body.currency() == null || body.currency().isBlank()
                 || ClassPay.DEFAULT_CURRENCY.equalsIgnoreCase(body.currency().trim());
         if (!free || !zeroPrice || !cny) {
-            throw ApiException.badRequest(ClassPay.CREATE_NOT_SUPPORTED);
+            throw ApiException.badRequest(ClassPay.MESSAGE_CREATE_NOT_SUPPORTED);
         }
     }
 

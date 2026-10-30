@@ -28,7 +28,7 @@ public class AiProviderService {
     }
 
     public record Request(String providerId, String displayName, String baseUrl, String protocol,
-                          String apiKey, String model, List<String> models, int priority,
+                          String apiKey, String model, List<String> models, Integer priority,
                           String extraHeaders) {
 
         /** 兼容旧调用方（不带优先级与额外头）。 */
@@ -100,7 +100,7 @@ public class AiProviderService {
                 validProtocol(req.protocol()), encrypt(req.apiKey()), models.get(0),
                 now, now, actorId);
         p.setModelsJson(json(models));
-        p.setPriority(req.priority());
+        p.setPriority(priorityOf(req));
         p.setExtraHeadersJson(normalizeHeaders(req.extraHeaders()));
         repo.save(p);
         // 第一次添加的 provider 直接成为当前模型，避免教师下拉为空。
@@ -124,7 +124,7 @@ public class AiProviderService {
         p.setProtocol(validProtocol(req.protocol()));
         p.setModel(models.get(0));
         p.setModelsJson(json(models));
-        p.setPriority(req.priority());
+        p.setPriority(priorityOf(req));
         p.setExtraHeadersJson(normalizeHeaders(req.extraHeaders()));
         if (req.apiKey() != null && !req.apiKey().isBlank()) {
             p.setApiKeyCipher(secretBox.encrypt(req.apiKey().strip()));
@@ -144,6 +144,11 @@ public class AiProviderService {
 
     /** 决策 022 D1：管理员调整故障转移顺序；返回按新顺序排好的列表。 */
     @Transactional
+    /** 011 / 回归修复：请求体不带 priority 时按默认 100——primitive int 收到 null 会 500。 */
+    private static int priorityOf(Request req) {
+        return req.priority() == null ? 100 : req.priority();
+    }
+
     public List<View> reorder(UUID actorId, UUID id, int priority) {
         if (priority < 0 || priority > 9999) {
             throw ApiException.badRequest("error.ai.priorityInvalid");
