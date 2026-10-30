@@ -126,19 +126,35 @@
 
 ## UI 约束（写第一个页面前先读，清单见 `docs/process/ui-review-checklist.md`）
 
-本项目界面已有定稿风格，**不许临场发挥**。新增或改页面时，这四行是硬约束：
+本项目界面已有定稿风格，**不许临场发挥**。新增或改页面时，这五行是硬约束：
 
 1. **风格**：Ant Design 企业后台的密度 + Linear 的克制，教育行业稳重（不是营销页，不是「AI 科技感」）。
 2. **三个数字**：主色 `#1A63E0`；圆角只有 12/8/6 三档；正文 ≥14px 且对比度 ≥4.5:1（边框/图标 ≥3:1）。
 3. **一条禁令**：渐变、彩色投影、emoji 当图标、手写 `className="btn…"`。
 4. **一个唯一入口**：组件只从 `web/src/ui/` 引，颜色只从 `web/src/ui/tokens.ts` 取。
+5. **平板必检（2026-10-30 新增，学生多数只有 iPad）**：新增或改动的页面，spec 的验收标准里必须有一条平板条目——
+   在 **834×1194**（iPad Air 11 竖屏）与 **1024×1366**（iPad Pro 12.9 竖屏）下**无横向溢出**、**主操作在首屏可见**。
+   断点只许用现有两档：`max-width: 1100px`（未登录页单列）与 `max-width: 1023px`（壳层侧栏抽屉），
+   **不许为单个页面自造第三档宽度**；触屏才需要放大的控件用 `@media (pointer: coarse)`。
 
-**为什么是四行而不是一句形容词**：003 写过「教育行业稳重」，没拦住紫色渐变加彩色投影
+   判定口径（可复核，两行 DevTools 控制台）：
+
+   ```js
+   document.documentElement.scrollWidth <= innerWidth + 2                    // 横向溢出：必须 true
+   [...document.querySelectorAll('button,a,[role=button]')].filter(e => e.offsetParent)
+     .map(e => e.getBoundingClientRect()).filter(r => r.bottom > innerHeight).length === 0   // 首屏可达
+   ```
+
+   为什么单列一档：2026-10-28 登录页在 iPad Pro 12.9 竖屏整块卡片悬在屏幕中间（表单标题落在 33% 处），
+   而 ≤900 时侧栏被 `display:none` 后**没有任何导航**——两处都不是审美问题，都是能量出来的。
+   完整视口矩阵与实测存量见 `docs/process/ui-review-checklist.md` 的 D3。
+
+**为什么是五行而不是一句形容词**：003 写过「教育行业稳重」，没拦住紫色渐变加彩色投影
 （`docs/research/2026-10-21-design-system.md` 的「项目起点」）；拦住它的是 AC-27.4 的 grep 断言。
 **形容词定方向，断言定结果。**
 
 **评审时机**：UI 问题在**第 4 步 Mock** 的 review 闸门拦，不在 E2E 救火。每屏过一遍
-`docs/process/ui-review-checklist.md`（17 条，15 分钟），判定只有「数得出来」和「量得出来」两种；
+`docs/process/ui-review-checklist.md`（18 条，20 分钟），判定只有「数得出来」和「量得出来」两种；
 凡是只能写「我觉得」的，不是这一轮该争的。
 
 **交付口径**：只做了源码检查就写「仅结构校验」，做了浏览器实测才能说「界面验收」。
