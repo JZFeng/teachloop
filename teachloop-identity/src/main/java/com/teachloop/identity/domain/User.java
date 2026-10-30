@@ -51,6 +51,13 @@ public class User {
     @Column(name = "session_invalid_before")
     private Instant sessionInvalidBefore;
 
+    /**
+     * 011 / FR-227：学生的 IANA 时区（如 {@code America/Los_Angeles}），可空。
+     * 空值表示沿用回落链：请求头 X-Timezone → 产品默认 Asia/Shanghai（ZoneResolution）。
+     */
+    @Column(name = "timezone")
+    private String timezone;
+
     protected User() {
     }
 
@@ -75,6 +82,7 @@ public class User {
     public Instant getCreatedAt() { return createdAt; }
     public boolean isPasswordLoginEnabled() { return passwordLoginEnabled; }
     public Instant getSessionInvalidBefore() { return sessionInvalidBefore; }
+    public String getTimezone() { return timezone; }
 
     public void setRole(UserRole role) { this.role = role; }
     public void setPasswordHash(String passwordHash) { this.passwordHash = passwordHash; }
@@ -86,4 +94,5 @@ public class User {
     public void setWechatOpenId(String openId) { this.wechatOpenId = openId; }
     public void setPasswordLoginEnabled(boolean passwordLoginEnabled) { this.passwordLoginEnabled = passwordLoginEnabled; }
     public void setSessionInvalidBefore(Instant sessionInvalidBefore) { this.sessionInvalidBefore = sessionInvalidBefore; }
+    public void setTimezone(String timezone) { this.timezone = timezone; }
 }

@@ -6,6 +6,9 @@
  */
 export const PUBLIC_ROUTES = ['/login', '/register', '/forgot'] as const
 
+/** 011 / T567：学生侧三个入口 + 今日页。三者都在平板两档跑布局断言。 */
+export const STUDENT_ROUTES = ['/', '/vocab/review', '/vocab/lists', '/vocab/library'] as const
+
 /** 教师可见的业务页；学生端与作答页在阶段 2 随场景工厂一起加（需要先造数据）。 */
 export const TEACHER_ROUTES = [
   '/',

@@ -5,7 +5,6 @@ import { useTranslation } from 'react-i18next'
 import { useAuth } from '../api/auth'
 import { ApiError } from '../api/client'
 import { safeNextPath } from './redirect'
-import { profilePathWithNext } from './profileGate'
 import {
   Alert,
   BarChartOutlined,
@@ -47,10 +46,11 @@ export default function LoginPage() {
     setError(null)
     try {
       await login(email.trim(), password)
-      // 2026-10-27（Bug）：首次登录缺手机号/邮箱时，第一跳直接去 /profile 补全。
-      // 以前落首页、再由业务页的取数钩子报 403，表现为「出错了：请先补全手机号与邮箱」。
-      const complete = await refreshProfile()
-      navigate(complete === false ? profilePathWithNext(next) : next ?? '/', { replace: true })
+      // 011 / T565：登录后只回原地址（或首页）。资料未补全不再强制去 /profile——
+      // 首次会由 App 的 RequireAuth 引导到 /welcome（可跳过），之后只保留顶部提示条。
+      // 先刷新一次资料判定，免得欢迎页/提示条要等下一次轮询才亮。
+      await refreshProfile()
+      navigate(next ?? '/', { replace: true })
     } catch (err) {
       setError(err instanceof ApiError ? err.message : String(err))
     } finally {

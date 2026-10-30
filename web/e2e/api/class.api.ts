@@ -22,3 +22,13 @@ export async function createClass(api: ApiClient, name: string): Promise<ClassVi
 export async function joinClass(api: ApiClient, inviteCode: string): Promise<void> {
   await api.post('/api/classes/join', { inviteCode })
 }
+
+/** 当前身份所在的班（教师看自己建的、学生看自己加入的）。 */
+export async function myClasses(api: ApiClient): Promise<ClassView[]> {
+  return api.get<ClassView[]>('/api/classes')
+}
+
+/** 学生退班（012：写 LEFT 不删行）。今日页的「有邀请码？」卡只在未入班时出现。 */
+export async function leaveClass(api: ApiClient, classId: string): Promise<void> {
+  await api.del(`/api/classes/${classId}/membership`)
+}

@@ -3,6 +3,7 @@ package com.teachloop.classroom.port;
 import com.teachloop.classroom.domain.ClassEntity;
 import com.teachloop.classroom.domain.ClassMemberRepository;
 import com.teachloop.classroom.domain.ClassRepository;
+import com.teachloop.classroom.domain.MemberStatus;
 import com.teachloop.shared.port.Ports;
 import java.util.Collection;
 import java.util.List;
@@ -12,6 +13,13 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Component;
 
+/**
+ * 班级成员端口（T042 / 012）。
+ *
+ * <p>012 起所有成员口径都只取 {@code ACTIVE}（FR-216）：退班学生不该再进发词收件人、
+ * 不该再算在班人数与参与人集合里。需要历史成员的地方走 classroom 自己的 {@code includeLeft} 入口，
+ * 端口没有「含已离开」的变体，免得调用方误用。
+ */
 @Component
 public class ClassMembershipImpl implements Ports.ClassMembership {
 
@@ -25,12 +33,14 @@ public class ClassMembershipImpl implements Ports.ClassMembership {
 
     @Override
     public List<UUID> classIdsOf(UUID studentId) {
-        return members.findByStudentId(studentId).stream().map(m -> m.getClassId()).toList();
+        return members.findByStudentIdAndStatus(studentId, MemberStatus.ACTIVE).stream()
+                .map(m -> m.getClassId()).toList();
     }
 
     @Override
     public List<UUID> membersOf(UUID classId) {
-        return members.findByClassId(classId).stream().map(m -> m.getStudentId()).toList();
+        return members.findByClassIdAndStatusOrderByJoinedAtAsc(classId, MemberStatus.ACTIVE).stream()
+                .map(m -> m.getStudentId()).toList();
     }
 
     @Override

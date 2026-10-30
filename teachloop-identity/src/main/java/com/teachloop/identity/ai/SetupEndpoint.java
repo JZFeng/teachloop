@@ -4,6 +4,7 @@ import com.teachloop.identity.api.AuthDtos;
 import com.teachloop.identity.domain.User;
 import com.teachloop.identity.domain.UserRepository;
 import com.teachloop.identity.domain.UserRole;
+import com.teachloop.identity.profile.ProfileCompletion;
 import com.teachloop.identity.security.SessionAuthFilter;
 import com.teachloop.shared.error.ApiException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -69,6 +70,6 @@ public class SetupEndpoint {
         }
         request.getSession(true).setAttribute(SessionAuthFilter.SESSION_UID, admin.getId().toString());
         return new AuthDtos.MeView(admin.getId().toString(), admin.getDisplayName(), admin.getEmail(),
-                admin.getRole(), admin.getLocale());
+                admin.getRole(), admin.getLocale(), ProfileCompletion.isIncomplete(admin));
     }
 }

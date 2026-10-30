@@ -86,7 +86,8 @@ public class DemoSeedRunner implements ApplicationRunner {
                 new ClassEntity(CLASS_ID, "演示班", teacher.getId(), "DEMO2026", Instant.now(clock))));
         for (int i = 1; i <= 30; i++) {
             User student = users.findByEmail(String.format("student%02d@teachloop.local", i)).orElseThrow();
-            if (!members.existsByClassIdAndStudentId(clazz.getId(), student.getId())) {
+            if (!members.existsByClassIdAndStudentIdAndStatus(clazz.getId(), student.getId(),
+                    com.teachloop.classroom.domain.MemberStatus.ACTIVE)) {
                 members.save(new ClassMember(UUID.randomUUID(), clazz.getId(), student.getId(), Instant.now(clock)));
             }
         }
@@ -110,7 +111,25 @@ public class DemoSeedRunner implements ApplicationRunner {
     }
 
     private User user(String email, String name, UserRole role) {
-        return users.findByEmail(email).orElseGet(() -> users.save(new User(UUID.randomUUID(), role, email,
-                encoder.encode(PASSWORD), name, Instant.now(clock))));
+        User existing = users.findByEmail(email).orElse(null);
+        // 011 / T561：老库里的演示账号可能没有手机号，只补空值，不覆盖用户自己填的。
+        if (existing != null) {
+            if (existing.getPhone() == null || existing.getPhone().isBlank()) {
+                existing.setPhone(phoneFor(email, role));
+                return users.save(existing);
+            }
+            return existing;
+        }
+        User created = new User(UUID.randomUUID(), role, email, encoder.encode(PASSWORD), name,
+                Instant.now(clock));
+        // 演示账号带联系方式，否则资料补全拦截会让「示例老师建班」403（AC-93.4）。
+        // 手机号在本仓库没有唯一约束；这里只是演示数据，不是真实联系方式。
+        created.setPhone(phoneFor(email, role));
+        return users.save(created);
+    }
+
+    private static String phoneFor(String email, UserRole role) {
+        return role == UserRole.TEACHER ? "13800000001"
+                : "139" + String.format("%08d", Math.abs(email.hashCode() % 100_000_000));
     }
 }

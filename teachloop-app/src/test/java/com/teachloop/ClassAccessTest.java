@@ -65,8 +65,11 @@ class ClassAccessTest {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
         // 同一个 Spring 上下文 / 数据库里可能已有别的测试方法建过 teacher2（顺序不定），存在就复用。
         if (users.findByEmail("teacher2@teachloop.local").isEmpty()) {
-            users.save(new User(UUID.randomUUID(), UserRole.TEACHER, "teacher2@teachloop.local",
-                    encoder.encode("teachloop123"), "二号老师", Instant.now()));
+            User teacher2 = new User(UUID.randomUUID(), UserRole.TEACHER, "teacher2@teachloop.local",
+                    encoder.encode("teachloop123"), "二号老师", Instant.now());
+            // T561 / AC-93.4：资料齐全（有手机号）才能建班，否则 403 PROFILE_INCOMPLETE。
+            teacher2.setPhone("13800000012");
+            users.save(teacher2);
         }
 
         String teacher1 = login(base, "teacher@teachloop.local");
@@ -108,8 +111,11 @@ class ClassAccessTest {
         String base = "http://127.0.0.1:" + env.getProperty("local.server.port");
         // 同一个 Spring 上下文 / 数据库里可能已有别的测试方法建过 teacher2，存在就复用，避免 email 冲突。
         if (users.findByEmail("teacher2@teachloop.local").isEmpty()) {
-            users.save(new User(UUID.randomUUID(), UserRole.TEACHER, "teacher2@teachloop.local",
-                    encoder.encode("teachloop123"), "二号老师", Instant.now()));
+            User teacher2 = new User(UUID.randomUUID(), UserRole.TEACHER, "teacher2@teachloop.local",
+                    encoder.encode("teachloop123"), "二号老师", Instant.now());
+            // T561 / AC-93.4：资料齐全（有手机号）才能建班，否则 403 PROFILE_INCOMPLETE。
+            teacher2.setPhone("13800000012");
+            users.save(teacher2);
         }
 
         String teacher1 = login(base, "teacher@teachloop.local");

@@ -181,7 +181,13 @@ make web-e2e-install    # 首次：下载 chromium（约 100MB，落到 ~/Librar
    这张**入场页**，不是 `ExamResult` 那张成绩页（后者要点「查看成绩与评语」才到）。断言标题要按入场页的
    二级标题（`<试卷名>终结性考试`）找，`.exam-result .sub` 在这时并不存在。
 5. **`APIRequestContext` 没有 `setExtraHTTPHeaders`**：CSRF token 只能**逐请求**塞进 `fetch(..., { headers })`。
-6. **不要裸等 `networkidle`**：dev 下 Vite 的 HMR WebSocket 与 30 秒轮询让「网络静默 500ms」迟迟不成立，
+6. **全新库没有 ADMIN**：`/login` 会被重定向到 `/setup`，登录按钮根本不在页面上（CI 首跑就死在这里）。
+   seed 只造老师/学生，所以 CI 里要在后端起来后 `POST /api/setup/admin` 建首个管理员。
+   另外 `--create-admin` CLI 会起完整应用不退出，不适合当 CI 步骤。
+7. **`ProfileCompletionFilter` 会让断言"假绿"**：种子账号没手机号时，任何业务路由都会弹到 `/profile`，
+   而 `/profile` 同样满足"不溢出、主操作在首屏"。修法两条一起用：`auth.setup.ts` 登录后统一
+   `PUT /api/profile` 补资料；`BasePage.expectPath()` 断言真的停在目标路由上。
+8. **不要裸等 `networkidle`**：dev 下 Vite 的 HMR WebSocket 与 30 秒轮询让「网络静默 500ms」迟迟不成立，
    第一次跑就以 `Target page, context or browser has been closed` + 30 秒超时收场。
    `BasePage.waitSettled()` 现在给 `networkidle` 3 秒上限，超时按"已渲染"继续。
 

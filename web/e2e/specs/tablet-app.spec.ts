@@ -12,6 +12,7 @@ for (const route of TEACHER_ROUTES) {
   test(`业务页不溢出、主操作在首屏：${route}`, async ({ page }) => {
     const view = new BasePage(page)
     await view.open(route)
+    await view.expectPath(route)
     await view.expectTabletSafe()
   })
 }

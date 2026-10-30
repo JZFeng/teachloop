@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>班级生命周期原型 · TeachLoop</title>
+<style>
+  :root {
+    --bg:#f6f8fc; --panel:#fff; --panel-2:#eff4fb;
+    --line:#dce4f2; --line-2:#ebf0f8; --line-strong:#7c8ba3;
+    --text:#0e2340; --muted:#41536e; --muted-2:#55677f;
+    --accent:#1a63e0; --accent-2:#1450bc; --accent-weak:#e8effd; --on-accent:#fff;
+    --green:#17703f; --green-weak:#e6f5ec;
+    --amber:#8a5a00; --amber-weak:#fff3d6;
+    --red:#b42338; --red-weak:#fde6e8;
+    --shadow:0 1px 2px rgba(14,54,118,.05),0 1px 3px rgba(14,54,118,.07);
+    --radius:12px; --radius-sm:8px; --radius-xs:6px;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:var(--font); font-size:14px; line-height:1.65;
+         background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  [hidden] { display:none !important; }
+  .layout { display:grid; grid-template-columns:236px minmax(0,1fr); min-height:100vh; }
+  .side { background:var(--panel); border-right:1px solid var(--line); padding:16px 12px;
+          height:100vh; position:sticky; top:0; display:flex; flex-direction:column; }
+  .brand { display:flex; align-items:center; gap:9px; padding:4px 8px 18px; font-size:16px; font-weight:600; }
+  .brand .mark { width:26px; height:26px; border-radius:var(--radius-sm); background:#0e3676; color:#fff;
+                 display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .nav-label { font-size:12px; color:var(--muted-2); padding:10px 10px 6px; }
+  .nav-item { display:flex; gap:8px; padding:8px 10px; border-radius:var(--radius-sm); color:var(--muted);
+              border:0; background:transparent; width:100%; text-align:left; margin-bottom:2px; }
+  .nav-item.on { background:var(--accent-weak); color:var(--accent); font-weight:500; }
+  .side-foot { margin-top:auto; font-size:12px; color:var(--muted-2); padding:10px; }
+
+  .top { position:sticky; top:0; z-index:5; background:rgba(246,248,252,.94); backdrop-filter:blur(6px);
+         border-bottom:1px solid var(--line); padding:8px 24px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .top .grp { display:flex; gap:6px; align-items:center; }
+  .top .tag { font-size:12px; color:var(--muted-2); }
+  .top button { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-xs);
+                padding:3px 9px; font-size:12px; color:var(--muted); }
+  .top button.on { border-color:var(--accent); color:var(--accent); background:var(--accent-weak); font-weight:500; }
+  #menu { display:none; }
+
+  .main { padding:24px 32px 80px; max-width:1240px; }
+  .page-head { margin-bottom:18px; }
+  .page-head h1 { margin:0; font-size:24px; font-weight:600; letter-spacing:-.2px; }
+  .page-head .sub { color:var(--muted-2); font-size:13px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .card + .card { margin-top:16px; }
+  .card-head { display:flex; align-items:baseline; gap:10px; padding:16px 20px 0; }
+  .card-head h2 { margin:0; font-size:15px; font-weight:600; }
+  .card-head .sp { flex:1; }
+  .card-body { padding:14px 20px 18px; }
+  .btn { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-sm);
+         padding:7px 16px; font-size:14px; line-height:1.5; }
+  .btn:hover { border-color:var(--line-strong); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:500; }
+  .btn.danger { color:var(--red); border-color:#f0cfd4; }
+  .btn.sm { padding:3px 10px; font-size:13px; }
+  .btn.ghost { border:0; background:none; color:var(--accent); padding:4px 6px; }
+  .tag { display:inline-block; font-size:12px; padding:1px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .tag.green { color:var(--green); background:var(--green-weak); border-color:#bfe3cd; }
+  .tag.amber { color:var(--amber); background:var(--amber-weak); border-color:#eed9a6; }
+  .tag.gray { color:var(--muted-2); background:var(--panel-2); }
+  .muted { color:var(--muted-2); }
+  .small { font-size:12.5px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+
+  .cls { display:flex; gap:14px; align-items:center; padding:14px 0; border-top:1px solid var(--line-2); }
+  .cls:first-child { border-top:0; }
+  .cls .n { font-weight:600; }
+  .cls .sp { flex:1; }
+
+  table.t { width:100%; border-collapse:collapse; }
+  table.t th { text-align:left; font-size:12px; font-weight:500; color:var(--muted-2);
+               padding:8px 10px; border-bottom:1px solid var(--line); background:var(--panel-2); }
+  table.t td { padding:9px 10px; border-bottom:1px solid var(--line-2); font-size:13.5px; }
+  table.t tr:last-child td { border-bottom:0; }
+  .left-row td { color:var(--muted-2); }
+
+  /* 弹窗 */
+  .overlay { position:fixed; inset:0; background:rgba(14,35,64,.28); display:grid; place-items:center; z-index:50; }
+  .dialog { width:min(520px, 92vw); background:var(--panel); border-radius:var(--radius);
+            box-shadow:0 12px 40px rgba(14,54,118,.18); overflow:hidden; }
+  .dialog .hd { padding:16px 20px 0; font-size:16px; font-weight:600; }
+  .dialog .bd { padding:10px 20px 4px; }
+  .dialog ul { margin:8px 0 0; padding-left:18px; color:var(--muted); }
+  .dialog ul li { margin:3px 0; }
+  .dialog .ft { display:flex; gap:8px; justify-content:flex-end; padding:14px 20px 18px; }
+
+  .note { border-left:3px solid var(--accent); background:var(--accent-weak); color:#123c86;
+          padding:9px 12px; border-radius:var(--radius-xs); font-size:12.5px; margin-bottom:16px; }
+  .foot { max-width:1240px; padding:0 32px 40px; color:var(--muted-2); font-size:12px; }
+  @media (max-width:1100px) { .main { padding:20px 20px 80px; } }
+  @media (max-width:1023px) {
+    .layout { grid-template-columns:1fr; }
+    .side { display:none; }
+    #menu { display:inline-block; border:1px solid var(--line); background:var(--panel);
+            border-radius:var(--radius-xs); padding:3px 9px; font-size:12px; color:var(--muted); }
+  }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="side" id="side"></aside>
+  <div>
+    <div class="top">
+      <button id="menu" onclick="alert('真实应用里这里打开侧栏抽屉')">菜单</button>
+      <div class="grp"><span class="tag">角色</span>
+        <button id="r-student" class="on" onclick="setRole('student')">学生</button>
+        <button id="r-teacher" onclick="setRole('teacher')">老师</button>
+      </div>
+      <div class="grp"><span class="tag">状态</span>
+        <button id="m-none" class="on" onclick="setModal('')">无弹窗</button>
+        <button id="m-leave" onclick="setModal('leave')">退出班级确认</button>
+        <button id="m-archive" onclick="setModal('archive')">结课确认</button>
+        <button id="m-remove" onclick="setModal('remove')">移出学生确认</button>
+      </div>
+    </div>
+    <div class="main" id="main"></div>
+    <div class="foot">示例数据，不是真实账号。规格：specs/012-class-lifecycle/spec.md</div>
+  </div>
+</div>
+
+<script>
+const S = { role:'student', modal:'' };
+
+const CLASSES = [
+  { id:'a', name:'初二（3）班', teacher:'王老师', members:32, archived:false },
+  { id:'b', name:'初二（2）班', teacher:'李老师', members:29, archived:true }
+];
+const MEMBERS = [
+  { name:'王晨曦', joined:'2026-09-01', active:true, submissions:6 },
+  { name:'李思远', joined:'2026-09-01', active:true, submissions:5 },
+  { name:'赵一鸣', joined:'2026-09-03', active:false, submissions:3 },
+  { name:'陈可', joined:'2026-09-05', active:true, submissions:4 }
+];
+
+function setRole(r){ S.role = r; S.modal = ''; paint(); }
+function setModal(m){ S.modal = m; paint(); }
+
+function sidebar(){
+  const student = S.role === 'student';
+  document.getElementById('side').innerHTML = `
+    <div class="brand"><span class="mark">T</span>TeachLoop</div>
+    <div class="nav-label">${student ? '学习' : '教学'}</div>
+    <button class="nav-item">${student ? '今日' : '首页'}</button>
+    <button class="nav-item">背单词</button>
+    ${student ? '<button class="nav-item">作业</button>' : '<button class="nav-item">作业</button><button class="nav-item">批改</button>'}
+    <button class="nav-item on">班级</button>
+    <div class="side-foot">${student ? '王晨曦 · 学生' : '王老师 · 教师'}</div>`;
+}
+
+function studentPage(){
+  const active = CLASSES.filter(c=>!c.archived);
+  const archived = CLASSES.filter(c=>c.archived);
+  const row = (c) => `<div class="cls">
+      <div><div class="n">${c.name}</div><div class="small muted">${c.teacher} · ${c.members} 人</div></div>
+      <span class="sp"></span>
+      ${c.archived
+        ? '<span class="tag gray">已结束</span><button class="btn sm">查看成绩</button>'
+        : '<button class="btn sm">进入班级</button><button class="btn sm danger" onclick="setModal(\'leave\')">退出班级</button>'}
+    </div>`;
+  return `<div class="page-head"><h1>我的班级</h1>
+      <div class="sub">进行中的班可以退出；已结束的班只读，成绩与作业都能回看</div></div>
+    <div class="card"><div class="card-head"><h2>进行中</h2><span class="small muted">${active.length} 个</span></div>
+      <div class="card-body">${active.map(row).join('') || '<div class="muted small">还没有加入班级。输入邀请码即可加入。</div>'}</div></div>
+    <div class="card"><div class="card-head"><h2>已结束</h2><span class="small muted">${archived.length} 个</span></div>
+      <div class="card-body">${archived.map(row).join('') || '<div class="muted small">还没有结束的班级。</div>'}</div></div>`;
+}
+
+function teacherPage(){
+  const row = (c) => `<div class="cls">
+      <div><div class="n">${c.name}</div><div class="small muted">${c.members} 人 · ${c.archived ? '已结课' : '进行中'}</div></div>
+      <span class="sp"></span>
+      ${c.archived
+        ? '<button class="btn sm">恢复班级</button>'
+        : '<button class="btn sm">成员</button><button class="btn sm" onclick="setModal(\'archive\')">结课</button>'}
+    </div>`;
+  return `<div class="page-head"><h1>班级</h1><div class="sub">结课后学生只读；成员可移出，历史提交保留</div></div>
+    <div class="card"><div class="card-head"><h2>我带的班</h2></div>
+      <div class="card-body">${CLASSES.map(row).join('')}</div></div>
+    <div class="card"><div class="card-head"><h2>初二（3）班 · 成员</h2><span class="sp"></span>
+      <label class="small muted"><input type="checkbox" checked> 含已离开</label></div>
+      <table class="t"><thead><tr><th>学生</th><th>加入时间</th><th>已交</th><th>状态</th><th></th></tr></thead>
+      <tbody>${MEMBERS.map(m=>`<tr class="${m.active?'':'left-row'}">
+        <td>${m.name}</td><td class="mono">${m.joined}</td><td>${m.submissions}</td>
+        <td>${m.active?'<span class="tag green">在班</span>':'<span class="tag gray">已离开</span>'}</td>
+        <td>${m.active?'<button class="btn sm danger" onclick="setModal(\'remove\')">移出</button>':''}</td></tr>`).join('')}
+      </tbody></table></div>`;
+}
+
+function dialogs(){
+  if (S.modal === 'leave') return `<div class="overlay" onclick="setModal('')"><div class="dialog" onclick="event.stopPropagation()">
+    <div class="hd">退出「初二（3）班」？</div>
+    <div class="bd">
+      <div class="small" style="color:var(--red)">这个班还有 2 份作业未交。</div>
+      <ul>
+        <li>退出后看不到这个班的作业与通知。</li>
+        <li>已经提交的作业、批改结果与成绩都会保留。</li>
+        <li>你的词库与复习进度不受影响。</li>
+      </ul>
+    </div>
+    <div class="ft"><button class="btn" onclick="setModal('')">取消</button>
+      <button class="btn danger" onclick="setModal('')">确认退出</button></div></div></div>`;
+  if (S.modal === 'archive') return `<div class="overlay" onclick="setModal('')"><div class="dialog" onclick="event.stopPropagation()">
+    <div class="hd">结课「初二（3）班」？</div>
+    <div class="bd"><ul>
+      <li>学生仍然可以查看历史作业与成绩，但不能再提交。</li>
+      <li>这个班的邀请码立即失效，新学生无法加入。</li>
+      <li>结课后不能再给这个班布置新作业；可以随时恢复。</li>
+    </ul></div>
+    <div class="ft"><button class="btn" onclick="setModal('')">取消</button>
+      <button class="btn primary" onclick="setModal('')">确认结课</button></div></div></div>`;
+  if (S.modal === 'remove') return `<div class="overlay" onclick="setModal('')"><div class="dialog" onclick="event.stopPropagation()">
+    <div class="hd">把「李思远」移出班级？</div>
+    <div class="bd"><ul>
+      <li>他不再看到这个班的新作业，已提交的作业与成绩保留。</li>
+      <li>成员列表里会显示为「已离开」，可以重新加入。</li>
+      <li>历史提交与批改不受影响。</li>
+    </ul></div>
+    <div class="ft"><button class="btn" onclick="setModal('')">取消</button>
+      <button class="btn danger" onclick="setModal('')">确认移出</button></div></div></div>`;
+  return '';
+}
+
+function paint(){
+  sidebar();
+  const note = S.role === 'student'
+    ? '<div class="note">学生只能退出「进行中」的班；已结束的班只读（AC-98.2）。退出写状态，不删成员行（AC-96.2）。</div>'
+    : '<div class="note">老师可移出学生（写 LEFT）、结课 / 恢复；结课后不能新建作业（AC-98.7）。</div>';
+  document.getElementById('main').innerHTML = note + (S.role === 'student' ? studentPage() : teacherPage()) + dialogs();
+  document.getElementById('r-student').classList.toggle('on', S.role==='student');
+  document.getElementById('r-teacher').classList.toggle('on', S.role==='teacher');
+  const m = { 'm-none': S.modal==='', 'm-leave': S.modal==='leave',
+              'm-archive': S.modal==='archive', 'm-remove': S.modal==='remove' };
+  for (const id in m) document.getElementById(id).classList.toggle('on', m[id]);
+}
+
+function applyHash(){
+  const raw = (location.hash || '').replace(/^#/, '');
+  const [view, qs] = raw.split('?');
+  if (view === 'teacher' || view === 'student') S.role = view;
+  const p = new URLSearchParams(qs || '');
+  if (p.get('modal')) S.modal = p.get('modal');
+}
+window.addEventListener('hashchange', () => { applyHash(); paint(); });
+applyHash();
+paint();
+
+if (location.search.indexOf('measure') >= 0) {
+  const sw = document.documentElement.scrollWidth, iw = window.innerWidth;
+  const below = [...document.querySelectorAll('button,a,[role=button]')]
+    .filter((e) => e.offsetParent)
+    .map((e) => e.getBoundingClientRect())
+    .filter((r) => r.bottom > window.innerHeight).length;
+  document.body.setAttribute('data-measure',
+    JSON.stringify({ sw, iw, noHScroll: sw <= iw + 2, actionsBelowFold: below }));
+}
+</script>
+</body>
+</html>

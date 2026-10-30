@@ -1,0 +1,232 @@
+/*
+ * 学生「今日」页（US-90）。
+ *
+ * 两条约束写在最前面，改样式前先看：
+ * 1. **宽度 880px**（plan §7）：今日页是「大数字 + 一个按钮」的行动页，撑满 1240 会散。
+ * 2. **不自造断点**：只用现有的 `max-width:1100px` / `max-width:1023px` 两档。
+ *    这个文件里一条 media query 都没有——所有横排都用 `flex-wrap: wrap` + `min-width: 0`，
+ *    于是 834×1194 与 1024×1366 不靠断点也不会横向溢出（AC-90.6）。
+ *
+ * 颜色、圆角只写 `var(--…)`：令牌在 `styles/tokens.css`（check-ui 第 1 条守着）。
+ * 字号没有令牌层（tokens.css 未定义字号变量），沿用 mockup.css / vocab.css 的同一套数字：
+ * 12.5px 辅助、14px 正文、40px 大数字。
+ */
+
+/* 页面容器：单列、最宽 880px、居中（plan §7 的「今日页 880」）。 */
+.today-page {
+  width: 100%;
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+/* 页头副标题里的一行：日期 + 身份，窄屏自动换行而不是撑宽。 */
+.today-head-sub {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  min-width: 0;
+}
+
+.today-head-date {
+  font-variant-numeric: tabular-nums;
+}
+
+/* 时区说明（AC-99.5）：只在学生时区 ≠ 产品时区时出现，一行灰字，不是错误。 */
+.today-zone-note {
+  margin: -6px 0 14px;
+  font-size: 12.5px;
+  color: var(--muted-2);
+  line-height: 1.6;
+}
+
+/* 卡片栈：间距由 `.card` 自带的 margin-bottom 提供，这里不再加 gap。 */
+.today-cards {
+  display: block;
+}
+
+.today-card {
+  min-width: 0;
+}
+
+.today-card .today-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+
+/* `.card > h2` 有 14px 下边距；卡片头自己管间距，这里清零（用两级选择器压过它）。 */
+.today-card .today-card-head h2 {
+  margin: 0;
+}
+
+/* 「查看全部 N 条」这类轻动作靠右，但不换行成第二行标题。 */
+.today-card-more {
+  margin-left: auto;
+}
+
+.today-card-body {
+  margin-top: 12px;
+  min-width: 0;
+}
+
+/* 错误态：一句话 + 重试按钮同一行；窄屏时按钮掉到下一行。 */
+.today-error {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-bottom: 0;
+}
+
+.today-empty {
+  margin: 0;
+  padding: 6px 0;
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.today-muted {
+  margin: 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.today-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+/* ---- 今日复习卡 ---- */
+
+.today-review {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+}
+
+.today-review-figures {
+  min-width: 0;
+  flex: 1 1 220px;
+}
+
+.today-review-label {
+  font-size: 12.5px;
+  color: var(--muted-2);
+  line-height: 1.6;
+}
+
+.today-review-due {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.today-review-count {
+  font-size: 40px;
+  font-weight: 650;
+  line-height: 1.1;
+  letter-spacing: -1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.today-review-unit {
+  font-size: 13px;
+  color: var(--muted-2);
+}
+
+.today-review-stats {
+  margin-top: 6px;
+  font-size: 12.5px;
+  color: var(--muted-2);
+  line-height: 1.6;
+}
+
+.today-review-act {
+  margin-left: auto;
+}
+
+/* 空词库：一句标题 + 一句说明 + 两个动作（AC-90.5 / FR-212）。 */
+.today-review-empty-title {
+  display: block;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.today-review-empty-body {
+  margin: 6px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+/* ---- 作业 / 考试的行 ---- */
+
+.today-rows {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.today-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 11px 0;
+  border-top: 1px solid var(--line-2);
+  min-width: 0;
+}
+
+.today-row:first-child {
+  border-top: 0;
+  padding-top: 2px;
+}
+
+.today-row-main {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+
+.today-row-title {
+  font-size: 14px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.today-row-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--muted-2);
+}
+
+.today-row-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+
+/* ---- 邀请码卡 ---- */
+
+.today-invite-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  max-width: 420px;
+}
+
+.today-invite-form .today-invite-input {
+  flex: 1 1 180px;
+  min-width: 0;
+}

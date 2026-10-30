@@ -27,7 +27,7 @@ import RegisterPage from './app/RegisterPage'
 import ActivatePage from './app/ActivatePage'
 import ForgotPasswordPage from './app/ForgotPasswordPage'
 import { loginNextFrom, loginPath, safeNextPath } from './app/redirect'
-import { PROFILE_PATH, profileDetour, profilePathWithNext } from './app/profileGate'
+import { shouldPrompt, isPrompted } from './app/welcomeGate'
 import { featureGate } from './app/featureGate'
 import NotificationsPage from './app/NotificationsPage'
 import ProfilePage from './app/ProfilePage'
@@ -45,8 +45,10 @@ import GradingDetailPage from './teacher/GradingDetailPage'
 import ReviewPage from './teacher/ReviewPage'
 import ReportsPage from './teacher/ReportsPage'
 import ClassSummaryPage from './teacher/ClassSummaryPage'
-import StudentHomePage from './student/HomePage'
+import StudentTodayPage from './student/TodayPage'
+import WelcomePage from './app/WelcomePage'
 import FeedbackDetailPage from './student/FeedbackDetailPage'
+import VocabShell, { VocabFocusLayout } from './vocab/VocabShell'
 import ExamEntryPage from './exam/ExamEntryPage'
 import ExamLivePage from './exam/ExamLivePage'
 import AssignmentPage from './exam/AssignmentPage'
@@ -59,40 +61,37 @@ function RequireAuth() {
     // 带上原地址：学生从班群点开预习链接但没登录时，登录后要回到那次布置，而不是首页。
     return <Navigate to={loginPath(loginNextFrom(location.pathname, location.search, location.hash))} replace />
   }
-  // 2026-10-27（Bug）：缺手机号/邮箱的人先补资料，不能先放他进业务页撞 403。
-  // 判定没回来之前挂 Loading：先渲染再改道会闪一下「出错了：请先补全手机号与邮箱」。
+  // 判定没回来之前挂 Loading：先渲染再改道会闪一下。
   if (!profileChecked) return <div style={{ padding: 40 }}><Loading /></div>
-  const detour = profileDetour({ pathname: location.pathname, role: me.role, profileComplete })
-  if (detour) {
-    // 带上原地址：补全保存后回到他本来要去的页面（学生从班群点开的链接不能丢）。
-    return <Navigate to={profilePathWithNext(loginNextFrom(location.pathname, location.search, location.hash))} replace />
+  // 011 / T565（AC-93.2）：资料未补全不再强制改道 /profile，而是**首次**引导去 /welcome。
+  // 「以后再说」写 localStorage（teachloop.profile.prompted），本设备不再自动出现；
+  // 之后只保留 Shell 顶部那条可关闭提示条（AC-93.3）。管理员豁免（与后端一致）。
+  if (me.role !== 'ADMIN'
+    && shouldPrompt({
+      profileIncomplete: profileComplete === false,
+      pathname: location.pathname,
+      prompted: isPrompted(),
+    })) {
+    return <Navigate to="/welcome" replace />
   }
   return <Outlet />
 }
 
 /**
- * 接口级兜底：任何请求收到 403 `PROFILE_INCOMPLETE` 都改道 /profile（2026-10-27 Bug）。
+ * 接口级兜底：请求收到 403 `PROFILE_INCOMPLETE` 时**只刷新资料判定**，不再改道。
  *
- * 路由守卫已经覆盖正常入口；这里处理守卫覆盖不到的情况——会话中途资料被清空、
- * 或者某个页面先发了请求。挂在这里是因为只有 Router 内部才能 `navigate`。
+ * 011 / T561（US-93）之后，普通读取请求不再被这个过滤器拦；能收到它的只剩「教师建班/发词」
+ * 这类写操作。此时把人从表单页踢到 /profile 会丢掉他刚填的内容，正确反应是让当前页面
+ * 显示 403 文案、顶部提示条同时亮起来（它读的就是这里刷新的 `profileComplete`）。
  */
 function ProfileIncompleteWatcher() {
-  const navigate = useNavigate()
-  const location = useLocation()
   const { refreshProfile } = useAuth()
-  // 回调用 ref 读当前位置：注册一次就够，不必每次换页重注册。
-  const here = useRef(location)
-  here.current = location
   useEffect(() => {
     setProfileIncompleteHandler(() => {
       void refreshProfile()
-      const at = here.current
-      // 登录页、首次部署页、资料页本身不动作：前两个不该被记成补全后的去处，后者会自己转自己。
-      if (at.pathname === PROFILE_PATH || at.pathname === '/login' || at.pathname === '/setup') return
-      navigate(profilePathWithNext(loginNextFrom(at.pathname, at.search, at.hash)), { replace: true })
     })
     return () => setProfileIncompleteHandler(null)
-  }, [navigate, refreshProfile])
+  }, [refreshProfile])
   return null
 }
 
@@ -115,14 +114,14 @@ function landingFor(features: Record<string, boolean>): string {
   return '/profile'
 }
 
-/** 根路由按角色分流：教师看跨班首页，学生看自己的考试/作业。 */
+/** 根路由按角色分流：教师看跨班首页，学生看统一的「今日」页（011 / US-90，AC-90.1）。 */
 function HomeRouter() {
   const { me } = useAuth()
   const { features, loaded } = useFeatures()
   if (!loaded) return <div style={{ padding: 40 }}><Loading /></div>
   // 没有 nav.home 的角色（管理员）落到自己唯一的入口（AC-63.5 修订）：这里只看 key，不看角色。
   if (features['nav.home'] !== true) return <Navigate to={landingFor(features)} replace />
-  return me?.role === 'STUDENT' ? <StudentHomePage /> : <TeacherHomePage />
+  return me?.role === 'STUDENT' ? <StudentTodayPage /> : <TeacherHomePage />
 }
 
 /**
@@ -206,19 +205,22 @@ function AppRoutes() {
           {/* T389：开关关闭时不注册 vocab 路由（AC-56.3 / plan §11）。 */}
           {features.vocab && (
             <>
-              <Route path="vocab/library" element={<VocabLibraryPage />} />
-              <Route path="vocab/review" element={<VocabReviewPage />} />
+              {/* 011 / T563（AC-91.1 / 91.2 / 91.5）：三个页面共用一个页内 Tab 壳，侧栏只有一项。
+                * 地址不变（/vocab/review、/vocab/lists、/vocab/library），Tab 就是真链接。 */}
+              <Route path="vocab" element={<VocabShell />}>
+                <Route index element={<Navigate to="/vocab/review" replace />} />
+                <Route path="review" element={<VocabReviewPage />} />
+                <Route path="lists" element={<VocabListsPage />} />
+                {/* 词单详情留在壳内：从「我的词单」点进去，Tab 仍然高亮「我的词单」。 */}
+                <Route path="lists/:id" element={<VocabListDetailPage />} />
+                <Route path="library" element={<VocabLibraryPage />} />
+              </Route>
               <Route path="vocab/sets" element={<VocabSetsPage />} />
-              {/* US-69：词单页。2026-10-26 起侧栏有「我的词单」一级入口（AC-69.11 修订），
-                 * 词库工具条的「词单」按钮仍保留，两个入口到同一页。 */}
-              <Route path="vocab/lists" element={<VocabListsPage />} />
-              <Route path="vocab/lists/:id" element={<VocabListDetailPage />} />
               <Route path="vocab/quiz/:id" element={<VocabQuizPage />} />
               <Route path="vocab/sets/new" element={<VocabSetEditPage />} />
               <Route path="vocab/sets/:id" element={<VocabSetEditPage />} />
               <Route path="vocab/assign" element={<VocabAssignPage />} />
               <Route path="vocab/words/by-form/:form" element={<VocabWordDetailPage />} />
-              <Route path="vocab/review/session/:id" element={<VocabFreeReviewPage />} />
               <Route path="vocab/add" element={<VocabAddWordsPage />} />
               <Route path="vocab/assignments/:id" element={<VocabAssignmentPreviewPage />} />
             </>
@@ -247,10 +249,19 @@ function AppRoutes() {
           <Route path="admin/ai" element={<RequireFeature feature="nav.ai"><AdminAiPage /></RequireFeature>} />
           {/* 2026-10-28：页面改叫「系统设置」，/admin/settings 作为别名收口到同一屏。 */}
           <Route path="admin/settings" element={<RequireFeature feature="nav.ai"><Navigate to="/admin/ai" replace /></RequireFeature>} />
+          {/* 011 / T565：首次登录的资料收集页；「以后再说」后不再自动出现（localStorage）。 */}
+          <Route path="welcome" element={<WelcomePage />} />
           <Route path="profile" element={<ProfilePage />} />
           {/* 组件标准不再单独成页：旧链接到资料页偏好设置里的面板，不再占侧栏入口。 */}
           <Route path="ui-kit" element={<Navigate to="/profile?panel=ui-kit" replace />} />
         </Route>
+        {/* 011 / T563（AC-91.3）：复习会话全屏，没有侧栏也没有 Tab。 */}
+        {features.vocab && (
+          <Route
+            path="/vocab/review/session/:id"
+            element={<VocabFocusLayout><VocabFreeReviewPage /></VocabFocusLayout>}
+          />
+        )}
         <Route path="/exams/:offeringId" element={<Shell><ExamEntryPage /></Shell>} />
         <Route path="/exams/:offeringId/live" element={<ExamFocusLayout><ExamLivePage /></ExamFocusLayout>} />
       </Route>

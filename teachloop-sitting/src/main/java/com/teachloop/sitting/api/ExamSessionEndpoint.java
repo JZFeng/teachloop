@@ -283,6 +283,8 @@ public class ExamSessionEndpoint {
         Offering o = published(offeringId);
         requireStudent(me);
         requireParticipant(o, me);
+        // 012 / AC-98.7：多班规则——至少一个未归档班仍包含该生才放行（见 OfferingWindows#requireSubmittable）。
+        windows.requireSubmittable(o, me.id());
         ExamSessionService.Finalized f = sessions.submit(o, me.id(), body.contentHtml(),
                 body.contentText(), body.answers());
         return submitResponse(f, o);
@@ -301,6 +303,7 @@ public class ExamSessionEndpoint {
         Offering o = published(offeringId);
         requireStudent(me);
         requireParticipant(o, me);
+        windows.requireSubmittable(o, me.id());
         SubmissionAttachments.Prepared prepared = attachments.prepare(o.getId(), file);
         ExamSessionService.Finalized f = sessions.submitFile(o, me.id(),
                 new ExamSessionService.FileAttachment(prepared.storagePath(), prepared.fileName(),
@@ -357,6 +360,7 @@ public class ExamSessionEndpoint {
         Offering o = published(offeringId);
         requireStudent(me);
         requireParticipant(o, me);
+        windows.requireSubmittable(o, me.id());
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("请选择要提交的视频");
         }
@@ -418,9 +422,14 @@ public class ExamSessionEndpoint {
                                                   @RequestAttribute("currentUser") CurrentUser me) {
         Offering o = published(offeringId);
         requireStudent(me);
-        requireParticipant(o, me);
         List<Submission> attempts = submissions.findByOfferingIdAndStudentIdOrderByAttemptNoDesc(
                 o.getId(), me.id());
+        // 012 / AC-96.3：退班或被移出后，**历史提交仍可查**（成绩不能因为退班就消失）。
+        // 所以这里不要求「现在仍在参与班」；但对从未参与、也没有任何提交的学生仍按 404 处理，
+        // 不泄漏这场布置是否存在。
+        if (attempts.isEmpty() && !windows.isParticipant(o, me.id())) {
+            throw ApiException.notFound("考试不存在");
+        }
         Submission active = submissions.findByOfferingIdAndStudentIdAndActiveTrue(o.getId(), me.id())
                 .orElse(null);
         // 只有「没有进行中的作答」时才可能重新开始：被拒收后 active 会被清掉。

@@ -13,6 +13,7 @@ import com.teachloop.identity.domain.User;
 import com.teachloop.identity.domain.UserRepository;
 import com.teachloop.identity.domain.UserRole;
 import com.teachloop.identity.domain.UserStatus;
+import com.teachloop.identity.profile.ProfileCompletion;
 import com.teachloop.identity.security.SessionAuthFilter;
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.error.ErrorCode;
@@ -246,7 +247,9 @@ public class AuthEndpoint {
         return email.trim().toLowerCase();
     }
 
+    /** T561 / AC-93.1：资料是否完整随 me 一起返回，前端不再靠 403 判断。 */
     private AuthDtos.MeView me(User u) {
-        return new AuthDtos.MeView(u.getId().toString(), u.getDisplayName(), u.getEmail(), u.getRole(), u.getLocale());
+        return new AuthDtos.MeView(u.getId().toString(), u.getDisplayName(), u.getEmail(), u.getRole(),
+                u.getLocale(), ProfileCompletion.isIncomplete(u));
     }
 }

@@ -65,6 +65,10 @@ export class ApiClient {
     return (await this.send('PUT', path, data)).json() as Promise<T>
   }
 
+  async del<T>(path: string): Promise<T> {
+    return (await this.send('DELETE', path)).json() as Promise<T>
+  }
+
   private async send(method: string, path: string, data?: unknown) {
     const response = await this.context.fetch(path, {
       method,
