@@ -31,6 +31,18 @@ export class BasePage {
     await this.page.waitForLoadState('networkidle', { timeout: 3_000 }).catch(() => undefined)
   }
 
+  /**
+   * 断言确实停在这条路由上。
+   *
+   * 存在的理由：本项目的 `ProfileCompletionFilter` 会把资料不全的人弹到 `/profile`，
+   * 而 `/profile` 同样"不溢出、主按钮在首屏"——只验布局的话，被重定向也照样绿。
+   * 2026-10-30 CI 首跑就踩到：`/grading` 的断言实际跑在 `/profile` 上。
+   */
+  async expectPath(expected: string): Promise<void> {
+    const actual = new URL(this.page.url()).pathname
+    expect(actual, `路由被重定向了：期望 ${expected}，实际 ${actual}`).toBe(expected)
+  }
+
   /** 横向溢出：`scrollWidth` 不得超过视口宽 + 2px（容忍亚像素舍入）。 */
   async expectNoHorizontalOverflow(): Promise<void> {
     const width = this.page.viewportSize()?.width ?? 0

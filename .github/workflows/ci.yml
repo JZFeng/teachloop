@@ -112,6 +112,15 @@ jobs:
           done
           echo "后端未通过 /healthz"; tail -60 .ci/backend.log; exit 1
 
+      - name: 建首个管理员（否则 /login 会被重定向到 /setup，登录按钮根本不存在）
+        # 全新库里 seed 只造老师/学生，没有 ADMIN；有 ProfileCompletionFilter 的项目更要先有管理员。
+        # dev profile 下 CSRF 关闭，直接 POST 即可。
+        run: |
+          curl -fsS -X POST http://127.0.0.1:8010/api/setup/admin \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"admin@ci.local","password":"ci-admin-password-123","displayName":"CI 管理员"}'
+          curl -fsS http://127.0.0.1:8010/api/setup/status
+
       - uses: pnpm/action-setup@v4
         with:
           version: 12

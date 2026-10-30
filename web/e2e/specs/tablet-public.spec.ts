@@ -13,6 +13,7 @@ for (const route of PUBLIC_ROUTES) {
   test(`未登录页不溢出、主操作在首屏：${route}`, async ({ page }) => {
     const view = new BasePage(page)
     await view.open(route)
+    await view.expectPath(route)
     await view.expectTabletSafe()
   })
 }
