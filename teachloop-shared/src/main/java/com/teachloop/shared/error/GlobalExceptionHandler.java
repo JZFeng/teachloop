@@ -87,13 +87,15 @@ public class GlobalExceptionHandler {
         return switch (code) {
             case BAD_REQUEST, VALIDATION_FAILED -> HttpStatus.BAD_REQUEST;
             case UNAUTHORIZED -> HttpStatus.UNAUTHORIZED;
-            case FORBIDDEN, ACCOUNT_PENDING -> HttpStatus.FORBIDDEN;
+            case FORBIDDEN, ACCOUNT_PENDING, PROFILE_INCOMPLETE -> HttpStatus.FORBIDDEN;
             case NOT_FOUND -> HttpStatus.NOT_FOUND;
             case CONFLICT -> HttpStatus.CONFLICT;
             case RATE_LIMITED -> HttpStatus.TOO_MANY_REQUESTS;
             case UNAVAILABLE -> HttpStatus.SERVICE_UNAVAILABLE;
             case INTERNAL -> HttpStatus.INTERNAL_SERVER_ERROR;
             case METHOD_NOT_ALLOWED -> HttpStatus.METHOD_NOT_ALLOWED;
+            // 012 / AC-98.7：结课班级的写入口是 409 而不是 403——不是「没权限」，是「状态不允许」。
+            case CLASS_ARCHIVED -> HttpStatus.CONFLICT;
         };
     }
 }

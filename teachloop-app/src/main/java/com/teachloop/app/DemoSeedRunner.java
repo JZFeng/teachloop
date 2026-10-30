@@ -86,7 +86,8 @@ public class DemoSeedRunner implements ApplicationRunner {
                 new ClassEntity(CLASS_ID, "演示班", teacher.getId(), "DEMO2026", Instant.now(clock))));
         for (int i = 1; i <= 30; i++) {
             User student = users.findByEmail(String.format("student%02d@teachloop.local", i)).orElseThrow();
-            if (!members.existsByClassIdAndStudentId(clazz.getId(), student.getId())) {
+            if (!members.existsByClassIdAndStudentIdAndStatus(clazz.getId(), student.getId(),
+                    com.teachloop.classroom.domain.MemberStatus.ACTIVE)) {
                 members.save(new ClassMember(UUID.randomUUID(), clazz.getId(), student.getId(), Instant.now(clock)));
             }
         }

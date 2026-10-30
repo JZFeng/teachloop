@@ -283,6 +283,8 @@ public class ExamSessionEndpoint {
         Offering o = published(offeringId);
         requireStudent(me);
         requireParticipant(o, me);
+        // 012 / AC-98.7：多班规则——至少一个未归档班仍包含该生才放行（见 OfferingWindows#requireSubmittable）。
+        windows.requireSubmittable(o, me.id());
         ExamSessionService.Finalized f = sessions.submit(o, me.id(), body.contentHtml(),
                 body.contentText(), body.answers());
         return submitResponse(f, o);
@@ -301,6 +303,7 @@ public class ExamSessionEndpoint {
         Offering o = published(offeringId);
         requireStudent(me);
         requireParticipant(o, me);
+        windows.requireSubmittable(o, me.id());
         SubmissionAttachments.Prepared prepared = attachments.prepare(o.getId(), file);
         ExamSessionService.Finalized f = sessions.submitFile(o, me.id(),
                 new ExamSessionService.FileAttachment(prepared.storagePath(), prepared.fileName(),
@@ -357,6 +360,7 @@ public class ExamSessionEndpoint {
         Offering o = published(offeringId);
         requireStudent(me);
         requireParticipant(o, me);
+        windows.requireSubmittable(o, me.id());
         if (file == null || file.isEmpty()) {
             throw ApiException.badRequest("请选择要提交的视频");
         }

@@ -1,6 +1,7 @@
 package com.teachloop.vocab.assign;
 
 import com.teachloop.shared.error.ApiException;
+import com.teachloop.shared.error.ErrorCode;
 import com.teachloop.shared.port.Ports;
 import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.vocab.assign.VocabularyAssignmentRepository.AssignmentView;
@@ -50,6 +51,7 @@ public class VocabularyAssignmentEndpoint {
 
     private final VocabularyAssignmentRepository assignments;
     private final Ports.ClassMembership classes;
+    private final Ports.ClassLifecycle lifecycle;
     private final Ports.NotificationPort notifications;
     private final VocabWordRepository words;
     private final VocabularyGenerationService generation;
@@ -58,12 +60,14 @@ public class VocabularyAssignmentEndpoint {
 
     public VocabularyAssignmentEndpoint(VocabularyAssignmentRepository assignments,
                                         Ports.ClassMembership classes,
+                                        Ports.ClassLifecycle lifecycle,
                                         Ports.NotificationPort notifications,
                                         VocabWordRepository words,
                                         VocabularyGenerationService generation,
                                         ContentStore contentStore, Clock clock) {
         this.assignments = assignments;
         this.classes = classes;
+        this.lifecycle = lifecycle;
         this.notifications = notifications;
         this.words = words;
         this.generation = generation;
@@ -84,11 +88,21 @@ public class VocabularyAssignmentEndpoint {
                                 boolean claimed, List<PreviewWord> words) {
     }
 
+    /**
+     * 发词（教师）。
+     *
+     * <p>T561 / AC-93.4：资料未补全（缺手机号或邮箱）时 403 {@code PROFILE_INCOMPLETE}——
+     * 「资料补全不再整站 403」之后保留强制的两个写操作之一。判定在 identity 的
+     * {@code ProfileCompletionFilter}（请求属性 {@code teachloop.profileIncomplete}），这里只消费。
+     */
     @PostMapping
     @Transactional
     public Created create(@RequestBody(required = false) CreateRequest request,
-                          @RequestAttribute("currentUser") CurrentUser me) {
+                          @RequestAttribute("currentUser") CurrentUser me,
+                          @RequestAttribute(name = "teachloop.profileIncomplete", required = false)
+                          Boolean profileIncomplete) {
         requireTeacher(me);
+        requireProfileComplete(profileIncomplete);
         if (request == null || request.setId() == null || request.classIds() == null
                 || request.classIds().isEmpty()) {
             throw ApiException.badRequest("setId and classIds are required");
@@ -97,6 +111,13 @@ public class VocabularyAssignmentEndpoint {
         Set<UUID> owned = classes.classIdsOwnedBy(classIds, me.id());
         if (owned.size() != classIds.size()) {
             throw ApiException.notFound("class not found");
+        }
+        // 012 / FR-224 / AC-98.2：已结课的班不能作为发词目标——学生那边只读，
+        // 再发新词等于给一个「不能提交」的班派活。跨模块只问端口。
+        for (UUID classId : classIds) {
+            if (lifecycle.state(classId).map(Ports.ClassState::archived).orElse(false)) {
+                throw ApiException.classArchived("error.class.archived");
+            }
         }
 
         VocabularyAssignmentRepository.ActiveSet activeSet = assignments.activeSet(request.setId(), me.id())
@@ -257,6 +278,16 @@ public class VocabularyAssignmentEndpoint {
     private static void requireTeacher(CurrentUser me) {
         if (!me.is("TEACHER") && !me.is("ADMIN")) {
             throw ApiException.forbidden("teacher only");
+        }
+    }
+
+    /**
+     * T561 / AC-93.4：资料未补全不能发词。属性缺失（过滤器不在链上）按放行处理——
+     * 真正的强制点是 identity 过滤器覆盖的全部真实请求。
+     */
+    private static void requireProfileComplete(Boolean profileIncomplete) {
+        if (Boolean.TRUE.equals(profileIncomplete)) {
+            throw new ApiException(ErrorCode.PROFILE_INCOMPLETE, "error.profile.incomplete");
         }
     }
 }
