@@ -1,6 +1,6 @@
 # Playwright 端到端测试设计
 
-日期：2026-10-30　状态：**阶段 1 已落地**（骨架 + 平板守卫，37 条用例 26.7 秒全绿）；阶段 2/3 未开始
+日期：2026-10-30　状态：**阶段 1+2 已落地**（平板守卫 + API 层 + 场景工厂 + 2 条业务用例，44 条 28.4 秒全绿）；阶段 3 未开始
 （用户当天拍板：数据准备走「纯 API 编排 + CLI 造账号」）
 
 配套：`AGENTS.md` 的 UI 约束第 5 条（平板必检）、`docs/process/ui-review-checklist.md` 的 D3。
@@ -157,8 +157,10 @@ make web-e2e-tablet     # 只跑平板守卫
 make web-e2e-install    # 首次：下载 chromium（约 100MB，落到 ~/Library/Caches/ms-playwright）
 ```
 
-**实测（2026-10-30，阶段 1）**：`pnpm e2e:tablet` → **37 passed / 26.7s**
-（1 条登录态 setup + 3 个 project × 12 条路由 = 36 条守卫用例）。
+**实测（2026-10-30）**：
+
+- `pnpm e2e:tablet` → **37 passed / 24–27s**（2 条登录态 setup + 3 个 project × 12 条路由 = 36 条守卫用例）
+- `pnpm e2e`（全量）→ **44 passed / 28.4s**（上面 36 条 + 2 条业务用例 × 3 个 project）
 
 - `webServer` 配 `reuseExistingServer: !process.env.CI`，本地不重复拉 dev。
 - 首次需要 `npx playwright install chromium`（CI 里配 `~/.cache/ms-playwright` 缓存，未命中时约 1–2 分钟）。
@@ -171,7 +173,11 @@ make web-e2e-install    # 首次：下载 chromium（约 100MB，落到 ~/Librar
 2. **基准不能用 `innerWidth`**：页面没有 `<meta name="viewport">` 时 Chrome 把布局视口撑到内容宽度
    （实测 2000px 的 div 让 `innerWidth=2008`），"溢出"永远测不出来。平板断言要拿**我们设定的期望宽高**比。
 3. 受限环境里 Chrome 需要 `--no-sandbox` 才能起来（Playwright 同理，`launchOptions.args` 里加）。
-4. **不要裸等 `networkidle`**：dev 下 Vite 的 HMR WebSocket 与 30 秒轮询让「网络静默 500ms」迟迟不成立，
+4. **交卷后学生落在哪儿**：`/exams/:id` 交卷后显示的是「考前须知 + 我的状态（已交卷 / 再考一次 / 查看成绩与评语）」
+   这张**入场页**，不是 `ExamResult` 那张成绩页（后者要点「查看成绩与评语」才到）。断言标题要按入场页的
+   二级标题（`<试卷名>终结性考试`）找，`.exam-result .sub` 在这时并不存在。
+5. **`APIRequestContext` 没有 `setExtraHTTPHeaders`**：CSRF token 只能**逐请求**塞进 `fetch(..., { headers })`。
+6. **不要裸等 `networkidle`**：dev 下 Vite 的 HMR WebSocket 与 30 秒轮询让「网络静默 500ms」迟迟不成立，
    第一次跑就以 `Target page, context or browser has been closed` + 30 秒超时收场。
    `BasePage.waitSettled()` 现在给 `networkidle` 3 秒上限，超时按"已渲染"继续。
 
@@ -180,10 +186,11 @@ make web-e2e-install    # 首次：下载 chromium（约 100MB，落到 ~/Librar
 | 阶段 | 内容 | 产出 | 估算 |
 | :--- | :--- | :--- | :--- |
 | 1 | **已完成 2026-10-30**：`playwright.config.ts` + `e2e/fixtures/auth.setup.ts` + `pages/base/BasePage.ts` + `specs/tablet-{public,app}.spec.ts` | `make web-e2e-tablet` → 37 passed / 26.7s | 半天 |
-| 2 | API 层 + 场景工厂：`client.ts`（含 CSRF 握手）+ 一个完整场景（学生写作） | 1 条端到端用例，spec 里只有 1 个 UI 动作 | 1 天 |
+| 2 | **已完成 2026-10-30**：`api/client.ts`（含 CSRF 逐请求回传）+ `class/paper/offering/exam.api.ts` + `fixtures/scenario.givenSubmittedEssay` + `pages/{grading-detail,student-exam}.page.ts` + 2 条业务用例 | 学生交卷 → 教师批改列表可见；学生交卷 → 入场页显示已交卷与卷名 | 1 天 |
 | 3 | 逐页 POM：教师出卷、批改、复核、报表；学生作答、词表 | 每页 1–2 小时 | 按页计 |
 
 阶段 1 已完成，零依赖过渡版 `scripts/ui/tablet-matrix.mjs` 已删除，断言搬进 `tablet.spec.ts`。
+阶段 2 的产物：`web/e2e/{api,fixtures,pages,specs}`；新增用例只写 `specs/`，造数与选择器分别落在 `fixtures/` 与 `pages/`。
 
 ## 11. 风险
 
