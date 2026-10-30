@@ -31,6 +31,8 @@ public final class RoleNavMatrix {
     public static final String NAV_VOCAB_LISTS = "nav.vocab.lists";
     public static final String NAV_VOCAB_REVIEW = "nav.vocab.review";
     public static final String NAV_AI = "nav.ai";
+    /** 013：管理员维护系统词书的入口（受 vocab 模块开关约束，见 isVocabKey）。 */
+    public static final String NAV_VOCAB_BOOKS = "nav.vocab.books";
 
     /**
      * 全部已知 key。顺序与前端菜单目录一致：前端按自己的目录顺序过滤，
@@ -39,7 +41,7 @@ public final class RoleNavMatrix {
     public static final List<String> ALL_KEYS = List.of(
             NAV_HOME, NAV_CLASSES, NAV_ASSIGNMENTS, NAV_PAPERS,
             NAV_VOCAB_SETS, NAV_VOCAB_ASSIGN, NAV_GRADING, NAV_REVIEW, NAV_REPORTS,
-            NAV_VOCAB_LIBRARY, NAV_VOCAB_LISTS, NAV_VOCAB_REVIEW, NAV_AI);
+            NAV_VOCAB_LIBRARY, NAV_VOCAB_LISTS, NAV_VOCAB_REVIEW, NAV_AI, NAV_VOCAB_BOOKS);
 
     /**
      * 角色默认可见集合。管理员只做 AI 配置（2026-10-27 用户拍板，取代 2026-10-24 的
@@ -47,7 +49,7 @@ public final class RoleNavMatrix {
      * 管理员因此不含班级、首页、作业、试卷、词集、发词、批改、复核、报表。
      */
     private static final Map<UserRole, Set<String>> ROLE_KEYS = Map.of(
-            UserRole.ADMIN, Set.of(NAV_AI),
+            UserRole.ADMIN, Set.of(NAV_AI, NAV_VOCAB_BOOKS),
             UserRole.TEACHER, Set.of(NAV_HOME, NAV_CLASSES, NAV_ASSIGNMENTS, NAV_PAPERS,
                     NAV_VOCAB_SETS, NAV_VOCAB_ASSIGN, NAV_GRADING, NAV_REVIEW, NAV_REPORTS),
             // 2026-10-26（AC-72.8）：学生不再有「成绩与评语」菜单项——列表页删除，

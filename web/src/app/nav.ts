@@ -71,6 +71,7 @@ export const NAV_CATALOG: NavSpec[] = [
   // 2026-10-26（AC-72.8）：删 `nav.feedback` 目录项。它原来指向 `/feedback` 列表页，
   // 而那份列表和首页是同一份数据的两个视图；现在「看评语」从首页 / 作业页的行内直接进详情，
   // 侧栏不再留一个重复入口。`/feedback/:offeringId` 路由仍然存在。
+  { key: 'nav.vocab.books', to: '/admin/vocab/books', labelKey: 'vocab.books.adminNav', icon: 'library' },
   { key: 'nav.ai', to: '/admin/ai', labelKey: 'nav.aiSettings', icon: 'settings' },
 ]
 

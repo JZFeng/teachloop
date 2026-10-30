@@ -12,10 +12,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 class RoleNavMatrixTest {
 
     @Test
-    void adminSeesOnlyAi() {
+    void adminSeesAiAndVocabBooks() {
         // 2026-10-27：班级移出管理员矩阵——班级只属于师生，管理员不再有查看入口。
+        // 2026-10-30（013）：管理员新增「词书管理」入口；它受 vocab 模块开关约束。
         assertThat(RoleNavMatrix.keysFor(UserRole.ADMIN))
-                .containsExactly(RoleNavMatrix.NAV_AI)
+                .containsExactlyInAnyOrder(RoleNavMatrix.NAV_AI, RoleNavMatrix.NAV_VOCAB_BOOKS)
                 .doesNotContain(RoleNavMatrix.NAV_CLASSES);
     }
 

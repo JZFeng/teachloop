@@ -2138,6 +2138,9 @@
       "teacherLinkTitle": "这是给学生的链接",
       "teacherLinkBody": "老师账号打不开学生预习页。把链接发给本班学生即可，他们点开就能加入词库。",
       "backToSets": "返回词集"
+    },
+    "books": {
+      "adminNav": "词书管理"
     }
   }
 }

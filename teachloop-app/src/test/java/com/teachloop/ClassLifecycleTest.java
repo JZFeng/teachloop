@@ -117,9 +117,12 @@ class ClassLifecycleTest {
         assertThat(request(base, student, "POST", "/api/offerings/" + offeringId + "/submissions",
                 Map.of("contentText", "second try")).statusCode()).isEqualTo(404);
 
-        // 不在班时这条历史入口随班一起消失（GET /api/classes 已不返回它，AC-96.3 第一句）。
-        assertThat(request(base, student, "GET", "/api/offerings/" + offeringId + "/my-submissions", null)
-                .statusCode()).isEqualTo(404);
+        // 历史成绩对本人仍然可查（AC-96.1 的「已提交的作业、批改结果与成绩都会保留」）：
+        // 退班只影响「新作业可见」与「能否提交」，不吞掉已经交过的记录。
+        HttpResponse<String> history = request(base, student, "GET",
+                "/api/offerings/" + offeringId + "/my-submissions", null);
+        assertThat(history.statusCode()).withFailMessage(history.body()).isEqualTo(200);
+        assertThat((List<?>) Json.parse(history.body()).get("attempts")).isNotEmpty();
 
         // 重新用同一个邀请码加入：复用同一行，joined_at 不变，rejoined_at 有值（FR-217）。
         joinClass(base, student, str(clazz.get("inviteCode")));

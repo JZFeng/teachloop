@@ -2138,6 +2138,9 @@
       "teacherLinkTitle": "This is a student link",
       "teacherLinkBody": "Teacher accounts cannot open the student preview page. Send the link to students in the class; they can open it and add the words to their library.",
       "backToSets": "Back to word sets"
+    },
+    "books": {
+      "adminNav": "Word books"
     }
   }
 }

@@ -22,6 +22,10 @@ import VocabAssignmentPreviewPage from './vocab/AssignmentPreviewPage'
 import VocabListsPage from './vocab/ListsPage'
 import VocabListDetailPage from './vocab/ListDetailPage'
 import VocabQuizPage from './vocab/QuizPage'
+import BookDetailPage from './vocab/books/BookDetailPage'
+import BookCopyReviewPage from './vocab/books/BookCopyReviewPage'
+import AdminBooksPage from './vocab/books/AdminBooksPage'
+import BookImportPage from './vocab/books/BookImportPage'
 import LoginPage from './app/LoginPage'
 import RegisterPage from './app/RegisterPage'
 import ActivatePage from './app/ActivatePage'
@@ -223,6 +227,9 @@ function AppRoutes() {
               <Route path="vocab/words/by-form/:form" element={<VocabWordDetailPage />} />
               <Route path="vocab/add" element={<VocabAddWordsPage />} />
               <Route path="vocab/assignments/:id" element={<VocabAssignmentPreviewPage />} />
+              {/* 013：系统词书（学生侧）。加入后进副本复习，再落到全屏会话 */}
+              <Route path="vocab/books/:id" element={<BookDetailPage />} />
+              <Route path="vocab/books/:bookId/review" element={<BookCopyReviewPage />} />
             </>
           )}
           <Route path="papers" element={<RequireFeature feature="nav.papers"><PapersPage /></RequireFeature>} />
