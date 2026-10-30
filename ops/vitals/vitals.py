@@ -61,6 +61,7 @@ DEFAULTS = {
     "DISK_WARN": "90",
     "MEM_WARN": "90",
     "HISTORY_POINTS": "60",
+    "WARMUP": "60",
 }
 
 LOCK = threading.Lock()
@@ -238,9 +239,18 @@ def poll_prod(cfg: dict) -> None:
 # ---------------------------------------------------------------- 告警
 
 def conditions(cfg: dict) -> list[dict]:
-    """返回当前「不健康」的条件列表；空列表 = 全绿。"""
+    """返回当前「不健康」的条件列表；空列表 = 全绿。
+
+    进程刚起来的那一分钟不判死：重启/部署时探针还没跑第一轮，facts_at 为 0 会被算成
+    「采集失联」，每次重启都给用户发一封假告警（2026-10-29 实测：ai-ubuntu 重启后
+    18:30:43 误报、18:30:55 误恢复）。
+    """
     out: list[dict] = []
     now = time.time()
+    with LOCK:
+        started = STATE["started"]
+    if now - started < num(cfg, "WARMUP", 60):
+        return out
     with LOCK:
         public = dict(STATE["public"] or {})
         public_at = STATE["public_at"]

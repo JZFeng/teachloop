@@ -88,6 +88,7 @@ chmod +x ~/vitals-probe/probe.sh
 | 容器不在运行 / app·db unhealthy | down / warn | 立刻 |
 | 磁盘 ≥ 90%、内存 ≥ 90% | warn | 立刻 |
 
+- **启动 60 秒暖机期不判死**（`WARMUP`）：进程刚起来探针还没跑第一轮，`facts_at=0` 会被算成「采集失联」。2026-10-29 ai-ubuntu 重启后实测误报了一次（18:30:43 异常 → 18:30:55 恢复），加暖机后重启不再发假告警。
 - 同一条告警 **30 分钟冷却**后重发；恢复时发一封 `🟢 已恢复`，附持续时间。
 - 邮件走 prod 同款 163 发件箱（`smtp.163.com:465`，授权码不是登录密码），收件人 `jzhfeng001@gmail.com`。
 - **验证方式**：`python3 vitals.py --test-mail`（`ALERT_ENABLED=1` 时才真发）。
