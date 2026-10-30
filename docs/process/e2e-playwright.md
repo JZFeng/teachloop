@@ -162,7 +162,11 @@ make web-e2e-install    # 首次：下载 chromium（约 100MB，落到 ~/Librar
 - `pnpm e2e:tablet` → **37 passed / 24–27s**（2 条登录态 setup + 3 个 project × 12 条路由 = 36 条守卫用例）
 - `pnpm e2e`（全量）→ **44 passed / 28.4s**（上面 36 条 + 2 条业务用例 × 3 个 project）
 
-- `webServer` 配 `reuseExistingServer: !process.env.CI`，本地不重复拉 dev。
+- `webServer` 配 `reuseExistingServer: !process.env.CI`，本地不重复拉 dev；CI 里由 Playwright 自己起 `pnpm dev`。
+- **CI**：`.github/workflows/ci.yml`（2026-10-30 加），三个 job——
+  `web-checks`（typecheck + 单测 + check-ui + check-i18n）、`e2e`（Postgres service + 造 jar + seed +
+  起后端 :8010 + Playwright）、`java-tests`（Maven 单测）。e2e 的环境变量与 `scripts/dev.sh` 逐项对齐，
+  判分/词内容用 `stub` 引擎，不烧 AI 额度；失败上传 `test-results` 与后端日志。
 - 首次需要 `npx playwright install chromium`（CI 里配 `~/.cache/ms-playwright` 缓存，未命中时约 1–2 分钟）。
 - `trace: 'retain-on-failure'`，`screenshot: 'only-on-failure'`；失败产物进 `web/e2e/test-results/`（已 gitignore）。
 

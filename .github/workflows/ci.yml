@@ -1,0 +1,175 @@
+name: ci
+
+# 三件事分开跑，谁红了看一眼名字就知道：
+#   web-checks  —— 纯静态/单测（无数据库、无浏览器，最快）
+#   e2e         —— 真后端 + 真前端 + Playwright（平板守卫 + 业务用例）
+#   java-tests  —— 后端单测（Maven）
+#
+# e2e 的环境变量与 `scripts/dev.sh` 逐项对齐：dev profile、seed 走 --seed-exit、
+# grading/vocab 用 stub 引擎（不烧 AI 额度）。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: 安装前端依赖
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: 类型检查（源码）
+        working-directory: web
+        run: pnpm typecheck
+
+      - name: 类型检查（e2e）
+        working-directory: web
+        run: pnpm e2e:typecheck
+
+      - name: 前端单测
+        working-directory: web
+        run: pnpm test
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: UI 约束守卫
+        run: python3 scripts/check-ui.py
+
+      - name: i18n 守卫
+        run: python3 scripts/check-i18n.py
+
+  e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: teachloop
+          POSTGRES_PASSWORD: teachloop
+          POSTGRES_DB: teachloop
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U teachloop -d teachloop"
+          --health-interval 10s --health-timeout 5s --health-retries 10
+    env:
+      DB_URL: jdbc:postgresql://localhost:5432/teachloop
+      DB_USER: teachloop
+      DB_PASSWORD: teachloop
+      SPRING_PROFILES_ACTIVE: dev
+      STORAGE_LOCAL_DIR: ${{ github.workspace }}/uploads-ci
+      TEACHLOOP_GRADING_ENGINE: stub
+      VOCAB_GENERATION_ENGINE: stub
+      TEACHLOOP_SECURITY_SECRET: ci-only-not-a-real-secret
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: 构建后端 jar
+        run: ./mvnw -q -DskipTests package
+
+      - name: 写入演示数据（1 班 + 学生 + 试卷）
+        run: |
+          java -jar teachloop-app/target/teachloop-app-0.1.0-SNAPSHOT.jar \
+            --teachloop.seed.demo=true --seed-exit --server.port=0
+
+      - name: 启动后端 :8010
+        run: |
+          mkdir -p "$STORAGE_LOCAL_DIR" .ci
+          PORT=8010 TEACHLOOP_APP_BASE_URL=http://127.0.0.1:5173 \
+            java -jar teachloop-app/target/teachloop-app-0.1.0-SNAPSHOT.jar > .ci/backend.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8010/healthz >/dev/null 2>&1; then echo "backend up"; exit 0; fi
+            sleep 2
+          done
+          echo "后端未通过 /healthz"; tail -60 .ci/backend.log; exit 1
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: web/pnpm-lock.yaml
+
+      - name: 安装前端依赖
+        working-directory: web
+        run: pnpm install --frozen-lockfile
+
+      - name: 缓存 Playwright 浏览器
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}
+
+      - name: 安装 chromium
+        working-directory: web
+        run: pnpm e2e:install
+
+      - name: 跑 e2e（平板守卫 + 业务用例）
+        working-directory: web
+        run: pnpm e2e
+
+      - name: 失败留证据
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-artifacts
+          path: |
+            web/test-results
+            web/playwright-report
+            .ci/backend.log
+          retention-days: 7
+
+  java-tests:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: teachloop
+          POSTGRES_PASSWORD: teachloop
+          POSTGRES_DB: teachloop
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U teachloop -d teachloop"
+          --health-interval 10s --timeout 5s --retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+      - name: 后端单测
+        run: ./mvnw -q test
