@@ -52,3 +52,28 @@
 grep -cE '^\| T58[0-9]|^\| T59[01]' specs/012-class-lifecycle/tasks.md   # 期望 11
 grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d                   # 期望只剩 004 的「定义行 + 执行记录行」假重复
 ```
+
+---
+
+## 执行记录（2026-10-30）
+
+| ID | 状态 | 证据 |
+|---|---|---|
+| **T581** | ✅ 已完成（S0，2e9ce2b） | `V081__classroom_class_member_status.sql` 已在 main；`make check-boundaries` 通过 |
+| **T582** | ✅ | `ClassEndpoint.leave/removeMember` 只写 `LEFT` + `left_at`；审计 `class:leave` / `class:remove-member`；`grep -r "DELETE FROM class_members" teachloop-*` 为空；`ClassLifecycleTest.leaveKeepsRowAndRejoinReusesIt` / `teacherRemoveOnlyOwnerAndListFilters` |
+| **T583** | ✅ | 重入复用同一行（`ClassMember.rejoin`），`joined_at` 不变、写 `rejoined_at`；`ClassLifecycleTest` 断言行数仍 1 |
+| **T584** | ✅ | `POST /api/classes/{id}/archive|restore` 幂等、仅属主；join 对已结课班 404 且不含归档字样；结课/恢复前后提交与 `vocab_progress` 指纹一致（`archiveAndRestoreLifecycle`） |
+| **T585** | ✅ | `Ports.ClassLifecycle` 由 `ClassLifecycleImpl` 实现；提交（submit/submitFile/submitVideo）与新建作业接入；**多班规则**见 `multiClassArchiveKeepsSubmittable`（只结一个班仍可提交；全部结课 409 `CLASS_ARCHIVED`；恢复后可再交） |
+| **T586** | ⏳ 待联调 | 011 的 `GET /api/student/today` 在 011 分支（`teachloop-app/.../app/student/StudentTodayEndpoint.java` + sitting `AgendaAdapter`）里在飞且未合并；本分支不造临时端点。联调动作：在 `StudentTodayEndpoint` 组装 `assignments` 时按 `Ports.ClassLifecycle.state(classId).archived` 过滤。**AC-98.4 未勾选** |
+| **T587** | ✅ | 成员列表默认 ACTIVE、`?includeLeft=1` 含已离开；`memberCount` 与列表长度同口径（`teacherRemoveOnlyOwnerAndListFilters`） |
+| **T588** | ✅（端口级） | `ClassMembershipImpl.membersOf/classIdsOf` 只取 ACTIVE，发词收件人循环取自 `membersOf`；另加「已结课班不能作为发词目标」的 409（FR-224）。旧发词快照表不动（既有快照设计） |
+| **T589** | ✅ | 学生两屏 + 老师两屏 + 三套二次确认；已结课班只读、无提交入口；平板 834×1194 与 1024×1366 实测 `scrollWidth == innerWidth`、首屏外按钮 0（学生/老师各一轮） |
+| **T590** | ✅ | `ClassLifecycleTest` 5 例全绿；web `pnpm test` 191/191、`check-ui` 退 0；`check-deps`/`check-boundaries` 退 0；`check-i18n` 的 1 处红在纯净 main 复现（`web/src/api/auth.tsx:108`，非本次）；报告 `docs/reports/012-class-lifecycle.md` |
+| **T591** | ✅ | `ops/rollback/012-class-lifecycle.sh`（`--dry-run/--apply/--verify`）；qa 真库演练 `--apply` 复位 1 行 0.129s、幂等第二次 0 行、行数 37→37 不变；详见 `docs/reports/012-rollback-drill.md` |
+
+### 已知取舍与未完成项
+
+1. **回滚语义（实测修正）**：`update ... set status='ACTIVE', left_at=null where status='LEFT'` 不会让退班学生从**旧代码**的成员列表消失——旧查询没有 status 过滤，行在就在。这条 SQL 真正保住的是「012 重新上线时不把在班学生误判成 LEFT」。删 LEFT 行才能让旧代码看不见他们，但违反 FR-215 并丢历史，故不采用。详见 `docs/reports/012-rollback-drill.md` §6.1。
+2. **AC-98.4 待联调**（T586），不造临时端点。
+3. **已开始的作答**：按 spec FR-220 / T585 采用「提交即校验」，已开始的作答在班级结课后提交会被 409 拒绝（plan §11 待定项 1 未裁决；若产品要求「已开始允许交卷」，改动点在 `OfferingWindows#requireSubmittable`）。
+4. 并发会话提示：本机同时有 011/013 分支在写共享工作区；本轮验证在独立 worktree（`/tmp/tl012`）与独立库（`teachloop_verify012`）完成，未污染 dev 库。

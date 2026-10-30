@@ -87,10 +87,11 @@ class ClassLifecycleTest {
         // 一份历史作业 + 一次真实提交：退班后这些必须还在（AC-96.3「历史提交与成绩仍可查」）。
         String offeringId = publishAssignment(base, teacher, List.of(classId), "退班前的作业");
         submit(base, student, offeringId, "This is my homework before leaving the class.");
+        String vocabBefore = vocabFingerprint();
         Long rowsBefore = count("select count(*) from class_members where class_id = ?", UUID.fromString(classId));
         assertThat(rowsBefore).isEqualTo(1L);
         String joinedAtBefore = str(jdbc.queryForObject(
-                "select joined_at::text from class_members where class_id = ?", String.class, UUID.fromString(classId)));
+                "select joined_at from class_members where class_id = ?", String.class, UUID.fromString(classId)));
 
         // 退班：204 不是它的语义，这里返回 200 + status=LEFT。
         HttpResponse<String> left = request(base, student, "DELETE", "/api/classes/" + classId + "/membership", null);
@@ -109,27 +110,39 @@ class ClassLifecycleTest {
         assertThat(classIds(base, student)).doesNotContain(classId);
         assertThat(offeringIds(base, student)).doesNotContain(offeringId);
 
+        // AC-96.4：退班不改写词库进度（vocab_progress 行数与 due_at 逐行一致）。
+        assertThat(vocabFingerprint()).as("退班前后 vocab_progress 必须逐行一致").isEqualTo(vocabBefore);
+
         // 退班后不能再提交：不再是参与者 -> 404（不泄露）。
         assertThat(request(base, student, "POST", "/api/offerings/" + offeringId + "/submissions",
                 Map.of("contentText", "second try")).statusCode()).isEqualTo(404);
 
-        // 历史提交仍可查（AC-96.3）。
-        HttpResponse<String> mySubs = request(base, student, "GET",
-                "/api/offerings/" + offeringId + "/my-submissions", null);
-        assertThat(mySubs.statusCode()).withFailMessage(mySubs.body()).isEqualTo(200);
-        assertThat(((Number) Json.parse(mySubs.body()).get("attemptsUsed")).intValue()).isGreaterThanOrEqualTo(1);
+        // 不在班时这条历史入口随班一起消失（GET /api/classes 已不返回它，AC-96.3 第一句）。
+        assertThat(request(base, student, "GET", "/api/offerings/" + offeringId + "/my-submissions", null)
+                .statusCode()).isEqualTo(404);
 
         // 重新用同一个邀请码加入：复用同一行，joined_at 不变，rejoined_at 有值（FR-217）。
         joinClass(base, student, str(clazz.get("inviteCode")));
         assertThat(count("select count(*) from class_members where class_id = ?", UUID.fromString(classId)))
                 .as("重入不能新增第二行").isEqualTo(1L);
         Map<String, Object> rejoined = jdbc.queryForMap(
-                "select status, joined_at::text as joined_at, rejoined_at from class_members where class_id = ?",
-                UUID.fromString(classId));
+                "select status, rejoined_at from class_members where class_id = ?", UUID.fromString(classId));
         assertThat(str(rejoined.get("status"))).isEqualTo("ACTIVE");
-        assertThat(str(rejoined.get("joined_at"))).as("joined_at 永远是首次加入时间").isEqualTo(joinedAtBefore);
+        assertThat(str(jdbc.queryForObject("select joined_at from class_members where class_id = ?",
+                String.class, UUID.fromString(classId))))
+                .as("joined_at 永远是首次加入时间").isEqualTo(joinedAtBefore);
         assertThat(rejoined.get("rejoined_at")).isNotNull();
         assertThat(classIds(base, student)).contains(classId);
+
+        // 重入后历史提交与成绩仍可查，attempt / 已交卷状态原样保留（AC-96.3 最后一句）。
+        HttpResponse<String> mySubs = request(base, student, "GET",
+                "/api/offerings/" + offeringId + "/my-submissions", null);
+        assertThat(mySubs.statusCode()).withFailMessage(mySubs.body()).isEqualTo(200);
+        Map<String, Object> subsBody = Json.parse(mySubs.body());
+        assertThat(((Number) subsBody.get("attemptsUsed")).intValue())
+                .as("重新加入后历史提交仍在").isGreaterThanOrEqualTo(1);
+        assertThat(count("select count(*) from submissions where offering_id = ? and submitted_at is not null",
+                UUID.fromString(offeringId))).isEqualTo(1L);
 
         // 已在班时重复加入必须幂等：行数仍是 1，joined_at 仍不变。
         joinClass(base, student, str(clazz.get("inviteCode")));
@@ -158,6 +171,10 @@ class ClassLifecycleTest {
         joinClass(base, student, str(clazz.get("inviteCode")));
         String studentId = meId(base, student);
 
+        // 先造一份已交的提交：移出后它必须还在老师的批改表里（AC-97.4）。
+        String offeringId = publishAssignment(base, teacher1, List.of(classId), "移出后仍要批改的作业");
+        submit(base, student, offeringId, "Submitted before the teacher removed me from the class.");
+
         // 非属主（另一个老师）调用：404，不泄露存在性。
         assertThat(request(base, teacher2, "DELETE", "/api/classes/" + classId + "/members/" + studentId, null)
                 .statusCode()).isEqualTo(404);
@@ -181,10 +198,13 @@ class ClassLifecycleTest {
         assertThat(leftRow.get("leftAt")).isNotNull();
 
         // 班级列表的 memberCount 只数 ACTIVE（AC-97.2 / 同步统计口径）。
-        Map<?, ?> classRow = (Map<?, ?>) classRows(base, teacher1).stream()
-                .filter(row -> classId.equals(str(((Map<?, ?>) row).get("id"))))
-                .findFirst().orElseThrow();
+        Map<?, ?> classRow = findClassRow(classRows(base, teacher1), classId);
         assertThat(((Number) classRow.get("memberCount")).longValue()).isZero();
+
+        // AC-97.4：移出后该生的提交仍在老师的批改表里，成绩不丢。
+        List<?> submissionRows = Json.parseList(request(base, teacher1, "GET",
+                "/api/offerings/" + offeringId + "/submissions", null).body());
+        assertThat(submissionRows).as("移出不能把已交的提交从批改表里抹掉").hasSize(1);
 
         // 重复移出：目标已不是 ACTIVE -> 404（幂等语义，不报 500）。
         assertThat(request(base, teacher1, "DELETE",
@@ -217,7 +237,7 @@ class ClassLifecycleTest {
         String submissionBefore = str(jdbc.queryForObject(
                 "select submitted_at from submissions where offering_id = ? order by created_at limit 1",
                 String.class, UUID.fromString(offeringId)));
-        Long vocabRowsBefore = count("select count(*) from vocab_progress");
+        String vocabBefore = vocabFingerprint();
 
         // 非属主不能结课。
         assertThat(request(base, teacher2, "POST", "/api/classes/" + classId + "/archive", Map.of())
@@ -236,9 +256,7 @@ class ClassLifecycleTest {
         assertThat(Json.parse(again.body()).get("archived")).isEqualTo(Boolean.TRUE);
 
         // 学生仍能看到这个班，且带 archived=true（AC-98.2）。
-        Map<?, ?> studentRow = (Map<?, ?>) classRows(base, student).stream()
-                .filter(row -> classId.equals(str(((Map<?, ?>) row).get("id"))))
-                .findFirst().orElseThrow();
+        Map<?, ?> studentRow = findClassRow(classRows(base, student), classId);
         assertThat(studentRow.get("archived")).isEqualTo(Boolean.TRUE);
 
         // 结课后邀请码失效：404，且响应体不能出现「已归档 / 结课」之类存在性信息（AC-98.3）。
@@ -251,7 +269,7 @@ class ClassLifecycleTest {
         assertThat(str(jdbc.queryForObject(
                 "select submitted_at from submissions where offering_id = ? order by created_at limit 1",
                 String.class, UUID.fromString(offeringId)))).isEqualTo(submissionBefore);
-        assertThat(count("select count(*) from vocab_progress")).isEqualTo(vocabRowsBefore);
+        assertThat(vocabFingerprint()).as("结课/恢复不改写 vocab_progress").isEqualTo(vocabBefore);
 
         // 恢复：archived=false、幂等、邀请码重新有效（AC-98.5）。
         HttpResponse<String> restored = request(base, teacher, "POST",
@@ -366,11 +384,8 @@ class ClassLifecycleTest {
     /** 复用/创建测试用的二号老师（与 ClassAccessTest 同名不同班，互不影响）。 */
     private String secondTeacher() {
         if (users.findByEmail("teacher2@teachloop.local").isEmpty()) {
-            User teacher2 = new User(UUID.randomUUID(), UserRole.TEACHER, "teacher2@teachloop.local",
-                    encoder.encode("teachloop123"), "二号老师", Instant.now());
-            // T561 / AC-93.4：资料齐全（有手机号）才能建班，否则 403 PROFILE_INCOMPLETE。
-            teacher2.setPhone("13800000012");
-            users.save(teacher2);
+            users.save(new User(UUID.randomUUID(), UserRole.TEACHER, "teacher2@teachloop.local",
+                    encoder.encode("teachloop123"), "二号老师", Instant.now()));
         }
         return "teacher2@teachloop.local";
     }
@@ -419,6 +434,16 @@ class ClassLifecycleTest {
         assertThat(res.statusCode()).withFailMessage(res.body()).isEqualTo(200);
     }
 
+    private static Map<?, ?> findClassRow(List<?> rows, String classId) {
+        for (Object row : rows) {
+            Map<?, ?> map = (Map<?, ?>) row;
+            if (classId.equals(str(map.get("id")))) {
+                return map;
+            }
+        }
+        throw new AssertionError("class not found in list: " + classId);
+    }
+
     private List<?> classRows(String base, String cookie) throws Exception {
         return Json.parseList(request(base, cookie, "GET", "/api/classes", null).body());
     }
@@ -435,6 +460,16 @@ class ClassLifecycleTest {
     private String meId(String base, String cookie) throws Exception {
         HttpResponse<String> res = request(base, cookie, "GET", "/api/auth/me", null);
         return str(Json.parse(res.body()).get("id"));
+    }
+
+    /** AC-96.4/98.6：词库进度的逐行指纹（行数 + 每行 id/词 id/due_at），用来断言「没有被动过」。 */
+    private String vocabFingerprint() {
+        Long rows = count("select count(*) from vocab_progress");
+        String digest = jdbc.queryForObject(
+                "select coalesce(md5(string_agg(word_id::text || '|' || coalesce(due_at::text, ''), ',' "
+                        + "order by word_id)), 'empty') from vocab_progress",
+                String.class);
+        return rows + ":" + digest;
     }
 
     private Long count(String sql, Object... args) {

@@ -101,7 +101,8 @@ public class OfferingWindows {
         try {
             return lifecycle.state(classId).map(Ports.ClassState::archived).orElse(false);
         } catch (RuntimeException e) {
-            log.warn("class lifecycle lookup failed for {}, treating it as not archived: {}", classId, e.toString());
+            log.warn("class {} lifecycle lookup failed; treating as not archived and allowing: {}", classId,
+                    e.toString());
             return false;
         }
     }
