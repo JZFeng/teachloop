@@ -15,6 +15,15 @@ public interface ClassRepository extends JpaRepository<ClassEntity, UUID> {
 
     Optional<ClassEntity> findByInviteCode(String inviteCode);
 
-    @Query("select c from ClassEntity c, ClassMember m where m.classId = c.id and m.studentId = :studentId order by c.createdAt desc")
+    /**
+     * 学生视角的班级列表（012 / AC-96.3）。
+     *
+     * <p>只取 {@code ACTIVE} 成员：退班后这个班从列表里消失；但已结课（{@code archived=true}）
+     * 的班仍返回——学生要能回看历史作业与成绩（AC-98.2）。
+     */
+    @Query("select c from ClassEntity c, ClassMember m where m.classId = c.id "
+            + "and m.studentId = :studentId "
+            + "and m.status = com.teachloop.classroom.domain.MemberStatus.ACTIVE "
+            + "order by c.createdAt desc")
     List<ClassEntity> findForStudent(UUID studentId);
 }

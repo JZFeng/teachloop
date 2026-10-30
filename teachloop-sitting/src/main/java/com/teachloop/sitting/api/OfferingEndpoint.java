@@ -150,6 +150,13 @@ public class OfferingEndpoint {
             }
         }
 
+        // 012 / AC-98.7 / FR-225：已结课的班不能再作为布置目标，服务端拒绝（不是只把按钮置灰）。
+        // 一次跨班布置里只要有一个班已结课就整单拒绝：否则这一单会对已结束的班产生新作业。
+        List<UUID> archivedClasses = classIds.stream().filter(windows::archived).toList();
+        if (!archivedClasses.isEmpty()) {
+            throw ApiException.classArchived("error.class.archived");
+        }
+
         if (!exam) {
             boolean classOverride = assignments.stream()
                     .anyMatch(a -> !isBlank(a.dueAtOverride()) || a.durationOverride() != null);

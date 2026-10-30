@@ -28,6 +28,11 @@ public class ApiException extends RuntimeException {
         return new ApiException(ErrorCode.CONFLICT, message);
     }
 
+    /** 012 / AC-98.7：班级已结课时的新建作业 / 提交拦截，409 且 code=CLASS_ARCHIVED。 */
+    public static ApiException classArchived(String message) {
+        return new ApiException(ErrorCode.CLASS_ARCHIVED, message);
+    }
+
     public static ApiException unauthorized(String message) {
         return new ApiException(ErrorCode.UNAUTHORIZED, message);
     }

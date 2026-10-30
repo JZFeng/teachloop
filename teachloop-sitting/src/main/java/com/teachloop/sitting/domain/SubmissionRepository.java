@@ -21,6 +21,15 @@ public interface SubmissionRepository extends JpaRepository<Submission, UUID> {
 
     List<Submission> findByOfferingIdAndStudentIdOrderByAttemptNoDesc(UUID offeringId, UUID studentId);
 
+    /**
+     * 012 / AC-96.5：这批布置里该生已经交过卷的份数（退班确认弹窗算「还有几份没交」）。
+     *
+     * <p>按 offering 去重：同一场开了多次 attempt 也只算一份交过的作业。
+     */
+    @Query("select count(distinct s.offeringId) from Submission s where s.studentId = :studentId "
+            + "and s.submittedAt is not null and s.offeringId in :offeringIds")
+    long countSubmittedOfferings(UUID studentId, java.util.Collection<UUID> offeringIds);
+
     /** 到点还没交卷的草稿（T199）。 */
     @Query("select s.id from Submission s where s.submittedAt is null and s.active = true "
             + "and s.deadlineAt is not null and s.deadlineAt < :now")
