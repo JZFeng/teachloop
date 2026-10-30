@@ -17,7 +17,7 @@ OSS_MINIO_PASSWORD ?= teachloop-minio-secret
 OSS_TEST_BUCKET ?= teachloop-minio
 OSS_ENV_FILE ?= .envs/oss.env
 
-.PHONY: help status dev build test test-ai test-oss run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-test web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status prod-health oss-dev oss-down vocab-lexicon vocab-lexicon-test
+.PHONY: help status dev build test test-ai test-oss run start-db stop-db clean check-deps check-boundaries check-i18n check-ui web-test web-e2e web-e2e-tablet web-install web-build web-dev docker-build compose-up compose-down seed qa qa-up qa-down qa-status prod-health oss-dev oss-down vocab-lexicon vocab-lexicon-test
 
 help:
 	@echo "make start-db   启动本地 Postgres 容器（55432）"
@@ -135,6 +135,17 @@ web-install:
 # 前端金标往返测试（Vditor IR：Markdown 进 → 出，评分项与合计不变）
 web-test:
 	@cd web && pnpm test
+
+# Playwright 端到端（阶段 1：平板守卫）。首次需 `make web-e2e-install` 装 chromium。
+# 设计见 docs/process/e2e-playwright.md；需要前端起着（5173），未起会由 Playwright 拉起。
+web-e2e:
+	@cd web && pnpm e2e
+
+web-e2e-tablet:
+	@cd web && pnpm e2e:tablet
+
+web-e2e-install:
+	@cd web && pnpm e2e:install
 
 web-build:
 	@cd web && pnpm run build

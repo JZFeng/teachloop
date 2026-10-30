@@ -1,6 +1,7 @@
 # Playwright 端到端测试设计
 
-日期：2026-10-30　状态：**设计已定稿，代码未开始**（用户当天拍板：数据准备走「纯 API 编排 + CLI 造账号」）
+日期：2026-10-30　状态：**阶段 1 已落地**（骨架 + 平板守卫，37 条用例 26.7 秒全绿）；阶段 2/3 未开始
+（用户当天拍板：数据准备走「纯 API 编排 + CLI 造账号」）
 
 配套：`AGENTS.md` 的 UI 约束第 5 条（平板必检）、`docs/process/ui-review-checklist.md` 的 D3。
 
@@ -153,7 +154,11 @@ D3 矩阵里验。要机器全覆盖就再加两个 project（约 +30 秒）。
 ```bash
 make web-e2e            # 起 dev（或复用已起的 5173）→ 跑全部 spec
 make web-e2e-tablet     # 只跑平板守卫
+make web-e2e-install    # 首次：下载 chromium（约 100MB，落到 ~/Library/Caches/ms-playwright）
 ```
+
+**实测（2026-10-30，阶段 1）**：`pnpm e2e:tablet` → **37 passed / 26.7s**
+（1 条登录态 setup + 3 个 project × 12 条路由 = 36 条守卫用例）。
 
 - `webServer` 配 `reuseExistingServer: !process.env.CI`，本地不重复拉 dev。
 - 首次需要 `npx playwright install chromium`（CI 里配 `~/.cache/ms-playwright` 缓存，未命中时约 1–2 分钟）。
@@ -166,16 +171,19 @@ make web-e2e-tablet     # 只跑平板守卫
 2. **基准不能用 `innerWidth`**：页面没有 `<meta name="viewport">` 时 Chrome 把布局视口撑到内容宽度
    （实测 2000px 的 div 让 `innerWidth=2008`），"溢出"永远测不出来。平板断言要拿**我们设定的期望宽高**比。
 3. 受限环境里 Chrome 需要 `--no-sandbox` 才能起来（Playwright 同理，`launchOptions.args` 里加）。
+4. **不要裸等 `networkidle`**：dev 下 Vite 的 HMR WebSocket 与 30 秒轮询让「网络静默 500ms」迟迟不成立，
+   第一次跑就以 `Target page, context or browser has been closed` + 30 秒超时收场。
+   `BasePage.waitSettled()` 现在给 `networkidle` 3 秒上限，超时按"已渲染"继续。
 
 ## 10. 分阶段任务（要排期时再取全局 T 号，别直接写死）
 
 | 阶段 | 内容 | 产出 | 估算 |
 | :--- | :--- | :--- | :--- |
-| 1 | Playwright 骨架：config + `auth.setup.ts` + `BasePage` + `tablet.spec.ts`（3 projects） | 平板守卫可跑，`make web-e2e-tablet` 绿 | 半天 |
+| 1 | **已完成 2026-10-30**：`playwright.config.ts` + `e2e/fixtures/auth.setup.ts` + `pages/base/BasePage.ts` + `specs/tablet-{public,app}.spec.ts` | `make web-e2e-tablet` → 37 passed / 26.7s | 半天 |
 | 2 | API 层 + 场景工厂：`client.ts`（含 CSRF 握手）+ 一个完整场景（学生写作） | 1 条端到端用例，spec 里只有 1 个 UI 动作 | 1 天 |
 | 3 | 逐页 POM：教师出卷、批改、复核、报表；学生作答、词表 | 每页 1–2 小时 | 按页计 |
 
-阶段 1 完成时**删除** `scripts/ui/tablet-matrix.mjs`（零依赖过渡版，未提交），断言搬进 `tablet.spec.ts`。
+阶段 1 已完成，零依赖过渡版 `scripts/ui/tablet-matrix.mjs` 已删除，断言搬进 `tablet.spec.ts`。
 
 ## 11. 风险
 

@@ -8,7 +8,11 @@
     "build": "node scripts/copy-vditor.mjs && tsc --noEmit && vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
-    "test": "node --experimental-strip-types --test tests/*.test.mjs"
+    "test": "node --experimental-strip-types --test tests/*.test.mjs",
+    "e2e": "playwright test",
+    "e2e:tablet": "playwright test specs/tablet",
+    "e2e:install": "playwright install chromium",
+    "e2e:typecheck": "tsc -p tsconfig.e2e.json"
   },
   "dependencies": {
     "@ant-design/icons": "^6.3.4",
@@ -22,6 +26,8 @@
     "vditor": "4.0.1"
   },
   "devDependencies": {
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.6",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.1.2",
