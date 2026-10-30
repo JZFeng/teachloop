@@ -57,7 +57,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm dev',
+    // 显式绑 127.0.0.1：Node 18+ 在部分 Linux 上把 localhost 先解析到 ::1，
+    // 只绑 ::1 时 Playwright 探 127.0.0.1 会一直超时（CI 首次排查时就卡在这类问题上）。
+    command: 'pnpm dev --host 127.0.0.1',
     url: baseURL,
     reuseExistingServer: !process.env.CI,
     timeout: 120_000,

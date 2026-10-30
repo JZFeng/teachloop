@@ -132,9 +132,11 @@ jobs:
           path: ~/.cache/ms-playwright
           key: playwright-${{ runner.os }}-${{ hashFiles('web/pnpm-lock.yaml') }}
 
-      - name: 安装 chromium
+      - name: 安装 chromium（含系统依赖）
         working-directory: web
-        run: pnpm e2e:install
+        # 只 `playwright install chromium` 在干净的 ubuntu runner 上会缺 libnss3 等系统库，
+        # 浏览器起不来会报 "Host system is missing dependencies"；--with-deps 会一并 apt 安装。
+        run: pnpm exec playwright install --with-deps chromium
 
       - name: 跑 e2e（平板守卫 + 业务用例）
         working-directory: web
@@ -163,7 +165,7 @@ jobs:
         ports: ['5432:5432']
         options: >-
           --health-cmd "pg_isready -U teachloop -d teachloop"
-          --health-interval 10s --timeout 5s --retries 10
+          --health-interval 10s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4

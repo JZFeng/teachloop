@@ -38,12 +38,12 @@ def targets(root: Path):
                 yield path
 
 
-def literals(path: Path):
+def literals(path: Path, root: Path):
     text = path.read_text(encoding="utf-8")
     for i, line in enumerate(text.splitlines(), 1):
         for literal in STRING.findall(line):
             if CJK.search(literal):
-                yield i, literal, fingerprint(path, literal)
+                yield i, literal, fingerprint(path.relative_to(root), literal)
 
 
 def web_literals(root: Path):
@@ -63,10 +63,13 @@ def web_literals(root: Path):
             text = " ".join(h for h in hits if CJK.search(h)) or (line.strip() if not hits else "")
             if not text:
                 continue
-            yield path.relative_to(root), i, text, fingerprint(path, text)
+            yield path.relative_to(root), i, text, fingerprint(path.relative_to(root), text)
 
 
 def fingerprint(path: Path, literal: str) -> str:
+    """指纹必须只用**仓库相对路径**：用绝对路径的话，基线只在生成它的那台机/那个目录下有效，
+    换 clone 位置（CI workspace、容器里的 /tmp/tl）就全部对不上，闸门必红。
+    2026-10-30 实测：ai-ubuntu 容器里跑 check-i18n 报 367 处「新增」，本机同一份代码是 0 处。"""
     raw = f"{path.as_posix()}|{literal}".encode("utf-8")
     return hashlib.sha256(raw).hexdigest()[:16]
 
@@ -142,7 +145,7 @@ def main() -> int:
     found = []
     for path in sorted(targets(root)):
         rel = path.relative_to(root)
-        for line, literal, fp in literals(path):
+        for line, literal, fp in literals(path, root):
             found.append((rel, line, literal, fp))
     backend_fps = {f[3] for f in found}
 
