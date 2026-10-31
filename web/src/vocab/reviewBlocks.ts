@@ -27,6 +27,8 @@ export const BLOCK_FIELDS: Record<WordBlock, string> = {
   derivation: 'derivation',
   analysis: 'analysis',
   image: 'image',
+  morphology: 'morphology',
+  etymology: 'etymology',
 }
 
 /** 只描述回退路径要读的字段；`blocks` 是后端新契约。 */
@@ -41,6 +43,8 @@ export interface CardBlockSource {
   derivation?: unknown
   analysis?: unknown
   image?: unknown
+  morphology?: unknown
+  etymology?: unknown
 }
 
 function isWordBlock(id: string): id is WordBlock {

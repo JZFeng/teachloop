@@ -4,6 +4,8 @@
  */
 export const WORD_BLOCKS = [
   'core', 'senses', 'examples', 'synonyms', 'antonyms', 'family', 'derivation', 'analysis', 'image',
+  // V3：构词与派生、词源独立；仍接受旧 9 块，v2 内容回退不受影响。
+  'morphology', 'etymology',
 ] as const
 
 export type WordBlock = (typeof WORD_BLOCKS)[number]
@@ -21,4 +23,6 @@ export const BLOCK_LABELS: Record<string, { name: string; desc: string }> = {
   derivation: { name: 'vocab.blocks.derivation', desc: 'vocab.blocks.derivationDesc' },
   analysis: { name: 'vocab.blocks.analysis', desc: 'vocab.blocks.analysisDesc' },
   image: { name: 'vocab.blocks.image', desc: 'vocab.blocks.imageDesc' },
+  morphology: { name: 'vocab.blocks.morphology', desc: 'vocab.blocks.morphologyDesc' },
+  etymology: { name: 'vocab.blocks.etymology', desc: 'vocab.blocks.etymologyDesc' },
 }

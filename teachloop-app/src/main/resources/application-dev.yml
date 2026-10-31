@@ -13,3 +13,7 @@ teachloop:
     quiz:
       # US-87：小测默认关（base=false），dev 打开便于验收；关闭时端点 404、入口不渲染。
       enabled: true
+    content:
+      # 2026-10-31：V3 卡片数据（6 块，morphology/etymology 独立）；113 词新包。
+      pack-dir: ${VOCAB_CONTENT_PACK_DIR:./fixtures-local/vocab-content-v3}
+      prompt-version: ${VOCAB_CONTENT_PROMPT_VERSION:vocab-content-v3.0}

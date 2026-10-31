@@ -43,6 +43,14 @@ public record ReviewPrefs(int dailyNewCards, String strategy, List<String> block
             "core", "senses", "examples", "synonyms", "antonyms", "family", "derivation", "analysis",
             "image");
 
+    /** V3 卡片固定 6 块；顺序由 {@code ContentView} 固定，不参与用户排序。 */
+    public static final List<String> CARD_BLOCKS = List.of(
+            "senses", "morphology", "core", "examples", "synonyms", "etymology");
+
+    private static final java.util.Set<String> KNOWN_BLOCKS = java.util.stream.Stream
+            .concat(ALL_BLOCKS.stream(), CARD_BLOCKS.stream())
+            .collect(java.util.stream.Collectors.toUnmodifiableSet());
+
     private static final Set<String> STRATEGIES = Set.of(REVIEW_FIRST, MIXED, NEW_FIRST);
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -113,7 +121,7 @@ public record ReviewPrefs(int dailyNewCards, String strategy, List<String> block
         if (raw != null && raw.isArray()) {
             for (JsonNode key : raw) {
                 String value = key.asString("").trim();
-                if (ALL_BLOCKS.contains(value)) {
+                if (KNOWN_BLOCKS.contains(value)) {
                     out.add(value);
                 }
             }

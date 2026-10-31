@@ -125,3 +125,26 @@ test('content 为空 → 空数组', () => {
   assert.deepEqual(resolveCardBlocks(null), [])
   assert.deepEqual(resolveCardBlocks(undefined), [])
 })
+
+test('V3 的 6 块原样透传（morphology / etymology 不被 WORD_BLOCKS 过滤）', () => {
+  const morphology = {
+    modernNote: '现代英语中 eager 是整体词。',
+    derivatives: [{ word: 'eagerly', partOfSpeech: 'adverb', meaning: '热切地' }],
+    family: [{ word: 'eager', partOfSpeech: 'adjective', meaning: '渴望的' }],
+  }
+  const content = {
+    blocks: [
+      { id: 'senses', payload: [{ pos: 'adj.', zh: '渴望的' }] },
+      { id: 'morphology', payload: morphology },
+      { id: 'core', payload: { core: '热切' } },
+      { id: 'examples', payload: [{ en: 'She is eager.', zh: '她很渴望。' }] },
+      { id: 'synonyms', payload: { items: [], antonyms: [] } },
+      { id: 'etymology', payload: { text: '源自拉丁语 acer。' } },
+    ],
+  }
+  const resolved = resolveCardBlocks(content)
+  assert.deepEqual(ids(resolved), [
+    'senses', 'morphology', 'core', 'examples', 'synonyms', 'etymology',
+  ])
+  assert.deepEqual(resolved[1].payload, morphology)
+})

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { Button, InlineNote } from '../ui'
 import { getReviewPrefs, saveReviewPrefs, type ReviewPrefs } from './prefs'
 import { BLOCK_LABELS } from './wordBlocks'
+import { ReviewShortcutTable } from './ReviewShortcutTable'
 import './vocab.css'
 
 /** 三档：正常 3–49 / 进阶 50–99 / 挑战 100–200（点一下设成该档起步值）。 */
@@ -12,7 +13,7 @@ function tierOf(cards: number): 'normal' | 'hard' | 'extreme' {
   return 'normal'
 }
 
-const SWITCHES = ['derivation', 'synonyms', 'antonyms', 'family', 'image'] as const
+const SWITCHES = ['morphology', 'core', 'examples', 'synonyms', 'etymology'] as const
 
 /**
  * 背单词偏好（US-88 / T555）。`/profile` 与复习页齿轮共用同一个组件、同一份数据。
@@ -43,18 +44,21 @@ export function VocabPrefsCard({ compact = false }: { compact?: boolean } = {}) 
   if (!prefs) return <p className="muted small">{t('common.loading')}</p>
 
   const tier = tierOf(prefs.dailyNewCards)
-  const toggleHidden = (key: string) => {
-    const off = new Set(prefs.hidden)
-    if (off.has(key)) off.delete(key)
-    else off.add(key)
-    apply({ ...prefs, hidden: [...off] })
+  const HIDDEN_ALIASES: Record<string, string[]> = {
+    morphology: ['morphology', 'family', 'derivation'],
+    synonyms: ['synonyms', 'antonyms'],
+    etymology: ['etymology', 'analysis'],
   }
-  const move = (index: number, delta: number) => {
-    const next = [...prefs.blocks]
-    const target = index + delta
-    if (target < 0 || target >= next.length) return
-    ;[next[index], next[target]] = [next[target], next[index]]
-    apply({ ...prefs, blocks: next })
+  const hiddenNow = (key: string) => {
+    const aliases = HIDDEN_ALIASES[key] ?? [key]
+    return aliases.some((item) => prefs.hidden.includes(item))
+  }
+  const toggleHidden = (key: string) => {
+    const aliases = HIDDEN_ALIASES[key] ?? [key]
+    const off = new Set(prefs.hidden)
+    for (const item of aliases) off.delete(item)
+    if (!hiddenNow(key)) aliases.forEach((item) => off.add(item))
+    apply({ ...prefs, hidden: [...off] })
   }
 
   return (
@@ -128,7 +132,7 @@ export function VocabPrefsCard({ compact = false }: { compact?: boolean } = {}) 
             <label className="pref-switch" key={key}>
               <input
                 type="checkbox"
-                checked={!prefs.hidden.includes(key)}
+                checked={!hiddenNow(key)}
                 onChange={() => toggleHidden(key)}
               />
               <span>
@@ -138,29 +142,16 @@ export function VocabPrefsCard({ compact = false }: { compact?: boolean } = {}) 
             </label>
           ))}
         </div>
+        <p className="pref-note">{t('vocab.prefs.orderHint')}</p>
+        {saving && <p className="muted small">{t('vocab.prefs.saving')}</p>}
       </div>
 
       <div className="pref-block">
-        <div className="pref-title">{t('vocab.prefs.order')}</div>
-        <div className="pref-order">
-          {prefs.blocks.map((key, index) => (
-            <div className="pref-order-row" key={key}>
-              <span className="pref-order-no">{index + 1}</span>
-              <span className="pref-order-name">{t(BLOCK_LABELS[key]?.name ?? key)}</span>
-              <span className="pref-order-ops">
-                <Button size="small" variant="text" disabled={index === 0}
-                  onClick={() => move(index, -1)} aria-label={t('vocab.prefs.moveUp')}>↑</Button>
-                <Button size="small" variant="text" disabled={index === prefs.blocks.length - 1}
-                  onClick={() => move(index, 1)} aria-label={t('vocab.prefs.moveDown')}>↓</Button>
-              </span>
-            </div>
-          ))}
-        </div>
-        <p className="muted small">
-          {t('vocab.prefs.orderHint')}
-          {saving ? ` · ${t('vocab.prefs.saving')}` : ''}
-        </p>
+        <div className="pref-title">{t('vocab.prefs.shortcuts')}</div>
+        <ReviewShortcutTable />
+        <p className="pref-note">{t('vocab.prefs.shortcutsHint')}</p>
       </div>
+
       </>
       )}
     </div>

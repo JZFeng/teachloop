@@ -5,6 +5,7 @@ import { api } from '../api/client'
 import { Button, Empty, ErrorState, InlineNote, Loading, PageHeader, Progress, useConfirm, useToast } from '../ui'
 import { VocabReviewCard } from './VocabReviewCard'
 import { reviewCardPhase } from './reviewCardState'
+import { ReviewShortcutTable } from './ReviewShortcutTable'
 import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
 import { fetchLists } from './lists'
 import { useVocabAudioConfig } from './audioConfig'
@@ -83,6 +84,8 @@ export default function VocabFreeReviewPage() {
   const confirm = useConfirm()
   /** AC-69.7：从词单进来的这一轮，窄条显示范围、小结里回词单详情 */
   const fromListId = searchParams.get('from') ?? ''
+  /** 011 / T595：今日复习发起的会话（`?source=today`）——标题、进度与小节下一步都不一样 */
+  const todayMode = searchParams.get('source') === 'today'
   const [listName, setListName] = useState(
     (location.state as { listName?: string } | null)?.listName ?? '',
   )
@@ -92,6 +95,11 @@ export default function VocabFreeReviewPage() {
   const { quiz: quizEnabled } = useVocabAudioConfig()
   const wordBlocks = useWordBlocks()
   const [startingQuiz, setStartingQuiz] = useState(false)
+  /** 今日复习会话的小结要显示「今天已复习 N 张（含本轮）」——口径改动的可见证据（T595） */
+  const [todayReviewed, setTodayReviewed] = useState<number | null>(null)
+  const [showShortcutTip, setShowShortcutTip] = useState(() => {
+    try { return localStorage.getItem('teachloop.vocab.shortcutTip.v1') !== '1' } catch { return false }
+  })
   const [flipped, setFlipped] = useState(false)
   /** 已评「不认识」：仍停在这一张，等「下一个」推走（照 today-review，AC-53.8）。 */
   const [rated, setRated] = useState<'KNOWN' | 'DONT_KNOW' | null>(null)
@@ -326,6 +334,16 @@ export default function VocabFreeReviewPage() {
     }
   }, [word, busy, rated, advance, load])
 
+  // T595：今日复习会话进小结时，把「今天已复习」拉出来（自由复习不拉，这一行对它没意义）
+  useEffect(() => {
+    if (!todayMode || !summary) return
+    let alive = true
+    api.get<{ todayReviewed: number }>('/api/vocab/review/queue')
+      .then((queue) => { if (alive) setTodayReviewed(queue.todayReviewed) })
+      .catch(() => { /* 小结不因为这一个数字失败 */ })
+    return () => { alive = false }
+  }, [todayMode, summary])
+
   const end = useCallback(async () => {
     const ok = await confirm({
       title: t('vocab.freeReview.endTitle'),
@@ -338,6 +356,23 @@ export default function VocabFreeReviewPage() {
     setSummary(ended)
     setWord(null)
   }, [confirm, t, sessionId])
+
+  /**
+   * 会话页头（三个分支共用）：标题 / 进度 / 快捷键 ⓘ / 结束复习。
+   * 今日复习会话显示「今日复习 · 第 N 张 / 共 M 张」，自由复习仍是「自由复习 · 上次看到第 N」。
+   */
+  const sessionHeader = (cursor: number, total: number) => (
+    <PageHeader
+      title={todayMode ? t('vocab.review.title') : t('vocab.freeReview.title')}
+      sub={todayMode
+        ? t('vocab.review.sessionProgress', { cursor: cursor + 1, total })
+        : (cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor, total }) : undefined)}
+      info={<ReviewShortcutTable />}
+      actions={(
+        <Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>
+      )}
+    />
+  )
 
   const continueReview = async () => {
     const next = await api.post<SessionView>(`/api/vocab/review-sessions/${sessionId}/continue`, {})
@@ -406,6 +441,11 @@ export default function VocabFreeReviewPage() {
             <span>{t('vocab.freeReview.summaryPaused', { count: summary.paused })}</span>
             <span>{t('vocab.freeReview.summarySkipped', { count: skipped })}</span>
           </div>
+          {todayMode && todayReviewed !== null && (
+            <p className="muted small" style={{ marginTop: 10 }}>
+              {t('vocab.review.summaryToday', { reviewed: todayReviewed, round: summary.seen })}
+            </p>
+          )}
           <div className="row" style={{ gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
             {quizEnabled && sessionId && (
               <Button
@@ -432,7 +472,9 @@ export default function VocabFreeReviewPage() {
                 {t('vocab.freeReview.continue')}
               </Button>
             )}
-            <Button onClick={() => navigate('/vocab/review')}>{t('vocab.freeReview.backToToday')}</Button>
+            <Button variant={todayMode ? 'primary' : 'default'} onClick={() => navigate('/vocab/review')}>
+              {t('vocab.freeReview.backToToday')}
+            </Button>
           </div>
         </div>
       </>
@@ -445,9 +487,7 @@ export default function VocabFreeReviewPage() {
   if (gateWaiting) {
     return (
       <>
-        <PageHeader title={t('vocab.freeReview.title')}
-          sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
-          actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
+        {sessionHeader(word.cursor, word.total)}
         {scopeBanner(word.total)}
         <div className="review-stage review-stage--today">
           <div className="review-card-column">
@@ -483,9 +523,7 @@ export default function VocabFreeReviewPage() {
   if (preparing || contentFailed) {
     return (
       <>
-        <PageHeader title={t('vocab.freeReview.title')}
-          sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
-          actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
+        {sessionHeader(word.cursor, word.total)}
         {scopeBanner(word.total)}
         <div className="review-stage review-stage--today">
           <div className="review-card-column">
@@ -528,11 +566,24 @@ export default function VocabFreeReviewPage() {
 
   return (
     <>
-      <PageHeader title={t('vocab.freeReview.title')}
-        sub={word.cursor > 0 ? t('vocab.freeReview.lastSeen', { cursor: word.cursor, total: word.total }) : undefined}
-        actions={<Button size="small" onClick={() => void end()}>{t('vocab.freeReview.end')}</Button>} />
+      {sessionHeader(word.cursor, word.total)}
 
       {scopeBanner(word.total)}
+
+      {showShortcutTip && (
+        <div className="vocab-shortcut-tip" role="note">
+          <div className="grow">
+            <b>{t('vocab.shortcutTip.title')}</b> {t('vocab.shortcutTip.body')}
+          </div>
+          <div className="actions">
+            <Button size="small" onClick={() => navigate('/profile')}>{t('vocab.shortcutTip.settings')}</Button>
+            <Button size="small" onClick={() => {
+              try { localStorage.setItem('teachloop.vocab.shortcutTip.v1', '1') } catch { /* ignore */ }
+              setShowShortcutTip(false)
+            }}>{t('vocab.shortcutTip.dismiss')}</Button>
+          </div>
+        </div>
+      )}
 
       <div className="review-stage review-stage--today">
         <div className="review-card-column">
@@ -551,14 +602,11 @@ export default function VocabFreeReviewPage() {
             emptyHint={t('vocab.review.contentMissing')}
             centered
           />
-          <div className="review-session-foot">
-            <span className="review-keys muted">{t('vocab.freeReview.keys')}</span>
-          </div>
         </div>
 
         <Button
           size="large"
-          className={`review-next${flipped || rated ? ' is-highlighted' : ''}`}
+          className={`review-next${flipped || rated ? ' is-highlighted' : ''}${flipped ? ' is-sticky' : ''}`}
           variant={flipped || rated ? 'primary' : 'default'}
           disabled={busy}
           onClick={() => void next()}

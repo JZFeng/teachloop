@@ -105,4 +105,13 @@ class ReviewPrefsTest {
         assertThat(prefs.hidden()).containsExactly("image", "senses");
         assertThat(ReviewPrefs.normalizeHidden(MAPPER.readTree("[\"nope\"]"))).isEmpty();
     }
+    @Test
+    @DisplayName("V3：CARD_BLOCKS 固定 6 块；hidden 接受 morphology/etymology")
+    void v3CardBlocksAreAcceptedInHidden() {
+        assertThat(ReviewPrefs.CARD_BLOCKS).containsExactly(
+                "senses", "morphology", "core", "examples", "synonyms", "etymology");
+        ReviewPrefs prefs = parse("{\"hidden\":[\"morphology\",\"etymology\",\"bogus\"]}");
+        assertThat(prefs.hidden()).containsExactly("morphology", "etymology");
+    }
+
 }

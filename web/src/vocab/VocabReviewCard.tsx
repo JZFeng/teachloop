@@ -1,4 +1,4 @@
-import { Fragment } from 'react'
+import { Fragment, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   BookOutlined,
@@ -9,6 +9,7 @@ import {
   PlusOutlined,
   StarFilled,
   StarOutlined,
+  DownOutlined,
 } from '../ui'
 import { SpeakerButton } from './SpeakerButton'
 import type { AudioLanguage } from './SpeakerButton'
@@ -53,6 +54,48 @@ export interface ReviewCardCoreSemantics {
   image?: string
 }
 
+export interface ReviewCardMorphologyPart {
+  text?: string
+  type?: string
+  meaning?: string
+  origin?: string
+}
+
+export interface ReviewCardDerivative {
+  word?: string
+  partOfSpeech?: string
+  meaning?: string
+}
+
+export interface ReviewCardInflection {
+  word?: string
+  label?: string
+}
+
+export interface ReviewCardFamily {
+  word?: string
+  partOfSpeech?: string
+  meaning?: string
+}
+
+export interface ReviewCardMorphology {
+  modernNote?: string
+  parts?: ReviewCardMorphologyPart[]
+  chain?: ReviewCardDerivationStep[]
+  derivatives?: ReviewCardDerivative[]
+  inflections?: ReviewCardInflection[]
+  family?: ReviewCardFamily[]
+}
+
+export interface ReviewCardEtymology {
+  text?: string
+}
+
+export interface ReviewCardSynonymsBlock {
+  items?: ReviewCardWordPair[]
+  antonyms?: ReviewCardWordPair[]
+}
+
 export interface ReviewCardWordPair {
   word?: string
   pos?: string
@@ -60,6 +103,8 @@ export interface ReviewCardWordPair {
 }
 
 export interface ReviewCardContent {
+  /** V3 内容：后端 ContentView 标记；前端据此走新卡面 */
+  schemaVersion?: number
   phonetic?: { uk?: string; us?: string }
   coreSemantics?: ReviewCardCoreSemantics
   senses?: ReviewCardSense[]
@@ -75,6 +120,10 @@ export interface ReviewCardContent {
   blocks?: ReviewCardBlock[]
   /** T594：第 9 块配图；有图才有这个字段 */
   image?: { url?: string }
+  /** V3：构词与派生（现代构词 + 派生/屈折 + 带 POS/含义的词族） */
+  morphology?: ReviewCardMorphology
+  /** V3：词源单独一段 */
+  etymology?: ReviewCardEtymology
 }
 
 export interface ReviewCardWord {
@@ -91,6 +140,21 @@ export interface ReviewCardWord {
 /** 渲染器只认「非数组对象」，其余类型一律当没有这块。 */
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+const POS_SHORT: Record<string, string> = {
+  adjective: 'adj.', adverb: 'adv.', noun: 'n.', verb: 'v.', pronoun: 'pron.',
+  preposition: 'prep.', conjunction: 'conj.', interjection: 'interj.', determiner: 'det.',
+  numeral: 'num.', article: 'art.',
+}
+
+/** 词性缩写：卡片上只留 adj./adv./n./v.，不把 adjective 塞进 44px 的列里。 */
+function shortPos(value?: string): string {
+  if (!value) return ''
+  return value.split(',').map((part) => {
+    const key = part.trim().toLowerCase()
+    return POS_SHORT[key] ?? part.trim()
+  }).join(', ')
 }
 
 /** 提示里只显示 M-D，年份对「上次小测」没有意义。 */
@@ -162,12 +226,17 @@ export function VocabReviewCard({
   // 019：例句喇叭跟随词条语言，避免中文 / 西语词条被硬编码读成英文音。
   const exampleLang: AudioLanguage =
     word.language === 'zh' ? 'zh' : word.language === 'es' ? 'es' : 'en'
+  const isV3 = content?.schemaVersion === 3 || !!content?.morphology
+  // V3 例句默认 3 条；展开只影响例句块（2026-10-31 用户要求）。
+  const [showAllExamples, setShowAllExamples] = useState(false)
+  useEffect(() => setShowAllExamples(false), [word.id])
 
   // T594：v2 内容由后端给有序 blocks（顺序、有无都由后端定）；v1 旧内容没有 blocks
   // 字段，回退到「偏好顺序 + content.* 字段」，所以 blocks / hidden 两个 props 仍然保留。
   const visibleBlocks = resolveCardBlocks(content, blocks, hidden)
   // 空提示只看「内容里根本没有块」：用户自己把块全关掉不算空内容。
   const hasContentBlocks = resolveCardBlocks(content, blocks, []).length > 0
+  const v3Blocks = isV3 ? resolveCardBlocks(content) : []
 
   /** 每块只吃 payload：类型对不上就返回 null，不读 content.*、不崩。 */
   const renderBlock = (id: string, payload: unknown) => {
@@ -311,9 +380,232 @@ export function VocabReviewCard({
     }
   }
 
+  const renderEn = (value?: string) => {
+    if (!value) return null
+    const escaped = word.form.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    const parts = value.split(new RegExp(`(${escaped})`, 'ig'))
+    return parts.map((part, index) => (
+      part.toLowerCase() === word.form.toLowerCase()
+        ? <mark key={index}>{part}</mark>
+        : <Fragment key={index}>{part}</Fragment>
+    ))
+  }
+
+  const renderExample = (example: ReviewCardExample, index: number) => (
+    <div className="v3-example" key={index}>
+      <div>
+        <div className="v3-en">{renderEn(example.en)}</div>
+        {example.zh && <div className="v3-zh">{example.zh}</div>}
+      </div>
+      {sentenceAudio && example.en && (
+        <span onClick={(event) => event.stopPropagation()}>
+          <SpeakerButton text={example.en} lang={exampleLang} compact variant="text" />
+        </span>
+      )}
+    </div>
+  )
+
+  const renderV3Block = (id: string, payload: unknown) => {
+    switch (id) {
+      case 'senses': {
+        if (!Array.isArray(payload) || payload.length === 0) return null
+        const senses = payload as ReviewCardSense[]
+        return (
+          <ul className="v3-senses">
+            {senses.map((sense, index) => (
+              <li key={index}>
+                {sense.pos && <span className="v3-pos">{shortPos(sense.pos)}</span>}
+                <span className="v3-meaning">{sense.zh ?? sense.en}</span>
+              </li>
+            ))}
+          </ul>
+        )
+      }
+      case 'morphology': {
+        if (!isRecord(payload)) return null
+        const morphology = payload as ReviewCardMorphology
+        const parts = morphology.parts ?? []
+        const chain = morphology.chain ?? []
+        const derivatives = morphology.derivatives ?? []
+        const inflections = morphology.inflections ?? []
+        const family = morphology.family ?? []
+        return (
+          <section className="v3-section" aria-labelledby="v3MorphTitle">
+            <h3 id="v3MorphTitle">{t('vocab.card.morphology')}</h3>
+            {morphology.modernNote && <p className="v3-morph-note">{morphology.modernNote}</p>}
+            {parts.length > 0 && (
+              <div className="v3-morph-row">
+                <span className="v3-morph-label">{t('vocab.card.structure')}</span>
+                <div className="v3-parts">
+                  {parts.map((part, index) => (
+                    <span className="v3-part" key={`${part.text}-${index}`}>
+                      <b className="mono">{part.text}</b>
+                      {part.type && <em>{part.type}</em>}
+                      {part.meaning && <span>{part.meaning}</span>}
+                      {part.origin && <span className="muted">{part.origin}</span>}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {chain.length > 0 && (
+              <div className="v3-morph-row">
+                <span className="v3-morph-label">{t('vocab.card.chain')}</span>
+                <ol className="v3-chain">
+                  {chain.map((step, index) => (
+                    <li key={`${step.to}-${index}`}>
+                      <span className="mono">{(step.from ?? []).join(' + ')}</span>
+                      <span className="v3-arrow">→</span>
+                      <b className="mono">{step.to}</b>
+                      {step.partOfSpeech && <em>{step.partOfSpeech}</em>}
+                      {step.meaning && <span className="muted">{step.meaning}</span>}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+            {derivatives.length > 0 && (
+              <div className="v3-morph-row">
+                <span className="v3-morph-label">{t('vocab.card.derivatives')}</span>
+                <div className="v3-derivatives">
+                  {derivatives.map((item, index) => (
+                    <div className="v3-derivative" key={`${item.word}-${index}`}>
+                      <b>{item.word}</b>
+                      <span className="v3-pos">{shortPos(item.partOfSpeech)}</span>
+                      <span>{item.meaning}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {inflections.length > 0 && (
+              <div className="v3-morph-row">
+                <span className="v3-morph-label">{t('vocab.card.inflections')}</span>
+                <div className="v3-derivatives">
+                  {inflections.map((item, index) => (
+                    <div className="v3-derivative" key={`${item.word}-${index}`}>
+                      <b>{item.word}</b>
+                      <span className="v3-pos">{item.label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {family.length > 0 && (
+              <div className="v3-morph-row">
+                <span className="v3-morph-label">{t('vocab.card.family')}</span>
+                <div className="v3-family">
+                  {family.map((item, index) => (
+                    <div className="v3-family-item" key={`${item.word}-${index}`}>
+                      <b>{item.word}</b>
+                      {item.partOfSpeech && <span className="v3-pos">{shortPos(item.partOfSpeech)}</span>}
+                      {item.meaning && <span className="muted">{item.meaning}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )
+      }
+      case 'core': {
+        if (!isRecord(payload)) return null
+        const core = payload as ReviewCardCoreSemantics
+        return (
+          <section className="v3-section" aria-labelledby="v3CoreTitle">
+            <h3 id="v3CoreTitle">{t('vocab.card.core')}</h3>
+            <div className="v3-core">
+              {core.core && <p className="v3-core-core">{core.core}</p>}
+              {core.notThis && <p className="v3-core-not">{core.notThis}</p>}
+              {core.mentalImage && <p className="v3-core-image">{core.mentalImage}</p>}
+            </div>
+          </section>
+        )
+      }
+      case 'examples': {
+        if (!Array.isArray(payload) || payload.length === 0) return null
+        const examples = payload as ReviewCardExample[]
+        const shown = showAllExamples ? examples : examples.slice(0, 3)
+        const extra = Math.max(0, examples.length - 3)
+        return (
+          <section className="v3-section v3-section--divided" aria-labelledby="v3ExamplesTitle">
+            <h3 id="v3ExamplesTitle">{t('vocab.card.examples')}</h3>
+            <div className="v3-examples">{shown.map(renderExample)}</div>
+            {extra > 0 && (
+              <button
+                type="button"
+                className="v3-expand"
+                aria-expanded={showAllExamples}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  setShowAllExamples((value) => !value)
+                }}
+              >
+                {showAllExamples
+                  ? t('vocab.card.lessExamples', { count: extra })
+                  : t('vocab.card.moreExamples', { count: extra })}
+                <DownOutlined aria-hidden="true" />
+              </button>
+            )}
+          </section>
+        )
+      }
+      case 'synonyms': {
+        if (!isRecord(payload)) return null
+        const pairs = payload as ReviewCardSynonymsBlock
+        const items = pairs.items ?? []
+        const antonyms = pairs.antonyms ?? []
+        if (items.length === 0 && antonyms.length === 0) return null
+        return (
+          <section className="v3-section" aria-labelledby="v3SynTitle">
+            <h3 id="v3SynTitle">{t('vocab.card.synonyms')}</h3>
+            {items.length > 0 && (
+              <div className="v3-syn-list">
+                {items.map((pair, index) => (
+                  <div className="v3-syn-row" key={`${pair.word}-${index}`}>
+                    <b>{pair.word}</b>
+                    <span className="v3-pos">{shortPos(pair.pos)}</span>
+                    <span>{pair.nuance}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {antonyms.length > 0 && (
+              <div className="v3-antonyms">
+                <div className="v3-ant-label">{t('vocab.card.antonyms')}</div>
+                <div className="v3-syn-list">
+                  {antonyms.map((pair, index) => (
+                    <div className="v3-syn-row" key={`${pair.word}-${index}`}>
+                      <b>{pair.word}</b>
+                      <span className="v3-pos">{shortPos(pair.pos)}</span>
+                      <span>{pair.nuance}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+        )
+      }
+      case 'etymology': {
+        if (!isRecord(payload)) return null
+        const etymology = payload as ReviewCardEtymology
+        if (!etymology.text) return null
+        return (
+          <section className="v3-section v3-section--divided">
+            <h3>{t('vocab.card.etymology')}</h3>
+            <p className="v3-etymology">{etymology.text}</p>
+          </section>
+        )
+      }
+      default:
+        return null
+    }
+  }
+
   return (
     <div
-      className={`review-card${flipped ? ' is-flipped' : ''}${centered ? ' is-centered' : ''}`}
+      className={`review-card${flipped ? ' is-flipped' : ''}${centered ? ' is-centered' : ''}${isV3 ? ' is-v3' : ''}`}
       role="button"
       tabIndex={0}
       aria-label={flipped ? t('vocab.review.back') : t('vocab.review.front')}
@@ -404,9 +696,13 @@ export function VocabReviewCard({
         {flipped && (
           <div className="review-back">
             {!hasContentBlocks && emptyHint && <p className="muted">{emptyHint}</p>}
-            {visibleBlocks.map((block) => (
-              <Fragment key={block.id}>{renderBlock(block.id, block.payload)}</Fragment>
-            ))}
+            {isV3
+              ? v3Blocks.map((block) => (
+                <Fragment key={block.id}>{renderV3Block(block.id, block.payload)}</Fragment>
+              ))
+              : visibleBlocks.map((block) => (
+                <Fragment key={block.id}>{renderBlock(block.id, block.payload)}</Fragment>
+              ))}
             {word.lastQuizWrongAt && (
               <p className="quiz-flag">{t('vocab.quiz.lastWrong', { date: shortDate(word.lastQuizWrongAt) })}</p>
             )}

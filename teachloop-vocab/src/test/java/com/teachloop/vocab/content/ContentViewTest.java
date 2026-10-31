@@ -113,7 +113,7 @@ class ContentViewTest {
         assertThat(ContentView.toView(v1)).isSameAs(v1);
 
         JsonNode other = parse("""
-                {"schemaVersion": 3, "senses": []}
+                {"schemaVersion": 4, "senses": []}
                 """);
         assertThat(ContentView.toView(other)).isSameAs(other);
         assertThat(ContentView.toView(null)).isNull();

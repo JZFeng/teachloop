@@ -42,6 +42,11 @@ public final class ContentView {
     private static final Logger log = LoggerFactory.getLogger(ContentView.class);
 
     private static final int SCHEMA_V2 = 2;
+    private static final int SCHEMA_V3 = 3;
+
+    /** V3 卡片的固定顺序（与 docs/mock/vocab-card-v1-2026-10-31/README.md 的 6 块一致）。 */
+    private static final List<String> CARD_BLOCKS_V3 = List.of(
+            "senses", "morphology", "core", "examples", "synonyms", "etymology");
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
@@ -86,6 +91,9 @@ public final class ContentView {
         if (raw == null || raw.isNull() || !raw.isObject()) {
             return raw;
         }
+        if (isSchemaV3(raw)) {
+            return toViewV3(raw, hidden);
+        }
         if (!isSchemaV2(raw)) {
             return raw;
         }
@@ -102,6 +110,103 @@ public final class ContentView {
         putImage(view, raw);
         putBlocks(view, blockOrder, hidden);
         return view;
+    }
+
+    /**
+     * V3 内容（morphology / etymology 独立）→ 卡片视图。
+     *
+     * <p>V3 的 6 个 block 顺序固定，不再读用户 {@code prefs.blocks} 的顺序；{@code hidden}
+     * 仍决定有无。旧 9 块的 hidden key 会映射到新块，避免存量开关失效。
+     */
+    private static JsonNode toViewV3(JsonNode raw, List<String> hidden) {
+        ObjectNode view = MAPPER.createObjectNode();
+        view.put("schemaVersion", SCHEMA_V3);
+        putSenses(view, raw);
+        putExamples(view, raw);
+        putCoreSemantics(view, raw);
+        putPhonetic(view, raw);
+        putMemoryAids(view, raw);
+        putImage(view, raw);
+        JsonNode morphology = raw.path("morphology");
+        if (morphology.isObject()) {
+            view.set("morphology", morphology);
+        }
+        JsonNode etymology = raw.path("etymology");
+        if (etymology.isObject()) {
+            view.set("etymology", etymology);
+        } else if (etymology.isString()) {
+            view.putObject("etymology").put("text", etymology.asString());
+        }
+        // 近义/反义合成一个 synonyms block，payload 保留 POS + 差别说明。
+        JsonNode synonyms = view.path("synonyms");
+        JsonNode antonyms = view.path("antonyms");
+        boolean hasSynonyms = synonyms.isArray() && synonyms.size() > 0;
+        boolean hasAntonyms = antonyms.isArray() && antonyms.size() > 0;
+        if (hasSynonyms || hasAntonyms) {
+            ObjectNode pair = view.putObject("synonymsBlock");
+            if (hasSynonyms) {
+                pair.set("items", synonyms);
+            }
+            if (hasAntonyms) {
+                pair.set("antonyms", antonyms);
+            }
+        }
+        putV3Blocks(view, hidden);
+        return view;
+    }
+
+    private static void putV3Blocks(ObjectNode view, List<String> hidden) {
+        Set<String> hide = new LinkedHashSet<>();
+        if (hidden != null) {
+            for (String id : hidden) {
+                if (id != null) {
+                    hide.add(id.strip());
+                }
+            }
+        }
+        // 旧 key → 新模块：存量用户关掉 family/derivation 时仍然隐藏 morphology；
+        // 关掉 analysis 时隐藏 etymology；关掉 antonyms 时合并块仍在（有 synonyms 就显示）。
+        boolean hideMorphology = hide.contains("morphology")
+                || hide.contains("family") || hide.contains("derivation");
+        boolean hideEtymology = hide.contains("etymology") || hide.contains("analysis");
+        ArrayNode blocks = view.putArray("blocks");
+        for (String id : CARD_BLOCKS_V3) {
+            if (id.equals("morphology") && hideMorphology) {
+                continue;
+            }
+            if (id.equals("etymology") && hideEtymology) {
+                continue;
+            }
+            JsonNode payload = switch (id) {
+                case "senses" -> view.get("senses");
+                case "morphology" -> view.get("morphology");
+                case "core" -> view.get("coreSemantics");
+                case "examples" -> view.get("examples");
+                case "synonyms" -> view.get("synonymsBlock");
+                case "etymology" -> view.get("etymology");
+                default -> null;
+            };
+            if (id.equals("synonyms") && payload != null && payload.isObject()) {
+                // 旧 hidden key 的语义：synonyms / antonyms 可以分别关；新块是合并的。
+                ObjectNode filtered = MAPPER.createObjectNode();
+                if (!hide.contains("synonyms") && payload.has("items")) {
+                    filtered.set("items", payload.get("items"));
+                }
+                if (!hide.contains("antonyms") && payload.has("antonyms")) {
+                    filtered.set("antonyms", payload.get("antonyms"));
+                }
+                payload = filtered.size() == 0 ? null : filtered;
+            }
+            if (payload == null || payload.isNull() || payload.isMissingNode()) {
+                continue;
+            }
+            if ((payload.isArray() || payload.isObject()) && payload.size() == 0) {
+                continue;
+            }
+            ObjectNode block = blocks.addObject();
+            block.put("id", id);
+            block.set("payload", payload);
+        }
     }
 
     /**
@@ -183,6 +288,11 @@ public final class ContentView {
     private static boolean isSchemaV2(JsonNode raw) {
         JsonNode version = raw.get("schemaVersion");
         return version != null && version.isNumber() && version.asInt() == SCHEMA_V2;
+    }
+
+    private static boolean isSchemaV3(JsonNode raw) {
+        JsonNode version = raw.get("schemaVersion");
+        return version != null && version.isNumber() && version.asInt() == SCHEMA_V3;
     }
 
     private static JsonNode parse(String json) {

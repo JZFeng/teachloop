@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import { LANGUAGES, changeLanguage } from '../i18n'
-import { Alert, Button, Field, InlineNote, Input, PageHeader, ThemeToggle, useToast } from '../ui'
+import { Alert, Button, Field, InfoHint, InlineNote, Input, PageHeader, ThemeToggle, useToast } from '../ui'
 import { UiKitPanel } from './UiKitPanel'
 import { nextAfterProfile } from './profileGate'
 import type { GradingPreference } from '../api/types'
@@ -314,8 +314,10 @@ export default function ProfilePage() {
       </div>
 
       <div className="card" style={{ maxWidth: 760, marginTop: 16 }}>
-        <h2>{t('vocab.prefs.title')}</h2>
-        <p className="small muted">{t('vocab.prefs.sub')}</p>
+        <div className="vocab-prefs-head">
+          <h2>{t('vocab.prefs.title')}</h2>
+          <InfoHint>{t('vocab.prefs.sub')}</InfoHint>
+        </div>
         <VocabPrefsCard />
       </div>
 

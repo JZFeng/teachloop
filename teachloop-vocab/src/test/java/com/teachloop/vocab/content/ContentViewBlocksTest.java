@@ -178,7 +178,7 @@ class ContentViewBlocksTest {
         assertThat(ContentView.toView(v1, ReviewPrefs.ALL_BLOCKS, List.of())).isSameAs(v1);
         assertThat(v1.has("blocks")).isFalse();
 
-        JsonNode other = parse("{\"schemaVersion\": 3, \"senses\": []}");
+        JsonNode other = parse("{\"schemaVersion\": 4, \"senses\": []}");
         assertThat(ContentView.toView(other, List.of("core"), List.of())).isSameAs(other);
 
         JsonNode arrayRaw = parse("[1,2,3]");
