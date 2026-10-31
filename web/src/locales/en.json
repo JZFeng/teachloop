@@ -1755,7 +1755,6 @@
         "NEW_FIRST": "New words first, then back to reviews."
       },
       "content": "What the card back shows",
-      "imageSkipped": "Images are not available yet — the content has none, so a toggle would be empty.",
       "order": "Order on the card back",
       "orderHint": "Order only sets sequence, not visibility — use the switches above to hide a block.",
       "moveUp": "Move up",
@@ -1780,7 +1779,9 @@
       "antonymsDesc": "Blocks with no antonyms simply do not render",
       "familyDesc": "Up to 8 related words",
       "derivationDesc": "Prefix / root / suffix breakdown plus derivation chain",
-      "analysisDesc": "A short note on origin and structure"
+      "analysisDesc": "A short note on origin and structure",
+      "image": "Picture",
+      "imageDesc": "One 88px picture; the block takes no space when there is no picture"
     },
     "nav": {
       "library": "My library",

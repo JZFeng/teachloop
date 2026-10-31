@@ -5,7 +5,7 @@ import { api } from '../api/client'
 export interface ReviewPrefs {
   dailyNewCards: number
   strategy: 'REVIEW_FIRST' | 'MIXED' | 'NEW_FIRST'
-  /** 反面 8 块的顺序（不决定有无；有无看 hidden） */
+  /** 反面 9 块的顺序（不决定有无；有无看 hidden） */
   blocks: string[]
   hidden: string[]
 }

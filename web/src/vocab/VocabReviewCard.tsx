@@ -13,7 +13,7 @@ import {
 import { SpeakerButton } from './SpeakerButton'
 import type { AudioLanguage } from './SpeakerButton'
 import { useVocabAudioConfig } from './audioConfig'
-import { WORD_BLOCKS, type WordBlock } from './wordBlocks'
+import { resolveCardBlocks, type ReviewCardBlock } from './reviewBlocks'
 
 export interface ReviewCardSense {
   pos?: string
@@ -71,6 +71,10 @@ export interface ReviewCardContent {
   antonyms?: ReviewCardWordPair[]
   /** 词族：同族词，最多 8 个 */
   family?: string[]
+  /** T594：后端输出的有序块（顺序 = 用户偏好顺序，hidden / 无内容的块不出现）；v1 旧内容没有 */
+  blocks?: ReviewCardBlock[]
+  /** T594：第 9 块配图；有图才有这个字段 */
+  image?: { url?: string }
 }
 
 export interface ReviewCardWord {
@@ -82,6 +86,11 @@ export interface ReviewCardWord {
   content: ReviewCardContent | null
   /** AC-87.9：该词最近一次小测答错的时间；有值才渲染提示 */
   lastQuizWrongAt?: string | null
+}
+
+/** 渲染器只认「非数组对象」，其余类型一律当没有这块。 */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
 /** 提示里只显示 M-D，年份对「上次小测」没有意义。 */
@@ -140,9 +149,9 @@ export function VocabReviewCard({
    * T510（2026-10-26 用户要求）起查词页（WordDetailPage）的正面也用这套版式，所以三个调用点都传 true。
    */
   centered?: boolean
-  /** 反面 8 块的顺序（US-88）；不传 = 默认顺序 */
+  /** 反面块顺序（US-88）；不传 = 默认顺序。T594 起只给没有 blocks 字段的旧内容用 */
   blocks?: string[]
-  /** 关掉的块：顺序不决定有无，这一段才决定 */
+  /** 关掉的块：顺序不决定有无，这一段才决定。T594 起只给没有 blocks 字段的旧内容用 */
   hidden?: string[]
 }) {
   const { t } = useTranslation()
@@ -154,127 +163,152 @@ export function VocabReviewCard({
   const exampleLang: AudioLanguage =
     word.language === 'zh' ? 'zh' : word.language === 'es' ? 'es' : 'en'
 
-  // US-88：顺序来自偏好；关掉的块不渲染（有无与先后是两个系统）
-  const off = new Set(hidden ?? [])
-  const visibleOrder = (blocks ?? WORD_BLOCKS).filter(
-    (key) => WORD_BLOCKS.includes(key as WordBlock) && !off.has(key),
-  )
+  // T594：v2 内容由后端给有序 blocks（顺序、有无都由后端定）；v1 旧内容没有 blocks
+  // 字段，回退到「偏好顺序 + content.* 字段」，所以 blocks / hidden 两个 props 仍然保留。
+  const visibleBlocks = resolveCardBlocks(content, blocks, hidden)
+  // 空提示只看「内容里根本没有块」：用户自己把块全关掉不算空内容。
+  const hasContentBlocks = resolveCardBlocks(content, blocks, []).length > 0
 
-  /** 每块自己判断「有没有内容」，没内容就不占位。 */
-  const renderBlock = (key: string) => {
-    if (key === 'core' && content?.coreSemantics) {
-      const core = content.coreSemantics
-      return (
-        <div className="core-semantics">
-          <div className="core-semantics-text">
-            {core.core && <p className="core-semantics-core">{core.core}</p>}
-            {core.notThis && <p className="core-semantics-not muted">{core.notThis}</p>}
-            {core.mentalImage && <p className="core-semantics-image">{core.mentalImage}</p>}
-          </div>
-          {core.image && (
-            <div className="core-semantics-art" aria-hidden="true"
-              dangerouslySetInnerHTML={{ __html: core.image }} />
-          )}
-        </div>
-      )
-    }
-    if (key === 'senses' && (content?.senses?.length ?? 0) > 0) {
-      return (
-        <ul className="vocab-sense">
-          {content!.senses!.map((sense, senseIndex) => (
-            <li key={senseIndex}>
-              {sense.pos && <span className="chip">{sense.pos}</span>} {sense.zh ?? sense.en}
-            </li>
-          ))}
-        </ul>
-      )
-    }
-    if (key === 'examples' && (content?.examples?.length ?? 0) > 0) {
-      return (
-        <div className="review-examples">
-          {content!.examples!.map((example, exampleIndex) => (
-            <div key={exampleIndex} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <div style={{ flex: '1 1 auto', minWidth: 0, overflowWrap: 'anywhere' }}>
-                {example.en && <div>{example.en}</div>}
-                {example.zh && <div className="muted">{example.zh}</div>}
-              </div>
-              {sentenceAudio && example.en && (
-                <span style={{ flex: '0 0 auto' }}
-                  onClick={(event) => event.stopPropagation()}
-                  onKeyDown={(event) => event.stopPropagation()}>
-                  <SpeakerButton text={example.en} lang={exampleLang} compact variant="text" />
-                </span>
-              )}
+  /** 每块只吃 payload：类型对不上就返回 null，不读 content.*、不崩。 */
+  const renderBlock = (id: string, payload: unknown) => {
+    switch (id) {
+      case 'core': {
+        if (!isRecord(payload)) return null
+        const core = payload as ReviewCardCoreSemantics
+        return (
+          <div className="core-semantics">
+            <div className="core-semantics-text">
+              {core.core && <p className="core-semantics-core">{core.core}</p>}
+              {core.notThis && <p className="core-semantics-not muted">{core.notThis}</p>}
+              {core.mentalImage && <p className="core-semantics-image">{core.mentalImage}</p>}
             </div>
-          ))}
-        </div>
-      )
-    }
-    if ((key === 'synonyms' || key === 'antonyms') && (content?.[key]?.length ?? 0) > 0) {
-      return (
-        <div className="word-pairs">
-          <div className="derivation-title">{t(`vocab.blocks.${key}`)}</div>
-          <ul className="word-pair-list">
-            {content![key]!.map((pair, index) => (
-              <li key={`${pair.word}-${index}`}>
-                <b>{pair.word}</b>
-                {pair.pos && <em>{pair.pos}</em>}
-                {pair.nuance && <span className="muted">{pair.nuance}</span>}
+            {core.image && (
+              <div className="core-semantics-art" aria-hidden="true"
+                dangerouslySetInnerHTML={{ __html: core.image }} />
+            )}
+          </div>
+        )
+      }
+      case 'senses': {
+        if (!Array.isArray(payload) || payload.length === 0) return null
+        const senses = payload as ReviewCardSense[]
+        return (
+          <ul className="vocab-sense">
+            {senses.map((sense, senseIndex) => (
+              <li key={senseIndex}>
+                {sense.pos && <span className="chip">{sense.pos}</span>} {sense.zh ?? sense.en}
               </li>
             ))}
           </ul>
-        </div>
-      )
-    }
-    if (key === 'family' && (content?.family?.length ?? 0) > 0) {
-      return (
-        <div className="word-pairs">
-          <div className="derivation-title">{t('vocab.blocks.family')}</div>
-          <div className="word-family-row">
-            {content!.family!.slice(0, 8).map((member) => (
-              <span className="chip" key={member}>{member}</span>
+        )
+      }
+      case 'examples': {
+        if (!Array.isArray(payload) || payload.length === 0) return null
+        const examples = payload as ReviewCardExample[]
+        return (
+          <div className="review-examples">
+            {examples.map((example, exampleIndex) => (
+              <div key={exampleIndex} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <div style={{ flex: '1 1 auto', minWidth: 0, overflowWrap: 'anywhere' }}>
+                  {example.en && <div>{example.en}</div>}
+                  {example.zh && <div className="muted">{example.zh}</div>}
+                </div>
+                {sentenceAudio && example.en && (
+                  <span style={{ flex: '0 0 auto' }}
+                    onClick={(event) => event.stopPropagation()}
+                    onKeyDown={(event) => event.stopPropagation()}>
+                    <SpeakerButton text={example.en} lang={exampleLang} compact variant="text" />
+                  </span>
+                )}
+              </div>
             ))}
           </div>
-        </div>
-      )
-    }
-    if (key === 'derivation' && content?.derivation) {
-      const derivation = content.derivation
-      return (
-        <div className="derivation">
-          <div className="derivation-title">{t('vocab.detail.derivation')}</div>
-          {(derivation.parts?.length ?? 0) > 0 && (
-            <div className="derivation-parts">
-              {derivation.parts!.map((part, index) => (
-                <span className="derivation-part" key={`${part.text}-${index}`}>
-                  <b className="mono">{part.text}</b>
-                  {part.type && <em>{part.type}</em>}
-                  {part.meaning && <span>{part.meaning}</span>}
-                  {part.origin && <span className="muted">{part.origin}</span>}
-                </span>
-              ))}
-            </div>
-          )}
-          {(derivation.chain?.length ?? 0) > 0 && (
-            <ol className="derivation-chain">
-              {derivation.chain!.map((step, index) => (
-                <li key={`${step.to}-${index}`}>
-                  <span className="mono">{(step.from ?? []).join(' + ')}</span>
-                  <span className="derivation-arrow">→</span>
-                  <b className="mono">{step.to}</b>
-                  {step.partOfSpeech && <em>{step.partOfSpeech}</em>}
-                  {step.meaning && <span className="muted">{step.meaning}</span>}
+        )
+      }
+      case 'synonyms':
+      case 'antonyms': {
+        if (!Array.isArray(payload) || payload.length === 0) return null
+        const pairs = payload as ReviewCardWordPair[]
+        return (
+          <div className="word-pairs">
+            <div className="derivation-title">{t(`vocab.blocks.${id}`)}</div>
+            <ul className="word-pair-list">
+              {pairs.map((pair, index) => (
+                <li key={`${pair.word}-${index}`}>
+                  <b>{pair.word}</b>
+                  {pair.pos && <em>{pair.pos}</em>}
+                  {pair.nuance && <span className="muted">{pair.nuance}</span>}
                 </li>
               ))}
-            </ol>
-          )}
-        </div>
-      )
+            </ul>
+          </div>
+        )
+      }
+      case 'family': {
+        if (!Array.isArray(payload) || payload.length === 0) return null
+        const family = payload as string[]
+        return (
+          <div className="word-pairs">
+            <div className="derivation-title">{t('vocab.blocks.family')}</div>
+            <div className="word-family-row">
+              {family.slice(0, 8).map((member) => (
+                <span className="chip" key={member}>{member}</span>
+              ))}
+            </div>
+          </div>
+        )
+      }
+      case 'derivation': {
+        if (!isRecord(payload)) return null
+        const derivation = payload as ReviewCardDerivation
+        return (
+          <div className="derivation">
+            <div className="derivation-title">{t('vocab.detail.derivation')}</div>
+            {(derivation.parts?.length ?? 0) > 0 && (
+              <div className="derivation-parts">
+                {derivation.parts!.map((part, index) => (
+                  <span className="derivation-part" key={`${part.text}-${index}`}>
+                    <b className="mono">{part.text}</b>
+                    {part.type && <em>{part.type}</em>}
+                    {part.meaning && <span>{part.meaning}</span>}
+                    {part.origin && <span className="muted">{part.origin}</span>}
+                  </span>
+                ))}
+              </div>
+            )}
+            {(derivation.chain?.length ?? 0) > 0 && (
+              <ol className="derivation-chain">
+                {derivation.chain!.map((step, index) => (
+                  <li key={`${step.to}-${index}`}>
+                    <span className="mono">{(step.from ?? []).join(' + ')}</span>
+                    <span className="derivation-arrow">→</span>
+                    <b className="mono">{step.to}</b>
+                    {step.partOfSpeech && <em>{step.partOfSpeech}</em>}
+                    {step.meaning && <span className="muted">{step.meaning}</span>}
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+        )
+      }
+      case 'analysis': {
+        if (typeof payload !== 'string' || payload.trim() === '') return null
+        return <p className="muted">{payload}</p>
+      }
+      case 'image': {
+        if (!isRecord(payload)) return null
+        const url = (payload as { url?: unknown }).url
+        if (typeof url !== 'string' || url.trim() === '') return null
+        return (
+          <div className="review-image-block">
+            <img src={url} alt="" loading="lazy" />
+          </div>
+        )
+      }
+      default:
+        return null
     }
-    if (key === 'analysis' && content?.analysis) {
-      return <p className="muted">{content.analysis}</p>
-    }
-    return null
   }
 
   return (
@@ -369,12 +403,9 @@ export function VocabReviewCard({
 
         {flipped && (
           <div className="review-back">
-            {(content?.senses?.length ?? 0) === 0
-              && (content?.examples?.length ?? 0) === 0
-              && !content?.analysis
-              && emptyHint && <p className="muted">{emptyHint}</p>}
-            {visibleOrder.map((key) => (
-              <Fragment key={key}>{renderBlock(key)}</Fragment>
+            {!hasContentBlocks && emptyHint && <p className="muted">{emptyHint}</p>}
+            {visibleBlocks.map((block) => (
+              <Fragment key={block.id}>{renderBlock(block.id, block.payload)}</Fragment>
             ))}
             {word.lastQuizWrongAt && (
               <p className="quiz-flag">{t('vocab.quiz.lastWrong', { date: shortDate(word.lastQuizWrongAt) })}</p>
@@ -407,4 +438,3 @@ export function VocabReviewCard({
     </div>
   )
 }
-

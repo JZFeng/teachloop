@@ -21,7 +21,7 @@ import tools.jackson.databind.node.ObjectNode;
  * <ul>
  *   <li>{@code dailyNewCards}：每天最多进队的新词数，clamp 到 3…硬上限；</li>
  *   <li>{@code strategy}：{@code REVIEW_FIRST / MIXED / NEW_FIRST}，缺省 {@code MIXED}（= 旧行为）；</li>
- *   <li>{@code blocks}：反面 8 块的**顺序**（不决定有无）；未知 key 丢弃、缺失 key 追加到末尾；</li>
+ *   <li>{@code blocks}：反面 9 块的**顺序**（不决定有无）；未知 key 丢弃、缺失 key 追加到末尾；</li>
  *   <li>{@code hidden}：被关掉的块。顺序与开关是两个系统，不能靠「不在 blocks 里」表达关闭。</li>
  * </ul>
  */
@@ -31,9 +31,17 @@ public record ReviewPrefs(int dailyNewCards, String strategy, List<String> block
     public static final String MIXED = "MIXED";
     public static final String NEW_FIRST = "NEW_FIRST";
 
-    /** 反面 8 块：与前端 `wordBlocks.ts` 的 key 一一对应。 */
+    /**
+     * 反面 9 块：与前端 `wordBlocks.ts` 的 key 一一对应，**这是块 id 与默认顺序的唯一来源**
+     * （{@code ContentView} 排 blocks 时直接读它，避免两处列表漂移）。
+     *
+     * <p>T594：第 9 位追加 {@code image}（词卡配图）。前 8 位的顺序一个字符都没动——存量用户
+     * 存的 blocks 只有 8 个 key，{@link #normalizeBlocks} 的 {@code out.addAll(ALL_BLOCKS)}
+     * 会把缺的 {@code image} 自动补到末尾，所以旧数据不需要迁移。
+     */
     public static final List<String> ALL_BLOCKS = List.of(
-            "core", "senses", "examples", "synonyms", "antonyms", "family", "derivation", "analysis");
+            "core", "senses", "examples", "synonyms", "antonyms", "family", "derivation", "analysis",
+            "image");
 
     private static final Set<String> STRATEGIES = Set.of(REVIEW_FIRST, MIXED, NEW_FIRST);
     private static final ObjectMapper MAPPER = new ObjectMapper();

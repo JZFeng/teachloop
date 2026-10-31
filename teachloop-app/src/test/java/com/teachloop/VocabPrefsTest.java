@@ -3,6 +3,7 @@ package com.teachloop;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teachloop.vocab.content.ContentStore;
+import com.teachloop.vocab.review.ReviewPrefs;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -81,7 +82,8 @@ class VocabPrefsTest {
                 "hidden", List.of("antonyms")));
         assertThat(saved.get("dailyNewCards").asInt()).isEqualTo(3);
         assertThat(saved.get("strategy").asString()).isEqualTo("REVIEW_FIRST");
-        assertThat(saved.get("blocks").size()).isEqualTo(8);   // 缺失 key 补齐
+        // 缺失 key 补齐：T594 起是 9 块（第 9 块 image），断言跟 ALL_BLOCKS 走，不写死数字
+        assertThat(saved.get("blocks").size()).isEqualTo(ReviewPrefs.ALL_BLOCKS.size());
         assertThat(saved.get("blocks").get(0).asString()).isEqualTo("examples");
 
         JsonNode queue = MAPPER.readTree(get(base, cookie, "/api/vocab/review/queue").body());

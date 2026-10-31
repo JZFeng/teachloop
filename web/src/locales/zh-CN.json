@@ -1755,7 +1755,6 @@
         "NEW_FIRST": "先出当天配额内的新词，再回到复习卡。"
       },
       "content": "卡片反面显示什么",
-      "imageSkipped": "图片暂不提供：内容里还没有图，开关打开也是空的。",
       "order": "反面顺序",
       "orderHint": "顺序只决定先后，不决定有无；关掉用上面的开关。",
       "moveUp": "上移",
@@ -1780,7 +1779,9 @@
       "antonymsDesc": "没有反义词的词整块不占位",
       "familyDesc": "同族词，最多 8 个",
       "derivationDesc": "前缀 / 词根 / 后缀拆分 + 派生链",
-      "analysisDesc": "一段文字说明词源与构成"
+      "analysisDesc": "一段文字说明词源与构成",
+      "image": "配图",
+      "imageDesc": "一张 88px 的配图；没有图时整块不占位"
     },
     "nav": {
       "library": "我的词库",

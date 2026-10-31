@@ -54,17 +54,19 @@ public class ReviewSessionEndpoint {
     private final VocabWordRepository words;
     private final VocabularyListRepository lists;
     private final ContentStore contentStore;
+    private final ReviewPrefsStore prefs;
     private final Clock clock;
     private final ObjectMapper mapper = new ObjectMapper();
 
     public ReviewSessionEndpoint(ReviewSessionRepository sessions, ReviewSubmitEndpoint submit,
                                  VocabWordRepository words, VocabularyListRepository lists,
-                                 ContentStore contentStore, Clock clock) {
+                                 ContentStore contentStore, ReviewPrefsStore prefs, Clock clock) {
         this.sessions = sessions;
         this.submit = submit;
         this.words = words;
         this.lists = lists;
         this.contentStore = contentStore;
+        this.prefs = prefs;
         this.clock = clock;
     }
 
@@ -198,8 +200,11 @@ public class ReviewSessionEndpoint {
         UUID wordId = ids.get(session.cursor());
         return sessions.currentWord(wordId, me.id())
                 .map(row -> {
+                    // T594：自由复习的卡面与今日复习同一份口径——blocks 的顺序与隐藏都听用户偏好，
+                    // 前端不再按 key 硬编码取值/排序。
+                    ReviewPrefs pref = prefs.load(me.id());
                     JsonNode content = ContentView.resolve(contentStore, row.contentId(),
-                            row.language(), row.form());
+                            row.language(), row.form(), pref.blocks(), pref.hidden());
                     // 状态跟随内容：库里的 READY 过期（内容包换版 / 提示词升级）时降级成 PENDING，
                     // 前端才会显示「数据准备中」而不是一张空卡（2026-10-29 用户报 Bug）。
                     return new CurrentWord(row.id(), row.form(), row.language(), content,

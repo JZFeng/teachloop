@@ -289,6 +289,17 @@
 .core-semantics-not { margin: 0 0 6px; font-size: 13px; }
 .core-semantics-image { margin: 0; font-size: 13px; font-style: italic; }
 
+/* T594：第 9 块配图——固定 88px（与 .core-semantics-art 同尺寸），右对齐；窄卡兜底不溢出 */
+.review-image-block { display: flex; justify-content: flex-end; margin-top: 12px; }
+.review-image-block img {
+  display: block;
+  width: 88px;
+  height: 88px;
+  max-width: 100%;
+  object-fit: cover;
+  border-radius: 8px;
+}
+
 /* ---------------- 复习小测（US-87 / T550） ---------------- */
 .quiz-stage { max-width: 860px; }
 

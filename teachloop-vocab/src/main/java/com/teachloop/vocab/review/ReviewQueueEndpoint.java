@@ -140,14 +140,19 @@ public class ReviewQueueEndpoint {
         Map<UUID, Instant> quizMarks = store.wrongQuizMarks(me.id(),
                 clock.instant().minus(QUIZ_MARK_WINDOW));
         List<QueueItem> items = selected.stream()
-                .map(row -> toItem(row, quizMarks.get(row.id())))
+                .map(row -> toItem(row, quizMarks.get(row.id()), pref))
                 .toList();
         return new QueueView(items, due.size(), todayReviewed, remaining, newSelected,
                 newDueTotal > newCap);
     }
 
-    private QueueItem toItem(ReviewQueueStore.DueRow row, Instant lastQuizWrongAt) {
-        JsonNode content = ContentView.resolve(contentStore, row.contentId(), row.language(), row.form());
+    /**
+     * T594：内容按**用户偏好**排 blocks（顺序 + 隐藏），而不是按前端硬编码的 key 顺序。
+     * 队列与自由复习会话共用这份口径；详情 / 小测 / 词库列表仍走单参 resolve（默认顺序、不隐藏）。
+     */
+    QueueItem toItem(ReviewQueueStore.DueRow row, Instant lastQuizWrongAt, ReviewPrefs pref) {
+        JsonNode content = ContentView.resolve(contentStore, row.contentId(), row.language(),
+                row.form(), pref.blocks(), pref.hidden());
         // 状态跟随内容：库里写的 READY 可能已经解析不到内容（内容包换版 / 提示词升级），
         // 这时按 PENDING 报给前端，页面显示「数据准备中」而不是一张空卡（2026-10-29 用户报 Bug）。
         return new QueueItem(row.id(), row.form(), row.language(), content,

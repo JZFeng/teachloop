@@ -1,5 +1,6 @@
 package com.teachloop.vocab.content;
 
+import com.teachloop.vocab.review.ReviewPrefs;
 import com.teachloop.vocab.word.WordNormalizer;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -28,6 +29,12 @@ import tools.jackson.databind.node.ObjectNode;
  *   <li>v1（没有 schemaVersion 或不是 2）→ 原样返回，不动存量 AI 内容的形状。</li>
  * </ul>
  *
+ * <p>T594 起 v2 视图额外带两样东西（内容 JSON 的 schema 不变，只改读路径的输出形状）：
+ * <ul>
+ *   <li>{@code image={url}}：{@code basicInfo.image} 是安全 URL 时才输出；</li>
+ *   <li>{@code blocks=[{id, payload}]}：按用户偏好的顺序排好的块列表，见 {@link #toView(JsonNode, List, List)}。</li>
+ * </ul>
+ *
  * <p>这一层是过渡：T432 前端切到 v2 后可以删掉，届时读路径直接返回原始 JSON。
  */
 public final class ContentView {
@@ -42,12 +49,40 @@ public final class ContentView {
     }
 
     /**
-     * 把一个内容 JSON 转成前端当前使用的形状。
+     * 把一个内容 JSON 转成前端当前使用的形状（默认块顺序、不隐藏）。
      *
      * @param raw 原始内容；null 原样返回（词条还没准备内容）
-     * @return v2 的 v1 视图；v1 或无法识别的内容原样返回
+     * @return v2 的 v1 视图（含 {@code blocks}）；v1 或无法识别的内容原样返回（不含 {@code blocks}）
      */
     public static JsonNode toView(JsonNode raw) {
+        return toView(raw, ReviewPrefs.ALL_BLOCKS, List.of());
+    }
+
+    /**
+     * 同 {@link #toView(JsonNode)}，但按调用方给的块顺序与隐藏集合排 {@code blocks}。
+     *
+     * <p><b>为什么由后端排顺序</b>：前端此前按 key 硬编码从 {@code content.*} 逐块取值、再自己按
+     * {@code prefs.blocks} 排；同一份「顺序 / 隐藏 / 缺省」契约被前后端各实现一遍，改一处就漏一处
+     * （T594 把图片加成第 9 块正是这种漏）。现在后端输出**有序、已过滤**的 {@code blocks}，前端只负责
+     * 渲染，顺序与开关只有服务端这一个属主。
+     *
+     * <p>规则：
+     * <ul>
+     *   <li>顺序 = {@code blockOrder}（用户 {@code prefs.blocks}）；去重；不在
+     *       {@link ReviewPrefs#ALL_BLOCKS} 里的 id 忽略；</li>
+     *   <li>{@code hidden} 里的 id 不输出（顺序与开关是两个系统，不能靠「不在顺序里」表达关闭）；</li>
+     *   <li>payload 缺失或为空（空数组 / 空对象）时**跳过该块**，不输出空壳；</li>
+     *   <li>payload 是 view 里对应字段的**原样值**（同一个节点，不新造形状）；</li>
+     *   <li>v2 内容即使一块都没有也输出 {@code blocks: []}——前端靠「数组在场」区分
+     *       「后端按契约说没有」与「旧数据没有这个字段」；</li>
+     *   <li>v1 / 未知版本原样返回、**不输出 blocks**：旧内容没有 v2 结构，前端据此回退到按 key 读旧字段
+     *       （兼容一个版本，等 T432 前端切 v2 后与这一层一起删）。</li>
+     * </ul>
+     *
+     * @param blockOrder 块顺序；null 用 {@link ReviewPrefs#ALL_BLOCKS}
+     * @param hidden     不输出的块 id；null 视为不隐藏
+     */
+    public static JsonNode toView(JsonNode raw, List<String> blockOrder, List<String> hidden) {
         if (raw == null || raw.isNull() || !raw.isObject()) {
             return raw;
         }
@@ -63,6 +98,9 @@ public final class ContentView {
         putFamily(view, raw);
         putMemoryAids(view, raw);
         putPhonetic(view, raw);
+        // 图片必须排在 putBlocks 之前：image 块的 payload 就是这里放进 view 的 image 字段。
+        putImage(view, raw);
+        putBlocks(view, blockOrder, hidden);
         return view;
     }
 
@@ -73,7 +111,7 @@ public final class ContentView {
      * 页面显示「未准备」/空，不抛异常、不影响复习。
      */
     public static JsonNode resolve(ContentStore store, Long contentId) {
-        return resolve(store, contentId, null, null);
+        return resolve(store, contentId, null, null, null, null);
     }
 
     /**
@@ -84,6 +122,22 @@ public final class ContentView {
      * <p>delta 的 contentId 是稳定的，正常路径只多一次字符串比较；只有包重建后才走回退查询。
      */
     public static JsonNode resolve(ContentStore store, Long contentId, String language, String form) {
+        return resolve(store, contentId, language, form, null, null);
+    }
+
+    /**
+     * 同 {@link #resolve(ContentStore, Long, String, String)}，但按用户偏好的顺序/隐藏集合排
+     * {@code blocks}（T594：今日复习队列与自由复习会话用它；详情、小测、词库列表继续用单参版本，
+     * 走默认顺序且不隐藏）。
+     *
+     * <p>只有「怎么排块」不同，取数路径与回退语义一字未改：id 取不到 / 词形核对不上仍按
+     * {@code (language, form)} 回退查询，都取不到才返回 null。
+     *
+     * @param blockOrder 块顺序；null 用 {@link ReviewPrefs#ALL_BLOCKS}
+     * @param hidden     不输出的块 id；null 视为不隐藏
+     */
+    public static JsonNode resolve(ContentStore store, Long contentId, String language, String form,
+                                   List<String> blockOrder, List<String> hidden) {
         if (store == null) {
             return null;
         }
@@ -94,7 +148,7 @@ public final class ContentView {
                             || expected.equals(content.normalizedForm()))
                     .map(StoredContent::json)
                     .map(ContentView::parse)
-                    .map(ContentView::toView)
+                    .map(raw -> toView(raw, blockOrder, hidden))
                     .orElse(null);
             if (byId != null) {
                 return byId;
@@ -106,7 +160,7 @@ public final class ContentView {
         return store.get(language, form)
                 .map(StoredContent::json)
                 .map(ContentView::parse)
-                .map(ContentView::toView)
+                .map(raw -> toView(raw, blockOrder, hidden))
                 .orElse(null);
     }
 
@@ -392,6 +446,104 @@ public final class ContentView {
         }
         if (us != null) {
             phonetic.put("us", us);
+        }
+    }
+
+    /**
+     * 图片块（T594 第 9 块）：只有安全 URL 才输出；没有图或地址不安全时**整个字段不出现**，
+     * 前端回退到无图版式（而不是渲染一张坏图）。
+     */
+    private static void putImage(ObjectNode view, JsonNode raw) {
+        String url = text(raw.path("basicInfo"), "image");
+        if (url == null || !isSafeImageUrl(url)) {
+            return;
+        }
+        view.putObject("image").put("url", url);
+    }
+
+    /**
+     * 图片地址白名单：只放行 {@code http(s)://} 绝对地址与以 {@code /} 开头的站内相对路径。
+     *
+     * <p>为什么要在读路径挡：内容由 AI 生成、也能被改写，{@code javascript:} / {@code data:} 一类
+     * 地址一旦进了 {@code <img src>} 就是注入面；协议相对地址 {@code //host/x} 也不是站内路径，
+     * 一并挡掉。含空白或控制字符的地址直接拒绝——真实图片地址不需要它们，放进来只会给解析留歧义。
+     */
+    static boolean isSafeImageUrl(String url) {
+        if (url == null) {
+            return false;
+        }
+        String value = url.strip();
+        if (value.isEmpty()) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (Character.isWhitespace(c) || Character.isISOControl(c)) {
+                return false;
+            }
+        }
+        String lowered = value.toLowerCase(java.util.Locale.ROOT);
+        if (lowered.startsWith("https://") || lowered.startsWith("http://")) {
+            String rest = value.substring(value.indexOf("://") + 3);
+            return !rest.isEmpty() && !rest.startsWith("/");
+        }
+        return value.startsWith("/") && !value.startsWith("//");
+    }
+
+    /** block id → view 里承载它的字段名；payload 直接复用该字段的值，不新造形状。 */
+    private static String payloadField(String blockId) {
+        return switch (blockId) {
+            case "core" -> "coreSemantics";
+            // 其余 8 个块与 view 里的字段同名（senses/examples/synonyms/antonyms/family/
+            // derivation/analysis/image）
+            default -> blockId;
+        };
+    }
+
+    /**
+     * 输出有序的 {@code blocks} 数组（T594）。顺序 / 去重 / 未知 id / hidden / 缺 payload 的规则见
+     * {@link #toView(JsonNode, List, List)}。
+     *
+     * <p>v2 内容即使一块都没有也留下 {@code blocks: []}：前端靠「数组在场」区分「后端按契约说没有」
+     * 与「旧数据没有这个字段」两种情况。
+     */
+    private static void putBlocks(ObjectNode view, List<String> blockOrder, List<String> hidden) {
+        ArrayNode blocks = view.putArray("blocks");
+        Set<String> hiddenIds = new LinkedHashSet<>();
+        if (hidden != null) {
+            for (String id : hidden) {
+                if (id != null) {
+                    hiddenIds.add(id.strip());
+                }
+            }
+        }
+        List<String> order = blockOrder == null ? ReviewPrefs.ALL_BLOCKS : blockOrder;
+        Set<String> seen = new LinkedHashSet<>();
+        for (String id : order) {
+            if (id == null) {
+                continue;
+            }
+            String blockId = id.strip();
+            if (!ReviewPrefs.ALL_BLOCKS.contains(blockId)) {
+                // 未知 id（比如前端新版本多写了一个 key）忽略，不当错误：老后端不该因此 500。
+                continue;
+            }
+            if (!seen.add(blockId)) {
+                continue;
+            }
+            if (hiddenIds.contains(blockId)) {
+                continue;
+            }
+            JsonNode payload = view.get(payloadField(blockId));
+            if (payload == null || payload.isNull() || payload.isMissingNode()) {
+                continue;
+            }
+            if ((payload.isArray() || payload.isObject()) && payload.size() == 0) {
+                continue;
+            }
+            ObjectNode block = blocks.addObject();
+            block.put("id", blockId);
+            block.set("payload", payload);
         }
     }
 

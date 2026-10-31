@@ -16,7 +16,7 @@ class ReviewPrefsTest {
     }
 
     @Test
-    @DisplayName("缺省值 = 改造前的行为（20 / 混合 / 8 块默认序 / 全显示）")
+    @DisplayName("缺省值 = 改造前的行为（20 / 混合 / 9 块默认序 / 全显示）")
     void defaultsMatchLegacyBehaviour() {
         ReviewPrefs prefs = ReviewPrefs.defaults(20);
         assertThat(prefs.dailyNewCards()).isEqualTo(20);
@@ -65,5 +65,44 @@ class ReviewPrefsTest {
         assertThat(ReviewPrefs.parse(MAPPER.readTree("\"not an object\""), 20, 200).dailyNewCards())
                 .isEqualTo(20);
         assertThat(ReviewPrefs.parse(null, 20, 200).strategy()).isEqualTo(ReviewPrefs.MIXED);
+    }
+
+    @Test
+    @DisplayName("T594：ALL_BLOCKS 恰好 9 个、image 在末位，前 8 位的顺序与改造前一字不差")
+    void allBlocksHasNineWithImageLast() {
+        assertThat(ReviewPrefs.ALL_BLOCKS).hasSize(9);
+        assertThat(ReviewPrefs.ALL_BLOCKS.get(8)).isEqualTo("image");
+        // 前 8 位是 T594 之前的定稿顺序：任何一位挪动都会让存量用户的卡片重排
+        assertThat(ReviewPrefs.ALL_BLOCKS.subList(0, 8)).containsExactly(
+                "core", "senses", "examples", "synonyms", "antonyms", "family", "derivation", "analysis");
+        assertThat(ReviewPrefs.ALL_BLOCKS).doesNotHaveDuplicates();
+    }
+
+    @Test
+    @DisplayName("T594：存量偏好只有旧 8 个 key 时，normalizeBlocks 把 image 补到末尾")
+    void normalizeBlocksFillsImageForLegacyPrefs() {
+        // 旧前端写的顺序（8 个 key、且是自定义顺序）：不能被重排，只能把 image 接在后面
+        ReviewPrefs prefs = parse("""
+                {"blocks":["examples","analysis","core","senses","synonyms","antonyms","family",
+                 "derivation"]}
+                """);
+        assertThat(prefs.blocks()).containsExactly(
+                "examples", "analysis", "core", "senses", "synonyms", "antonyms", "family",
+                "derivation", "image");
+
+        // 完全没存过 blocks（更老的存量）：整份默认顺序，image 依然在末位
+        assertThat(parse("{}").blocks()).containsExactlyElementsOf(ReviewPrefs.ALL_BLOCKS);
+        // 只写了 image 的偏好也不能把它弄丢或挪位
+        assertThat(parse("{\"blocks\":[\"image\"]}").blocks())
+                .startsWith("image")
+                .hasSize(9);
+    }
+
+    @Test
+    @DisplayName("T594：normalizeHidden 接受 image，未知值仍然被拒绝")
+    void normalizeHiddenAcceptsImage() {
+        ReviewPrefs prefs = parse("{\"hidden\":[\"image\",\"bogus\",\"senses\"]}");
+        assertThat(prefs.hidden()).containsExactly("image", "senses");
+        assertThat(ReviewPrefs.normalizeHidden(MAPPER.readTree("[\"nope\"]"))).isEmpty();
     }
 }

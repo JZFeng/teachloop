@@ -12,7 +12,7 @@ function tierOf(cards: number): 'normal' | 'hard' | 'extreme' {
   return 'normal'
 }
 
-const SWITCHES = ['derivation', 'synonyms', 'antonyms', 'family'] as const
+const SWITCHES = ['derivation', 'synonyms', 'antonyms', 'family', 'image'] as const
 
 /**
  * 背单词偏好（US-88 / T555）。`/profile` 与复习页齿轮共用同一个组件、同一份数据。
@@ -138,7 +138,6 @@ export function VocabPrefsCard({ compact = false }: { compact?: boolean } = {}) 
             </label>
           ))}
         </div>
-        <p className="muted small">{t('vocab.prefs.imageSkipped')}</p>
       </div>
 
       <div className="pref-block">
