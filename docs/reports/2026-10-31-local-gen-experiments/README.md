@@ -5,9 +5,10 @@
 
 ## 结论（一句话）
 
-- **能跑通的只有 SDXL LoRA**（但画风跑偏成“装饰绘本”，不是我们的扁平线描）；
-- **FLUX LoRA 训练被 ROCm 的 fp8 路径毁掉**（长训练输出灰色噪声）；
-- **国产 HunyuanDiT 1.2 反而最接近目标画风**，且不需要训练，单张 ≈19 秒。
+- **B 通了**：SDXL LoRA 训得出来（diffusers 脚本），但画风跑偏成“装饰绘本”；
+- **C 通了（有边界）**：`ai-toolkit` + qfloat8 训 FLUX LoRA，**50 步的 checkpoint 可用**（512²/4 步 = 2.1 秒/张），
+  100 步会发散成噪声；输出偏淡，需后处理补对比；
+- **D 里 Qwen-Image 最像教材**（20 词验证，88px 对比度 81.7），HunyuanDiT 最快（20.5 秒/张），Kolors 偏绘画。
 
 ## 关键发现：`expandable_segments` 会让 ROCm 训练崩
 
@@ -58,7 +59,7 @@ ComfyUI 里可直接 `LoraLoader` 使用。对照图：`sdxl-lora-style.png`。
 
 | 项 | 结果 |
 | :--- | :--- |
-| 可用 LoRA | ✅ `~/ai/train/aitk_out/tlbook_aitk/tlbook_aitk_000000050.safetensors` |
+| 可用 LoRA | ✅ `~/ai/train/aitk_out/tlbook_aitk/tlbook_aitk_000000050.safetensors`（165MB） |
 | 安全步数 | **≤50 步**（100 步发散；原因仍是 ROCm fp8 反传不稳定） |
 | 推理速度 | **2.1 秒/张**（512² / 4 步） |
 | 20 词验证（88px） | 原始：L=218.9 / SD=39.6（偏淡）→ **后处理：L=212.0 / SD=62.1**（可读） |
@@ -123,7 +124,7 @@ ComfyUI 里可直接 `LoraLoader` 使用。对照图：`sdxl-lora-style.png`。
 | **Qwen-Image fp8** | 75–90 s | ~2.5–3 h | ~65–75 h | 0 | **90%** |
 | HunyuanDiT 1.2 | 20.5 s | ~40 min | **~17 h** | 0 | 80% |
 | SDXL LoRA | 8 s | ~15 min | ~7 h | 0 | 50%（跑偏） |
-| FLUX LoRA | — | — | — | — | ❌ 产物损坏 |
+| **FLUX LoRA（ai-toolkit 50 步）** | **2.1 s** | ~4 min | ~2 h | 0 | 70%（偏淡，需后处理） |
 
 宁可慢也要像：**113 词用 Qwen（2.5–3 小时）**；要铺 3000 词用 **Hunyuan（17 小时）**，或对 Qwen 降分辨率/步数（512² + 12 步 ≈ 25–30 s，3000 词约 20–25 小时）。
 
