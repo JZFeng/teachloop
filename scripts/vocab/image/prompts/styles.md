@@ -70,3 +70,19 @@ levels 2%–98% → ×0.92 + 0.06（提暗部）→ ×0.965（高光压到 ~246�
 | 亮度 | 190–210 | 196.0 |
 | 对比度（std） | ≥52 | 54.8 |
 | 近白像素（≥250） | <1% | 0.4% |
+
+## 7. 备选风格 S1（2026-10-30，参考扇贝线描）
+
+扇贝词卡配图的做法是「透明背景 + 浅灰面板 + 细黑线平涂」，实测其图 300×282、约 37% 像素透明、
+主色为线稿黑 + 青灰 #90B8C0 + 芥末黄 #C0B038、无纹理。要复刻这套观感：
+
+```text
+single-subject line illustration, thin black ink outlines, flat muted fills in teal and mustard,
+no shading, no gradients, no texture, generous empty space, centered composition,
+plain near-white background, no text, no letters, no watermark:
+{scene}
+```
+
+后处理与 C1 不同：**白底（≥247）转 alpha**，输出透明 WebP；不做暖色偏移与高光压缩；
+卡片侧用 `#E9EAE9`~`#F1F2F1` 的浅灰面板承托。详见
+`docs/reports/2026-10-30-vocab-image-shanbay-style/README.md`。
