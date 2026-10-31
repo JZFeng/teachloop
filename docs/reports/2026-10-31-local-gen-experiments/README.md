@@ -164,3 +164,28 @@ bash ~/ai/train/run_train.sh 150
 # HunyuanDiT（ComfyUI）
 python3 /tmp/hy_eval.py
 ```
+
+
+---
+
+# 生产定稿（2026-10-31 用户拍板）
+
+**主用 Qwen-Image，后备 HunyuanDiT；OpenAI 只做教材/基准。**
+
+| 项 | 定稿 |
+| :--- | :--- |
+| 主方案 | Qwen-Image fp8，**512² · 12 步 · cfg 4 · euler/simple**（加急 8 步；详情页 1024²/20 步） |
+| 后备 | HunyuanDiT 1.2，**1024² · 28 步 · cfg 6.5 · dpmpp_2m/karras**；Qwen 跑偏时重跑 |
+| 文本生成 | 默认 OpenCode Go（deepseek-v4.1-flash），备用 DeepSeek 官方（deepseek-chat） |
+| 产出 | 113 张已跑完：**113/113，0 失败，2543 秒（42 分钟，22.5 秒/张）** |
+
+完整参数、提示词模板、复用命令见 [`scripts/vocab/image/final-stack.md`](../../../scripts/vocab/image/final-stack.md)；
+批量脚本：`batch_qwen.py`、`batch_hunyuan.py`。
+
+## 113 张批次的问题（生产前抽检重点）
+
+- **抽象词语义漂移**：一批画成“学生坐在桌前看书/写字”（`dubious`、`elaborate`、`justify`、`plausible` 等），88px 下彼此难区分；
+- **偶发文字**：`explicit` 出现 `CAEDS CAFED CLF` 字样；
+- 结论：**113 词里需要重写 scene 或换后备重跑的，预计 15–25%**，下一轮做抽检清单。
+
+对照图：`qwen-113-batch.png`。
