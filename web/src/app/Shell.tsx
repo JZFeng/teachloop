@@ -31,7 +31,7 @@ import {
   UserOutlined,
 } from '../ui'
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
-import { shouldShowProfileBanner } from './welcomeGate'
+import { shouldMarkProfileBannerRead, shouldShowProfileBanner } from './welcomeGate'
 import type { AiModelsView } from '../api/types'
 
 /** 011 / T565：顶部提示条的会话内关闭标记（sessionStorage，不写 localStorage）。 */
@@ -70,6 +70,22 @@ export function Shell({ children }: { children: ReactNode }) {
     () => typeof sessionStorage !== 'undefined'
       && sessionStorage.getItem(PROFILE_BANNER_KEY) === '1',
   )
+
+  // 2026-10-30（用户决定「第一次没填就不打扰」）：人一旦进过 /welcome 或 /profile，这条提示就算读过——
+  // 本会话内不再出现，也不必等他去点「关闭」。写的是同一个 sessionStorage 键，刷新后仍然静音。
+  useEffect(() => {
+    if (!shouldMarkProfileBannerRead({
+      profileComplete,
+      pathname,
+      dismissed: profileBannerDismissed,
+    })) return
+    setProfileBannerDismissed(true)
+    try {
+      sessionStorage.setItem(PROFILE_BANNER_KEY, '1')
+    } catch {
+      // 隐私模式下 sessionStorage 可能不可写：本次会话内仍然已读。
+    }
+  }, [profileComplete, pathname, profileBannerDismissed])
 
   // 三个功能位（作业/试卷 create、批改/复核 assess、报表/成绩与评语 insights）之外，
   // 首页与班级作为「空间位」各有一个颜色：home 海军蓝、classes 淡紫（决策 006 2026-10-23 修订）。

@@ -14,6 +14,7 @@ import {
   isProfileCollectionPage,
   isPrompted,
   markPrompted,
+  shouldMarkProfileBannerRead,
   shouldPrompt,
   shouldShowProfileBanner,
 } from '../src/app/welcomeGate.ts'
@@ -96,6 +97,40 @@ test('提示条：本会话关过就不再显示（含目标页）', () => {
       false,
       pathname,
     )
+  }
+})
+
+/*
+ * 2026-10-30 用户决定（原话「第一次没填，就不打扰用户了」）：进过补全页就算读过，
+ * 本会话不再显示。读与显示是两条互补判定：补全页上「不显示」且「要记为已读」。
+ */
+test('已读：站在 /welcome、/profile 上就记为已读（本会话不再提醒）', () => {
+  for (const pathname of ['/welcome', '/welcome/', '/profile', '/profile?next=/classes']) {
+    assert.equal(
+      shouldMarkProfileBannerRead({ profileComplete: false, pathname, dismissed: false }),
+      true,
+      pathname,
+    )
+  }
+})
+
+test('已读：别的页面不写标记（关掉标签页之前也不额外写）', () => {
+  for (const pathname of ['/', '/classes', '/vocab/review', '/notifications']) {
+    assert.equal(
+      shouldMarkProfileBannerRead({ profileComplete: false, pathname, dismissed: false }),
+      false,
+      pathname,
+    )
+  }
+})
+
+test('已读：资料完整 / 未知 / 已经关过 → 不再写标记', () => {
+  for (const input of [
+    { profileComplete: true, pathname: '/welcome', dismissed: false },
+    { profileComplete: null, pathname: '/welcome', dismissed: false },
+    { profileComplete: false, pathname: '/welcome', dismissed: true },
+  ]) {
+    assert.equal(shouldMarkProfileBannerRead(input), false, JSON.stringify(input))
   }
 })
 

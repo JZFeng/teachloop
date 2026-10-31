@@ -93,8 +93,8 @@ export interface ProfileBannerInput {
  * 顶部还挂着「补全手机号 · 去补全」。那条提示在语义上已经被执行了（等同于「已读」），
  * 再显示只会重复催一次，而且它的整行宽度与下面的窄卡片叠出第三条左边缘。
  *
- * 只做「目标页上不显示」，不顺手把整场会话的提示条一起注销：AC-93.3 要求
- * **点过「以后再说」（或关掉提示条）之后仍要提醒一次**，那个提醒是这页跳走以后才出现的那条。
+ * 这里只负责「目标页当场不显示」（避免等 effect 写完 sessionStorage 之前闪一下）；
+ * 「进过补全页就把本会话标记成已读」由 `shouldMarkProfileBannerRead` 决定。
  */
 export function shouldShowProfileBanner({
   profileComplete,
@@ -104,6 +104,24 @@ export function shouldShowProfileBanner({
   if (profileComplete !== false) return false
   if (dismissed) return false
   return !isProfileCollectionPage(pathname)
+}
+
+/**
+ * 要不要把提示条记成「已读」——写 `sessionStorage` 的那一次。
+ *
+ * 2026-10-30 用户决定（原话：「第一次没填，就不打扰用户了。以后逻辑需要的时候再引导过来」）：
+ * 人一旦进过 `/welcome` 或 `/profile`，这条提示就算读过，**本会话内不再出现**；
+ * 想再提醒就靠后续流程自己引导（教师建班的 403 `PROFILE_INCOMPLETE` 内联提示还在）。
+ * 因此提示条在「新设备首登」这条路径上根本不会出现——那时人一定先落在 `/welcome`。
+ */
+export function shouldMarkProfileBannerRead({
+  profileComplete,
+  pathname,
+  dismissed,
+}: ProfileBannerInput): boolean {
+  if (profileComplete !== false) return false
+  if (dismissed) return false
+  return isProfileCollectionPage(pathname)
 }
 
 /**

@@ -66,14 +66,16 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
     const justCompleted = wasIncomplete.current && profileComplete !== false
     wasIncomplete.current = profileComplete === false
 
-    // 资料明确未补全时 /api/features 会被资料过滤器拦成 403，这一枪不用打；
-    // 补全保存后（false → true）本 effect 重跑，侧栏才会重新出现（2026-10-27 Bug）。
-    if (profileComplete === false) {
-      setFeatures(OFF)
-      setFetchedFor(me.id)
-      requestedFor.current = me.id
-      return
-    }
+    /*
+     * 2026-10-30 Bug（用户截图里侧栏一个菜单都没有）：这里原先有一句
+     * `if (profileComplete === false) { setFeatures(OFF); … return }`，理由是「资料没补全时
+     * /api/features 会被资料过滤器拦成 403，这一枪不用打」。T561（同日）已经让后端不再 403、
+     * 改成只标记属性，于是这句短路变成一个**前端自伤**：
+     *   - 侧栏 nav 全为空（学生只有「主题 / 自己 / 退出」三项）；
+     *   - `/` 上 HomeRouter 看到 `nav.home !== true` → `landingFor({})` → `/profile`，
+     *     未填手机号的学生因此被顶到资料页，与 AC-93.1（访问 `/` 返回 200）相反。
+     * 现在照常取数：接口 200 就按真实 key 渲染，仍然失败（真正 403/网络问题）走下面的 catch → OFF。
+     */
     // 已经为当前用户取过、且不是「刚补全」→ 不再重取：重取会把已挂载的页面卸掉再挂回来。
     if (!justCompleted && requestedFor.current === me.id) return
 

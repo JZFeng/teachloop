@@ -76,7 +76,7 @@
 
 - [ ] AC-93.1 未填手机号的学生访问 `/` 与 `/vocab/*` 返回 200，不再收到 403 `PROFILE_INCOMPLETE`。
 - [ ] AC-93.2 首次登录（`users.phone` 为空）先进入 `/welcome` 收集页；页面提供「以后再说」，跳过后本设备不再自动出现（记录在 `localStorage`，键名 `teachloop.profile.prompted`）。
-- [ ] AC-93.3 跳过后的会话里，页面顶部显示一条可关闭的「补全手机号」提示条；点「去补全」进入 `/profile`，关闭后本会话不再出现。**2026-10-30 补充（用户截图落在 `/welcome`）**：`/welcome` 与 `/profile` 这两个补全页自身**不显示**这条提示条——人已经站在提示条要去的那一页上，提示等同已执行（即「已读」），再显示只会重复催一次，且它的整行宽度会在 560px 宽的引导卡上方多出一条更宽的行（三条左边缘）。判定在 `web/src/app/welcomeGate.ts` 的 `shouldShowProfileBanner`，与引导闸门共用 `PROFILE_COLLECTION_PATHS`。
+- [ ] AC-93.3 页面顶部一条可关闭的「补全手机号」提示条；点「去补全」进入 `/profile`。**2026-10-30 修订（用户截图落在 `/welcome`，原话「第一次没填，就不打扰用户了。以后逻辑需要的时候再引导过来」）**：①`/welcome`、`/profile` 这两个补全页自身**不显示**；②人一旦进过这两个页面就记为「已读」，**本会话内不再出现**（同一个 `sessionStorage` 键，刷新仍静音，关掉标签页才重新计）。因此新设备首登这条路径上提示条根本不会出现——那时人一定先落在 `/welcome`；它只剩「下次会话仍没补全」这一种出场机会。判定在 `web/src/app/welcomeGate.ts` 的 `shouldShowProfileBanner` / `shouldMarkProfileBannerRead`，与引导闸门共用 `PROFILE_COLLECTION_PATHS`。
 - [ ] AC-93.4 教师未填手机号时，「建班」与「发词」两个动作仍返回 403 `PROFILE_INCOMPLETE`；教师浏览其他页面不受影响（不再整站 403）。
 
 ### US-94 今日页的数据来自一个聚合接口
