@@ -267,13 +267,6 @@ public class ReviewSessionEndpoint {
                 sessions.advance(id, session.cursor(), 0, paused ? -1 : 1, clock.instant());
                 return new AdvanceResult(session.cursor(), session.total(), false);
             }
-            case "DELETE" -> {
-                // 2026-10-31（用户要求把「删除当前单词」加回复习会话）：软删除与词库页行内删除同一个方法
-                // （AC-59.11：列表 / 搜索 / 队列 / 统计都看不见，历史日志保留），删完推进游标。
-                if (!words.delete(me.id(), wordId)) {
-                    throw ApiException.notFound("word not found");
-                }
-            }
             case "KNOWN", "DONT_KNOW" -> {
                 submit.submit(new ReviewSubmitEndpoint.SubmitRequest(wordId, action,
                         request.elapsedMs(), id), null, me);
@@ -281,8 +274,7 @@ public class ReviewSessionEndpoint {
                     knownIncrement = 1;
                 }
             }
-            default -> throw ApiException.badRequest(
-                    "action must be KNOWN, DONT_KNOW, PAUSE, DELETE, SKIP or TOGGLE_PAUSE");
+            default -> throw ApiException.badRequest("action must be KNOWN, DONT_KNOW, PAUSE, SKIP or TOGGLE_PAUSE");
         }
         int cursor = session.cursor() + 1;
         sessions.advance(id, cursor, knownIncrement, pausedIncrement, clock.instant());

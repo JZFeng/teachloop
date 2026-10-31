@@ -8,7 +8,8 @@
 **今日复习不再自己出卡**：点「开始复习」建一个 `source=today` 的全屏会话，评分计入「今日已复习」；
 三个 Tab 页不再有与页签同名的标题；今日复习页的设置齿轮删掉，背单词设置只在 `/profile`。
 另外 `/profile` 的「背单词」说明也收进了标题右侧的 ⓘ。
-**你后来要求的「删除当前单词」已经加回**（T598）：会话里 `Delete` 键或卡片头垃圾桶 → 二次确认 → 软删除 + 推进游标。
+**注**：当天上午曾按你的要求把「删除当前单词」加进会话（T598），随后按你的判断**撤销**——
+删除不适合放在卡片上，入口只在词库页行内。详见 §2 与 §5.1。
 
 ## 1. 早上三分钟验收（照着点）
 
@@ -49,15 +50,13 @@
 - 删掉 `ReviewPage` 的齿轮按钮、设置 `Drawer` 与 `VocabPrefsCard compact`；`vocab.prefs.open` 键一并清掉。
 - `/profile` 的「背单词」块（`ProfilePage.tsx:317`）是完整版，成为**唯一入口**。
 
-### T598 会话里加回「删除当前单词」（你 01:35 要求的）
+### T598 会话里的「删除当前单词」（已撤销）
 
-- 后端 `ReviewSessionEndpoint.advance` 新增 `DELETE`：调 `VocabWordRepository.delete`（与词库页行内删除同一个软删除方法，
-  AC-59.11：列表 / 搜索 / 队列 / 统计看不见，历史日志保留），删完推进游标，**不写评分日志**。
-- 前端会话页：卡片头的垃圾桶图标挂 `onDelete`，键盘 `Delete` / `Backspace` 等价（只在卡片正面，翻面后的明细只读），
-  走现有 `useConfirm` 二次确认（文案复用 `vocab.library.delete*`）。它与「暂停这个词 / S」并存。
-- 快捷键表加回 `删除当前单词 · Delete` 一行。
-- 证据：`VocabReviewSessionTest` **4/4**（新增 `deleteCurrentWordInSession`）；dev 界面实测量到
-  「第 1 张 → 第 2 张、`implicit` 从词库消失、`explicit` 仍在」（截图见 §4）。
+09:29 你要求加回，实现并验过（后端 `DELETE` advance + 卡头垃圾桶 + `Delete` 键 + 二次确认，
+`VocabReviewSessionTest` 4/4、dev 实测「第 1 张 → 第 2 张、词从词库消失」）。
+随后你判断**删除不适合放在卡片上**，同一小时整体回滚：后端分支、前端 `onDelete` / 键位、
+快捷键表行、那条集成用例全部移除，删除入口只在词库页行内（AC-59.11）。
+卡片上现在只有「收藏（F）」和「暂停这个词（S）」两个图标。
 
 ### 顺带：`/profile` 的说明进气泡
 
@@ -70,10 +69,10 @@
 |---|---|---|
 | 编译 | `web` `tsc --noEmit`（含 `tsconfig.e2e.json`） | 0 错 |
 | 单测 | `pnpm test`（node，`web/tests/*.test.mjs`） | **223/223** |
-| 集成 | `VocabReviewSessionTest`（含 `todaySessionCountsAsReviewed` 与 `deleteCurrentWordInSession`） | **4/4** |
+| 集成 | `VocabReviewSessionTest`（含 `todaySessionCountsAsReviewed`） | **3/3** |
 | 集成 | `VocabReviewQueueTest` / `VocabTodayTimezoneTest` | **1/1** / **5/5** |
 | 闸门 | `check-i18n` / `check-ui` / `check-boundaries` | exit 0 / 0 / 0 |
-| 全量 | `make test`（全部闸门 + 后端全量） | **exit 0**，707 tests / 0 failures / 0 errors / 4 skipped（152 个测试类，最新报告 01:50:05） |
+| 全量 | `make test`（全部闸门 + 后端全量） | **exit 0**，706 tests / 0 failures / 0 errors / 4 skipped（见 §3.1） |
 | 端到端 | Playwright 3 project（1440 / 834×1194 / 1024×1366）跑**生产产物** | **83 passed** |
 | 界面 | 5 个页面 × 3 档视口 `scrollWidth <= innerWidth+2` | 全部 true（截图见 §4） |
 | 未验 | 真 iPad / Safari 触摸与 `100vh`、软键盘 | 仍然没验 |
@@ -84,8 +83,8 @@
 make test
 → check-deps / check-boundaries / check-i18n / check-ui / web-test / vocab-lexicon-test 全绿
 → mvn -q test：exit 0
-   surefire 汇总（152 个测试类）：707 tests, 0 failures, 0 errors, 4 skipped
-   最新报告时间 2026-10-31T01:50:05（含 T598 的 DELETE 用例）
+   surefire 汇总（152 个测试类）：706 tests, 0 failures, 0 errors, 4 skipped
+   （撤销 T598 后重跑：删掉的那条 DELETE 用例不再计入）
 ```
 
 其中与本次改动直接相关的三组：`VocabReviewSessionTest` 3/3（含新增的 `todaySessionCountsAsReviewed`）、
@@ -107,16 +106,15 @@ make test
 | `vocab-review-1440.png` | 准备页：页签 + ⓘ + 24 张 + 开始复习，没有 h1、没有齿轮 |
 | `after-rating-1440.png` | 评完一张回到准备页：ⓘ 与副行里「今日已复习 2」 |
 | `session-1440.png` / `session-834.png` | 全屏会话：无侧栏无页签，标题「今日复习 · 第 1 张 / 共 24 张」 |
-| `session-delete-icon-1440.png` | 卡片头三个图标：收藏 / 删除 / 暂停 |
-| `session-delete-confirm-1440.png` | `Delete` 键弹出的二次确认：「删除这个词？」+ 取消 / 删除 |
+| — | T598 的两张「删除」截图已随撤销删除，不留误导性证据 |
 | `vocab-lists-1440.png` | 我的词单：无重复标题，新建词单在页签行右端 |
 | `vocab-library-1440.png` | 我的词库：无重复标题 |
 | `profile-1440.png` | /profile：「背单词 ⓘ」+ 每日任务量 |
 
 ## 5. 偏离与代价（照实写）
 
-1. ~~「删除当前单词」不再有快捷键~~ **已加回（T598，2026-10-31 01:35 你要求）**：会话里 `Delete` 或垃圾桶
-   → 二次确认 → 软删除 + 推进游标，与「暂停这个词 / S」并存。
+1. **「删除当前单词」不在复习卡上**：今日复习页没有卡片了，会话里只有「暂停这个词 / S」；
+   删除入口只剩词库页行内（AC-59.11 的另一半）。T598 当天加回又按你的判断撤销——**卡片上不放删除**。
 2. **计数口径变了**（这是拍板过的）：今日复习会话的评分现在计入「今日已复习」；词单 / 词库 / 词书发起的
    自由复习仍不计入。如果哪天想「所有复习都算」，改的是 `ReviewQueueStore.java:100` 那一个 SQL 和 004 的 AC-52.2。
 3. **会话容量 1000**：今日到期超过 1000 时分两轮（背完 1000 回准备页再开）。分母不会骗人：
@@ -130,14 +128,16 @@ make test
 
 ## 6. 没做 / 建议下一步
 
-1. ~~会话里加「删除当前单词」~~ 已做（T598）。
+1. **会话里不做「删除当前单词」**（你 2026-10-31 上午的判断，T598 已撤销）：卡片上只保留评分与暂停。
+   如果以后想「复习时删词」，方向是词库页行内或卡外菜单，而不是卡片头上的图标。
 2. **准备页的「预计 N 分钟」不做**：2026-10-23 你明确说过不要这类估算（AC-52.2 写着）。
 3. **连续学习天数**（AC-90.1）仍未做，属第二期。
 
 ## 7. 提交与回滚
 
-**提交**：`feat(vocab): T596 去掉 Tab 页同名标题 + T598 会话内删除 + T595 计数口径`
-（43 个文件，含文档 / 报告 / mock；用 `git log --oneline --grep T598` 定位）；
+**提交**：`feat(vocab): T596 去掉 Tab 页同名标题 + T598 会话内删除 + T595 计数口径`（43 个文件）
+→ 随后 `revert(vocab): 撤销 T598 会话内删除`（本文档与规格同步改回）。用
+`git log --oneline --grep T598` 能看到这两条；
 更早的 `T595` 部分行被并行会话的 `d2261e7` 带走（见 §5.5），两者合起来就是今晚的全部改动。
 
 **回滚**：`git revert <T596/T598 那个 hash>` 即可回到「今日复习页内出卡、会话无删除」的旧形态；

@@ -79,7 +79,7 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d           # 期望空（
 | T568 | 完成 | `scripts/bench-vocab.py` 造 5000 词（2.7s）+ 500 日志；`docs/reports/011-t568-bench.md`：`/api/student/today` p50 8.8 / **p95 10.1ms < 50ms**、队列 p95 16.5ms、词库 p95 12.5ms；`pg_stat_statements` 已开 |
 | T595 | 完成（2026-10-31） | 今日复习改真会话：`ReviewSessionEndpoint` 新增 `source=today`（scope 写 `source`，scope key 加 `today|` 前缀隔离），走到尾再开一轮从 cursor 0 起；`ReviewQueueStore.countReviewedToday` 口径改为「`session_id is null` 或会话 `scope.source='today'`」；前端 `ReviewPage` 只剩张数与「开始复习」，按到期队列游标取齐（≤1000，超出分两轮）后建会话跳全屏；`FreeReviewPage` 认 `?source=today`（标题/进度/小结「今天已复习」）。证据：`VocabReviewSessionTest` 3/3（新增 `todaySessionCountsAsReviewed`）、`VocabReviewQueueTest` 1/1、`VocabTodayTimezoneTest` 5/5；E2E `vocab-flows` 路径 1 已扩展到「进会话、无 Tab 无壳」 |
 | T596 | 完成（2026-10-31） | 三个 Tab 页去掉同名 `h1`：`ViewTabs` 加 `extra` 槽 + `.tl-tab-extra`；`VocabTabExtra`（context + portal）供页面把 ⓘ / 新建词单投进 Tab 行右端；`ReviewPage` / `ListsPage` / `LibraryPage` 删 `PageHeader`；词单详情保留自己的标题。证据：`tsc --noEmit` 0 错、`check-ui` 无新增违规、三页 `h1` 数目为 0（1440/834/1024 实测） |
-| T598 | 完成（2026-10-31，用户要求） | 会话里加回「删除当前单词」：`ReviewSessionEndpoint.advance` 新增 `DELETE`（软删除 + 推进游标，不写评分日志）；`FreeReviewPage` 卡片头挂 `onDelete`、键盘 `Delete` / `Backspace` 走二次确认（只在正面）；快捷键表加回 `Delete` 行。证据：`VocabReviewSessionTest` 4/4（新增 `deleteCurrentWordInSession`）；dev 界面实测「第 1 张 → 第 2 张、词从词库消失」（截图 `docs/reports/shots/2026-10-31-today-focus/session-delete-confirm-1440.png`） |
+| T598 | **已撤销**（2026-10-31 上午） | 曾按用户要求把「删除当前单词」加进会话（`DELETE` advance + 卡头垃圾桶 + `Delete` 键 + 二次确认），同日用户判断**删除不适合放在卡片上**，整体回滚：后端 `DELETE` 分支、前端 `onDelete` / 键位 / 快捷键表行、`deleteCurrentWordInSession` 用例全部移除。删除入口只在词库页行内（AC-59.11） |
 | T597 | 完成（2026-10-31） | 今日复习页删掉齿轮与设置抽屉（原 `ReviewPage.tsx` 的 `VocabPrefsCard compact`），只保留 ⓘ；背单词设置唯一入口是 `/profile` 的「背单词」块，`vocab.prefs.open` 键一并清掉。证据：`/vocab/review` 页内不再有设置按钮（截图见报告）、`make check-i18n` exit 0 |
 
 ### 偏离与已知限制
@@ -87,8 +87,8 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d           # 期望空（
 1. **AC-91.3 的后半句已收口（2026-10-31 / T595）**：今日复习页只留张数与「开始复习」，
    点开始建 `source=today` 的会话进全屏（`/vocab/review/session/:id?source=today`）。
    交互对照：`docs/mock/today-focus-2026-10-30/index.html`；证据：`docs/reports/2026-10-31-today-focus-session.md`。
-2. **「删除当前单词」已加回（2026-10-31 / T598）**：T595 初次落地时它随卡片一起消失，用户要求后
-   补上——会话里 `Delete` / 卡片头垃圾桶 → 二次确认 → 软删除 + 推进游标，与「暂停这个词 / S」并存。
+2. **「删除当前单词」不在复习卡上（T598 已撤销）**：T595 之后它随卡片一起从今日复习页消失；同日曾加回会话，
+   用户判断「删除不适合放在 card 上」后回滚。删除入口只有词库页行内（AC-59.11），会话里只有「暂停这个词 / S」。
 3. **AC-91.6 的来由（2026-10-30 新增）**：T563 的页内 Tab 与 004 的「每页 h1 + 标题旁 ⓘ」撞成两行同名，
    线上三页都有；011 自己的 mock 也重复，评审没拦住。四行改法与代价记在 AC-91.6 下。
 4. **AC-90.1 的「连续天数」未实现**：聚合契约（`Ports.ReviewSlice`，S0 冻结）没有 streak 字段，学习记录卡是第二期。

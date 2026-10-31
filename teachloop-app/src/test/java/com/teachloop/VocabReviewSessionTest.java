@@ -207,34 +207,6 @@ class VocabReviewSessionTest {
                 .isEqualTo(2);
     }
 
-    @Test
-    @DisplayName("2026-10-31：会话里 DELETE 软删当前词、推进游标，词从队列消失（AC-59.11）")
-    void deleteCurrentWordInSession() throws Exception {
-        String base = base();
-        String cookie = login(base, "student@teachloop.local");
-        UUID userId = me(base, cookie);
-        commit(base, cookie, "sdelone, sdeltwo");
-        UUID one = wordId(userId, "sdelone");
-        UUID two = wordId(userId, "sdeltwo");
-
-        JsonNode created = post(base, cookie, "/api/vocab/review-sessions",
-                Map.of("wordIds", List.of(one, two), "fromStart", true, "source", "today"));
-        UUID sessionId = UUID.fromString(created.get("id").asString());
-
-        JsonNode advanced = post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/advance",
-                Map.of("action", "DELETE"));
-        assertThat(advanced.get("cursor").asInt()).isEqualTo(1);
-        assertThat(jdbc.queryForObject(
-                "select deleted from vocab_words where id = ?", Boolean.class, one)).isTrue();
-        // 软删除不写评分日志（它不是一个评分）
-        assertThat(jdbc.queryForObject(
-                "select count(*) from vocab_review_logs where session_id = ?", Integer.class, sessionId))
-                .isZero();
-        // 游标推进到第二张
-        assertThat(get(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/current")
-                .get("id").asString()).isEqualTo(two.toString());
-    }
-
     private String base() {
         return "http://127.0.0.1:" + env.getProperty("local.server.port");
     }
