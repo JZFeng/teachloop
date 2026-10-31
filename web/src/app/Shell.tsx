@@ -31,11 +31,11 @@ import {
   UserOutlined,
 } from '../ui'
 import { NOTIFICATIONS_CHANGED } from './NotificationsPage'
+import { shouldShowProfileBanner } from './welcomeGate'
 import type { AiModelsView } from '../api/types'
 
 /** 011 / T565：顶部提示条的会话内关闭标记（sessionStorage，不写 localStorage）。 */
 const PROFILE_BANNER_KEY = 'teachloop.profile.bannerDismissed'
-
 /** 导航规格只带 icon 名，真正的 ReactNode 在这里映射（见 app/nav.ts）。 */
 const NAV_ICONS: Record<NavIcon, ReactNode> = {
   home: <HomeOutlined />,
@@ -158,7 +158,9 @@ export function Shell({ children }: { children: ReactNode }) {
       </aside>
       <div className="app-main-wrap">
         <header className="app-topbar">
-          <div className="row" style={{ gap: 8 }}>
+          {/* 顶栏是整行（sticky 背景要铺满），内容收进 app-topbar-inner 与 `.app-main` 同一条左边缘：
+              宽屏下 `.app-main` 会被 max-width 居中，顶栏若贴左就比正文多出 200px 错位（2026-10-30 用户截图）。 */}
+          <div className="row app-topbar-inner" style={{ gap: 8 }}>
             {/* ≤1023 才显示（CSS 控制）：侧栏在那个宽度是抽屉，没有这个按钮平板竖屏就没有导航。 */}
             <Button
               className="app-nav-toggle"
@@ -189,7 +191,12 @@ export function Shell({ children }: { children: ReactNode }) {
         </header>
         <main className="app-main">
           {/* AC-93.3：提示条同时给「去补全」与「关闭」；不再用顶栏那个小按钮（提示信息在按钮里读不全）。 */}
-          {profileComplete === false && !profileBannerDismissed && (
+          {/* 2026-10-30 Bug（用户截图停在 /welcome）：/welcome 与 /profile 就是这条提示要去的地方，人已经站在目的地（等同已读），在那两页上不显示；判定见 welcomeGate.ts 的 shouldShowProfileBanner。 */}
+          {shouldShowProfileBanner({
+            profileComplete,
+            pathname,
+            dismissed: profileBannerDismissed,
+          }) && (
             <InlineNote tone="warning" style={{ marginBottom: 16 }}>
               <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                 <span>{t('today.prompt.text')}</span>

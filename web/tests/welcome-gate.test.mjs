@@ -7,12 +7,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
+  PROFILE_COLLECTION_PATHS,
   PROMPTED_KEY,
   WELCOME_PATH,
   clearPrompted,
+  isProfileCollectionPage,
   isPrompted,
   markPrompted,
   shouldPrompt,
+  shouldShowProfileBanner,
 } from '../src/app/welcomeGate.ts'
 
 const base = { profileIncomplete: true, pathname: '/', prompted: false }
@@ -56,6 +59,53 @@ test('闸门：资料不缺（或未知）→ 不引导', () => {
 test('闸门：四个豁免地址都不拦，带尾斜杠也一样', () => {
   for (const pathname of ['/welcome', '/welcome/', '/profile', '/login', '/setup']) {
     assert.equal(shouldPrompt({ ...base, pathname }), false, pathname)
+  }
+})
+
+/*
+ * 2026-10-30 Bug（用户截图 `/welcome`）：顶部「补全手机号」提示条在人已经站到它要去的那一页上时
+ * 仍然显示。四组断言：目标页不显示 / 其他页照旧显示 / 关过就都不显示 / 资料完整（或未知）不显示。
+ */
+test('提示条：`/welcome` 与 `/profile` 自己不显示（AC-93.3 的目标页）', () => {
+  assert.deepEqual([...PROFILE_COLLECTION_PATHS], ['/welcome', '/profile'])
+  for (const pathname of ['/welcome', '/welcome/', '/profile', '/profile/', '/profile?next=/classes']) {
+    assert.equal(isProfileCollectionPage(pathname), true, pathname)
+    assert.equal(
+      shouldShowProfileBanner({ profileComplete: false, pathname, dismissed: false }),
+      false,
+      pathname,
+    )
+  }
+})
+
+test('提示条：别的页面照旧显示（AC-93.3 跳过之后仍要提醒）', () => {
+  for (const pathname of ['/', '/classes', '/vocab/review', '/notifications', '/classroom']) {
+    assert.equal(isProfileCollectionPage(pathname), false, pathname)
+    assert.equal(
+      shouldShowProfileBanner({ profileComplete: false, pathname, dismissed: false }),
+      true,
+      pathname,
+    )
+  }
+})
+
+test('提示条：本会话关过就不再显示（含目标页）', () => {
+  for (const pathname of ['/', '/welcome', '/profile']) {
+    assert.equal(
+      shouldShowProfileBanner({ profileComplete: false, pathname, dismissed: true }),
+      false,
+      pathname,
+    )
+  }
+})
+
+test('提示条：资料完整或未知 → 不显示（未知不等于缺失）', () => {
+  for (const profileComplete of [true, null]) {
+    assert.equal(
+      shouldShowProfileBanner({ profileComplete, pathname: '/', dismissed: false }),
+      false,
+      String(profileComplete),
+    )
   }
 })
 

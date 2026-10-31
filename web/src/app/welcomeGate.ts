@@ -19,13 +19,21 @@ export const WELCOME_PATH = '/welcome'
 export const PROMPTED_KEY = 'teachloop.profile.prompted'
 
 /**
+ * 「补全资料」自己的两个页面：`/welcome`（首次引导）与 `/profile`（资料页）。
+ *
+ * 这两条地址被两处共用，别再各写一份：
+ * 1. 引导闸门不拦它们（拦自己会无限重定向 / 人已经去补了，见下面的 `SKIP_PATHS`）；
+ * 2. Shell 顶部那条「补全手机号」提示条不在它们上面显示（见 `shouldShowProfileBanner`）。
+ */
+export const PROFILE_COLLECTION_PATHS = ['/welcome', '/profile'] as const
+
+/**
  * 这些地址不拦：
- * - `/welcome`：拦自己会无限重定向；
- * - `/profile`：人已经去补了；
+ * - 上面两个补全页：拦自己会无限重定向 / 人已经去补了；
  * - `/login`：还没登录，没有「资料缺不缺」这回事；
  * - `/setup`：全新实例只有它可达（建管理员之前没有任何账号）。
  */
-const SKIP_PATHS = ['/welcome', '/profile', '/login', '/setup']
+const SKIP_PATHS: readonly string[] = [...PROFILE_COLLECTION_PATHS, '/login', '/setup']
 
 export interface WelcomeGateInput {
   /**
@@ -58,6 +66,44 @@ export function shouldPrompt({ profileIncomplete, pathname, prompted }: WelcomeG
   if (profileIncomplete !== true) return false
   if (prompted) return false
   return !SKIP_PATHS.includes(normalizePath(pathname))
+}
+
+/** 当前地址是不是「补全资料」自己的页面（`/welcome`、`/profile`，带尾斜杠或查询串也算）。 */
+export function isProfileCollectionPage(pathname: string): boolean {
+  return (PROFILE_COLLECTION_PATHS as readonly string[]).includes(normalizePath(pathname))
+}
+
+export interface ProfileBannerInput {
+  /**
+   * `useAuth().profileComplete`：`false` 才缺资料；`true` 完整；
+   * `null` 是「还没查到 / 查不到」，与引导闸门同口径——未知不等于缺失，不提醒。
+   */
+  profileComplete: boolean | null
+  /** `useLocation().pathname`（不带查询串）。 */
+  pathname: string
+  /** 本会话是否已经点过提示条上的「关闭」（`sessionStorage` 记的就是这个）。 */
+  dismissed: boolean
+}
+
+/**
+ * Shell 顶部「补全手机号」提示条是否显示（AC-93.3）。
+ *
+ * 2026-10-30 Bug（用户截图 `/welcome`）：提示条原本只看「缺资料 + 没关过」，
+ * 于是**人已经站在提示条要去的那一页上**（`/welcome` 首次引导、`/profile` 资料页），
+ * 顶部还挂着「补全手机号 · 去补全」。那条提示在语义上已经被执行了（等同于「已读」），
+ * 再显示只会重复催一次，而且它的整行宽度与下面的窄卡片叠出第三条左边缘。
+ *
+ * 只做「目标页上不显示」，不顺手把整场会话的提示条一起注销：AC-93.3 要求
+ * **点过「以后再说」（或关掉提示条）之后仍要提醒一次**，那个提醒是这页跳走以后才出现的那条。
+ */
+export function shouldShowProfileBanner({
+  profileComplete,
+  pathname,
+  dismissed,
+}: ProfileBannerInput): boolean {
+  if (profileComplete !== false) return false
+  if (dismissed) return false
+  return !isProfileCollectionPage(pathname)
 }
 
 /**

@@ -6,6 +6,11 @@ body { display: block; }
    ≤1023 时侧栏变抽屉、不占位，0px 由下面的 tablet 断点统一给。 */
 :root { --app-sidebar-w: 238px; }
 
+/* 主内容列的宽与内边距：`.app-main` 用它排版，`.app-topbar-inner` 用「宽 - 两侧内边距」对齐同一条左边缘。
+   两处各写一份数字就会在宽屏上错开——2026-10-30 用户截图（1900px 窗口）实测：
+   「通知」按钮在 x=272、补全提示条在 483、欢迎卡在 789，三条左边缘。 */
+:root { --app-content-max: 1240px; --app-content-pad: 34px; }
+
 .app-shell {
   display: flex;
   min-height: 100vh;
@@ -23,7 +28,14 @@ body { display: block; }
   background: var(--bg);
   border-bottom: 1px solid var(--line-2);
 }
-.app-main { flex: 1; width: 100%; max-width: 1240px; margin: 0 auto; padding: 28px 34px 96px; }
+.app-main { flex: 1; width: 100%; max-width: var(--app-content-max); margin: 0 auto; padding: 28px var(--app-content-pad) 96px; }
+/* 顶栏内容与正文同一条左边缘。窄屏本来一致（两边都是 34px）；只有宽屏 `.app-main` 被 max-width 居中
+   之后才会错开，所以把顶栏内容也收进等宽的一列即可，高度与 sticky 背景仍由 .app-topbar 铺满整行。 */
+.app-topbar-inner {
+  width: 100%;
+  max-width: calc(var(--app-content-max) - var(--app-content-pad) * 2);
+  margin: 0 auto;
+}
 .sidebar-foot {
   margin-top: auto; padding: 14px 8px 4px;
   border-top: 1px solid var(--line-2);
