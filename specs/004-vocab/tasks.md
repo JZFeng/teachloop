@@ -260,3 +260,4 @@
 **未做**（明确留白）：`shared/FeatureFlags` 接口（当前 `@Value` + 运行时判定，接缝可后补）；手机宽度与暗色主题的界面验收。
 
 **补完**（2026-10-29）：复习页齿轮抽屉（`ReviewPage` 右上角 `SettingOutlined` → 右侧 `Drawer`，`VocabPrefsCard compact` 只放任务量与策略）；顺手修掉 `check-i18n` 的一个存量误报（`App.tsx` 里一段中文代码注释被当成界面文案，改为英文注释而非放宽基线）。
+| T594 blocks 视图契约 | 待开始 | 后端 `ContentView` 输出有序 `blocks[{id,payload}]`（八个 block + 第 9 块 `image`）；前端只按 `blocks` 渲染，prefs 的 hidden/order 直接作用 block id；补一条顺序/缺省断言。用户 2026-10-30 登记：等图片风格定稿后再做 |
