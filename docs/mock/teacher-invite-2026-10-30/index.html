@@ -118,9 +118,6 @@
     .main { padding:16px 16px 64px; }
     .top { padding:8px 16px; }
   }
-  /* 注册页是公开页，没有应用壳层 */
-  body.public .layout { grid-template-columns:1fr; }
-  body.public .side { display:none; }
 
   [hidden] { display:none !important; }
   .screen { display:block; }
@@ -139,7 +136,6 @@
       <span class="tag">屏</span>
       <button data-go="admin">管理端 · 教师管理</button>
       <button data-go="redeem">学生端 · 填码升级</button>
-      <button data-go="register">注册页 · 凭码开户</button>
       <button data-go="after">升级后 · 侧栏变了</button>
       <span class="spacer"></span>
       <button id="reset">重置演示</button>
@@ -159,7 +155,7 @@
               <div class="grow">
                 <h2>教师邀请码</h2>
                 <div class="small muted" style="margin-top:4px">
-                  教师没有自助注册。生成一个码发给对方：已登录的学生在「我的资料」里填入即刻升级；还没账号的人可在注册页凭码开户。码一次性、3 天过期。
+                  教师没有自助注册。生成一个码发给对方：对方先按平常流程注册一个账号，登录后在「我的资料」里填入此码，即刻升为教师。码一次性、3 天过期。
                 </div>
               </div>
               <button class="btn primary" id="gen">生成邀请码</button>
@@ -243,42 +239,6 @@
               </div>
             </form>
             <div class="hint ok" id="redeem-ok" hidden></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- 3. 注册页：凭码开户（还没账号的新老师） -->
-      <section class="screen" data-screen="register" hidden>
-        <div class="page-head">
-          <h1>注册</h1>
-          <div class="sub">学生自助注册；老师可以凭邀请码直接开户。</div>
-        </div>
-
-        <div class="card" style="max-width:560px">
-          <div class="card-body">
-            <h2>创建账号</h2>
-            <form id="register-form">
-              <div class="field">
-                <label for="reg-email">邮箱<span class="req">*</span></label>
-                <input id="reg-email" type="email" placeholder="you@example.com">
-              </div>
-              <div class="field">
-                <label for="reg-pwd">密码<span class="req">*</span></label>
-                <input id="reg-pwd" type="password" placeholder="至少 8 位">
-              </div>
-              <div class="field">
-                <label for="reg-code">教师邀请码（可选）</label>
-                <input id="reg-code" maxlength="8" placeholder="不填就是学生"
-                       style="text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; letter-spacing:1.2px">
-                <div class="help">填了建出来就是教师账号；不填就是学生。学生以后也能在「我的资料」里补填升级。</div>
-                <div class="err" id="reg-err" hidden></div>
-              </div>
-              <div class="row" style="margin-top:18px">
-                <button class="btn primary" type="submit">创建账号</button>
-                <button class="btn" type="button" data-go="redeem">我是已注册的学生</button>
-              </div>
-            </form>
-            <div class="hint ok" id="reg-ok" hidden></div>
           </div>
         </div>
       </section>
@@ -451,11 +411,11 @@
   }
 
   function showScreen(name) {
-    var known = ['admin', 'redeem', 'register', 'after']
+    var known = ['admin', 'redeem', 'after']
     if (known.indexOf(name) < 0) name = 'admin'
     $$('.screen').forEach(function (s) { s.hidden = s.getAttribute('data-screen') !== name })
     $$('.top [data-go]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-go') === name) })
-    // 每一屏看的是不同身份：管理端=管理员，填码=当前身份，注册页=公开页（无壳层），升级后=教师
+    // 每一屏看的是不同身份：管理端=管理员，填码=当前身份，升级后=教师
     if (name === 'admin') { state.navRole = 'ADMIN'; state.activeNav = 'teachers' }
     else if (name === 'after') { state.role = 'TEACHER'; state.navRole = 'TEACHER'; state.activeNav = 'home' }
     else if (name === 'redeem') {
@@ -530,35 +490,6 @@
     renderNav()
   })
 
-  // ---- 注册页：凭码开户 ----
-  $('#register-form').addEventListener('submit', function (e) {
-    e.preventDefault()
-    var email = ($('#reg-email').value || '').trim()
-    var pwd = $('#reg-pwd').value || ''
-    var code = ($('#reg-code').value || '').trim().toUpperCase()
-    hide('#reg-err'); hide('#reg-ok')
-    if (!email || email.indexOf('@') < 0) { fail('#reg-err', '请填一个有效邮箱。'); return }
-    if (pwd.length < 8) { fail('#reg-err', '密码至少 8 位。'); return }
-    if (code) {
-      var inv = findInvite(code)
-      if (!inv) { fail('#reg-err', '邀请码无效或已过期。不填可以按学生注册。'); return }
-      var st = stateOf(inv)
-      if (st !== 'active') { fail('#reg-err', '这个邀请码' + (st === 'used' ? '已经被用了' : st === 'revoked' ? '已被撤销' : '已过期') + '。'); return }
-      inv.state = 'used'
-      inv.usedBy = email
-      state.role = 'TEACHER'
-      renderInvites(); renderNav()
-      var ok = $('#reg-ok')
-      ok.hidden = false
-      ok.innerHTML = '教师账号已创建：' + email + '。激活邮件已发出，点链接后即可登录。'
-      return
-    }
-    var ok2 = $('#reg-ok')
-    ok2.hidden = false
-    ok2.className = 'hint ok'
-    ok2.innerHTML = '学生账号已创建：' + email + '。激活邮件已发出。'
-  })
-
   function fail(sel, msg) {
     var e = $(sel)
     e.textContent = msg
@@ -583,7 +514,7 @@
     goto('admin')
   })
 
-  // 便于逐屏截图：?shot=admin|redeem|register|after
+  // 便于逐屏截图：?shot=admin|redeem|after
   var params = new URLSearchParams(location.search)
   var shot = params.get('shot')
   if (shot) { location.hash = shot }
