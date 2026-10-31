@@ -73,7 +73,36 @@ ComfyUI 里可直接 `LoraLoader` 使用。对照图：`sdxl-lora-style.png`。
 | HunyuanDiT | 185.6 | 59.6 | 51.7 | 更亮、更卡通，细节偏多 |
 | 对照条带 | `eval-88px-strip.png` | | | 两者在 88px 都能认出主体 |
 
-未测：Qwen-Image（fp8 unet 20.4GB + TE 9.4GB，本机 24GB 需靠 ComfyUI 顺序加载，正在尝试）。
+## G. Qwen-Image（阿里，20B，fp8）——本地最强风格匹配
+
+- 模型：`Comfy-Org/Qwen-Image` 的 `qwen_image_fp8_e4m3fn`（20.4GB）+ `qwen_2.5_vl_7b_fp8_scaled`（9.4GB）+ VAE（254MB）；
+- 加载：ComfyUI 原生（UNETLoader + CLIPLoader type=qwen_image + VAELoader + CLIPTextEncode）；
+- 参数：1024²、20 步、cfg 4、euler/simple；
+- 速度：**75–90 秒/张**（顺序加载，24GB 卡吃紧）；
+- 画风：**扁平线描 + 粗描边 + 米色底 + teal/mustard**，三者里最接近 OpenAI 教材；
+- 88px：对比度 **81.7**（三者最高），小图辨识度最好。
+
+对照图：`three-way-compare.png`（大图）、`three-way-88px.png`（88px 行）。
+
+## 88px 最终指标（20 个验证词）
+
+| 来源 | 亮度 | 对比度 | 边缘密度 | 视觉判断 |
+| :--- | ---: | ---: | ---: | :--- |
+| OpenAI（教材） | 147.0 | 71.8 | 43.6 | 厚描边、层次最丰富 |
+| HunyuanDiT 1.2 | 185.6 | 59.6 | 51.7 | 更亮更卡通，细节偏多 |
+| **Qwen-Image fp8** | 169.6 | **81.7** | 51.1 | **线描最明显，88px 最清楚** |
+
+## 成本 / 速度 / 3000 词可行性
+
+| 方案 | 单张耗时 | 113 词 | 3000 词 | 成本 | 风格符合度 |
+| :--- | ---: | ---: | ---: | ---: | --- |
+| OpenAI gpt-image-2 | ~20 s | ~40 min | ~17 h | **$0.07/张 ≈ $210** | 100%（基准） |
+| **Qwen-Image fp8** | 75–90 s | ~2.5–3 h | ~65–75 h | 0 | **90%** |
+| HunyuanDiT 1.2 | 20.5 s | ~40 min | **~17 h** | 0 | 80% |
+| SDXL LoRA | 8 s | ~15 min | ~7 h | 0 | 50%（跑偏） |
+| FLUX LoRA | — | — | — | — | ❌ 产物损坏 |
+
+宁可慢也要像：**113 词用 Qwen（2.5–3 小时）**；要铺 3000 词用 **Hunyuan（17 小时）**，或对 Qwen 降分辨率/步数（512² + 12 步 ≈ 25–30 s，3000 词约 20–25 小时）。
 
 ## D2. HunyuanDiT 精炼提示（20 张验证集，最终版）
 
