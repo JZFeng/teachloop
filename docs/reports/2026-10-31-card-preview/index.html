@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>卡片反面预览 · 10 词 + 配图</title>
+<!-- 真实样式：直接引仓库里的 token 与 vocab 规则，不复制色值 -->
+<link rel="stylesheet" href="../../../web/src/styles/tokens.css" />
+<link rel="stylesheet" href="../../../web/src/vocab/vocab.css" />
+<style>
+  /* 仅供本次预览页：把卡片放进白底单列，不参与业务构建 */
+  /* mockup.css:109 同一行规则，这里就地取用，避免整份 mockup 样式串台 */
+  .muted { color: var(--muted); }
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+                 "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    color: var(--text);
+    /* 顶部留 80px：截图时从 y=48 起裁，避开 agent 浏览器左上角的悬浮标识（纯留白，不含内容） */
+    padding: 80px 24px 48px;
+  }
+  .preview-shell { max-width: 760px; margin: 0 auto; }
+  .preview-title { font-size: 18px; font-weight: 650; margin: 0 0 4px; }
+  .preview-note { font-size: 13px; color: var(--muted); margin: 0 0 20px; }
+  .preview-card { margin-bottom: 20px; }
+  /* 真实 review-back 的 min-height 是 480px（反面有 8 个块撑满）。
+     本次只展示 core + 一条例句，放开最小高度以免出现大片空白，
+     其余 padding / 边框 / 圆角 / 字体字号全部沿用 vocab.css。 */
+  .preview-card .review-card { min-height: auto; padding: 28px 32px; }
+  /* 88×88 配图：尺寸与 .core-semantics-art 一致，描边/圆角按 T594 的 .review-image-block img */
+  .core-semantics-art img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+  }
+</style>
+</head>
+<body>
+  <div class="preview-shell">
+    <h1 class="preview-title">卡片反面（review-back）预览 · 10 词</h1>
+    <p class="preview-note">真实 vocab.css 样式 + 真实词条内容 + Qwen-Image 512×512 配图，展示 core / notThis / mentalImage / 一条例句。</p>
+  <section class="preview-card" data-word="hierarchy">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">hierarchy</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /ˈhaɪərɑːki/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">按等级排列的体系</p>
+            <p class="core-semantics-not muted">不是泛指&#x27;顺序&#x27;或&#x27;分类&#x27;，而是强调上下尊卑的层级关系</p><p class="core-semantics-image">一座金字塔，每层站着不同的人，越往上人越少</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/hierarchy.png" alt="hierarchy 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>She quickly rose through the corporate hierarchy.</div><div class="muted">她迅速在公司等级体系中晋升。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-card" data-word="quixotic">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">quixotic</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /kwɪkˈsɒtɪk/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">理想化到不切实际</p>
+            <p class="core-semantics-not muted">不是单纯的勇敢或浪漫，而是脱离现实的空想</p><p class="core-semantics-image">一个人骑着瘦马冲向风车，以为那是巨人</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/quixotic.png" alt="quixotic 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>His quixotic plan to end world hunger in a year was dismissed by experts.</div><div class="muted">他一年内消除世界饥饿的不切实际计划被专家们否决了。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-card" data-word="serendipity">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">serendipity</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /ˌserənˈdɪpəti/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">意外发现美好事物的运气</p>
+            <p class="core-semantics-not muted">不是泛指运气，而是意外发现美好事物的巧合</p><p class="core-semantics-image">在旧书里偶然翻到一张百元钞票</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/serendipity.png" alt="serendipity 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>Meeting her was pure serendipity.</div><div class="muted">遇见她纯属机缘巧合。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-card" data-word="struggle">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">struggle</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /ˈstrʌɡl/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">困难 + 努力，在阻力中持续用力</p>
+            <p class="core-semantics-not muted">不是泛指&#x27;努力&#x27;，而是&#x27;努力应对具体阻力&#x27;</p><p class="core-semantics-image">一个人使劲推一扇卡住的门，门几乎纹丝不动</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/struggle.png" alt="struggle 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>She struggled to open the jar.</div><div class="muted">她费力地打开罐子。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-card" data-word="eager">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">eager</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /ˈiːɡə/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">热切期盼，迫不及待</p>
+            <p class="core-semantics-not muted">不是泛指&#x27;有兴趣&#x27;，而是带有急切、兴奋的渴望</p><p class="core-semantics-image">孩子盯着未拆的礼物，身体前倾，眼睛发亮</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/eager.png" alt="eager 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>She is eager to learn new languages.</div><div class="muted">她渴望学习新的语言。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-card" data-word="apple">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">apple</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /ˈæp.əl/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">圆形水果，脆甜多汁</p>
+            <p class="core-semantics-not muted">不是泛指所有水果，而是特指苹果</p><p class="core-semantics-image">一个红苹果放在桌上，表皮光滑，旁边有绿叶</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/apple.png" alt="apple 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>She ate an apple for breakfast.</div><div class="muted">她早餐吃了一个苹果。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-card" data-word="giant">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">giant</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /ˈdʒaɪənt/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">体型或规模远超寻常</p>
+            <p class="core-semantics-not muted">不是指一般的大，而是强调超乎寻常的巨大</p><p class="core-semantics-image">一个高耸入云的巨人俯视着普通房屋</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/giant.png" alt="giant 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>He is a giant of a man.</div><div class="muted">他是个巨人般的男人。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-card" data-word="dream">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">dream</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /driːm/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">睡眠中的幻象或强烈渴望</p>
+            <p class="core-semantics-not muted">不是泛指&#x27;思考&#x27;或&#x27;计划&#x27;，而是特指睡眠中的心理活动或深切的愿望</p><p class="core-semantics-image">一个人闭眼躺在床上，脑海中浮现出飞翔的画面</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/dream.png" alt="dream 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>I dream of becoming a pilot.</div><div class="muted">我梦想成为一名飞行员。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-card" data-word="happy">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">happy</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /ˈhæpi/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">内心满足、愉悦的状态</p>
+            <p class="core-semantics-not muted">不是短暂的情绪波动，而是较持久的满足感</p><p class="core-semantics-image">一个人脸上带着微笑，眼睛弯弯的</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/happy.png" alt="happy 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>She was happy to see her old friends.</div><div class="muted">见到老朋友她很高兴。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  <section class="preview-card" data-word="brave">
+    <div class="review-card is-flipped is-static">
+      <div class="review-card-head">
+        <div class="review-card-head-main">
+          <span class="review-word">brave</span>
+          <div class="review-phonetic-row muted"><span class="review-phonetic">英 /breɪv/</span></div>
+        </div>
+      </div>
+      <div class="review-back">
+        <div class="core-semantics">
+          <div class="core-semantics-text">
+            <p class="core-semantics-core">面对危险或困难不退缩</p>
+            <p class="core-semantics-not muted">不是鲁莽或不知恐惧，而是明知有险仍选择面对</p><p class="core-semantics-image">一个人挺直腰板，迎着风雨向前走</p>
+          </div>
+          <div class="core-semantics-art">
+            <img src="file:///tmp/q113/brave.png" alt="brave 配图" />
+          </div>
+        </div>
+        <div class="review-examples"><div style="display:flex;align-items:flex-start;gap:8px"><div style="flex:1 1 auto;min-width:0;overflow-wrap:anywhere"><div>She was brave enough to speak up.</div><div class="muted">她足够勇敢，敢于直言。</div></div></div></div>
+      </div>
+    </div>
+  </section>
+  </div>
+</body>
+</html>

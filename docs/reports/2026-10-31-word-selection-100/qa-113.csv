@@ -1,114 +1,114 @@
-word,verdict,reason,new_scene
-abandon,pass,走开留下婴儿车，达意,
-abstract,vague,一团线/小人，读不出“抽象”,a hand pulling one bright thread out of a tangled ball of yarn
-acclaim,pass,聚光灯下人群欢呼,
-acquire,pass,伸手取书架上的书,
-adapt,pass,调整椅子高度,
-adequate,vague,一杯水，读不出“足够”,a person holding a ruler against a plank that exactly fits a frame
-advocate,pass,高台举牌演讲,
-afford,pass,在衣架前数钱,
-aggregate,pass,把硬币聚成一堆,
-alleviate,pass,卧床捂头，缓解,
-ambiguous,pass,岔路口路牌,
-analyze,pass,放大镜检查机械,
-anticipate,pass,撑伞看乌云,
-apparent,vague,指远处小岛，读不出“明显”,a person pointing at an object that is clearly visible on an empty table
-apple,pass,桌上苹果,
-assert,pass,课上举手,
-assess,vague,写笔记，不像“评估”,"a teacher holding a clipboard, ticking boxes while looking at a student drawing"
-attribute,fail,两人一顶帽子，完全跑题,a hand placing the last domino that topples the row
-augment,pass,倒水使水位上升,
-authentic,pass,放大镜验硬币,
-bias,fail,天平是平的，与“偏见”相反,a scale tipped heavily to one side with a hand pressing one pan
-bolster,fail,画成枕头（ bolster 的本义），非“支撑/加强”,a worker placing a wooden beam under a sagging roof to hold it
-brave,pass,迎向巨浪,
-brevity,vague,抱着书和纸，读不出“简短”,a small stack of three cards next to a huge pile of papers
-candid,pass,两人坦诚交谈,
-clever,pass,灯泡亮起,
-coherent,pass,锁链相连,
-coincide,pass,两条线交叉处两人相遇,
-compelling,vague,夜里读书，读不出“引人入胜”,a crowd leaning forward watching a lit stage
-compensate,pass,天平配重,
-complement,fail,人和色块，读不出“互补”,two puzzle pieces fitting together perfectly
-concede,pass,举手认输,
-concisely,pass,白板上简洁箭头,
-condemn,pass,法官举槌,
-conform,pass,一排相同校服学生,
-consent,vague,伏案写字，读不出“同意”,two people shaking hands over a document on a table
-consequent,pass,多米诺骨牌倒下,
-consistent,vague,拿手机和音箱，读不出“一致”,a row of identical wooden blocks perfectly aligned
-constrain,pass,被绳子捆住,
-contradict,pass,两人互相指责,
-convene,pass,众人聚集开会,
-convey,pass,两人耳语传递,
-crucial,vague,岔路举手，和 ambiguous 撞图,a person holding a key that opens a large door
-decline,vague,下降线条，太抽象,a person walking down a long staircase
-deduce,pass,侦探看证据板,
-denounce,pass,当众指责,
-depict,pass,画架作画,
-derive,pass,河流源自山间,
-deter,pass,警告牌前止步,
-diminish,pass,蜡烛火苗变小,
-discrete,pass,一排分开的小人,
-discriminatory,pass,经理指着被拒者,
-diverse,pass,不同颜色的花,
-dominant,pass,巨人俯视小人,
-dream,pass,睡梦中气泡,
-dubious,vague,伏案皱眉，读不出“可疑”,"a person squinting at a coin held up to the light, eyebrows raised"
-eager,pass,扑向礼物,
-elaborate,vague,钟表加图纸，偏向“精细”而非“详述”,a person drawing a detailed blueprint with many small lines
-eliminate,pass,笔划掉清单,
-emerge,pass,从水中冒出,
-emphasize,vague,手撑桌面，读不出“强调”,a person circling one item on a poster with a thick marker
-empirical,pass,实验室器材,
-enhance,vague,调整相框，勉强,a person polishing a dull metal pot until it shines
-ensure,pass,锁门,
-erode,pass,岩石被水冲刷,
-establish,pass,立柱奠基,
-evaluate,pass,拿夹板看材料,
-evoke,vague,低头读书，读不出“唤起”,"a person holding an old photo, a memory bubble above"
-exaggerate,pass,夸张手势,
-exclude,pass,关门把一人挡在外,
-exemplify,pass,指地图讲解,
-expand,pass,气球变大,
-explicit,fail,黑板上出现乱码文字,a person pointing at a large open book with a clear diagram
-facilitate,pass,帮人抬箱子过门,
-feasible,pass,工程师看图纸,
-foster,pass,辅导孩子学习,
-fresh,pass,手拿番茄,
-fundamental,pass,建筑立在高柱上,
-generate,pass,机器接灯泡,
-giant,pass,巨人俯视房屋,
-happy,pass,孩子举球阳光下,
-hierarchy,pass,金字塔分层人群,
-hypothesis,pass,白板写算式提问,
-ideal,vague,白板画图，读不出“理想”,a person placing a star on top of a perfect tower of blocks
-illustrate,pass,老师画函数图,
-implicit,vague,两人对坐，读不出“含蓄”,a person winking while hiding a gift behind their back
-imply,vague,门口思考，读不出“暗示”,a speaker with a thought bubble showing a different picture
-indicate,pass,指地图,
-inhibit,pass,巨手压弹簧,
-innovate,pass,工作台举灯泡,
-insight,pass,捧着发光晶体,
-integrate,pass,拼图合拢,
-intense,vague,沙漠烈日，太泛,"a person straining under a heavy barbell, sweat drops"
-interpret,vague,读卷轴，读不出“解释”,a person translating between two others gesturing
-intervene,pass,插入两拨人之间,
-jolly,pass,举杯欢呼,
-justify,pass,指着文件对人说明,
-logic,pass,多米诺排列,
-maintain,pass,维修机器,
-manipulate,pass,提线木偶,
-mitigate,vague,倒水入锅，读不出“缓解”,a person pouring water on a small fire
-novice,pass,新手跟师傅,
-objective,vague,科学家写字，读不出“客观/目标”,an archer aiming at a distant target
-obtain,pass,伸手取高架上的箱子,
-obvious,vague,指大牌子，和 indicate 撞图,a person staring at an elephant standing in a small room
-plausible,vague,两人对坐，读不出“似乎合理”,"a person nodding while reading a convincing proposal, thumbs up"
-profound,pass,人对深井,
-quixotic,pass,骑士冲风车,
-refute,pass,举文件反驳,
-serendipity,pass,书里掉出钞票,
-struggle,pass,攀岩,
-subtle,pass,闻香水,
-trivial,pass,走过小石子,
+word,verdict,reason,new_scene,fixed
+abandon,pass,走开留下婴儿车，达意,,
+abstract,vague,一团线/小人，读不出“抽象”,a hand pulling one bright thread out of a tangled ball of yarn,yes
+acclaim,pass,聚光灯下人群欢呼,,
+acquire,pass,伸手取书架上的书,,
+adapt,pass,调整椅子高度,,
+adequate,vague,一杯水，读不出“足够”,a person holding a ruler against a plank that exactly fits a frame,yes
+advocate,pass,高台举牌演讲,,
+afford,pass,在衣架前数钱,,
+aggregate,pass,把硬币聚成一堆,,
+alleviate,pass,卧床捂头，缓解,,
+ambiguous,pass,岔路口路牌,,
+analyze,pass,放大镜检查机械,,
+anticipate,pass,撑伞看乌云,,
+apparent,vague,指远处小岛，读不出“明显”,a person pointing at an object that is clearly visible on an empty table,yes
+apple,pass,桌上苹果,,
+assert,pass,课上举手,,
+assess,vague,写笔记，不像“评估”,"a teacher holding a clipboard, ticking boxes while looking at a student drawing",yes
+attribute,fail,两人一顶帽子，完全跑题,a hand placing the last domino that topples the row,yes
+augment,pass,倒水使水位上升,,
+authentic,pass,放大镜验硬币,,
+bias,fail,天平是平的，与“偏见”相反,a scale tipped heavily to one side with a hand pressing one pan,yes
+bolster,fail,画成枕头（ bolster 的本义），非“支撑/加强”,a worker placing a wooden beam under a sagging roof to hold it,yes
+brave,pass,迎向巨浪,,
+brevity,vague,抱着书和纸，读不出“简短”,a small stack of three cards next to a huge pile of papers,yes
+candid,pass,两人坦诚交谈,,
+clever,pass,灯泡亮起,,
+coherent,pass,锁链相连,,
+coincide,pass,两条线交叉处两人相遇,,
+compelling,vague,夜里读书，读不出“引人入胜”,a crowd leaning forward watching a lit stage,yes
+compensate,pass,天平配重,,
+complement,fail,人和色块，读不出“互补”,two puzzle pieces fitting together perfectly,yes
+concede,pass,举手认输,,
+concisely,pass,白板上简洁箭头,,
+condemn,pass,法官举槌,,
+conform,pass,一排相同校服学生,,
+consent,vague,伏案写字，读不出“同意”,two people shaking hands over a document on a table,yes
+consequent,pass,多米诺骨牌倒下,,
+consistent,vague,拿手机和音箱，读不出“一致”,a row of identical wooden blocks perfectly aligned,yes
+constrain,pass,被绳子捆住,,
+contradict,pass,两人互相指责,,
+convene,pass,众人聚集开会,,
+convey,pass,两人耳语传递,,
+crucial,vague,岔路举手，和 ambiguous 撞图,a person holding a key that opens a large door,yes
+decline,vague,下降线条，太抽象,a person walking down a long staircase,yes
+deduce,pass,侦探看证据板,,
+denounce,pass,当众指责,,
+depict,pass,画架作画,,
+derive,pass,河流源自山间,,
+deter,pass,警告牌前止步,,
+diminish,pass,蜡烛火苗变小,,
+discrete,pass,一排分开的小人,,
+discriminatory,pass,经理指着被拒者,,
+diverse,pass,不同颜色的花,,
+dominant,pass,巨人俯视小人,,
+dream,pass,睡梦中气泡,,
+dubious,vague,伏案皱眉，读不出“可疑”,"a person squinting at a coin held up to the light, eyebrows raised",yes
+eager,pass,扑向礼物,,
+elaborate,vague,钟表加图纸，偏向“精细”而非“详述”,a person drawing a detailed blueprint with many small lines,yes
+eliminate,pass,笔划掉清单,,
+emerge,pass,从水中冒出,,
+emphasize,vague,手撑桌面，读不出“强调”,a person circling one item on a poster with a thick marker,yes
+empirical,pass,实验室器材,,
+enhance,vague,调整相框，勉强,a person polishing a dull metal pot until it shines,yes
+ensure,pass,锁门,,
+erode,pass,岩石被水冲刷,,
+establish,pass,立柱奠基,,
+evaluate,pass,拿夹板看材料,,
+evoke,vague,低头读书，读不出“唤起”,"a person holding an old photo, a memory bubble above",yes
+exaggerate,pass,夸张手势,,
+exclude,pass,关门把一人挡在外,,
+exemplify,pass,指地图讲解,,
+expand,pass,气球变大,,
+explicit,fail,黑板上出现乱码文字,a person pointing at a large open book with a clear diagram,yes
+facilitate,pass,帮人抬箱子过门,,
+feasible,pass,工程师看图纸,,
+foster,pass,辅导孩子学习,,
+fresh,pass,手拿番茄,,
+fundamental,pass,建筑立在高柱上,,
+generate,pass,机器接灯泡,,
+giant,pass,巨人俯视房屋,,
+happy,pass,孩子举球阳光下,,
+hierarchy,pass,金字塔分层人群,,
+hypothesis,pass,白板写算式提问,,
+ideal,vague,白板画图，读不出“理想”,a person placing a star on top of a perfect tower of blocks,yes
+illustrate,pass,老师画函数图,,
+implicit,vague,两人对坐，读不出“含蓄”,a person winking while hiding a gift behind their back,yes
+imply,vague,门口思考，读不出“暗示”,a speaker with a thought bubble showing a different picture,yes
+indicate,pass,指地图,,
+inhibit,pass,巨手压弹簧,,
+innovate,pass,工作台举灯泡,,
+insight,pass,捧着发光晶体,,
+integrate,pass,拼图合拢,,
+intense,vague,沙漠烈日，太泛,"a person straining under a heavy barbell, sweat drops",yes
+interpret,vague,读卷轴，读不出“解释”,a person translating between two others gesturing,yes
+intervene,pass,插入两拨人之间,,
+jolly,pass,举杯欢呼,,
+justify,pass,指着文件对人说明,,
+logic,pass,多米诺排列,,
+maintain,pass,维修机器,,
+manipulate,pass,提线木偶,,
+mitigate,vague,倒水入锅，读不出“缓解”,a person pouring water on a small fire,yes
+novice,pass,新手跟师傅,,
+objective,vague,科学家写字，读不出“客观/目标”,an archer aiming at a distant target,yes
+obtain,pass,伸手取高架上的箱子,,
+obvious,vague,指大牌子，和 indicate 撞图,a person staring at an elephant standing in a small room,yes
+plausible,vague,两人对坐，读不出“似乎合理”,"a person nodding while reading a convincing proposal, thumbs up",yes
+profound,pass,人对深井,,
+quixotic,pass,骑士冲风车,,
+refute,pass,举文件反驳,,
+serendipity,pass,书里掉出钞票,,
+struggle,pass,攀岩,,
+subtle,pass,闻香水,,
+trivial,pass,走过小石子,,
