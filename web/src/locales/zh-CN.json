@@ -1785,7 +1785,7 @@
       "image": "配图",
       "imageDesc": "一张 88px 的配图；没有图时整块不占位",
       "morphology": "构词与派生",
-      "morphologyDesc": "现代构词、派生词、屈折与词族；默认常开",
+      "morphologyDesc": "现代构词、派生词、词形变化与词族；默认常开",
       "etymology": "词源补充",
       "etymologyDesc": "历史来源，和现代构词分开写"
     },
@@ -1798,7 +1798,7 @@
       "structure": "结构",
       "chain": "派生链",
       "derivatives": "派生词",
-      "inflections": "屈折",
+      "inflections": "词形变化",
       "family": "词族",
       "antonyms": "反义",
       "moreExamples": "查看另外 {{count}} 个例句",
@@ -2215,6 +2215,36 @@
     },
     "books": {
       "adminNav": "词书管理"
+    },
+    "feedbackAdmin": {
+      "nav": "单词反馈",
+      "title": "单词反馈",
+      "sub": "学生从查词页提交的内容问题，按提交时间从新到旧排列。",
+      "info": "这一页只列出学生从查词页提交的反馈，管理员处理完把状态改成已处理或忽略即可。提交人只显示账号 ID 前 8 位：姓名和邮箱属于账号模块，词汇模块不跨模块读取。",
+      "refresh": "刷新",
+      "filter": {
+        "OPEN": "待处理",
+        "RESOLVED": "已处理",
+        "IGNORED": "已忽略",
+        "ALL": "全部"
+      },
+      "colWord": "单词",
+      "colNote": "反馈内容",
+      "colSubmitter": "提交人",
+      "colStatus": "状态",
+      "colCreated": "提交时间",
+      "colActions": "操作",
+      "status": {
+        "OPEN": "待处理",
+        "RESOLVED": "已处理",
+        "IGNORED": "已忽略"
+      },
+      "resolve": "标记已处理",
+      "ignore": "忽略",
+      "reopen": "重新打开",
+      "updated": "已更新「{{word}}」的反馈状态",
+      "noNote": "（未填写备注）",
+      "empty": "当前筛选下没有反馈。"
     }
   }
 }

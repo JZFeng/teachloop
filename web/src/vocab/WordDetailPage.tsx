@@ -7,6 +7,7 @@ import {
   Button,
   Empty,
   ErrorState,
+  FlagOutlined,
   Loading,
   Modal,
   PageHeader,
@@ -119,9 +120,9 @@ export default function VocabWordDetailPage() {
   const [lookupState, setLookupState] = useState<LookupState>('IDLE')
   const lookupStarted = useRef(false)
   const lookupDeadline = useRef(0)
-  // AC-60.1：查词页默认面**必须是反面**——查词 = 复习时选「不认识」，不认识就要看详细信息，
-  // 所以进页面直接落到 review-back，看正面才按空格 / 点卡片（2026-10-26 用户定死，别改成 false）。
-  const [flipped, setFlipped] = useState(true)
+  // AC-60.1：查词页只显示反面——查词 = 复习时选「不认识」，不认识就要看详细信息。
+  // 2026-10-31 用户要求「查词只进入 card back 页面，不要让用户可以切换到 card front」：
+  // 所以这里不再有 flipped 状态，卡片固定 review-back（flipDisabled），空格与点击都不翻面。
 
   const refresh = useCallback(() => setReloadKey((value) => value + 1), [])
 
@@ -140,19 +141,6 @@ export default function VocabWordDetailPage() {
       .finally(() => { if (alive) setLoading(false) })
     return () => { alive = false }
   }, [form, reloadKey])
-
-  // 空格翻面，与复习卡一致
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (event.key !== ' ') return
-      const target = event.target as HTMLElement | null
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
-      event.preventDefault()
-      setFlipped((value) => !value)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [])
 
   const wordId = detail?.id ?? null
   const preparing = !!detail?.inLibrary && detail?.contentStatus === 'PENDING'
@@ -288,19 +276,32 @@ export default function VocabWordDetailPage() {
 
   return (
     <>
-      <PageHeader
-        title={t('vocab.detail.title')}
-        actions={detail.inLibrary
-          ? (
-            <Button size="small" onClick={() => setFeedbackOpen(true)}>
-              {t('vocab.detail.feedback')}
-            </Button>
-          )
-          : undefined}
-      />
+      {/* 2026-10-31 用户要求「返回这个按钮可以去掉，改用我们其它页面的在左上方的返回」：
+          * 照 ListDetailPage:303 / BookDetailPage:147 的写法，左上标准返回，右下那颗大按钮已删。 */}
+      <div style={{ marginBottom: 8 }}>
+        <Button variant="text" size="small" icon={<ArrowLeftOutlined />} onClick={() => navigate(-1)}>
+          {t('common.back')}
+        </Button>
+      </div>
+
+      <PageHeader title={t('vocab.detail.title')} />
 
       <div className="review-stage review-stage--today">
         <div className="review-card-column">
+          {/* 2026-10-31 用户要求：反馈不再占 PageHeader 的 actions，改成小图标放在卡片上方一行；
+              * 右对齐（视觉上就在卡内「加入词单」图标的上方一格）；点击仍开原来的反馈弹层。 */}
+          {detail.inLibrary && (
+            <div className="review-card-toolbar">
+              <Button
+                size="small"
+                variant="text"
+                icon={<FlagOutlined />}
+                aria-label={t('vocab.detail.feedback')}
+                title={t('vocab.detail.feedback')}
+                onClick={() => setFeedbackOpen(true)}
+              />
+            </div>
+          )}
           <VocabReviewCard
             word={{
               id: detail.id ?? detail.form,
@@ -309,8 +310,11 @@ export default function VocabWordDetailPage() {
               favorite: detail.favorite,
               content: detail.content,
             }}
-            flipped={flipped}
-            onFlip={() => setFlipped((value) => !value)}
+            flipped
+            // 查词页只显示卡背：flipDisabled 关掉翻面交互（role/tabIndex/点击/回车都不再绑），
+            // onFlip 仍然要传（组件 props 是必填），但不会被调用。
+            flipDisabled
+            onFlip={() => { /* 查词页固定 review-back，不翻面 */ }}
             onToggleFavorite={detail.inLibrary ? () => void toggleFavorite() : undefined}
             onAdd={detail.inLibrary ? undefined : () => void addToLibrary()}
             onAddToList={() => setAddToListOpen(true)}
@@ -334,15 +338,6 @@ export default function VocabWordDetailPage() {
             </div>
           )}
         </div>
-
-        <Button
-          size="large"
-          className="review-exit"
-          icon={<ArrowLeftOutlined />}
-          onClick={() => navigate(-1)}
-        >
-          {t('common.back')}
-        </Button>
       </div>
 
       <AddToListsModal

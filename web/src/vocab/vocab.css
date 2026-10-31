@@ -46,6 +46,17 @@
   gap: 18px;
 }
 .review-card-column { flex: 1; max-width: 720px; }
+/* 2026-10-31 用户要求：「反馈」从 PageHeader 的 actions 挪到卡片上方一行、右对齐，用小图标替代文字，
+   视觉上正好落在卡内「加入词单」图标的上方一格。padding-inline 跟 .review-card 的内边距走
+   （桌面 40px / ≤760px 20px），图标右边缘才会和卡内那排图标对齐。 */
+.review-card-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-height: 24px;
+  margin-bottom: 2px;
+  padding-inline: 40px;
+}
 /* T427：今日复习卡固定为内容区的 5/16；T435：至少占右侧区域一半；T437：参照扇贝，卡片占满大部分宽度 */
 .review-stage--today .review-card-column { flex: 0 0 820px; max-width: 820px; min-width: 0; }
 .review-card {
@@ -62,6 +73,8 @@
   border-radius: 14px;
 }
 .review-card.is-flipped { text-align: left; }
+/* 2026-10-31：查词页传 flipDisabled，卡片不挂 role/onClick，光标也不能还是 pointer。 */
+.review-card.is-static { cursor: default; }
 .review-card.is-flipped .review-card-body { justify-content: flex-start; }
 .review-card-body {
   flex: 1;
@@ -128,10 +141,9 @@
 /* 卡片里的「数据准备中」进度条（2026-10-26 用户要求）：定宽居中，不撑满整张卡。 */
 .review-prep-progress { width: 260px; max-width: 100%; margin: 10px auto 0; }
 .review-keys { text-align: center; margin-top: 6px; }
-/* T435/T437：下一个按钮加大加宽、垂直居中在卡片右侧；
-   T510（2026-10-26 用户要求「返回按钮的 css 要和复习页面的那个『下一个』按钮一样」）：
-   查词页的「返回」与「下一个」共用同一套描边样式——尺寸、字号、主色描边 + 主色文字、阴影、悬停都一致。
-   唯一的差别是「下一个」翻面/评分后有 `is-highlighted` 主按钮高亮态，返回没有（它不是推进动作）。 */
+/* T435/T437：下一个按钮加大加宽、垂直居中在卡片右侧。
+   2026-10-31 用户要求「返回这个按钮可以去掉，改用其它页面的左上方返回」：
+   查词页原来那颗同款大按钮（`.review-exit`）已删，这套描边样式只剩「下一个」在用。 */
 .review-next.ant-btn.is-sticky {
   position: sticky;
   top: calc(50vh - 29px);
@@ -140,8 +152,7 @@
 @media (max-width: 760px) {
   .review-next.ant-btn.is-sticky { position: static; top: auto; align-self: flex-end; }
 }
-.review-next.ant-btn,
-.review-exit.ant-btn {
+.review-next.ant-btn {
   margin-top: 0;
   align-self: center;
   min-width: 168px;
@@ -155,8 +166,7 @@
   box-shadow: 0 1px 2px var(--line-2);
   transition: opacity 0.12s, box-shadow 0.12s, border-color 0.12s;
 }
-.review-next.ant-btn:hover,
-.review-exit.ant-btn:hover { opacity: 1; box-shadow: 0 2px 8px var(--line); }
+.review-next.ant-btn:hover { opacity: 1; box-shadow: 0 2px 8px var(--line); }
 .review-next.is-highlighted { opacity: 1; color: var(--on-accent); }
 .review-next.is-highlighted:hover { color: var(--on-accent); }
 
@@ -250,8 +260,8 @@
 }
 @media (max-width: 760px) {
   .review-stage { flex-direction: column; align-items: stretch; }
-  .review-next.ant-btn,
-  .review-exit.ant-btn { margin-top: 0; align-self: flex-end; }
+  .review-next.ant-btn { margin-top: 0; align-self: flex-end; }
+  .review-card-toolbar { padding-inline: 20px; }
   .review-card { min-height: 360px; padding: 24px 20px; }
 }
 
@@ -442,6 +452,12 @@
 .review-card.is-v3 .review-phonetic-row { font-size: 14px; }
 .review-card.is-v3 .review-card-head-main { align-items: baseline; gap: 6px 16px; }
 .review-card.is-v3 .review-back { margin-top: 20px; }
+/* 2026-10-31 用户要求「review-card-head 和 n. 码头工人 之间的间隙太大」：
+   原叠加 = 卡头 margin-bottom 20 + .review-card-body 的 10px flex gap + 卡背 margin-top 20 ≈ 50px。
+   只把**翻面态**（查词页与今日/自由复习的卡背共用）压到 20–24px：0 + 10 + 12 = 22px。
+   未翻面的 review-front 仍走上面第 1 条 `.is-v3 .review-card-head` 的 20px，不受影响。 */
+.review-card.is-v3.is-flipped .review-card-head { margin-bottom: 0; }
+.review-card.is-v3.is-flipped .review-back { margin-top: 12px; }
 
 .v3-section { margin-top: 28px; }
 .v3-section:first-child { margin-top: 0; }

@@ -1785,7 +1785,7 @@
       "image": "Picture",
       "imageDesc": "One 88px picture; the block takes no space when there is no picture",
       "morphology": "Morphology & family",
-      "morphologyDesc": "Modern morphology, derivatives, inflections and family; on by default",
+      "morphologyDesc": "Modern morphology, derivatives, word forms and family; on by default",
       "etymology": "Etymology",
       "etymologyDesc": "Historical origin, kept separate from modern morphology"
     },
@@ -1798,7 +1798,7 @@
       "structure": "Structure",
       "chain": "Derivation chain",
       "derivatives": "Derivatives",
-      "inflections": "Inflections",
+      "inflections": "Word forms",
       "family": "Word family",
       "antonyms": "Antonyms",
       "moreExamples": "Show {{count}} more examples",
@@ -2215,6 +2215,36 @@
     },
     "books": {
       "adminNav": "Word books"
+    },
+    "feedbackAdmin": {
+      "nav": "Word feedback",
+      "title": "Word feedback",
+      "sub": "Content issues students report from the word lookup page, newest first.",
+      "info": "This page lists the feedback students submit from the word lookup page. Mark an item resolved or ignored once you have handled it. The submitter shows only the first 8 characters of the account ID: names and emails belong to the account module, which the vocabulary module does not read.",
+      "refresh": "Refresh",
+      "filter": {
+        "OPEN": "Open",
+        "RESOLVED": "Resolved",
+        "IGNORED": "Ignored",
+        "ALL": "All"
+      },
+      "colWord": "Word",
+      "colNote": "Feedback",
+      "colSubmitter": "Submitter",
+      "colStatus": "Status",
+      "colCreated": "Submitted",
+      "colActions": "Actions",
+      "status": {
+        "OPEN": "Open",
+        "RESOLVED": "Resolved",
+        "IGNORED": "Ignored"
+      },
+      "resolve": "Mark resolved",
+      "ignore": "Ignore",
+      "reopen": "Reopen",
+      "updated": "Updated the feedback status for \"{{word}}\"",
+      "noNote": "(no note)",
+      "empty": "No feedback matches this filter."
     }
   }
 }

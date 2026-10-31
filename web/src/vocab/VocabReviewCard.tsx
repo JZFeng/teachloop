@@ -120,7 +120,7 @@ export interface ReviewCardContent {
   blocks?: ReviewCardBlock[]
   /** T594：第 9 块配图；有图才有这个字段 */
   image?: { url?: string }
-  /** V3：构词与派生（现代构词 + 派生/屈折 + 带 POS/含义的词族） */
+  /** V3：构词与派生（现代构词 + 派生/词形变化 + 带 POS/含义的词族） */
   morphology?: ReviewCardMorphology
   /** V3：词源单独一段 */
   etymology?: ReviewCardEtymology
@@ -175,6 +175,7 @@ export function VocabReviewCard({
   word,
   flipped,
   onFlip,
+  flipDisabled = false,
   onToggleFavorite,
   onAdd,
   onAddToList,
@@ -192,6 +193,12 @@ export function VocabReviewCard({
   word: ReviewCardWord
   flipped: boolean
   onFlip: () => void
+  /**
+   * 2026-10-31 用户要求：查词页（word-details）只显示卡背，不许翻到正面。
+   * 传 true 时卡片退化成静态块——不挂 role="button" / tabIndex / onClick / onKeyDown，
+   * 光标回到默认。今日复习与自由复习两个调用点不传，行为不变。
+   */
+  flipDisabled?: boolean
   onToggleFavorite?: () => void
   /** 不在库时的「＋ 加入词库」，与收藏同一行的图标按钮 */
   onAdd?: () => void
@@ -605,12 +612,12 @@ export function VocabReviewCard({
 
   return (
     <div
-      className={`review-card${flipped ? ' is-flipped' : ''}${centered ? ' is-centered' : ''}${isV3 ? ' is-v3' : ''}`}
-      role="button"
-      tabIndex={0}
-      aria-label={flipped ? t('vocab.review.back') : t('vocab.review.front')}
-      onClick={onFlip}
-      onKeyDown={(event) => {
+      className={`review-card${flipped ? ' is-flipped' : ''}${centered ? ' is-centered' : ''}${isV3 ? ' is-v3' : ''}${flipDisabled ? ' is-static' : ''}`}
+      role={flipDisabled ? undefined : 'button'}
+      tabIndex={flipDisabled ? undefined : 0}
+      aria-label={flipDisabled ? undefined : (flipped ? t('vocab.review.back') : t('vocab.review.front'))}
+      onClick={flipDisabled ? undefined : onFlip}
+      onKeyDown={flipDisabled ? undefined : (event) => {
         if (event.key === 'Enter') onFlip()
       }}
     >
