@@ -7,7 +7,7 @@
     "promptVersion": "vocab-content-v2.5"
   },
   "storage": {
-    "uploadsDir": "/Users/jzfeng/Documents/deepseek-harness/teachloop/.envs/qa/uploads",
+    "uploadsDir": ".envs/qa/uploads",
     "keyPrefix": "vocab/images/<content_id>.webp",
     "api": "/api/vocab/contents/{contentId}/image"
   },
