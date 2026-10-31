@@ -650,6 +650,7 @@
     "sub": "首次登录后必须补全手机号与邮箱才能使用其他功能。",
     "title": "我的资料",
     "aiMissingAction": "设置 AI 模型",
+    "aiMissingAdmin": "AI 尚未配置，出卷、批改与评语暂时用不了",
     "aiMissingTeacher": "AI 未配置，请联系管理员",
     "teacherTitle": "教师设置",
     "teacherSub": "账号资料、界面偏好与作业批改时机。",

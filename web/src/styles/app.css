@@ -30,12 +30,20 @@ body { display: block; }
 }
 .app-main { flex: 1; width: 100%; max-width: var(--app-content-max); margin: 0 auto; padding: 28px var(--app-content-pad) 96px; }
 /* 顶栏内容与正文同一条左边缘。窄屏本来一致（两边都是 34px）；只有宽屏 `.app-main` 被 max-width 居中
-   之后才会错开，所以把顶栏内容也收进等宽的一列即可，高度与 sticky 背景仍由 .app-topbar 铺满整行。 */
+   之后才会错开，所以把顶栏内容也收进等宽的一列即可，高度与 sticky 背景仍由 .app-topbar 铺满整行。
+   这一层现在只承载 ≤1023 的菜单按钮：**全局动作（通知）不进这一层**（2026-10-30 用户拍板，
+   见下面的 .app-topbar-actions）——放进来的话它会跟着列宽一起漂。 */
 .app-topbar-inner {
   width: 100%;
   max-width: calc(var(--app-content-max) - var(--app-content-pad) * 2);
   margin: 0 auto;
 }
+/* 顶栏右侧的全局动作组：贴**窗口**右缘，位置只由 `.app-topbar` 的 padding 决定（宽屏 34，≤1023 为 16），
+   与内容列宽无关。判据：窗口层放全局动作（通知），列层放页面动作（PageHeader 的 actions）。
+   2026-10-30 用户拍板，推翻同一小时提交的「通知左对齐内容列」——那一版在 1864px 窗口下距右缘 227px、
+   2560px 下 575px，位置随窗口宽度漂，正是被报「怪」的原因。
+   `flex: 0 0 auto` 不能省：`.app-topbar-inner` 的 `width: 100%` 会参与收缩，不锁住就会把按钮压扁。 */
+.app-topbar-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 8px; }
 .sidebar-foot {
   margin-top: auto; padding: 14px 8px 4px;
   border-top: 1px solid var(--line-2);

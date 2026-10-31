@@ -158,8 +158,11 @@ export function Shell({ children }: { children: ReactNode }) {
       </aside>
       <div className="app-main-wrap">
         <header className="app-topbar">
-          {/* 顶栏是整行（sticky 背景要铺满），内容收进 app-topbar-inner 与 `.app-main` 同一条左边缘：
-              宽屏下 `.app-main` 会被 max-width 居中，顶栏若贴左就比正文多出 200px 错位（2026-10-30 用户截图）。 */}
+          {/* 顶栏是**窗口层**（2026-10-30 用户拍板，推翻同一小时提交的 2addd48「左对齐内容列」）：
+           * 全局动作（通知）贴窗口右缘；正文才是**列层**（`.app-main` 最大 1240 居中）。
+           * 为什么推翻：放进内容列之后铃铛的位置变成窗口宽度的函数——1864px 下距右缘 227px、
+           * 2560px 下 575px，窗口一变就觉得「怪」，正是这次报的问题。
+           * `.app-topbar-inner` 保留，现在只承载 ≤1023 的菜单按钮（它需要与正文同一条左边缘）。 */}
           <div className="row app-topbar-inner" style={{ gap: 8 }}>
             {/* ≤1023 才显示（CSS 控制）：侧栏在那个宽度是抽屉，没有这个按钮平板竖屏就没有导航。 */}
             <Button
@@ -173,17 +176,9 @@ export function Shell({ children }: { children: ReactNode }) {
             >
               {t('nav.menu')}
             </Button>
-            {/* 模型只在 /admin/ai 配；教师页没有 AI 入口，所以教师看到的是提示而不是跳转。 */}
-            {aiMissing && (me?.role === 'ADMIN'
-              ? (
-                /* Must not share weight with "complete profile": a missing profile blocks use,
-                   while a missing AI key only affects generation. Two solid buttons side by side
-                   leave no visual answer to "which one first" (checklist A1a, 2026-10-26). */
-                <Button size="small" variant="default" onClick={() => navigate('/admin/ai')}>
-                  {t('profile.aiMissingAction')}
-                </Button>
-              )
-              : <InlineNote tone="warning" className="compact">{t('profile.aiMissingTeacher')}</InlineNote>)}
+          </div>
+          {/* 铃铛是 `.app-topbar` 的**直接**子元素，贴的是窗口框；挪进 app-topbar-inner 就会跟列宽一起漂。 */}
+          <div className="app-topbar-actions">
             <Button size="small" icon={<BellOutlined aria-hidden="true" />} onClick={() => navigate('/notifications')}>
               {t('nav.notifications')}{unread > 0 ? ` (${unread})` : ''}
             </Button>
@@ -216,6 +211,23 @@ export function Shell({ children }: { children: ReactNode }) {
                 >
                   {t('common.close')}
                 </Button>
+              </div>
+            </InlineNote>
+          )}
+          {/* AI 未配置：从顶栏挪进正文（2026-10-30 用户拍板）。留在顶栏时它是左簇里唯一会闪现的项，
+           * 出现/消失都会把「通知」挤走；作为正文提示条，形态与上面那条「补全手机号」一致。
+           * 模型只在 /admin/ai 配：管理员能自己去配（带按钮），教师只能联系管理员。
+           * 两条提示可能同时出现，所以这里不用 primary——页首只留一个主按钮
+           * （checklist A1a / 2026-10-26：两个实心按钮并排等于没告诉人先做哪个）。 */}
+          {aiMissing && (
+            <InlineNote tone="warning" style={{ marginBottom: 16 }}>
+              <div className="row" style={{ gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <span>{me?.role === 'ADMIN' ? t('profile.aiMissingAdmin') : t('profile.aiMissingTeacher')}</span>
+                {me?.role === 'ADMIN' && (
+                  <Button size="small" onClick={() => navigate('/admin/ai')}>
+                    {t('profile.aiMissingAction')}
+                  </Button>
+                )}
               </div>
             </InlineNote>
           )}

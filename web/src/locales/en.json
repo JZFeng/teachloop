@@ -650,6 +650,7 @@
     "sub": "After your first sign-in you must add a phone number and email before using other features.",
     "title": "My profile",
     "aiMissingAction": "Set up AI model",
+    "aiMissingAdmin": "AI is not configured yet, so paper generation, grading and comments are unavailable.",
     "aiMissingTeacher": "AI is not configured yet. Ask an administrator.",
     "teacherTitle": "Teacher settings",
     "teacherSub": "Account details, interface preferences and assignment grading timing.",
