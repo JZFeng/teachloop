@@ -55,7 +55,25 @@ ComfyUI 里可直接 `LoraLoader` 使用。对照图：`sdxl-lora-style.png`。
 
 对照图：`hunyuan-vs-openai.png`。
 
-未测：Qwen-Image（20B，diffusers 分片 ≈40GB，本机下载+推理成本过高）、Kolors（需转换）。
+## E. Kolors（快手，SDXL 系）——可用，偏绘画感
+
+- 模型：`Kwai-Kolors/Kolors-diffusers`（17GB，含 ChatGLM 文本编码器）；
+- 加载：diffusers `KolorsPipeline(variant="fp16")` + `enable_model_cpu_offload()`（直接上卡会 OOM：TE 12GB + UNet 5GB）；
+- 速度：CPU offload 下约 **2–3 分钟/张**（1024²，30 步）；
+- 画风：水彩/绘画感儿童绘本，**不像线描**，但与 OpenAI 的“插画感”接近；
+- 结论：可作为备选，但要“扁平线描”仍需提示词或 LoRA。
+
+对照图：`kolors-test.png`。
+
+## F. 88px 达意实测
+
+| 来源 | 亮度 | 对比度 | 边缘密度 | 88px 观感 |
+| :--- | ---: | ---: | ---: | :--- |
+| OpenAI | 147.0 | 71.8 | 43.6 | 厚描边、层次清楚 |
+| HunyuanDiT | 185.6 | 59.6 | 51.7 | 更亮、更卡通，细节偏多 |
+| 对照条带 | `eval-88px-strip.png` | | | 两者在 88px 都能认出主体 |
+
+未测：Qwen-Image（fp8 unet 20.4GB + TE 9.4GB，本机 24GB 需靠 ComfyUI 顺序加载，正在尝试）。
 
 ## D2. HunyuanDiT 精炼提示（20 张验证集，最终版）
 
