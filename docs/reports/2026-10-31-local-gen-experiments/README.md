@@ -42,6 +42,12 @@ ComfyUI 里可直接 `LoraLoader` 使用。对照图：`sdxl-lora-style.png`。
 | bf16 + `--blocks_to_swap` | OOM（23.8GB 权重转 bf16 时爆） |
 
 结论：24GB 卡上 FLUX LoRA 只能走 fp8，而 ROCm 的 fp8 训练会产出损坏权重。**本机暂不可用**。
+
+补充尝试（第 5 条路径）：`ai-toolkit`（ostris）
+- 环境装好（独立 venv，torch 2.14.1+rocm7.2，diffusers 0.39、transformers 5.5.3）；
+- 但 ai-toolkit 要求 **diffusers 目录格式**的 FLUX，而不是单文件；转换需要访问 HF 上 gated 的 `FLUX.1-schnell` config，
+  本机走 xet 下载时报 `Unable to parse string as hex hash value`，转换未完成；
+- 若要继续：需手动组装 diffusers 目录（transformer/scheduler/vae/text_encoder 配置），预计 1 小时以上，本轮未做。
 对照图：`fluxlora-vs-openai.png`（600 步版本的验证集输出，全噪声）。
 
 ## D. 国产模型：HunyuanDiT 1.2（可用）
