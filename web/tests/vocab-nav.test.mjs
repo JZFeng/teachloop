@@ -31,8 +31,15 @@ const paths = (features) => navSpecs(features).map((item) => item.to)
 /** 模拟后端在 vocab 关闭时的行为：vocab 类 key 不会被授予。 */
 const withoutVocab = (keys) => keys.filter((key) => !key.startsWith('nav.vocab.'))
 
-test('管理员恰好一项：AI 设置', () => {
+test('管理员 vocab 关时恰好一项：AI 设置', () => {
   assert.deepEqual(paths(featuresFor(ADMIN_KEYS)), ['/admin/ai'])
+})
+
+test('013：管理员 vocab 开时两项，词书管理排在系统设置前面', () => {
+  assert.deepEqual(
+    paths(featuresFor([...ADMIN_KEYS, 'nav.vocab.books'], true)),
+    ['/admin/vocab/books', '/admin/ai'],
+  )
 })
 
 test('管理员看不到任何教师项与班级页（首页/班级/试卷/批改/复核/报表/作业）', () => {

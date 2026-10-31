@@ -256,6 +256,13 @@ function AppRoutes() {
           <Route path="admin/ai" element={<RequireFeature feature="nav.ai"><AdminAiPage /></RequireFeature>} />
           {/* 2026-10-28：页面改叫「系统设置」，/admin/settings 作为别名收口到同一屏。 */}
           <Route path="admin/settings" element={<RequireFeature feature="nav.ai"><Navigate to="/admin/ai" replace /></RequireFeature>} />
+          {/* 013 词书管理（2026-10-30 bug）：`nav.ts:74` 早就把侧栏项指向 `/admin/vocab/books`，
+              但这两条路由从没注册，点进去命中兜底 `*` → `/` → 管理员落地页 `/admin/ai`，
+              深链同样打不开。守卫用 `nav.vocab.books`（RoleNavMatrix 只发给 ADMIN，
+              且 isVocabKey 让它跟着 vocab 模块开关走），与 `/admin/ai` 同级。
+              `?edit=<id>` 选中右侧编辑面板；导入页返回时还带这个参数（BookImportPage:45）。 */}
+          <Route path="admin/vocab/books" element={<RequireFeature feature="nav.vocab.books"><AdminBooksPage /></RequireFeature>} />
+          <Route path="admin/vocab/books/:bookId/import" element={<RequireFeature feature="nav.vocab.books"><BookImportPage /></RequireFeature>} />
           {/* 011 / T565：首次登录的资料收集页；「以后再说」后不再自动出现（localStorage）。 */}
           <Route path="welcome" element={<WelcomePage />} />
           <Route path="profile" element={<ProfilePage />} />

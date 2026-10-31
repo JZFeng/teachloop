@@ -1,5 +1,4 @@
-// TODO(S1): 路由挂载（见 docs/process/impl-runbook-011-013.md）——目标路径 `/vocab/books/:id`，
-// 挂在 App.tsx 的 `features.vocab` 分支里（与 `/vocab/lists/:id` 同级）。本文件不碰 App.tsx。
+// 路由已挂：`/vocab/books/:id`，在 App.tsx 的 `features.vocab` 分支里（与 `/vocab/lists/:id` 同级）。
 import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'

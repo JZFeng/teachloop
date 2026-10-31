@@ -1,6 +1,5 @@
-// TODO(S1): 路由挂载（见 docs/process/impl-runbook-011-013.md）——目标路径 `/admin/vocab/books`，
-// 挂在 admin 分支里（与 `/admin/ai` 同级；`?edit=<id>` 选中右侧编辑面板）。
-// 词条导入页是 `/admin/vocab/books/:bookId/import`（`BookImportPage.tsx`）。
+// 路由已挂：`/admin/vocab/books`，在 App.tsx 里与 `/admin/ai` 同级、守卫 `nav.vocab.books`
+//（`?edit=<id>` 选中右侧编辑面板）。词条导入页是 `/admin/vocab/books/:bookId/import`。
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'

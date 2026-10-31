@@ -1,5 +1,5 @@
-// TODO(S1): 路由挂载（见 docs/process/impl-runbook-011-013.md）——目标路径 `/vocab/books/:bookId/review`
-//（`?listId=` 可选，给了就跳过详情接口直接开会话）。挂在 App.tsx 的 `features.vocab` 分支里。
+// 路由已挂：`/vocab/books/:bookId/review`（`?listId=` 可选，给了就跳过详情接口直接开会话），
+// 在 App.tsx 的 `features.vocab` 分支里。
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'

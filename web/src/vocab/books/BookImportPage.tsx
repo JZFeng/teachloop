@@ -1,5 +1,5 @@
-// TODO(S1): 路由挂载（见 docs/process/impl-runbook-011-013.md）——目标路径
-// `/admin/vocab/books/:bookId/import`，挂在 admin 分支里；返回目标是 `/admin/vocab/books?edit=<id>`。
+// 路由已挂：`/admin/vocab/books/:bookId/import`（App.tsx，守卫 `nav.vocab.books`）；
+// 返回目标是 `/admin/vocab/books?edit=<id>`。
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'

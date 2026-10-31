@@ -72,8 +72,13 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d            # 期望空�
 - T575 加入事务：完成。幂等实测首次 `created=3 / duplicated=2`、二次 `created=0 / duplicated=5`；
   进度逐字段不变；`vocab_generation_jobs` 不新增；副本唯一且同名加后缀 `书名 (2)`。
 - T576 会话按 `listId`：完成。`总张数 = 书词数`、不含书外词；2000 词分两批各 1000 且交集为空；无 `listId` 旧行为不变。
-- T577 前端五屏：**组件完成，路由未挂**（`App.tsx` / `nav.ts` / `Shell.tsx` / `locales` 归 S1），
-  文案暂存 `web/src/vocab/books/copy.json`（键名即 `vocab.books.*`）。**没有浏览器实测**，平板两档未量过。
+- T577 前端五屏：完成。路由全挂（2026-10-30 补齐 `/admin/vocab/books` 与 `/admin/vocab/books/:bookId/import`
+  两条 —— 此前只加了 `nav.ts` 目录项没注册路由，点侧栏与深链都命中兜底 `*` 被弹回 `/admin/ai`，blocker）；
+  新增 `web/tests/nav-routes.test.mjs` 锁「目录项必有路由」（修前 3/3 红、修后 3/3 绿）。
+  浏览器实测（管理员 dev 账号，2026-10-30）：点侧栏到达且标题为「词书管理」、深链冷启动可开、导入页可开、
+  学生深链被 `nav.vocab.books` 守卫拦回落地页；iPad Air 11 竖屏 `scrollWidth=834`、iPad Pro 12.9 竖屏 `1024`
+  均无横向溢出，「新建词书」首屏可见。
+  文案仍在 `web/src/vocab/books/copy.json`（键名即 `vocab.books.*`），尚未搬进 `locales/*.json`。
 - T578 付费字段：完成。建书 `PAID` → 400、加入 `PAID` → 409；学生端响应无 `payMode/priceCents/currency`（用例断言字段不存在）。
 - T579 测试：本批 9 个新用例 + 5 个受影响类的回归（共 17 个用例）全绿；`check-deps` / `check-boundaries` / `check-ui` / `pnpm typecheck` / `pnpm build` 退出码 0；
   `check-i18n` 退出码 1，唯一命中是 S3 的 `OfferingWindows.java:104`（不是本批）。**`make test` 未全量跑**（共享工作目录里 S1/S3 同时在改，见报告 §8）。
