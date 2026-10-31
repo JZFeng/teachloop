@@ -266,14 +266,14 @@
   .pos {
     display: inline-flex;
     align-items: center;
-    padding: 0 9px;
+    padding: 0;
     font-size: 12px;
-    line-height: 1.8;
+    line-height: 1.65;
     font-weight: 600;
-    color: var(--muted);
-    background: var(--panel-2);
-    border: 1px solid var(--line);
-    border-radius: 999px;
+    color: var(--muted-2);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
     white-space: nowrap;
   }
   .meaning { font-size: 16px; font-weight: 650; }
@@ -293,14 +293,14 @@
   .morph-status {
     display: inline-flex;
     align-items: center;
-    padding: 0 9px;
+    padding: 0;
     font-size: 12px;
-    line-height: 1.8;
+    line-height: 1.65;
     font-weight: 600;
-    color: var(--muted);
-    background: var(--panel);
-    border: 1px solid var(--line);
-    border-radius: 999px;
+    color: var(--muted-2);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
   }
   .morph-note { margin: 0; font-size: 14px; line-height: 1.75; }
   .morph-note .mono, .mono { font-family: var(--mono); }
@@ -389,7 +389,9 @@
 
   /* 右侧「下一个」 */
   .next-btn {
-    align-self: center;
+    position: sticky;
+    top: calc(50vh - 29px);
+    align-self: flex-start;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -409,6 +411,7 @@
     transition: background .12s, color .12s, border-color .12s, opacity .12s, box-shadow .12s;
   }
   .next-btn:hover { opacity: 1; box-shadow: 0 2px 8px var(--line); }
+  .stage.is-front .next-btn { position: static; top: auto; align-self: center; }
   .next-btn.is-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
   .next-btn.is-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
 
@@ -436,8 +439,8 @@
     cursor: pointer;
   }
   .btn:hover { border-color: var(--muted-2); }
-  .btn.is-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-  .btn.is-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+  .btn.is-primary { background: var(--accent-weak); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .btn.is-primary:hover { background: var(--accent-weak); border-color: var(--accent-2); color: var(--accent-2); }
   .pref-number {
     width: 84px;
     height: 32px;
@@ -511,7 +514,7 @@
     .word-card { padding: 28px 22px 30px; }
     .word-card[data-face="front"] { min-height: 360px; }
     .word { font-size: 34px; }
-    .next-btn { align-self: flex-end; }
+    .next-btn { position: static; top: auto; align-self: flex-end; }
     .first-run { flex-wrap: wrap; }
     .first-run-actions { width: 100%; justify-content: flex-end; }
     .morph-rows { grid-template-columns: 1fr; gap: 6px; }
@@ -869,6 +872,7 @@
 
   function setFace(face) {
     card.dataset.face = face;
+    $('.stage').classList.toggle('is-front', face === 'front');
     nextBtn.classList.toggle('is-primary', face === 'back');
     $$('.proto-tabs [data-view]').forEach((button) => {
       button.classList.toggle('is-on', button.dataset.view === face);
