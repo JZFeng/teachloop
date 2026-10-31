@@ -151,10 +151,6 @@
     "zh-CN": "编辑：{name}",
     "en": "Edit {name}"
   },
-  "vocab.books.admin.selectHint": {
-    "zh-CN": "从左边选一本书开始编辑，或者新建一本。",
-    "en": "Pick a book on the left to edit it, or create a new one."
-  },
   "vocab.books.admin.emptyList": {
     "zh-CN": "还没有词书。先新建一本，再批量导入词条。",
     "en": "No books yet. Create one, then import its entries."

@@ -82,6 +82,11 @@
   min-width: 0;
 }
 
+/* 没选中书时右侧面板不渲染，表格独占整行（同一条判定在 AdminBooksPage 的 className 里）。 */
+.books-admin-grid.no-panel {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .books-field-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
