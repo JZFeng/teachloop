@@ -7,6 +7,7 @@
  */
 export {
   AppstoreOutlined,
+  ApartmentOutlined,
   ArrowLeftOutlined,
   AuditOutlined,
   BarChartOutlined,

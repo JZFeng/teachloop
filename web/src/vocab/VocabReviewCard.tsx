@@ -1,6 +1,7 @@
 import { Fragment, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
+  ApartmentOutlined,
   BookOutlined,
   Button,
   DeleteOutlined,
@@ -10,11 +11,14 @@ import {
   StarFilled,
   StarOutlined,
   DownOutlined,
+  SyncOutlined,
+  TeamOutlined,
 } from '../ui'
 import { SpeakerButton } from './SpeakerButton'
 import type { AudioLanguage } from './SpeakerButton'
 import { useVocabAudioConfig } from './audioConfig'
-import { resolveCardBlocks, type ReviewCardBlock } from './reviewBlocks'
+import { familyAddsNothing, splitSenseText } from './morphology'
+import { orderV3Blocks, resolveCardBlocks, type ReviewCardBlock } from './reviewBlocks'
 
 export interface ReviewCardSense {
   pos?: string
@@ -120,6 +124,11 @@ export interface ReviewCardContent {
   blocks?: ReviewCardBlock[]
   /** T594：第 9 块配图；有图才有这个字段 */
   image?: { url?: string }
+  /**
+   * 2026-10-31：词卡配图地址（后端只在 WebP 真的存在时才给）。渲染在「语义核心」块右侧，
+   * 88×88、圆角 8px、1px `var(--line)` 边框、`object-fit: cover`；没有就不渲染、不占位。
+   */
+  imageUrl?: string
   /** V3：构词与派生（现代构词 + 派生/词形变化 + 带 POS/含义的词族） */
   morphology?: ReviewCardMorphology
   /** V3：词源单独一段 */
@@ -230,6 +239,8 @@ export function VocabReviewCard({
   const { sentenceAudio } = useVocabAudioConfig()
   const content = word.content
   const phonetic = content?.phonetic
+  // 2026-10-31 方案 5：英/美音标相同时只显示一份（inflect 两个都是 /ɪnˈflekt/）。
+  const samePronunciation = !!phonetic?.uk && phonetic.uk === phonetic?.us
   // 019：例句喇叭跟随词条语言，避免中文 / 西语词条被硬编码读成英文音。
   const exampleLang: AudioLanguage =
     word.language === 'zh' ? 'zh' : word.language === 'es' ? 'es' : 'en'
@@ -243,7 +254,31 @@ export function VocabReviewCard({
   const visibleBlocks = resolveCardBlocks(content, blocks, hidden)
   // 空提示只看「内容里根本没有块」：用户自己把块全关掉不算空内容。
   const hasContentBlocks = resolveCardBlocks(content, blocks, []).length > 0
-  const v3Blocks = isV3 ? resolveCardBlocks(content) : []
+  // 2026-10-31 方案 5：显示顺序在 web 端归一（核心理解移到构词与派生之前），见 orderV3Blocks 注释。
+  const v3Blocks = isV3 ? orderV3Blocks(resolveCardBlocks(content)) : []
+
+  /**
+   * 2026-10-31：词卡配图（113 张定稿 WebP）。后端只在图片**真的存在**时才给 `imageUrl`，
+   * 所以这里判空一次就够——没有图的词整块不渲染、不占位，也不会打出破图请求。
+   * 位置固定在「语义核心」块右侧；review-back 与 word-details 共用这张卡，两处一起生效。
+   */
+  const imageUrl =
+    typeof content?.imageUrl === 'string' && content.imageUrl.trim() !== ''
+      ? content.imageUrl
+      : undefined
+
+  /** 配图（88×88、圆角 8px、1px 边框、cover）；与块内的 inline SVG 二选一，避免一行塞两张图。 */
+  const renderWordImage = () => (imageUrl ? (
+    <img
+      className="review-word-image"
+      src={imageUrl}
+      alt=""
+      width={88}
+      height={88}
+      loading="lazy"
+      decoding="async"
+    />
+  ) : null)
 
   /** 每块只吃 payload：类型对不上就返回 null，不读 content.*、不崩。 */
   const renderBlock = (id: string, payload: unknown) => {
@@ -258,7 +293,7 @@ export function VocabReviewCard({
               {core.notThis && <p className="core-semantics-not muted">{core.notThis}</p>}
               {core.mentalImage && <p className="core-semantics-image">{core.mentalImage}</p>}
             </div>
-            {core.image && (
+            {imageUrl ? renderWordImage() : core.image && (
               <div className="core-semantics-art" aria-hidden="true"
                 dangerouslySetInnerHTML={{ __html: core.image }} />
             )}
@@ -405,7 +440,7 @@ export function VocabReviewCard({
         {example.zh && <div className="v3-zh">{example.zh}</div>}
       </div>
       {sentenceAudio && example.en && (
-        <span onClick={(event) => event.stopPropagation()}>
+        <span className="v3-example-audio" onClick={(event) => event.stopPropagation()}>
           <SpeakerButton text={example.en} lang={exampleLang} compact variant="text" />
         </span>
       )}
@@ -417,15 +452,32 @@ export function VocabReviewCard({
       case 'senses': {
         if (!Array.isArray(payload) || payload.length === 0) return null
         const senses = payload as ReviewCardSense[]
+        // 2026-10-31 方案 5：义项一行一个、带编号，词性做成浅灰标签只出现一次。
+        // AI 内容常把多个义项写进同一个 zh 字符串（「1. …；2. …；3. …」），
+        // 所以先按编号拆（splitSenseText 只拆 ≥2 个编号的句子，不猜断句）。
+        const rows: { pos: string; text: string }[] = []
+        for (const sense of senses) {
+          const pos = shortPos(sense.pos)
+          for (const text of splitSenseText(sense.zh ?? sense.en)) rows.push({ pos, text })
+        }
+        if (rows.length === 0) return null
+        const posValues = [...new Set(rows.map((row) => row.pos).filter(Boolean))]
+        const sharedPos = posValues.length === 1 ? posValues[0] : ''
         return (
-          <ul className="v3-senses">
-            {senses.map((sense, index) => (
-              <li key={index}>
-                {sense.pos && <span className="v3-pos">{shortPos(sense.pos)}</span>}
-                <span className="v3-meaning">{sense.zh ?? sense.en}</span>
-              </li>
-            ))}
-          </ul>
+          <div className="v3-senses-block">
+            {sharedPos && <span className="v3-pos v3-pos--tag">{sharedPos}</span>}
+            <ol className="v3-senses">
+              {rows.map((row, index) => (
+                <li key={index}>
+                  <span className="v3-sense-no" aria-hidden="true">{index + 1}.</span>
+                  {!sharedPos && row.pos && (
+                    <span className="v3-pos v3-pos--tag">{row.pos}</span>
+                  )}
+                  <span className="v3-meaning">{row.text}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
         )
       }
       case 'morphology': {
@@ -471,42 +523,55 @@ export function VocabReviewCard({
                 </ol>
               </div>
             )}
-            {derivatives.length > 0 && (
-              <div className="v3-morph-row">
-                <span className="v3-morph-label">{t('vocab.card.derivatives')}</span>
-                <div className="v3-derivatives">
-                  {derivatives.map((item, index) => (
-                    <div className="v3-derivative" key={`${item.word}-${index}`}>
-                      <b>{item.word}</b>
-                      <span className="v3-pos">{shortPos(item.partOfSpeech)}</span>
-                      <span>{item.meaning}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
             {inflections.length > 0 && (
-              <div className="v3-morph-row">
-                <span className="v3-morph-label">{t('vocab.card.inflections')}</span>
-                <div className="v3-derivatives">
+              <div className="v3-morph-group">
+                <div className="v3-morph-group-label">
+                  <SyncOutlined aria-hidden="true" />
+                  {t('vocab.card.inflections')}
+                </div>
+                <div className="v3-morph-cards">
                   {inflections.map((item, index) => (
-                    <div className="v3-derivative" key={`${item.word}-${index}`}>
+                    <div className="v3-morph-card" key={`${item.word}-${index}`}>
                       <b>{item.word}</b>
-                      <span className="v3-pos">{item.label}</span>
+                      {item.label && <span className="v3-morph-gloss">{item.label}</span>}
                     </div>
                   ))}
                 </div>
               </div>
             )}
-            {family.length > 0 && (
-              <div className="v3-morph-row">
-                <span className="v3-morph-label">{t('vocab.card.family')}</span>
-                <div className="v3-family">
-                  {family.map((item, index) => (
-                    <div className="v3-family-item" key={`${item.word}-${index}`}>
+            {derivatives.length > 0 && (
+              <div className="v3-morph-group">
+                <div className="v3-morph-group-label">
+                  <ApartmentOutlined aria-hidden="true" />
+                  {t('vocab.card.derivatives')}
+                </div>
+                <div className="v3-morph-cards">
+                  {derivatives.map((item, index) => (
+                    <div className="v3-morph-card" key={`${item.word}-${index}`}>
                       <b>{item.word}</b>
-                      {item.partOfSpeech && <span className="v3-pos">{shortPos(item.partOfSpeech)}</span>}
-                      {item.meaning && <span className="muted">{item.meaning}</span>}
+                      {item.partOfSpeech && (
+                        <span className="v3-pos v3-pos--tag">{shortPos(item.partOfSpeech)}</span>
+                      )}
+                      {item.meaning && <span className="v3-morph-gloss">{item.meaning}</span>}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {family.length > 0 && !familyAddsNothing(word.form, morphology) && (
+              <div className="v3-morph-group">
+                <div className="v3-morph-group-label">
+                  <TeamOutlined aria-hidden="true" />
+                  {t('vocab.card.family')}
+                </div>
+                <div className="v3-morph-cards">
+                  {family.map((item, index) => (
+                    <div className="v3-morph-card" key={`${item.word}-${index}`}>
+                      <b>{item.word}</b>
+                      {item.partOfSpeech && (
+                        <span className="v3-pos v3-pos--tag">{shortPos(item.partOfSpeech)}</span>
+                      )}
+                      {item.meaning && <span className="v3-morph-gloss">{item.meaning}</span>}
                     </div>
                   ))}
                 </div>
@@ -521,10 +586,13 @@ export function VocabReviewCard({
         return (
           <section className="v3-section" aria-labelledby="v3CoreTitle">
             <h3 id="v3CoreTitle">{t('vocab.card.core')}</h3>
-            <div className="v3-core">
-              {core.core && <p className="v3-core-core">{core.core}</p>}
-              {core.notThis && <p className="v3-core-not">{core.notThis}</p>}
-              {core.mentalImage && <p className="v3-core-image">{core.mentalImage}</p>}
+            <div className="v3-core-row">
+              <div className="v3-core">
+                {core.core && <p className="v3-core-core">{core.core}</p>}
+                {core.notThis && <p className="v3-core-not">{core.notThis}</p>}
+                {core.mentalImage && <p className="v3-core-image">{core.mentalImage}</p>}
+              </div>
+              {renderWordImage()}
             </div>
           </section>
         )
@@ -627,14 +695,25 @@ export function VocabReviewCard({
           <div className="review-card-head-main">
             <div className="review-word">{word.form}</div>
             <div className="review-phonetic-row muted" onClick={(event) => event.stopPropagation()}>
-              <span className="review-phonetic">
-                {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
-                <SpeakerButton form={word.form} accent="uk" shortcut="u" compact variant="text" />
-              </span>
-              <span className="review-phonetic">
-                {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
-                <SpeakerButton form={word.form} accent="us" shortcut="a" compact variant="text" />
-              </span>
+              {/* 2026-10-31 方案 5：英美音标相同时合并成一份，两个喇叭分别播英音/美音（title 各自带语言） */}
+              {samePronunciation ? (
+                <span className="review-phonetic review-phonetic--merged">
+                  <span className="review-phonetic-ipa">{phonetic!.uk}</span>
+                  <SpeakerButton form={word.form} accent="uk" shortcut="u" compact variant="text" />
+                  <SpeakerButton form={word.form} accent="us" shortcut="a" compact variant="text" />
+                </span>
+              ) : (
+                <>
+                  <span className="review-phonetic">
+                    {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
+                    <SpeakerButton form={word.form} accent="uk" shortcut="u" compact variant="text" />
+                  </span>
+                  <span className="review-phonetic">
+                    {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
+                    <SpeakerButton form={word.form} accent="us" shortcut="a" compact variant="text" />
+                  </span>
+                </>
+              )}
             </div>
           </div>
           {(onToggleFavorite || onAdd || onAddToList || (!flipped && (onDelete || onTogglePause))) && (

@@ -210,6 +210,10 @@
 }
 .review-phonetic { display: inline-flex; align-items: center; gap: 2px; }
 .review-phonetic .ant-btn { padding-inline: 4px; color: var(--muted); }
+/* 2026-10-31 方案 5：英/美音标相同时只显示一份 IPA，两个喇叭并排（英音 / 美音各一）。
+   旧写法两串一模一样的 IPA 白占卡头约 40% 宽度。 */
+.review-phonetic--merged { gap: 0; }
+.review-phonetic--merged .review-phonetic-ipa { margin-right: 2px; }
 .review-card-actions {
   display: flex;
   gap: 12px;
@@ -318,6 +322,23 @@
 .core-semantics-core { margin: 0 0 4px; font-weight: 600; }
 .core-semantics-not { margin: 0 0 6px; font-size: 13px; }
 .core-semantics-image { margin: 0; font-size: 13px; font-style: italic; }
+
+/* 2026-10-31：词卡配图（113 张定稿 WebP）——「语义核心」块右侧，固定 88px。
+   圆角 8px、1px var(--line) 边框、cover；flex 0 0 auto 保证窄卡上不被压扁，
+   max-width 100% 给 320px 级窄屏兜底（此时文字列先让位，不出现横向溢出）。 */
+.review-word-image {
+  flex: 0 0 auto;
+  display: block;
+  width: 88px;
+  height: 88px;
+  max-width: 100%;
+  object-fit: cover;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+/* V3 卡片：语义核心是带底色的块，配图放在它右侧，块本身继续撑满剩余宽度。 */
+.v3-core-row { display: flex; gap: 12px; align-items: center; }
+.v3-core-row .v3-core { flex: 1 1 auto; min-width: 0; }
 
 /* T594：第 9 块配图——固定 88px（与 .core-semantics-art 同尺寸），右对齐；窄卡兜底不溢出 */
 .review-image-block { display: flex; justify-content: flex-end; margin-top: 12px; }
@@ -459,11 +480,15 @@
 .review-card.is-v3.is-flipped .review-card-head { margin-bottom: 0; }
 .review-card.is-v3.is-flipped .review-back { margin-top: 12px; }
 
+/* ===== 2026-10-31 方案 5（docs/mock/vocab-card-hierarchy-2026-10-31）：区块竖线 + 字号阶梯 ===== */
 .v3-section { margin-top: 28px; }
 .v3-section:first-child { margin-top: 0; }
+/* 区块标题挂 3px 主题色竖条：竖条伸进卡片左内边距里，标题文字仍与正文左对齐 */
 .v3-section h3 {
-  margin: 0 0 12px;
-  font-size: 16px;
+  margin: 0 0 12px -13px;
+  padding-left: 10px;
+  border-left: 3px solid var(--accent);
+  font-size: 15px;
   line-height: 1.4;
   font-weight: 650;
   letter-spacing: -.1px;
@@ -474,8 +499,12 @@
   border-top: 1px solid var(--line-2);
 }
 
-.v3-senses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.v3-senses li { display: flex; align-items: baseline; gap: 8px; font-size: 16px; }
+/* 释义：词性做成浅灰标签（只出现一次），义项一行一个带编号。
+   2026-10-31 用户原话「义项挤在一行是一堵文字墙」——旧写法 16px/650 同段三义项。 */
+.v3-senses-block { display: flex; align-items: baseline; gap: 8px; }
+.v3-senses { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.v3-senses li { display: flex; align-items: baseline; gap: 6px; font-size: 14px; line-height: 1.6; }
+.v3-sense-no { flex: 0 0 auto; min-width: 14px; color: var(--muted-2); font-variant-numeric: tabular-nums; }
 .v3-pos {
   display: inline-block;
   min-width: 30px;
@@ -485,13 +514,23 @@
   color: var(--muted-2);
   white-space: nowrap;
 }
-.v3-meaning { font-weight: 650; }
+/* 词性标签：圆角取 token 里的 6px（参考稿是 4px，项目只允许 12/8/6，记为有意收口） */
+.v3-pos--tag {
+  min-width: 0;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: var(--panel-2);
+  color: var(--muted);
+  line-height: 1.5;
+}
+.v3-meaning { font-weight: 400; }
 
+/* 现代构词提示：灰底（不给第二块浅蓝，浅蓝只留给「核心理解」这一个焦点） */
 .v3-morph-note {
-  margin: 0;
-  padding: 14px 16px;
-  font-size: 14px;
-  line-height: 1.75;
+  margin: 0 0 4px;
+  padding: 12px 14px;
+  font-size: 13.5px;
+  line-height: 1.7;
   color: var(--text);
   background: var(--panel-2);
   border: 1px solid var(--line-2);
@@ -526,25 +565,43 @@
 .v3-chain { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; font-size: 13.5px; }
 .v3-chain em { font-style: normal; font-size: 11px; color: var(--muted-2); margin-left: 4px; }
 .v3-arrow { margin: 0 6px; color: var(--muted-2); }
-.v3-derivatives { display: flex; flex-direction: column; gap: 6px; }
-.v3-derivative {
-  display: grid;
-  grid-template-columns: 120px 44px minmax(0, 1fr);
-  gap: 8px;
-  align-items: baseline;
-  font-size: 14px;
-}
-.v3-derivative b { font-size: 15px; font-weight: 650; }
-.v3-family { display: flex; flex-direction: column; gap: 4px; }
-.v3-family-item {
+/* ===== 构词与派生：一个词一张小卡片（2026-10-31 方案 5） =====
+   auto-fill 300px：1440 下两列 364px、834 下两列 337px，都装得下最长的
+   「inflexional adj. 折形的（英式拼写）」；<=620 自动掉成一列，不需要额外断点。 */
+.v3-morph-group { margin-top: 16px; }
+.v3-morph-group-label {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  gap: 8px;
-  font-size: 13.5px;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: .5px;
+  color: var(--muted);
 }
-.v3-family-item b { font-size: 14px; font-weight: 600; }
-.v3-family-item .muted { font-size: 13px; }
+.v3-morph-group-label svg { flex: 0 0 auto; width: 16px; height: 16px; color: var(--muted-2); }
+.v3-morph-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  align-items: stretch;
+  gap: 10px;
+}
+.v3-morph-card {
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr);
+  align-items: baseline;
+  gap: 0 8px;
+  min-width: 0;
+  padding: 9px 11px;
+  font-size: 13px;
+  line-height: 1.5;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  transition: border-color .12s ease;
+}
+.v3-morph-card:hover { border-color: var(--accent); }
+.v3-morph-card b { font-size: 15px; font-weight: 650; white-space: nowrap; }
+.v3-morph-gloss { font-size: 13px; color: var(--muted); }
 
 .v3-core {
   padding: 16px 18px;
@@ -558,6 +615,14 @@
 
 .v3-examples { display: flex; flex-direction: column; gap: 16px; }
 .v3-example { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 8px; align-items: start; }
+/* 2026-10-31 方案 5：例句喇叭默认不占视觉重量，hover / 键盘聚焦才出现；
+   触屏没有 hover（@media pointer: coarse）时保持常显，否则点不到。 */
+.v3-example-audio { opacity: 0; transition: opacity .12s ease; }
+.v3-example:hover .v3-example-audio,
+.v3-example:focus-within .v3-example-audio { opacity: 1; }
+@media (pointer: coarse) {
+  .v3-example-audio { opacity: 1; }
+}
 .v3-en { font-size: 16px; line-height: 1.6; }
 .v3-zh { margin-top: 2px; font-size: 14px; line-height: 1.65; color: var(--muted-2); }
 .v3-example mark { padding: 0 2px; background: var(--accent-weak); border-radius: 4px; color: inherit; }
@@ -616,7 +681,9 @@
   .review-card.is-v3.is-flipped .review-word { font-size: 34px; }
   .v3-morph-row { grid-template-columns: 1fr; gap: 6px; }
   .v3-morph-label { padding-top: 6px; }
-  .v3-derivative, .v3-syn-row { grid-template-columns: 1fr; gap: 1px; }
+  /* 方案 5 的单词卡片在窄屏掉成一列（auto-fill 的 300px 下限已经兜住，这里只是把最小宽调小） */
+  .v3-morph-cards { grid-template-columns: 1fr; }
+  .v3-syn-row { grid-template-columns: 1fr; gap: 1px; }
   .v3-syn-row .v3-pos { margin-bottom: 2px; }
 }
 

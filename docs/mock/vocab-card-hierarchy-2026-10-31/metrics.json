@@ -1,0 +1,2708 @@
+{
+  "p1-1440": {
+    "scheme": "p1",
+    "expanded": false,
+    "senseFontSize": "16px",
+    "sectionTitleFontSize": "16px",
+    "noteBackground": "rgb(239, 244, 251)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1189,
+    "cardTopToCoreTitle": 153,
+    "coreTitleTopInViewport": 375,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 318,
+      "inflections": 318
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 318,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "650",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(85, 103, 127)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 318,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "650",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(85, 103, 127)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 26,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "16px",
+      "firstFontWeight": "650",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        18,
+        18,
+        18
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "16px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgb(239, 244, 251)",
+      "padding": "11px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 539,
+        "height": 235
+      },
+      "examples": {
+        "visible": true,
+        "top": 798,
+        "height": 275
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1097,
+        "height": 150
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1271,
+        "height": 104
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p2-1440": {
+    "scheme": "p2",
+    "expanded": false,
+    "senseFontSize": "16px",
+    "sectionTitleFontSize": "16px",
+    "noteBackground": "rgb(239, 244, 251)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1233,
+    "cardTopToCoreTitle": 153,
+    "coreTitleTopInViewport": 375,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "650",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(85, 103, 127)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "650",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(85, 103, 127)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 26,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "16px",
+      "firstFontWeight": "650",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        18,
+        18,
+        18
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "16px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgb(239, 244, 251)",
+      "padding": "11px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 539,
+        "height": 279
+      },
+      "examples": {
+        "visible": true,
+        "top": 842,
+        "height": 275
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1141,
+        "height": 150
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1315,
+        "height": 104
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p3-1440": {
+    "scheme": "p3",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgba(0, 0, 0, 0)",
+    "visibleIpaCount": 1,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1255,
+    "cardTopToCoreTitle": 176,
+    "coreTitleTopInViewport": 399,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 22,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        17,
+        17,
+        17
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "15px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px 0px",
+      "fontSize": "13px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 564,
+        "height": 275
+      },
+      "examples": {
+        "visible": true,
+        "top": 866,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1166,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1340,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p4-1440": {
+    "scheme": "p4",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgba(0, 0, 0, 0)",
+    "visibleIpaCount": 1,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 415,
+    "cardTopToCoreTitle": 176,
+    "coreTitleTopInViewport": 399,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 0,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 0,
+      "inflections": 0
+    },
+    "grid": {
+      "derivatives": null,
+      "inflections": null
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 22,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        17,
+        17,
+        17
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "15px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px 0px",
+      "fontSize": "13px"
+    },
+    "sections": {
+      "morph": {
+        "visible": false,
+        "top": 0,
+        "height": 0
+      },
+      "examples": {
+        "visible": false,
+        "top": 0,
+        "height": 0
+      },
+      "synonyms": {
+        "visible": false,
+        "top": 0,
+        "height": 0
+      },
+      "etymology": {
+        "visible": false,
+        "top": 0,
+        "height": 0
+      }
+    },
+    "collapseBar": {
+      "visible": true,
+      "top": 558,
+      "height": 43
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 1,
+    "overflowPx": 0
+  },
+  "p4-expanded-1440": {
+    "scheme": "p4",
+    "expanded": true,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgba(0, 0, 0, 0)",
+    "visibleIpaCount": 1,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1321,
+    "cardTopToCoreTitle": 176,
+    "coreTitleTopInViewport": 399,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 22,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        17,
+        17,
+        17
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "15px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px 0px",
+      "fontSize": "13px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 629,
+        "height": 275
+      },
+      "examples": {
+        "visible": true,
+        "top": 932,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1231,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1406,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": true,
+      "top": 558,
+      "height": 43
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 1,
+    "overflowPx": 0
+  },
+  "p5-1440": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgb(232, 239, 253)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1440,
+    "cardTopToCoreTitle": 221,
+    "coreTitleTopInViewport": 444,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "b",
+    "senses": {
+      "height": 67,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        22,
+        22,
+        22
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgb(232, 239, 253)",
+      "padding": "12px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 608,
+        "height": 414
+      },
+      "examples": {
+        "visible": true,
+        "top": 1051,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1350,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1524,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 1,
+    "overflowPx": 0
+  },
+  "p1-834": {
+    "scheme": "p1",
+    "expanded": false,
+    "senseFontSize": "16px",
+    "sectionTitleFontSize": "16px",
+    "noteBackground": "rgb(239, 244, 251)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 274,
+    "cardWidth": 766,
+    "cardInnerWidth": 684,
+    "cardHeight": 1189,
+    "cardTopToCoreTitle": 153,
+    "coreTitleTopInViewport": 427,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 1194,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 291,
+      "inflections": 291
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 291,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "650",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(85, 103, 127)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 291,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "650",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(85, 103, 127)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 26,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "16px",
+      "firstFontWeight": "650",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        18,
+        18,
+        18
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "16px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgb(239, 244, 251)",
+      "padding": "11px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 590,
+        "height": 235
+      },
+      "examples": {
+        "visible": true,
+        "top": 849,
+        "height": 275
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1148,
+        "height": 150
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1322,
+        "height": 104
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 3,
+    "overflowPx": 0
+  },
+  "p2-834": {
+    "scheme": "p2",
+    "expanded": false,
+    "senseFontSize": "16px",
+    "sectionTitleFontSize": "16px",
+    "noteBackground": "rgb(239, 244, 251)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 274,
+    "cardWidth": 766,
+    "cardInnerWidth": 684,
+    "cardHeight": 1233,
+    "cardTopToCoreTitle": 153,
+    "coreTitleTopInViewport": 427,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 1194,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 337,
+      "inflections": 337
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "650",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(85, 103, 127)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "650",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(85, 103, 127)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 26,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "16px",
+      "firstFontWeight": "650",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        18,
+        18,
+        18
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "16px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgb(239, 244, 251)",
+      "padding": "11px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 590,
+        "height": 279
+      },
+      "examples": {
+        "visible": true,
+        "top": 893,
+        "height": 275
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1192,
+        "height": 150
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1366,
+        "height": 104
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 3,
+    "overflowPx": 0
+  },
+  "p3-834": {
+    "scheme": "p3",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgba(0, 0, 0, 0)",
+    "visibleIpaCount": 1,
+    "cardTopInViewport": 274,
+    "cardWidth": 766,
+    "cardInnerWidth": 684,
+    "cardHeight": 1255,
+    "cardTopToCoreTitle": 176,
+    "coreTitleTopInViewport": 450,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 1194,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 337,
+      "inflections": 337
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 22,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        17,
+        17,
+        17
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "15px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px 0px",
+      "fontSize": "13px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 615,
+        "height": 275
+      },
+      "examples": {
+        "visible": true,
+        "top": 918,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1217,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1391,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 3,
+    "overflowPx": 0
+  },
+  "p4-834": {
+    "scheme": "p4",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgba(0, 0, 0, 0)",
+    "visibleIpaCount": 1,
+    "cardTopInViewport": 274,
+    "cardWidth": 766,
+    "cardInnerWidth": 684,
+    "cardHeight": 415,
+    "cardTopToCoreTitle": 176,
+    "coreTitleTopInViewport": 450,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 1194,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 0,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 0,
+      "inflections": 0
+    },
+    "grid": {
+      "derivatives": null,
+      "inflections": null
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 22,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        17,
+        17,
+        17
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "15px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px 0px",
+      "fontSize": "13px"
+    },
+    "sections": {
+      "morph": {
+        "visible": false,
+        "top": 0,
+        "height": 0
+      },
+      "examples": {
+        "visible": false,
+        "top": 0,
+        "height": 0
+      },
+      "synonyms": {
+        "visible": false,
+        "top": 0,
+        "height": 0
+      },
+      "etymology": {
+        "visible": false,
+        "top": 0,
+        "height": 0
+      }
+    },
+    "collapseBar": {
+      "visible": true,
+      "top": 609,
+      "height": 43
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 1,
+    "overflowPx": 0
+  },
+  "p4-expanded-834": {
+    "scheme": "p4",
+    "expanded": true,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgba(0, 0, 0, 0)",
+    "visibleIpaCount": 1,
+    "cardTopInViewport": 274,
+    "cardWidth": 766,
+    "cardInnerWidth": 684,
+    "cardHeight": 1321,
+    "cardTopToCoreTitle": 176,
+    "coreTitleTopInViewport": 450,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 1194,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 337,
+      "inflections": 337
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 22,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        17,
+        17,
+        17
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "15px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px 0px",
+      "fontSize": "13px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 680,
+        "height": 275
+      },
+      "examples": {
+        "visible": true,
+        "top": 983,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1283,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1457,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": true,
+      "top": 609,
+      "height": 43
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p5-834": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgb(232, 239, 253)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 274,
+    "cardWidth": 766,
+    "cardInnerWidth": 684,
+    "cardHeight": 1440,
+    "cardTopToCoreTitle": 221,
+    "coreTitleTopInViewport": 495,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 1194,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 337,
+      "inflections": 337
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "b",
+    "senses": {
+      "height": 67,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        22,
+        22,
+        22
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgb(232, 239, 253)",
+      "padding": "12px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 660,
+        "height": 414
+      },
+      "examples": {
+        "visible": true,
+        "top": 1102,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1401,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1576,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p3-sense14-1440": {
+    "scheme": "p3",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgba(0, 0, 0, 0)",
+    "visibleIpaCount": 1,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1255,
+    "cardTopToCoreTitle": 176,
+    "coreTitleTopInViewport": 399,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 22,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        17,
+        17,
+        17
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "15px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px 0px",
+      "fontSize": "13px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 564,
+        "height": 275
+      },
+      "examples": {
+        "visible": true,
+        "top": 866,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1166,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1340,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p3-sense15-1440": {
+    "scheme": "p3",
+    "expanded": false,
+    "senseFontSize": "15px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgba(0, 0, 0, 0)",
+    "visibleIpaCount": 1,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1257,
+    "cardTopToCoreTitle": 178,
+    "coreTitleTopInViewport": 401,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 22,
+        "borderWidth": "0px",
+        "borderRadius": "0px",
+        "paddingTop": "0px",
+        "paddingLeft": "0px",
+        "wordFontSize": "14.5px",
+        "wordFontWeight": "600",
+        "posBackground": "rgba(0, 0, 0, 0)",
+        "posBorderRadius": "0px",
+        "posFontSize": "11.5px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgba(0, 0, 0, 0)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 24,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "15px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        18,
+        18,
+        18
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "0px",
+      "borderLeftColor": "rgb(14, 35, 64)",
+      "fontSize": "15px",
+      "paddingLeft": "0px"
+    },
+    "groupIconVisible": false,
+    "infoBox": {
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px 0px",
+      "fontSize": "13px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 565,
+        "height": 275
+      },
+      "examples": {
+        "visible": true,
+        "top": 868,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1167,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1342,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p5-grid-1440": {
+    "card": 820,
+    "inner": 738,
+    "at300": {
+      "cols": 2,
+      "width": 364
+    },
+    "at280": {
+      "cols": 2,
+      "width": 364
+    }
+  },
+  "p5-grid-1100": {
+    "card": 1032,
+    "inner": 950,
+    "at300": {
+      "cols": 3,
+      "width": 310
+    },
+    "at280": {
+      "cols": 3,
+      "width": 310
+    }
+  },
+  "p5-grid-1050": {
+    "card": 982,
+    "inner": 900,
+    "at300": {
+      "cols": 2,
+      "width": 445
+    },
+    "at280": {
+      "cols": 3,
+      "width": 293
+    }
+  },
+  "p5-grid-1000": {
+    "card": 932,
+    "inner": 850,
+    "at300": {
+      "cols": 2,
+      "width": 420
+    },
+    "at280": {
+      "cols": 2,
+      "width": 420
+    }
+  },
+  "p5-grid-834": {
+    "card": 766,
+    "inner": 684,
+    "at300": {
+      "cols": 2,
+      "width": 337
+    },
+    "at280": {
+      "cols": 2,
+      "width": 337
+    }
+  },
+  "p5-senses-a-1440": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgb(232, 239, 253)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1395,
+    "cardTopToCoreTitle": 176,
+    "coreTitleTopInViewport": 399,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 22,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        17,
+        17,
+        17
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgb(232, 239, 253)",
+      "padding": "12px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 564,
+        "height": 414
+      },
+      "examples": {
+        "visible": true,
+        "top": 1006,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1305,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1480,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 1,
+    "overflowPx": 0
+  },
+  "p5-senses-b-1440": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgb(232, 239, 253)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1440,
+    "cardTopToCoreTitle": 221,
+    "coreTitleTopInViewport": 444,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "b",
+    "senses": {
+      "height": 67,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        22,
+        22,
+        22
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgb(232, 239, 253)",
+      "padding": "12px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 608,
+        "height": 414
+      },
+      "examples": {
+        "visible": true,
+        "top": 1051,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1350,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1524,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 1,
+    "overflowPx": 0
+  },
+  "p5-senses-c-1440": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgb(232, 239, 253)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1443,
+    "cardTopToCoreTitle": 224,
+    "coreTitleTopInViewport": 447,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "c",
+    "senses": {
+      "height": 70,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "15px",
+      "firstFontWeight": "650",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        23,
+        22,
+        22
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgb(232, 239, 253)",
+      "padding": "12px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 612,
+        "height": 414
+      },
+      "examples": {
+        "visible": true,
+        "top": 1054,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1353,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1528,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 1,
+    "overflowPx": 0
+  },
+  "p5-senses-a-834": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgb(232, 239, 253)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 274,
+    "cardWidth": 766,
+    "cardInnerWidth": 684,
+    "cardHeight": 1395,
+    "cardTopToCoreTitle": 176,
+    "coreTitleTopInViewport": 450,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 1194,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 337,
+      "inflections": 337
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "a",
+    "senses": {
+      "height": 22,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        17,
+        17,
+        17
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgb(232, 239, 253)",
+      "padding": "12px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 615,
+        "height": 414
+      },
+      "examples": {
+        "visible": true,
+        "top": 1057,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1357,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1531,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p5-senses-b-834": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgb(232, 239, 253)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 274,
+    "cardWidth": 766,
+    "cardInnerWidth": 684,
+    "cardHeight": 1440,
+    "cardTopToCoreTitle": 221,
+    "coreTitleTopInViewport": 495,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 1194,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 337,
+      "inflections": 337
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "b",
+    "senses": {
+      "height": 67,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        22,
+        22,
+        22
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgb(232, 239, 253)",
+      "padding": "12px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 660,
+        "height": 414
+      },
+      "examples": {
+        "visible": true,
+        "top": 1102,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1401,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1576,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p5-senses-c-834": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgb(232, 239, 253)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 274,
+    "cardWidth": 766,
+    "cardInnerWidth": 684,
+    "cardHeight": 1443,
+    "cardTopToCoreTitle": 224,
+    "coreTitleTopInViewport": 498,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 1194,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 337,
+      "inflections": 337
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 337,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "c",
+    "senses": {
+      "height": 70,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "15px",
+      "firstFontWeight": "650",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        23,
+        22,
+        22
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgb(232, 239, 253)",
+      "padding": "12px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 663,
+        "height": 414
+      },
+      "examples": {
+        "visible": true,
+        "top": 1105,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1405,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1579,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 2,
+    "overflowPx": 0
+  },
+  "p5-info-box-1440": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgb(232, 239, 253)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1440,
+    "cardTopToCoreTitle": 221,
+    "coreTitleTopInViewport": 444,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "b",
+    "senses": {
+      "height": 67,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        22,
+        22,
+        22
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgb(232, 239, 253)",
+      "padding": "12px 14px",
+      "fontSize": "13.5px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 608,
+        "height": 414
+      },
+      "examples": {
+        "visible": true,
+        "top": 1051,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1350,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1524,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 1,
+    "overflowPx": 0
+  },
+  "p5-info-note-1440": {
+    "scheme": "p5",
+    "expanded": false,
+    "senseFontSize": "14px",
+    "sectionTitleFontSize": "15px",
+    "noteBackground": "rgba(0, 0, 0, 0)",
+    "visibleIpaCount": 2,
+    "cardTopInViewport": 223,
+    "cardWidth": 820,
+    "cardInnerWidth": 738,
+    "cardHeight": 1416,
+    "cardTopToCoreTitle": 221,
+    "coreTitleTopInViewport": 444,
+    "coreVisiblePx": 107,
+    "coreBodyHeight": 107,
+    "firstScreenHeight": 900,
+    "duplicateRows": 7,
+    "familyRows": 8,
+    "newFamilyWords": 0,
+    "visibleMorphItems": 7,
+    "wrapItems": 0,
+    "columns": {
+      "derivatives": 364,
+      "inflections": 364
+    },
+    "grid": {
+      "derivatives": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      },
+      "inflections": {
+        "columns": 2,
+        "cardWidth": 364,
+        "cardHeight": 43,
+        "borderWidth": "1px",
+        "borderRadius": "6px",
+        "paddingTop": "9px",
+        "paddingLeft": "11px",
+        "wordFontSize": "15px",
+        "wordFontWeight": "650",
+        "posBackground": "rgb(239, 244, 251)",
+        "posBorderRadius": "4px",
+        "posFontSize": "12px",
+        "posFontStyle": "normal",
+        "posColor": "rgb(65, 83, 110)"
+      }
+    },
+    "sensePosBackground": "rgb(239, 244, 251)",
+    "senseVariant": "b",
+    "senses": {
+      "height": 67,
+      "items": 3,
+      "wrappedItems": 0,
+      "firstFontSize": "14px",
+      "firstFontWeight": "400",
+      "firstColor": "rgb(14, 35, 64)",
+      "itemHeights": [
+        22,
+        22,
+        22
+      ]
+    },
+    "sectionTitle": {
+      "borderLeftWidth": "4px",
+      "borderLeftColor": "rgb(26, 99, 224)",
+      "fontSize": "15px",
+      "paddingLeft": "10px"
+    },
+    "groupIconVisible": true,
+    "infoBox": {
+      "background": "rgba(0, 0, 0, 0)",
+      "padding": "0px 0px",
+      "fontSize": "13px"
+    },
+    "sections": {
+      "morph": {
+        "visible": true,
+        "top": 608,
+        "height": 390
+      },
+      "examples": {
+        "visible": true,
+        "top": 1027,
+        "height": 272
+      },
+      "synonyms": {
+        "visible": true,
+        "top": 1326,
+        "height": 146
+      },
+      "etymology": {
+        "visible": true,
+        "top": 1500,
+        "height": 101
+      }
+    },
+    "collapseBar": {
+      "visible": false,
+      "top": 0,
+      "height": 0
+    },
+    "sectionOrder": [
+      "coreSection",
+      "morphSection",
+      "examplesSection",
+      "synonymsSection",
+      "etymologySection"
+    ],
+    "sectionsReadInFirstScreen": 1,
+    "overflowPx": 0
+  }
+}

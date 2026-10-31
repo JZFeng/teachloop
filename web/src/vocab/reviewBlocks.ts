@@ -51,6 +51,26 @@ function isWordBlock(id: string): id is WordBlock {
   return (WORD_BLOCKS as readonly string[]).includes(id)
 }
 
+/**
+ * V3 卡背的显示顺序（2026-10-31 用户拍板「方案 5」）：**核心理解在构词与派生之前**。
+ *
+ * <p>理由：查词 / 复习第一件要看懂的是「这个词什么意思」，构词是拓展。旧顺序
+ * （senses → morphology → core）让十几行派生词把「核心理解」顶到首屏之外。
+ *
+ * <p>为什么排序在前端：后端 `ContentView.CARD_BLOCKS_V3` 仍是旧顺序，而那个文件
+ * 当时正被另一个会话改动（配图接线），本轮不碰它；显示顺序本来就是 web 端的规则，
+ * 这里稳定排序后，服务端将来调整顺序也不会把卡面弄乱。未知 id 排最后、彼此相对顺序不变。
+ */
+export const V3_DISPLAY_ORDER = [
+  'senses', 'core', 'morphology', 'examples', 'synonyms', 'etymology',
+] as const
+
+/** 按 {@link V3_DISPLAY_ORDER} 稳定排序；不在表里的块保持原相对顺序、排在末尾。 */
+export function orderV3Blocks(blocks: ReviewCardBlock[]): ReviewCardBlock[] {
+  const rank = new Map<string, number>(V3_DISPLAY_ORDER.map((id, index) => [id, index]))
+  return [...blocks].sort((a, b) => (rank.get(a.id) ?? 99) - (rank.get(b.id) ?? 99))
+}
+
 /** 回退路径的「空」：缺省 / 空串 / 空数组都不占位。 */
 function isEmptyPayload(value: unknown): boolean {
   if (value === undefined || value === null) return true
