@@ -1,0 +1,578 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>教师邀请码原型 · TeachLoop</title>
+<style>
+  /* 令牌与 docs/mock/vocab-prefs-2026-10-30 同一份值（主色 #1A63E0，圆角 12/8/6，正文 14px） */
+  :root {
+    --bg:#f6f8fc; --panel:#fff; --panel-2:#eff4fb;
+    --line:#dce4f2; --line-2:#ebf0f8; --line-strong:#7c8ba3;
+    --text:#0e2340; --muted:#41536e; --muted-2:#55677f;
+    --accent:#1a63e0; --accent-2:#1450bc; --accent-weak:#e8effd; --on-accent:#fff;
+    --green:#17703f; --green-weak:#e6f5ec;
+    --amber:#8a5a00; --amber-weak:#fff3d6;
+    --red:#b42338; --red-weak:#fde6e8;
+    --shadow:0 1px 2px rgba(14,54,118,.05),0 1px 3px rgba(14,54,118,.07);
+    --radius:12px; --radius-sm:8px; --radius-xs:6px;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:var(--font); font-size:14px; line-height:1.65;
+         background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  button, input { font:inherit; color:inherit; }
+  button { cursor:pointer; }
+  .layout { display:grid; grid-template-columns:236px minmax(0,1fr); min-height:100vh; }
+
+  .side { background:var(--panel); border-right:1px solid var(--line); padding:16px 12px; position:sticky; top:0;
+          height:100vh; display:flex; flex-direction:column; }
+  .brand { display:flex; align-items:center; gap:9px; padding:4px 8px 18px; font-size:16px; font-weight:600; }
+  .brand .mark { width:26px; height:26px; border-radius:var(--radius-sm); background:#0e3676; color:#fff;
+                 display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .nav-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:var(--radius-sm);
+              color:var(--muted); border:0; background:transparent; width:100%; text-align:left; margin-bottom:2px; }
+  .nav-item:hover { background:var(--panel-2); }
+  .nav-item.on { background:var(--accent-weak); color:var(--accent); font-weight:500; }
+  .nav-new { margin-left:auto; font-size:11px; color:var(--accent); border:1px solid var(--accent);
+             border-radius:999px; padding:0 6px; line-height:1.5; }
+  .side-foot { margin-top:auto; padding:10px 8px 4px; border-top:1px solid var(--line-2);
+               font-size:12px; color:var(--muted-2); }
+
+  .col { min-width:0; }
+  .top { position:sticky; top:0; z-index:6; background:rgba(246,248,252,.94); backdrop-filter:blur(6px);
+         border-bottom:1px solid var(--line); padding:8px 24px; display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+  .top .tag { font-size:12px; color:var(--muted-2); margin-right:2px; }
+  .top button { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-xs);
+                padding:3px 9px; font-size:12px; color:var(--muted); }
+  .top button.on { border-color:var(--accent); color:var(--accent); background:var(--accent-weak); font-weight:500; }
+  .top .spacer { flex:1 1 auto; }
+
+  .main { padding:24px 32px 80px; max-width:1040px; }
+  .page-head { margin-bottom:18px; }
+  .page-head h1 { margin:0; font-size:24px; font-weight:600; letter-spacing:-.2px;
+                  font-family:var(--font); display:flex; align-items:center; gap:8px; }
+  .page-head .sub { color:var(--muted-2); font-size:13px; margin-top:4px; }
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .card + .card { margin-top:16px; }
+  .card .card-body { padding:20px 24px; }
+  .card h2 { margin:0; font-size:16px; font-weight:600; }
+  .muted { color:var(--muted-2); }
+  .small { font-size:12.5px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  .grow { flex:1 1 auto; min-width:0; }
+
+  .btn { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-sm);
+         padding:7px 16px; font-size:14px; line-height:1.5; }
+  .btn:hover { border-color:var(--line-strong); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:500; }
+  .btn.primary:hover { background:var(--accent-2); border-color:var(--accent-2); }
+  .btn.sm { padding:3px 10px; font-size:13px; }
+  .btn[disabled] { opacity:.42; cursor:not-allowed; }
+  .btn[disabled]:hover { border-color:var(--line); }
+
+  .hint { border-left:3px solid var(--accent); background:var(--accent-weak); color:#123c86;
+          padding:9px 12px; border-radius:var(--radius-xs); font-size:12.5px; }
+  .hint.warn { border-left-color:#e0b34b; background:var(--amber-weak); color:var(--amber); }
+  .hint.ok { border-left-color:#3f9f6b; background:var(--green-weak); color:var(--green); }
+  .hint.bad { border-left-color:#c9536a; background:var(--red-weak); color:var(--red); }
+
+  /* 邀请码表格：宽屏是行，窄屏自动堆叠（不加断点，交给 flex-wrap） */
+  .invite-list { margin-top:14px; border-top:1px solid var(--line-2); }
+  .invite-row { display:flex; gap:12px; align-items:center; flex-wrap:wrap;
+                padding:11px 0; border-bottom:1px solid var(--line-2); }
+  .invite-row:last-child { border-bottom:0; }
+  .invite-row .code { font-family:ui-monospace,SFMono-Regular,Menlo,monospace; font-size:15px;
+                      letter-spacing:1.2px; font-weight:600; }
+  .invite-row .meta { font-size:12.5px; color:var(--muted-2); }
+  .invite-row .ops { margin-left:auto; display:flex; gap:6px; }
+  .pill { font-size:11.5px; border-radius:999px; padding:1px 8px; border:1px solid var(--line);
+          color:var(--muted); white-space:nowrap; }
+  .pill.active { border-color:#bfe3cd; background:var(--green-weak); color:var(--green); }
+  .pill.used { border-color:var(--line); background:var(--panel-2); color:var(--muted-2); }
+  .pill.revoked { border-color:#f0cfd4; background:var(--red-weak); color:var(--red); }
+  .empty { padding:22px 0 6px; color:var(--muted-2); font-size:13px; }
+
+  /* 表单 */
+  .field { margin-top:14px; max-width:420px; }
+  .field label { display:block; font-size:13px; font-weight:600; margin-bottom:5px; }
+  .field .req { color:var(--red); margin-left:2px; }
+  .field input { width:100%; padding:8px 11px; border:1px solid var(--line); border-radius:var(--radius-xs); }
+  .field input:focus { outline:2px solid var(--accent-weak); border-color:var(--accent); }
+  .field .help { font-size:12px; color:var(--muted-2); margin-top:4px; }
+  .field .err { font-size:12px; color:var(--red); margin-top:4px; }
+
+  /* 资料卡里的键值行 */
+  .kv { display:flex; gap:10px; flex-wrap:wrap; padding:5px 0; }
+  .kv .k { width:84px; color:var(--muted-2); font-size:13px; flex:0 0 auto; }
+  .kv .v { font-size:13.5px; }
+
+  .role-tag { font-size:12px; border:1px solid var(--line); border-radius:var(--radius-xs);
+              padding:1px 8px; color:var(--muted); }
+  .role-tag.teacher { border-color:#bfe3cd; background:var(--green-weak); color:var(--green); font-weight:500; }
+
+  /* 平板竖屏（≤1023，与 web/src/styles/app.css 同一个断点）侧栏收成抽屉：原型里直接收起，给内容区让宽 */
+  @media (max-width:1023px) {
+    .layout { grid-template-columns:1fr; }
+    .side { display:none; }
+    .main { padding:16px 16px 64px; }
+    .top { padding:8px 16px; }
+  }
+  /* 注册页是公开页，没有应用壳层 */
+  body.public .layout { grid-template-columns:1fr; }
+  body.public .side { display:none; }
+
+  [hidden] { display:none !important; }
+  .screen { display:block; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="side">
+    <div class="brand"><span class="mark">T</span>TeachLoop</div>
+    <nav id="nav"></nav>
+    <div class="side-foot">原型 · Mock 2026-10-30<br>数据为演示值</div>
+  </aside>
+
+  <div class="col">
+    <div class="top">
+      <span class="tag">屏</span>
+      <button data-go="admin">管理端 · 邀请码</button>
+      <button data-go="redeem">学生端 · 填码升级</button>
+      <button data-go="register">注册页 · 凭码开户</button>
+      <button data-go="after">升级后 · 侧栏变了</button>
+      <span class="spacer"></span>
+      <button id="reset">重置演示</button>
+    </div>
+
+    <main class="main">
+      <!-- 1. 管理端：系统设置里的教师邀请码区块 -->
+      <section class="screen" data-screen="admin">
+        <div class="page-head">
+          <h1>系统设置</h1>
+          <div class="sub">AI 模型、通讯通道，以及教师邀请码。</div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <div class="row" style="gap:12px">
+              <div class="grow">
+                <h2>教师邀请码</h2>
+                <div class="small muted" style="margin-top:4px">
+                  教师没有自助注册。生成一个码发给对方：已登录的学生在「我的资料」里填入即刻升级；还没账号的人可在注册页凭码开户。码一次性、3 天过期。
+                </div>
+              </div>
+              <button class="btn primary" id="gen">生成邀请码</button>
+            </div>
+
+            <div class="invite-list" id="invites"></div>
+            <div class="empty" id="empty" hidden>还没有发放过邀请码。点右上角「生成邀请码」。</div>
+
+            <div class="hint" style="margin-top:14px">
+              码只在生成时显示一次就够用——列表会一直留在这里，未过期的可以复制，发错的可以撤销。
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h2>这一页定死的规则</h2>
+            <div class="small muted" style="margin-top:6px; line-height:1.9">
+              1. 邀请码只能把人升到<b>教师</b>，任何接口都不能自升管理员（管理员必须由现有管理员在后台授予，写审计）。<br>
+              2. 已登录的学生填码时<b>只升自己</b>，请求体里的邮箱一律忽略。<br>
+              3. 码一次性，兑换成功即作废；3 天未用自动过期。<br>
+              4. 每次兑换写审计：谁、什么码、什么时候、从哪个角色升到教师。<br>
+              5. 教师不能被降级成学生；停用走「停用账号」，不是改角色。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. 学生端：我的资料里填码升级 -->
+      <section class="screen" data-screen="redeem" hidden>
+        <div class="page-head">
+          <h1>我的资料</h1>
+          <div class="sub">账号资料与界面偏好。</div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h2>账号</h2>
+            <div style="margin-top:10px">
+              <div class="kv"><span class="k">姓名</span><span class="v">示例学生</span></div>
+              <div class="kv"><span class="k">邮箱</span><span class="v">student@example.com</span></div>
+              <div class="kv"><span class="k">角色</span><span class="v"><span class="role-tag" id="role-tag">学生</span></span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" id="redeem-card">
+          <div class="card-body">
+            <h2>我有教师邀请码</h2>
+            <div class="small muted" style="margin-top:4px">
+              老师给你的 8 位码，填进来即可成为教师。只能升你自己，不能替别人填。
+            </div>
+            <form id="redeem-form">
+              <div class="field">
+                <label for="redeem-code">邀请码<span class="req">*</span></label>
+                <input id="redeem-code" maxlength="8" placeholder="例如 K7QM4XZP" autocomplete="off"
+                       style="text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; letter-spacing:1.2px">
+                <div class="help">演示：先在「管理端 · 邀请码」里生成一个码，或直接输 <b>K7QM4XZP</b>。</div>
+                <div class="err" id="redeem-err" hidden></div>
+              </div>
+              <div class="row" style="margin-top:16px">
+                <button class="btn primary" type="submit">升级为教师</button>
+                <span class="small muted">升级后不用重新登录，侧栏立刻多出教师菜单。</span>
+              </div>
+            </form>
+            <div class="hint ok" id="redeem-ok" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. 注册页：凭码开户（还没账号的新老师） -->
+      <section class="screen" data-screen="register" hidden>
+        <div class="page-head">
+          <h1>注册</h1>
+          <div class="sub">学生自助注册；老师可以凭邀请码直接开户。</div>
+        </div>
+
+        <div class="card" style="max-width:560px">
+          <div class="card-body">
+            <h2>创建账号</h2>
+            <form id="register-form">
+              <div class="field">
+                <label for="reg-email">邮箱<span class="req">*</span></label>
+                <input id="reg-email" type="email" placeholder="you@example.com">
+              </div>
+              <div class="field">
+                <label for="reg-pwd">密码<span class="req">*</span></label>
+                <input id="reg-pwd" type="password" placeholder="至少 8 位">
+              </div>
+              <div class="field">
+                <label for="reg-code">教师邀请码（可选）</label>
+                <input id="reg-code" maxlength="8" placeholder="不填就是学生"
+                       style="text-transform:uppercase; font-family:ui-monospace,Menlo,monospace; letter-spacing:1.2px">
+                <div class="help">填了建出来就是教师账号；不填就是学生。学生以后也能在「我的资料」里补填升级。</div>
+                <div class="err" id="reg-err" hidden></div>
+              </div>
+              <div class="row" style="margin-top:18px">
+                <button class="btn primary" type="submit">创建账号</button>
+                <button class="btn" type="button" data-go="redeem">我是已注册的学生</button>
+              </div>
+            </form>
+            <div class="hint ok" id="reg-ok" hidden></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. 升级后：侧栏变化 + 顶部提示 -->
+      <section class="screen" data-screen="after" hidden>
+        <div class="page-head">
+          <h1>首页</h1>
+          <div class="sub">升级完成后落在这里——注意左边多出来的菜单，以及顶部这条提示。</div>
+        </div>
+
+        <div class="hint ok" style="margin-bottom:16px">
+          <div class="row" style="gap:10px">
+            <span class="grow">你已成为教师，现在可以创建班级、布置作业与出卷。</span>
+            <button class="btn sm" data-go="admin">去看教师邀请码</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-body">
+            <h2>今天</h2>
+            <div class="small muted" style="margin-top:4px">10月30日 周五 · 教师</div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+(function () {
+  'use strict'
+
+  var SEED = [
+    { code: 'K7QM4XZP', days: 2, state: 'active' },
+    { code: '2FB9WDRT', days: 1, state: 'active' },
+    { code: 'QW34NMTR', days: -1, state: 'active' },   // 已过期（按天数算）
+    { code: 'ZP8KQ2MV', days: 0, state: 'used', usedBy: 'teacher@example.com' },
+    { code: 'MR6TDXQK', days: 1, state: 'revoked' }
+  ]
+
+  var NAV_STUDENT = [
+    ['home', '首页'], ['classes', '班级'], ['vocab', '背单词'], ['profile', '我的资料']
+  ]
+  var NAV_TEACHER = [
+    ['home', '首页'], ['classes', '班级'], ['assignments', '作业与考试'], ['papers', '试卷'],
+    ['grading', '批改'], ['review', '复核'], ['reports', '报表'], ['vocab', '背单词'], ['profile', '我的资料']
+  ]
+  var NAV_ADMIN = NAV_TEACHER.concat([['ai', '系统设置']])
+
+  var state = {
+    role: 'STUDENT',
+    navRole: 'STUDENT',
+    invites: [],
+    activeNav: 'home',
+    lastUpgrade: null
+  }
+
+  var $ = function (sel, root) { return (root || document).querySelector(sel) }
+  var $$ = function (sel, root) { return Array.prototype.slice.call((root || document).querySelectorAll(sel)) }
+
+  function toISO(days) {
+    var d = new Date(Date.now() + days * 86400000)
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+  }
+  function pad(n) { return n < 10 ? '0' + n : String(n) }
+  function expired(inv) { return new Date(inv.expires + 'T23:59:59').getTime() < Date.now() }
+  function stateOf(inv) {
+    if (inv.state === 'used') return 'used'
+    if (inv.state === 'revoked') return 'revoked'
+    return expired(inv) ? 'expired' : 'active'
+  }
+  function randomCode() {
+    var A = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', s = ''
+    for (var i = 0; i < 8; i++) s += A[Math.floor(Math.random() * A.length)]
+    return s
+  }
+  function findInvite(code) {
+    for (var i = 0; i < state.invites.length; i++) {
+      if (state.invites[i].code === code) return state.invites[i]
+    }
+    return null
+  }
+
+  function reset() {
+    state.invites = SEED.map(function (s) {
+      return { code: s.code, expires: toISO(s.days), state: s.state, usedBy: s.usedBy || null }
+    })
+    state.role = 'STUDENT'
+    state.lastUpgrade = null
+    var c = $('#redeem-code'); if (c) c.value = ''
+    var r = $('#reg-code'); if (r) r.value = ''
+    hide('#redeem-err'); hide('#redeem-ok'); hide('#reg-err'); hide('#reg-ok')
+    show('#redeem-form'); show('#redeem-card')
+    render()
+  }
+
+  function show(sel) { var e = $(sel); if (e) e.hidden = false }
+  function hide(sel) { var e = $(sel); if (e) e.hidden = true }
+
+  function renderNav() {
+    var nav = $('#nav')
+    var role = state.navRole || state.role
+    var items = role === 'ADMIN' ? NAV_ADMIN : (role === 'TEACHER' ? NAV_TEACHER : NAV_STUDENT)
+    var html = ''
+    items.forEach(function (it) {
+      var key = it[0], label = it[1]
+      var on = key === state.activeNav
+      var badge = (role === 'TEACHER' && (key === 'assignments' || key === 'papers' || key === 'grading' ||
+                    key === 'review' || key === 'reports')) ? '<span class="nav-new">新</span>' : ''
+      html += '<button class="nav-item' + (on ? ' on' : '') + '" data-nav="' + key + '">' +
+              '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">' +
+              icon(key) + '</svg>' + label + badge + '</button>'
+    })
+    nav.innerHTML = html
+  }
+
+  function icon(key) {
+    switch (key) {
+      case 'home': return '<path d="M4 11l8-6 8 6v9H4z"/><path d="M10 20v-5h4v5"/>'
+      case 'classes': return '<path d="M12 12a4 4 0 100-8 4 4 0 000 8z"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>'
+      case 'vocab': return '<path d="M3 6h8v13H3z"/><path d="M13 6h8v13h-8z"/>'
+      case 'profile': return '<path d="M12 12a4 4 0 100-8 4 4 0 000 8z"/><path d="M4 20c0-4 4-6 8-6s8 2 8 6"/>'
+      case 'assignments': return '<path d="M4 5h7l2 3h7v11H4z"/>'
+      case 'papers': return '<path d="M6 3h9l3 3v15H6z"/><path d="M9 11h6"/><path d="M9 15h6"/>'
+      case 'grading': return '<path d="M4 19l10-10 3 3-10 10H4z"/>'
+      case 'review': return '<path d="M4 12l5 5L20 6"/>'
+      case 'reports': return '<path d="M5 20V9"/><path d="M12 20V4"/><path d="M19 20v-7"/>'
+      default: return '<path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19 12a7 7 0 01-.1 1.2l2 1.6-2 3.4-2.3-1a7 7 0 01-2 1.2L14 21h-4l-.6-2.6a7 7 0 01-2-1.2l-2.3 1-2-3.4 2-1.6A7 7 0 014 12c0-.4 0-.8.1-1.2l-2-1.6 2-3.4 2.3 1a7 7 0 012-1.2L10 3h4l.6 2.6a7 7 0 012 1.2l2.3-1 2 3.4-2 1.6c.1.4.1.8.1 1.2z"/>'
+    }
+  }
+
+  function renderInvites() {
+    var host = $('#invites')
+    var empty = $('#empty')
+    if (!state.invites.length) { host.innerHTML = ''; empty.hidden = false; return }
+    empty.hidden = true
+    var html = ''
+    state.invites.forEach(function (inv, i) {
+      var st = stateOf(inv)
+      var label = st === 'active' ? '可用' : st === 'used' ? '已兑换' : st === 'revoked' ? '已撤销' : '已过期'
+      var extra = st === 'used' && inv.usedBy ? ' · ' + inv.usedBy : ''
+      html += '<div class="invite-row" data-i="' + i + '">' +
+                '<span class="code">' + inv.code + '</span>' +
+                '<span class="pill ' + (st === 'expired' ? 'revoked' : st) + '">' + label + '</span>' +
+                '<span class="meta">' + (st === 'active' ? '到期 ' + inv.expires : '到期 ' + inv.expires + extra) + '</span>' +
+                '<span class="ops">' +
+                  '<button class="btn sm" data-copy="' + i + '"' + (st === 'active' ? '' : ' disabled') + '>复制</button>' +
+                  '<button class="btn sm" data-revoke="' + i + '"' + (st === 'active' ? '' : ' disabled') + '>撤销</button>' +
+                '</span>' +
+              '</div>'
+    })
+    host.innerHTML = html
+  }
+
+  function renderRole() {
+    var tag = $('#role-tag')
+    if (!tag) return
+    if (state.role === 'TEACHER') { tag.textContent = '教师'; tag.className = 'role-tag teacher' }
+    else { tag.textContent = '学生'; tag.className = 'role-tag' }
+  }
+
+  function render() {
+    renderNav()
+    renderInvites()
+    renderRole()
+    var cur = location.hash.replace('#', '') || 'admin'
+    showScreen(cur)
+  }
+
+  function showScreen(name) {
+    var known = ['admin', 'redeem', 'register', 'after']
+    if (known.indexOf(name) < 0) name = 'admin'
+    $$('.screen').forEach(function (s) { s.hidden = s.getAttribute('data-screen') !== name })
+    $$('.top [data-go]').forEach(function (b) { b.classList.toggle('on', b.getAttribute('data-go') === name) })
+    // 每一屏看的是不同身份：管理端=管理员，填码=当前身份，注册页=公开页（无壳层），升级后=教师
+    if (name === 'admin') { state.navRole = 'ADMIN'; state.activeNav = 'ai' }
+    else if (name === 'after') { state.role = 'TEACHER'; state.navRole = 'TEACHER'; state.activeNav = 'home' }
+    else if (name === 'redeem') {
+      state.navRole = state.role === 'TEACHER' ? 'TEACHER' : 'STUDENT'
+      state.activeNav = 'profile'
+    } else { state.navRole = null; state.activeNav = null }
+    document.body.classList.toggle('public', state.navRole === null)
+    renderNav()
+  }
+
+  function goto(name) {
+    if (location.hash === '#' + name) { showScreen(name); return }
+    location.hash = name
+  }
+
+  // ---- 管理端交互 ----
+  $('#gen').addEventListener('click', function () {
+    var code = randomCode()
+    state.invites.unshift({ code: code, expires: toISO(3), state: 'active', usedBy: null })
+    renderInvites()
+    var first = $('.invite-row .code')
+    if (first) first.scrollIntoView({ block: 'nearest' })
+    var btn = $('#gen')
+    btn.textContent = '已生成 ' + code
+    setTimeout(function () { btn.textContent = '生成邀请码' }, 1600)
+  })
+
+  $('#invites').addEventListener('click', function (e) {
+    var copy = e.target.closest('[data-copy]')
+    var revoke = e.target.closest('[data-revoke]')
+    if (copy) {
+      var i1 = Number(copy.getAttribute('data-copy'))
+      var code = state.invites[i1].code
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).catch(function () {})
+      }
+      copy.textContent = '已复制'
+      setTimeout(function () { copy.textContent = '复制' }, 1400)
+    }
+    if (revoke) {
+      var i2 = Number(revoke.getAttribute('data-revoke'))
+      state.invites[i2].state = 'revoked'
+      renderInvites()
+    }
+  })
+
+  // ---- 学生端：填码升级 ----
+  $('#redeem-form').addEventListener('submit', function (e) {
+    e.preventDefault()
+    var input = $('#redeem-code')
+    var code = (input.value || '').trim().toUpperCase()
+    hide('#redeem-err'); hide('#redeem-ok')
+    if (code.length !== 8) { fail('#redeem-err', '邀请码是 8 位，请检查是否少输了字符。'); return }
+    var inv = findInvite(code)
+    if (!inv) { fail('#redeem-err', '邀请码无效或已过期。'); return }
+    var st = stateOf(inv)
+    if (st === 'revoked') { fail('#redeem-err', '这个邀请码已被撤销，请向老师要一个新的。'); return }
+    if (st === 'used') { fail('#redeem-err', '这个邀请码已经被用了。一个码只能升一个人。'); return }
+    if (st === 'expired') { fail('#redeem-err', '这个邀请码已过期（有效期 3 天），请向老师要一个新的。'); return }
+    inv.state = 'used'
+    inv.usedBy = 'student@example.com'
+    state.role = 'TEACHER'
+    state.navRole = 'TEACHER'
+    $('#role-tag').textContent = '教师'
+    $('#role-tag').className = 'role-tag teacher'
+    hide('#redeem-form')
+    var ok = $('#redeem-ok')
+    ok.hidden = false
+    ok.innerHTML = '兑换成功，你已经是教师了。左边多出教师菜单，不用重新登录。' +
+      '<div style="margin-top:8px"><button class="btn sm" data-go="after" style="border-color:#3f9f6b;color:var(--green);background:transparent">看看升级后的首页</button></div>'
+    renderInvites()
+    renderNav()
+  })
+
+  // ---- 注册页：凭码开户 ----
+  $('#register-form').addEventListener('submit', function (e) {
+    e.preventDefault()
+    var email = ($('#reg-email').value || '').trim()
+    var pwd = $('#reg-pwd').value || ''
+    var code = ($('#reg-code').value || '').trim().toUpperCase()
+    hide('#reg-err'); hide('#reg-ok')
+    if (!email || email.indexOf('@') < 0) { fail('#reg-err', '请填一个有效邮箱。'); return }
+    if (pwd.length < 8) { fail('#reg-err', '密码至少 8 位。'); return }
+    if (code) {
+      var inv = findInvite(code)
+      if (!inv) { fail('#reg-err', '邀请码无效或已过期。不填可以按学生注册。'); return }
+      var st = stateOf(inv)
+      if (st !== 'active') { fail('#reg-err', '这个邀请码' + (st === 'used' ? '已经被用了' : st === 'revoked' ? '已被撤销' : '已过期') + '。'); return }
+      inv.state = 'used'
+      inv.usedBy = email
+      state.role = 'TEACHER'
+      renderInvites(); renderNav()
+      var ok = $('#reg-ok')
+      ok.hidden = false
+      ok.innerHTML = '教师账号已创建：' + email + '。激活邮件已发出，点链接后即可登录。'
+      return
+    }
+    var ok2 = $('#reg-ok')
+    ok2.hidden = false
+    ok2.className = 'hint ok'
+    ok2.innerHTML = '学生账号已创建：' + email + '。激活邮件已发出。'
+  })
+
+  function fail(sel, msg) {
+    var e = $(sel)
+    e.textContent = msg
+    e.hidden = false
+  }
+
+  // ---- 公共 ----
+  document.addEventListener('click', function (e) {
+    var go = e.target.closest('[data-go]')
+    if (go) { goto(go.getAttribute('data-go')); return }
+    var nav = e.target.closest('[data-nav]')
+    if (nav) { e.preventDefault() }
+  })
+
+  window.addEventListener('hashchange', function () {
+    showScreen(location.hash.replace('#', ''))
+    if (location.hash === '#after') { state.role = 'TEACHER'; renderNav() }
+  })
+
+  $('#reset').addEventListener('click', function () {
+    reset()
+    goto('admin')
+  })
+
+  // 便于逐屏截图：?shot=admin|redeem|register|after
+  var params = new URLSearchParams(location.search)
+  var shot = params.get('shot')
+  if (shot) { location.hash = shot }
+
+  reset()
+  if (shot) showScreen(shot)
+})()
+</script>
+</body>
+</html>
