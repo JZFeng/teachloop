@@ -195,11 +195,11 @@ export default function AdminBooksPage() {
       title: bc('vocab.books.admin.colName'),
       value: (book) => book.name,
       sortable: true,
+      // 2026-10-30（用户质疑）：书名下面原来还挂了一行 slug（`book` / `book-2`），
+      // 那是后端自动生成的内部标识（AdminBookEndpoint 的 uniqueSlug：中文书名转不出 ascii
+      // 就退化成 `book` 加后缀），前端任何入口都不改它、路由也不用它，摆在这里只是噪音。
       render: (book) => (
-        <div>
-          <Button variant="text" size="small" onClick={() => setEditKey(book.id)}>{book.name}</Button>
-          <div className="muted small">{book.slug}</div>
-        </div>
+        <Button variant="text" size="small" onClick={() => setEditKey(book.id)}>{book.name}</Button>
       ),
     },
     {
