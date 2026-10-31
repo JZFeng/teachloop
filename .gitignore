@@ -100,6 +100,9 @@ __pycache__/
 # 本地验证截图（Bug 复现/修复证据，不入库）
 .dsh/reports/
 
+# 本机 Piper TTS 运行时（scripts/setup-tts.sh 装的 venv + 模型，约 500MB，2026-10-31）
+.dsh/tts/
+
 # vitals 监控机的本地配置与运行产物（含口令与 SMTP 授权码，2026-10-29）
 ops/vitals/config.env
 ops/vitals/*.log

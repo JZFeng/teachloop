@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -43,13 +45,56 @@ def model_for(voice: str) -> str | None:
     return candidate if os.path.isfile(candidate) else None
 
 
+def piper_available() -> bool:
+    """piper 可执行是否真的在（dev 走 venv 的绝对路径，容器走 PATH 里的 piper）。"""
+    if os.path.sep in PIPER_BIN:
+        return os.path.isfile(PIPER_BIN) and os.access(PIPER_BIN, os.X_OK)
+    return shutil.which(PIPER_BIN) is not None
+
+
+TAIL_FADE_SECONDS = 0.008
+
+
+def soften_tail(wav: bytes) -> bytes:
+    """PCM WAV 结尾做 8ms 线性淡出（T410 的「尾音杂音」在 2026-10-31 的兜底）。
+
+    Piper 默认会在句尾留约 80ms 静音，此时这里是空操作；只有引擎/参数把波形硬切断
+    （最后 8ms 还有明显振幅）时才淡出，避免播放器在末尾补一声「咔哒」。
+    只处理 16-bit 单声道 PCM（piper 的输出格式），其它格式原样返回。
+    """
+    if len(wav) < 44 or wav[:4] != b"RIFF" or wav[8:12] != b"WAVE":
+        return wav
+    channels = struct.unpack_from("<H", wav, 22)[0]
+    sample_rate = struct.unpack_from("<I", wav, 24)[0]
+    bits = struct.unpack_from("<H", wav, 34)[0]
+    data_offset = wav.find(b"data")
+    if channels != 1 or bits != 16 or sample_rate <= 0 or data_offset < 0:
+        return wav
+    payload = bytearray(wav[data_offset + 8:])
+    count = len(payload) // 2
+    if count == 0:
+        return wav
+    samples = list(struct.unpack_from("<%dh" % count, payload, 0))
+    window = min(count, max(1, int(sample_rate * TAIL_FADE_SECONDS)))
+    if max(abs(value) for value in samples[-window:]) <= 2:
+        return wav  # 已经是静音尾巴
+    for index in range(window):
+        factor = 1.0 - (index + 1) / window
+        position = count - window + index
+        samples[position] = int(samples[position] * factor)
+    struct.pack_into("<%dh" % count, payload, 0, *samples)
+    return wav[:data_offset + 8] + bytes(payload)
+
+
 class Handler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:  # noqa: N802
         if self.path == "/health":
-            if os.path.isfile(PIPER_MODEL):
-                self._json(200, {"status": "ok", "model": PIPER_MODEL})
+            if not piper_available():
+                self._json(503, {"status": "down", "reason": f"piper not found: {PIPER_BIN}"})
+            elif os.path.isfile(PIPER_MODEL):
+                self._json(200, {"status": "ok", "model": PIPER_MODEL, "piper": PIPER_BIN})
             else:
-                self._json(503, {"status": "down", "model": PIPER_MODEL})
+                self._json(503, {"status": "down", "reason": f"model missing: {PIPER_MODEL}"})
             return
         self._json(404, {"error": "not found"})
 
@@ -90,6 +135,7 @@ class Handler(BaseHTTPRequestHandler):
                     data = audio.read()
             finally:
                 os.unlink(output_path)
+            data = soften_tail(data)
             self.send_response(200)
             self.send_header("Content-Type", "audio/wav")
             self.send_header("Content-Length", str(len(data)))

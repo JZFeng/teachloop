@@ -46,6 +46,68 @@ export function fallbackSpeechLang(
 }
 
 /**
+ * 2026-10-31（Bug：TTS 尾音杂音 / inflect 重音）：
+ * 不给 `SpeechSynthesisUtterance` 指定 `voice` 时由浏览器自己挑音色，macOS 上常落到某个
+ * 本机音色（Samantha 一类）。同一个词在不同音色上的音高轮廓不同（可测：`inflect` 在
+ * Samantha 上 F0 单调下降、第二音节没有音高突起；Piper/Google 音色在第二音节抬起）。
+ * 所以这里**显式**挑音色：先 `Google` 开头的音色，再 lang 完全匹配的本机音色。
+ */
+export function pickFallbackVoice(
+  voices: SpeechSynthesisVoice[],
+  lang: string,
+): SpeechSynthesisVoice | null {
+  if (voices.length === 0) return null
+  const target = lang.toLowerCase()
+  const exact = voices.filter((voice) => voice.lang.toLowerCase() === target)
+  // Google 音色的名字跟着浏览器 UI 语言变（英文 Google US English / 繁体 Google 國語（臺灣）/
+  // 西语 Google español），所以只认前缀，不写死名字。
+  const google = exact.find((voice) => voice.name.startsWith('Google'))
+  if (google) return google
+  const local = exact.find((voice) => voice.localService)
+  if (local) return local
+  if (exact.length > 0) return exact[0]
+  const prefix = target.split('-')[0]
+  return (
+    voices.find((voice) => voice.lang.toLowerCase().startsWith(prefix)) ??
+    voices.find((voice) => voice.default) ??
+    null
+  )
+}
+
+/** `voiceschanged` 之前 `getVoices()` 可能是空数组（Chrome 异步加载音色），缓存最后一次非空结果。 */
+let voiceCache: SpeechSynthesisVoice[] = []
+
+function cachedVoices(): SpeechSynthesisVoice[] {
+  if (!('speechSynthesis' in window)) return voiceCache
+  const list = window.speechSynthesis.getVoices()
+  if (list.length > 0) voiceCache = list
+  return voiceCache
+}
+
+/** 首次点击时音色可能还没加载完；等一小会儿再挑，别落到浏览器默认音色。 */
+function waitForVoices(timeoutMs = 800): Promise<SpeechSynthesisVoice[]> {
+  return new Promise((resolve) => {
+    const synth = 'speechSynthesis' in window ? window.speechSynthesis : null
+    const loaded = cachedVoices()
+    if (!synth || loaded.length > 0) {
+      resolve(loaded)
+      return
+    }
+    let settled = false
+    let timer = 0
+    const done = () => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timer)
+      synth.removeEventListener('voiceschanged', done)
+      resolve(cachedVoices())
+    }
+    timer = window.setTimeout(done, timeoutMs)
+    synth.addEventListener('voiceschanged', done)
+  })
+}
+
+/**
  * 单词 / 例句发音按钮（T410/T411/T427 + 019）：请求后端音频（缓存→本地引擎）；
  * 失败时回落浏览器 SpeechSynthesis，不弹阻塞错误。点击播放中再点一次停止。
  *
@@ -54,6 +116,9 @@ export function fallbackSpeechLang(
  *
  * <p>播放结束/停止时释放 object URL，避免残留解码器在结尾产生噪音；
  * 浏览器回落保留 utterance 引用，否则被 GC 回收时 Chrome/Safari 会把结尾吞掉。
+ *
+ * <p>2026-10-31：浏览器回落的音色改为显式挑选（Google 优先、本机 lang 匹配次之），
+ * 不再交给浏览器默认音色；结束/停止时也只在真的还在播时 cancel，避免结尾那一声杂音。
  */
 export function SpeakerButton(props: SpeakerButtonProps) {
   const { compact = false, variant = 'default', shortcut, accent } = props
@@ -77,10 +142,12 @@ export function SpeakerButton(props: SpeakerButtonProps) {
   }
 
   const cancelSpeech = () => {
-    if (utteranceRef.current && 'speechSynthesis' in window) {
+    const utterance = utteranceRef.current
+    utteranceRef.current = null
+    // 只在真的还有声音时打断：已经结束的 utterance 再 cancel 一次，尾音处会留一声「咔哒」
+    if (utterance && 'speechSynthesis' in window && window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel()
     }
-    utteranceRef.current = null
   }
 
   const stop = () => {
@@ -101,30 +168,55 @@ export function SpeakerButton(props: SpeakerButtonProps) {
     cancelSpeech()
   }, [])
 
-  // 浏览器回落：语速略放慢（默认 1.0 太快）；播放前先 cancel 上一条。
-  const fallback = () => {
+  // 浏览器回落：语速略放慢（默认 1.0 太快）；音色显式挑（pickFallbackVoice）。
+  // onend 之后不能再 cancel：Chrome 会把最后一小段吞掉，听感就是结尾被剪/有杂音。
+  const fallback = async (token: number) => {
     setLoading(false)
     if (!sample || !('speechSynthesis' in window)) {
       setPlaying(false)
       return
     }
+    const voices = await waitForVoices()
+    if (tokenRef.current !== token) return
+    // element.onerror 与 play() 的 catch 可能同时进来；已经有一条在播就不重复开口
+    if (utteranceRef.current) return
     const synth = window.speechSynthesis
-    synth.cancel()
-    const utterance = new SpeechSynthesisUtterance(sample)
-    utterance.lang = fallbackSpeechLang(props.lang, accent)
-    utterance.rate = 0.9
-    utterance.pitch = 1
-    utterance.volume = 1
-    utteranceRef.current = utterance
-    const done = () => {
-      if (utteranceRef.current !== utterance) return
-      utteranceRef.current = null
-      setPlaying(false)
+    const lang = fallbackSpeechLang(props.lang, accent)
+    const speakWith = (voice: SpeechSynthesisVoice | null, allowRetry: boolean) => {
+      const utterance = new SpeechSynthesisUtterance(sample)
+      utterance.lang = lang
+      if (voice) utterance.voice = voice
+      utterance.rate = 0.9
+      utterance.pitch = 1
+      utterance.volume = 1
+      utteranceRef.current = utterance
+      utterance.onend = () => {
+        if (utteranceRef.current !== utterance) return
+        utteranceRef.current = null
+        setPlaying(false)
+      }
+      utterance.onerror = (event) => {
+        if (utteranceRef.current !== utterance) return
+        const error = (event as SpeechSynthesisErrorEvent).error
+        // 被我们自己 cancel 掉的旧 utterance 也会走到 error，不算失败
+        if (error === 'canceled' || error === 'interrupted') return
+        // Google 音色需要联网：断网时换本机音色重放一次，别让「回落」变成没声音
+        const local = voices.find(
+          (candidate) => candidate.lang.toLowerCase() === lang.toLowerCase() && candidate.localService,
+        )
+        if (allowRetry && local && local !== voice) {
+          utteranceRef.current = null
+          speakWith(local, false)
+          return
+        }
+        utteranceRef.current = null
+        setPlaying(false)
+      }
+      if (synth.speaking || synth.pending) synth.cancel()
+      setPlaying(true)
+      synth.speak(utterance)
     }
-    utterance.onend = done
-    utterance.onerror = done
-    setPlaying(true)
-    synth.speak(utterance)
+    speakWith(pickFallbackVoice(voices, lang), true)
   }
 
   const speak = async () => {
@@ -160,7 +252,7 @@ export function SpeakerButton(props: SpeakerButtonProps) {
         if (tokenRef.current !== token) return
         audioRef.current = null
         releaseUrl()
-        fallback()
+        void fallback(token)
       }
       await element.play()
       if (tokenRef.current !== token) return
@@ -169,7 +261,7 @@ export function SpeakerButton(props: SpeakerButtonProps) {
       if (tokenRef.current !== token) return
       audioRef.current = null
       releaseUrl()
-      fallback()
+      void fallback(token)
     }
   }
 
