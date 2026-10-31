@@ -276,7 +276,9 @@ export default function VocabFreeReviewPage() {
     }
   }, [word, t, toast])
 
-  const advance = useCallback(async (action: 'KNOWN' | 'DONT_KNOW' | 'PAUSE' | 'SKIP' | 'TOGGLE_PAUSE') => {
+  const advance = useCallback(async (
+    action: 'KNOWN' | 'DONT_KNOW' | 'PAUSE' | 'DELETE' | 'SKIP' | 'TOGGLE_PAUSE',
+  ) => {
     // 已评「不认识」时评分已落库，只剩「下一个」；不再接受第二次评分/暂停。
     if (!word || busy || rated) return
     setBusy(true)
@@ -294,6 +296,19 @@ export default function VocabFreeReviewPage() {
       setBusy(false)
     }
   }, [word, busy, rated, sessionId, load, toast])
+
+  /** 2026-10-31（用户要求加回）：会话里删掉当前词——与词库页行内删除同一条后端路径（AC-59.11）。 */
+  const deleteCurrent = useCallback(async () => {
+    if (!word || busy) return
+    const ok = await confirm({
+      title: t('vocab.library.deleteTitle'),
+      content: t('vocab.library.deleteBody', { word: word.form }),
+      okText: t('vocab.library.delete'),
+      cancelText: t('common.cancel'),
+    })
+    if (!ok) return
+    await advance('DELETE')
+  }, [word, busy, confirm, t, advance])
 
   /**
    * 点「不认识」：先翻到反面，停在原地（2026-10-26 用户报 Bug）。
@@ -401,11 +416,15 @@ export default function VocabFreeReviewPage() {
       } else if (event.key === 'f' || event.key === 'F') {
         event.preventDefault()
         void toggleFavorite()
+      } else if ((event.key === 'Delete' || event.key === 'Backspace') && !flipped) {
+        // 明细视图（翻面）不提供删除，与卡片头的图标一致
+        event.preventDefault()
+        void deleteCurrent()
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [advance, next, rateDontKnow, preparing, toggleFavorite])
+  }, [advance, next, rateDontKnow, preparing, toggleFavorite, deleteCurrent, flipped])
 
   /**
    * 窄条：照词库页的 `vocab-banner`（不新造样式）。
@@ -593,6 +612,7 @@ export default function VocabFreeReviewPage() {
             onFlip={() => setFlipped((value) => !value)}
             onToggleFavorite={() => void toggleFavorite()}
             paused={!!word.paused}
+            onDelete={() => void deleteCurrent()}
             onTogglePause={() => void advance('TOGGLE_PAUSE')}
             onRate={(rating) => { void (rating === 'DONT_KNOW' ? rateDontKnow() : advance('KNOWN')) }}
             ratingDisabled={busy || !!word.paused || rated !== null}

@@ -8,8 +8,8 @@ import { useTranslation } from 'react-i18next'
  * - `U` / `A` 由卡片里的喇叭按钮绑（`SpeakerButton` 的 `shortcut`）；
  * - `S` 是会话里的「暂停这个词」。
  *
- * 今日复习页已经没有卡片，所以「删除当前单词」不再有快捷键——删除入口回到词库页行内
- * （AC-59.11 的另一半）。这条差异记在 T595 的报告里，不在界面里假装还有。
+ * 「删除当前单词 / Delete」2026-10-31 已加回：会话里删的是软删除（与词库页行内同一个后端方法），
+ * 只在卡片正面生效，走二次确认。
  *
  * 用列表不用 <table>：`check-ui` 的 T441 禁止页面新写表格（表格只走 `DataTable`）。
  */
@@ -22,6 +22,7 @@ const SHORTCUTS = [
   { label: 'vocab.audio.playUs', keys: 'A' },
   { label: 'vocab.review.shortcutFavorite', keys: 'F' },
   { label: 'vocab.freeReview.pauseKey', keys: 'S' },
+  { label: 'vocab.review.shortcutDelete', keys: 'Delete' },
 ] as const
 
 export function ReviewShortcutTable() {

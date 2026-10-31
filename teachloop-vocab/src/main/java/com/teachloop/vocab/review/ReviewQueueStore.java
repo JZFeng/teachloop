@@ -97,11 +97,25 @@ public class ReviewQueueStore {
         return marks;
     }
 
-    /** 今日已复习数：只数不带 session 的评分（小测不写 review_logs，见 AC-87.7）。 */
+    /**
+     * 今日已复习数（AC-52.2，2026-10-30 口径修订 / T595）。
+     *
+     * <p>数两类评分日志：① 页内卡片直接提交的（`session_id is null`）；
+     * ② **今日复习会话**里的（会话 `scope.source = 'today'`）。今日复习改成全屏会话之后，
+     * 只数 ① 会让「今天已复习」永远停在 0。
+     *
+     * <p>词单 / 词库 / 词书发起的自由复习**仍然不计入**（AC-61.5）：它们与今日复习是两条调度入口，
+     * 混在一起会让「今天背完没有」失去意义。小测不写 review_logs（AC-87.7），不受影响。
+     */
     public long countReviewedToday(UUID userId, Instant dayStart) {
         Long count = jdbc.queryForObject("""
-                select count(*) from vocab_review_logs
-                 where user_id = ? and reviewed_at >= ? and session_id is null
+                select count(*)
+                  from vocab_review_logs l
+                 where l.user_id = ? and l.reviewed_at >= ?
+                   and (l.session_id is null
+                        or exists (select 1 from vocab_review_sessions s
+                                    where s.id = l.session_id
+                                      and s.scope ->> 'source' = 'today'))
                 """, Long.class, userId, Timestamp.from(dayStart));
         return count == null ? 0 : count;
     }

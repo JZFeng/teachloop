@@ -7,7 +7,7 @@ import { BasePage } from '../pages/base/BasePage'
 /**
  * 011 / T567：三条学生路径（不跑 UI 造数据，全部 API 前置 + 1–2 个 UI 动作）。
  *
- * 1. 加词 → 今日页 → 开始复习
+ * 1. 加词 → 今日页 → 开始复习 → 今日复习页点开始 → 全屏会话（T595）
  * 2. 登录态 → 我的词单
  * 3. 教师发词 → 学生领取 → 今日页复习卡出现
  *
@@ -39,6 +39,14 @@ test.describe('学生三条路径', () => {
 
     await expect(page).toHaveURL(/\/vocab\/review$/)
     await expect(page.locator('.tl-tab').nth(0)).toHaveAttribute('aria-selected', 'true')
+
+    // T595 / AC-91.3：这一页只剩张数与「开始复习」，点开始进全屏会话——会话页没有 Tab、没有壳。
+    const focusStart = page.getByTestId('today-review-focus-start')
+    await expect(focusStart).toBeVisible()
+    await focusStart.click()
+    await expect(page).toHaveURL(/\/vocab\/review\/session\//)
+    await expect(page.locator('.tl-tab')).toHaveCount(0)
+    await expect(page.getByTestId('vocab-shell')).toHaveCount(0)
   })
 
   test('路径 2：登录态打开我的词单，Tab 高亮且页面停在 /vocab/lists', async ({ page }) => {

@@ -1,7 +1,8 @@
-import type { ReactNode } from 'react'
+import { useState, type ReactNode } from 'react'
 import { Outlet, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { ViewTabs } from '../ui'
+import { VocabTabSlotContext } from './VocabTabExtra'
 import './vocab.css'
 
 /**
@@ -14,6 +15,9 @@ import './vocab.css'
  *
  * 真正复习是全屏会话（`/vocab/review/session/:id`），不经过这个壳（AC-91.3）：
  * 那一屏没有侧栏也没有 Tab，见 `VocabFocusLayout`。
+ *
+ * 2026-10-30（T596 / AC-91.6）：三个 Tab 页不再渲染自己的 `h1`——标题就是这排页签。
+ * 页级动作（ⓘ / 新建词单）由页面 portal 进 Tab 行右端的槽（`VocabTabExtra.tsx`）。
  */
 const TABS = [
   { key: 'review', to: '/vocab/review', labelKey: 'vocab.nav.review' },
@@ -27,15 +31,19 @@ export default function VocabShell() {
   // 深链直接打开任一地址时对应 Tab 高亮；子路径（如词单详情）仍高亮所属 Tab。
   const selected = TABS.find((tab) => pathname === tab.to || pathname.startsWith(`${tab.to}/`))?.key
     ?? 'review'
+  const [slot, setSlot] = useState<HTMLDivElement | null>(null)
 
   return (
-    <div className="vocab-shell" data-testid="vocab-shell">
-      <ViewTabs
-        items={TABS.map((tab) => ({ key: tab.key, label: t(tab.labelKey), to: tab.to }))}
-        selected={selected}
-      />
-      <Outlet />
-    </div>
+    <VocabTabSlotContext.Provider value={slot}>
+      <div className="vocab-shell" data-testid="vocab-shell">
+        <ViewTabs
+          items={TABS.map((tab) => ({ key: tab.key, label: t(tab.labelKey), to: tab.to }))}
+          selected={selected}
+          extra={<div className="vocab-tab-slot" ref={setSlot} />}
+        />
+        <Outlet />
+      </div>
+    </VocabTabSlotContext.Provider>
   )
 }
 

@@ -38,7 +38,9 @@ import tools.jackson.databind.ObjectMapper;
  * 不受到期时间与每日新卡限制；「认识」照常推进调度（复用 T405 的评分提交，日志带 session_id），
  * 「暂停复习」只停该词排期并跳下一张；随时结束并给出小结；再次进入默认从上次 cursor 续位。
  *
- * <p>本期不写入「今日复习」完成数：队列的 todayReviewed 只数 `session_id is null` 的日志。
+ * <p>本期（T595 / 2026-10-30）新增 `source=today`：今日复习也走会话，这类会话的评分日志
+ * 计入「今日已复习」；词单 / 词库 / 词书发起的会话仍然不计入（AC-61.5）。
+ * 判定靠 `scope.source`，SQL 在 {@link ReviewQueueStore#countReviewedToday}。
  *
  * <p>分层：范围指纹、wordIds 解析与评分提交留在这里；SQL 在 {@link ReviewSessionRepository}。
  */
@@ -82,8 +84,12 @@ public class ReviewSessionEndpoint {
      * `fromStart` 必须是包装类型：Jackson 3 默认 `FAIL_ON_NULL_FOR_PRIMITIVES`，
      * 只传 `{"listId": ...}` 时基本类型会因「缺失即 null」抛 500（2026-10-30 实测）。
      * null 按 false 处理，与旧客户端的语义一致。
+     *
+     * <p>`source`（T595 / AC-91.3）：`today` 表示「今日复习」发起的会话——只差一件事：
+     * 这类会话的评分日志要计入「今日已复习」（口径见 `ReviewQueueStore#countReviewedToday`）。
+     * 词单 / 词库 / 词书发起的会话不传或传其它值，仍不计入今日完成数（AC-61.5 不变）。
      */
-    public record CreateRequest(List<UUID> wordIds, Boolean fromStart, UUID listId) {
+    public record CreateRequest(List<UUID> wordIds, Boolean fromStart, UUID listId, String source) {
     }
 
     public record SessionView(UUID id, int total, int cursor, int lastCursor, String scopeKey) {
@@ -126,12 +132,24 @@ public class ReviewSessionEndpoint {
         if (eligible.isEmpty()) {
             throw ApiException.badRequest("no reviewable words");
         }
-        String scopeKey = scopeKey(eligible);
+        boolean today = "today".equals(request.source());
+        // 今日复习的 key 加前缀：同一批词在词单 / 词库那边也开过会话时，两边的续位游标不能串。
+        String scopeKey = today ? scopeKeyForToday(eligible) : scopeKey(eligible);
         SessionRow previous = sessions.latestByScope(me.id(), scopeKey).orElse(null);
-        int cursor = !restart(request) && previous != null ? previous.cursor() : 0;
+        // 今日复习（T595）：同一批词如果这一轮已经走到尾，再点「开始复习」就从头开始——
+        // 否则队列没及时把这些词排走时，学生会直接看到「0 张」的小结。词单 / 词库路径保持原语义。
+        int cursor = !restart(request) && previous != null
+                && !(today && previous.cursor() >= previous.total())
+                ? previous.cursor() : 0;
         UUID id = UUID.randomUUID();
-        String scope = mapper.writeValueAsString(Map.of("key", scopeKey, "wordIds", eligible));
-        sessions.insertSession(id, me.id(), scope, eligible.size(), cursor, clock.instant());
+        Map<String, Object> scope = new LinkedHashMap<>();
+        scope.put("key", scopeKey);
+        if (today) {
+            scope.put("source", "today");
+        }
+        scope.put("wordIds", eligible);
+        sessions.insertSession(id, me.id(), mapper.writeValueAsString(scope), eligible.size(), cursor,
+                clock.instant());
         return new SessionView(id, eligible.size(), cursor, cursor, scopeKey);
     }
 
@@ -249,6 +267,13 @@ public class ReviewSessionEndpoint {
                 sessions.advance(id, session.cursor(), 0, paused ? -1 : 1, clock.instant());
                 return new AdvanceResult(session.cursor(), session.total(), false);
             }
+            case "DELETE" -> {
+                // 2026-10-31（用户要求把「删除当前单词」加回复习会话）：软删除与词库页行内删除同一个方法
+                // （AC-59.11：列表 / 搜索 / 队列 / 统计都看不见，历史日志保留），删完推进游标。
+                if (!words.delete(me.id(), wordId)) {
+                    throw ApiException.notFound("word not found");
+                }
+            }
             case "KNOWN", "DONT_KNOW" -> {
                 submit.submit(new ReviewSubmitEndpoint.SubmitRequest(wordId, action,
                         request.elapsedMs(), id), null, me);
@@ -256,7 +281,8 @@ public class ReviewSessionEndpoint {
                     knownIncrement = 1;
                 }
             }
-            default -> throw ApiException.badRequest("action must be KNOWN, DONT_KNOW, PAUSE, SKIP or TOGGLE_PAUSE");
+            default -> throw ApiException.badRequest(
+                    "action must be KNOWN, DONT_KNOW, PAUSE, DELETE, SKIP or TOGGLE_PAUSE");
         }
         int cursor = session.cursor() + 1;
         sessions.advance(id, cursor, knownIncrement, pausedIncrement, clock.instant());
@@ -302,9 +328,18 @@ public class ReviewSessionEndpoint {
     }
 
     private static String scopeKey(List<UUID> wordIds) {
+        return sha256(wordIds.toString());
+    }
+
+    /** 今日复习的会话范围（T595）：与自由复习同前缀隔离，避免两种来源互相续位。 */
+    private static String scopeKeyForToday(List<UUID> wordIds) {
+        return sha256("today|" + wordIds);
+    }
+
+    private static String sha256(String payload) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            digest.update(wordIds.toString().getBytes(StandardCharsets.UTF_8));
+            digest.update(payload.getBytes(StandardCharsets.UTF_8));
             return HexFormat.of().formatHex(digest.digest());
         } catch (Exception ex) {
             throw new IllegalStateException(ex);

@@ -1,0 +1,513 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>今日复习改全屏会话 · Mock · TeachLoop</title>
+<style>
+  /* 令牌与 docs/mock/self-study-2026-10-30 同一份值（主色 #1A63E0，圆角 12/8/6，正文 14px） */
+  :root {
+    --bg:#f6f8fc; --panel:#fff; --panel-2:#eff4fb;
+    --line:#dce4f2; --line-2:#ebf0f8; --line-strong:#7c8ba3;
+    --text:#0e2340; --muted:#41536e; --muted-2:#55677f;
+    --accent:#1a63e0; --accent-2:#1450bc; --accent-weak:#e8effd; --on-accent:#fff;
+    --green:#17703f; --green-weak:#e6f5ec;
+    --amber:#8a5a00; --amber-weak:#fff3d6;
+    --red:#b42338; --red-weak:#fde6e8;
+    --shadow:0 1px 2px rgba(14,54,118,.05),0 1px 3px rgba(14,54,118,.07);
+    --radius:12px; --radius-sm:8px; --radius-xs:6px;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:var(--font); font-size:14px; line-height:1.65;
+         background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  [hidden] { display:none !important; }
+  h1,h2,h3,p { margin:0; }
+
+  /* 壳层：侧栏 + 内容（只在「准备页 / 口径对照」出现；全屏会话与小结都不带壳） */
+  .layout { display:grid; grid-template-columns:236px minmax(0,1fr); min-height:100vh; }
+  .layout.full { grid-template-columns:1fr; }
+  .layout.full .side { display:none; }
+
+  .side { background:var(--panel); border-right:1px solid var(--line); padding:16px 12px;
+          height:100vh; position:sticky; top:0; display:flex; flex-direction:column; }
+  .brand { display:flex; align-items:center; gap:9px; padding:4px 8px 18px; font-size:16px; font-weight:600; }
+  .brand .mark { width:26px; height:26px; border-radius:var(--radius-sm); background:#0e3676; color:#fff;
+                 display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .nav-label { font-size:13px; color:var(--muted-2); padding:10px 10px 6px; }
+  .nav-item { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:var(--radius-sm);
+              color:var(--muted); border:0; background:transparent; width:100%; text-align:left; margin-bottom:2px; }
+  .nav-item.on { background:var(--accent-weak); color:var(--accent); font-weight:500; }
+  .side-foot { margin-top:auto; font-size:13px; color:var(--muted-2); padding:10px 10px 4px; }
+
+  /* 顶栏：原型开关，不属于产品界面 */
+  .top { position:sticky; top:0; z-index:5; background:rgba(246,248,252,.94);
+         border-bottom:1px solid var(--line); padding:8px 24px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .top .grp { display:flex; gap:6px; align-items:center; }
+  .top .tag { font-size:13px; color:var(--muted-2); }
+  .top button { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-xs);
+                padding:3px 9px; font-size:13px; color:var(--muted); }
+  .top button.on { border-color:var(--accent); color:var(--accent); background:var(--accent-weak); font-weight:500; }
+  #menu { display:none; border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-xs);
+          padding:3px 9px; font-size:13px; color:var(--muted); }
+
+  .main { padding:24px 32px 80px; max-width:1240px; }
+  .stack { max-width:880px; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .card + .card { margin-top:16px; }
+  .card-head { display:flex; align-items:baseline; gap:10px; padding:16px 20px 0; }
+  .card-head h2 { font-size:15px; font-weight:600; }
+  .card-body { padding:14px 20px 18px; }
+
+  .btn { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-sm);
+         padding:7px 16px; font-size:14px; line-height:1.5; }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:500; }
+  .btn.ghost { border-color:transparent; color:var(--accent); background:transparent; padding:4px 8px; }
+  .btn.sm { padding:3px 10px; font-size:13px; }
+  .btn.lg { padding:11px 22px; font-size:15px; }
+
+  /* 页内 Tab（准备页仍在壳里，Tab 保留）
+     —— 决策 A：标题由壳层 Tab 承担，页面不再渲染自己的 h1，ⓘ 与页面动作移到 Tab 行右端 */
+  .tabbar { display:flex; align-items:center; gap:8px; border-bottom:1px solid var(--line); margin:14px 0 16px; }
+  .tabs { display:flex; gap:2px; }
+  .tabs button { border:0; background:none; padding:9px 14px; font-size:14px; color:var(--muted);
+                 border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tabs button.on { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+  .tabbar-right { margin-left:auto; display:flex; align-items:center; gap:8px; padding-bottom:4px; }
+
+  .page-head { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .page-head h1 { font-size:24px; font-weight:600; letter-spacing:-.2px; }
+  .info { width:20px; height:20px; border-radius:50%; border:1px solid var(--line-strong); color:var(--muted);
+          background:var(--panel); font-size:13px; line-height:1; display:grid; place-items:center; padding:0; }
+  .info.on { border-color:var(--accent); color:var(--accent); background:var(--accent-weak); }
+  .tip { border:1px solid var(--line); background:var(--panel-2); border-radius:var(--radius-sm);
+         padding:10px 14px; margin:10px 0 0; font-size:13.5px; color:var(--muted); }
+  .tip table { width:100%; border-collapse:collapse; margin-top:6px; }
+  .tip td { padding:3px 0; }
+  .tip td:last-child { text-align:right; color:var(--text); font-variant-numeric:tabular-nums; }
+
+  /* 今日复习准备卡 */
+  .rev { display:flex; gap:24px; align-items:flex-end; }
+  .rev .big { font-size:44px; font-weight:600; line-height:1.1; letter-spacing:-1px; font-variant-numeric:tabular-nums; }
+  .rev .unit { font-size:13px; color:var(--muted-2); margin-left:6px; }
+  .rev .facts { display:flex; gap:18px; color:var(--muted-2); font-size:13px; margin-top:6px; flex-wrap:wrap; }
+  .rev .facts b { color:var(--text); font-weight:600; }
+  .rev .act { margin-left:auto; text-align:right; }
+  .rev .act .hint { font-size:13px; color:var(--muted-2); margin-top:8px; }
+
+  /* 全屏会话（对应 AC-91.3：无侧栏、无 Tab、卡片 720px 居中）
+     —— 顶栏是原型开关，真实界面没有，所以高度减掉它，避免卡片 + 评分按钮被顶出首屏 */
+  .main.full { max-width:none; padding:0; }
+  .session { min-height:calc(100vh - 57px); display:flex; flex-direction:column; }
+  .session-top { padding:14px 32px; display:flex; gap:14px; align-items:center; border-bottom:1px solid var(--line);
+                 background:var(--panel); }
+  .session-top .meta { font-size:13.5px; color:var(--muted-2); font-variant-numeric:tabular-nums; white-space:nowrap; }
+  .bar { flex:1; height:6px; border-radius:999px; background:var(--panel-2); overflow:hidden; max-width:520px; }
+  .bar > i { display:block; height:100%; background:var(--accent); border-radius:999px; }
+  .session-mid { flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center;
+                 gap:20px; padding:20px 24px; }
+  .card720 { width:100%; max-width:720px; }
+  .wcard { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius);
+           box-shadow:var(--shadow); padding:24px 28px 20px; cursor:pointer; min-height:340px;
+           display:flex; flex-direction:column; }
+  .wcard-head { display:flex; justify-content:flex-end; gap:4px; margin-bottom:4px; }
+  /* 评分按钮在卡片内部最下方、只在正面显示（AC-53.9 与现有实现一致；011 spec §7 写的是「卡片下方」，待统一） */
+  .wcard-rate { display:flex; gap:12px; margin-top:auto; padding-top:18px; }
+  .wcard-rate .btn { flex:1; }
+  .icon { width:30px; height:30px; border:1px solid transparent; background:transparent; border-radius:var(--radius-xs);
+          display:grid; place-items:center; color:var(--muted-2); padding:0; }
+  .icon:hover { border-color:var(--line); background:var(--panel-2); color:var(--text); }
+  .icon svg { width:16px; height:16px; display:block; }
+  .front { text-align:center; padding:18px 0 6px; }
+  .word { font-size:44px; font-weight:600; letter-spacing:-.8px; line-height:1.2; }
+  .phon { margin-top:12px; display:flex; gap:18px; justify-content:center; color:var(--muted-2); font-size:14px; }
+  .phon button { border:0; background:none; padding:0; color:var(--muted-2); display:inline-flex; align-items:center; gap:4px; }
+  .phon button:hover { color:var(--accent); }
+  .phon svg { width:15px; height:15px; }
+  .flip-hint { margin-top:22px; font-size:13px; color:var(--muted-2); }
+  .back { margin-top:22px; border-top:1px solid var(--line-2); padding-top:20px; text-align:left; }
+  .sense { font-size:15px; }
+  .sense b { color:var(--muted); font-weight:600; margin-right:6px; }
+  .ex { margin-top:10px; font-size:14px; color:var(--muted); }
+  .ex .zh { color:var(--muted-2); font-size:13.5px; display:block; }
+  .build { margin-top:12px; font-size:13.5px; color:var(--muted-2); }
+
+  /* 小结 */
+  .summary { max-width:720px; margin:0 auto; padding:28px 24px 40px; }
+  .sum-nums { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin:18px 0 22px; }
+  .sum-num { border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px 16px; background:var(--panel); }
+  .sum-num .n { font-size:26px; font-weight:600; line-height:1.2; font-variant-numeric:tabular-nums; }
+  .sum-num .l { font-size:13px; color:var(--muted-2); }
+  .sum-actions { display:flex; gap:10px; flex-wrap:wrap; }
+
+  /* 口径对照 */
+  table.cmp { width:100%; border-collapse:collapse; }
+  table.cmp th { text-align:left; font-size:13px; font-weight:500; color:var(--muted-2);
+                 padding:8px 10px; border-bottom:1px solid var(--line); background:var(--panel-2); vertical-align:top; }
+  table.cmp td { padding:10px; border-bottom:1px solid var(--line-2); font-size:13.5px; vertical-align:top; }
+  table.cmp tr:last-child td { border-bottom:0; }
+  table.cmp td.num { font-variant-numeric:tabular-nums; font-weight:600; }
+  .bad { color:var(--red); }
+  .good { color:var(--green); }
+  .tag { display:inline-block; font-size:13px; padding:1px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .tag.blue { color:var(--accent); background:var(--accent-weak); border-color:#cddefb; }
+  .tag.amber { color:var(--amber); background:var(--amber-weak); border-color:#eed9a6; }
+  .muted { color:var(--muted-2); }
+  .small { font-size:13px; }
+  .note { border-left:3px solid var(--accent); background:var(--accent-weak); color:#123c86;
+          padding:10px 14px; border-radius:var(--radius-xs); font-size:13.5px; margin-bottom:16px; }
+  .note b { font-weight:600; }
+  .mark-new { border-left:3px solid var(--amber); background:var(--amber-weak); color:#6b4600;
+              padding:10px 14px; border-radius:var(--radius-xs); font-size:13.5px; margin:12px 0 0; }
+  .foot { max-width:1100px; padding:0 32px 40px; color:var(--muted-2); font-size:13px; }
+  .empty { padding:22px 0 10px; color:var(--muted-2); font-size:14px; }
+
+  /* 断点只用现有两档：1100（单列）/ 1023（壳层侧栏抽屉），与 AGENTS 平板规则一致 */
+  @media (max-width:1100px) { .sum-nums { grid-template-columns:1fr; } }
+  @media (max-width:1023px) {
+    .layout { grid-template-columns:1fr; }
+    .side { position:fixed; left:0; top:0; width:236px; z-index:20; transform:translateX(-100%);
+            box-shadow:var(--shadow); }
+    .side.open { transform:none; }
+    .main { padding:20px 20px 64px; }
+    #menu { display:inline-block; }
+    .rev { flex-direction:column; align-items:flex-start; gap:16px; }
+    .rev .act { margin-left:0; text-align:left; }
+    .session-top { padding:12px 20px; }
+    .session-mid { padding:16px; gap:14px; }
+    .wcard { padding:20px 18px 16px; min-height:300px; }
+    .word { font-size:36px; }
+  }
+</style>
+</head>
+<body>
+<div class="layout" id="layout">
+  <aside class="side" id="side"></aside>
+  <div>
+    <div class="top">
+      <button id="menu" onclick="document.getElementById('side').classList.toggle('open')">菜单</button>
+      <div class="grp"><span class="tag">屏</span>
+        <button id="s-prep" class="on" onclick="go('prep')">① 今日复习（准备）</button>
+        <button id="s-session" onclick="go('session')">② 全屏会话</button>
+        <button id="s-summary" onclick="go('summary')">③ 会话小结</button>
+        <button id="s-count" onclick="go('count')">④ 计数口径</button>
+      </div>
+      <div class="grp"><span class="tag">卡片</span>
+        <button id="s-front" class="on" onclick="setFlip(false)">正面</button>
+        <button id="s-back" onclick="setFlip(true)">反面</button>
+      </div>
+      <div class="grp"><span class="tag">数据</span>
+        <button id="s-full" class="on" onclick="setData('full')">有卡</button>
+        <button id="s-empty" onclick="setData('empty')">今天没卡</button>
+      </div>
+    </div>
+    <div class="main" id="main"></div>
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script>
+const S = { screen:'prep', flipped:false, data:'full', tip:false, rated:null };
+
+const 词 = [
+  { w:'abandon', uk:'/əˈbændən/', us:'/əˈbændən/',
+    sense:[['v.','放弃；抛弃'],['v.','遗弃；离弃']],
+    ex:'They abandoned the plan after the second failure.',
+    exZh:'第二次失败之后，他们放弃了那个计划。',
+    build:'a-（加强）+ bandon（控制）→ 放弃控制 → 放弃' },
+  { w:'benefit', uk:'/ˈbenɪfɪt/', us:'/ˈbenɪfɪt/',
+    sense:[['n.','好处；益处'],['v.','受益；得益']],
+    ex:'Both sides benefit from the new timetable.',
+    exZh:'双方都从新的时间表里受益。',
+    build:'bene-（好）+ fit（做）→ 做好事 → 好处' }
+];
+
+/** 页面上的数字统一从这里取，避免「计数口径」那屏和前面几屏各写一套 */
+const 数据 = {
+  full:  { 待复习:24, 今日已复习:8, 新词:10, 上限:20, 本轮:16, 认识:12, 不认识:4, 暂停:0, 用时:'6 分 20 秒' },
+  empty: { 待复习:0,  今日已复习:24, 新词:20, 上限:20, 本轮:0,  认识:0,  不认识:0, 暂停:0, 用时:'—' }
+};
+
+function go(v){ S.screen = v; if (S.screen !== 'session') S.rated = null; paint(); }
+function setFlip(v){ S.flipped = v; if (S.screen !== 'session') S.screen = 'session'; paint(); }
+function setData(v){ S.data = v; paint(); }
+function toggleTip(){ S.tip = !S.tip; paint(); }
+function rate(kind){ S.rated = kind; paint(); }
+function nextCard(){ S.flipped = false; S.rated = null; paint(); }
+
+const ICON = {
+  star:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 4.5l2.3 4.9 5.2.7-3.8 3.6.9 5.2-4.6-2.5-4.6 2.5.9-5.2L4.5 10l5.2-.7z"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 7h14M9 7V5h6v2M7 7l1 12h8l1-12"/></svg>',
+  pause:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 5v14M15 5v14"/></svg>',
+  speaker:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 10v4h3l4 3V7L8 10z"/><path d="M16 9.5a4 4 0 010 5"/></svg>'
+};
+
+function sideNav(){
+  document.getElementById('side').innerHTML = `
+    <div class="brand"><span class="mark">T</span>TeachLoop</div>
+    <div class="nav-label">学习</div>
+    <button class="nav-item">今日</button>
+    <button class="nav-item ${S.screen==='prep'||S.screen==='count'?'on':''}">背单词</button>
+    <button class="nav-item">作业</button>
+    <div class="side-foot">初二（3）班 · 王老师</div>`;
+}
+
+/* ① 今日复习准备页：改后这里只剩「张数 + ⓘ + 开始按钮」，卡片舞台搬进全屏会话 */
+function prepPage(){
+  const d = 数据[S.data];
+  const empty = S.data === 'empty';
+
+  const head = `<div class="small muted" style="margin-bottom:14px">王晨曦 · 今天已复习 ${d.今日已复习} 张</div>`;
+
+  const tip = S.tip ? `<div class="tip">
+      <div>今日已复习 <b>${d.今日已复习}</b> 张 · 剩余待复习 <b>${d.待复习}</b> 张 · 本次新卡 <b>${d.新词}</b> 张（每日上限 ${d.上限}）</div>
+      <table>
+        <tr><td>下个单词</td><td>N / →</td></tr>
+        <tr><td>单词详情（翻面）</td><td>空格</td></tr>
+        <tr><td>不认识 / 认识</td><td>1 / 2</td></tr>
+        <tr><td>英音 / 美音</td><td>U / A</td></tr>
+        <tr><td>收藏</td><td>F</td></tr>
+        <tr><td>删除当前单词</td><td>Delete</td></tr>
+      </table></div>` : '';
+
+  const readyCard = `<div class="card"><div class="card-head"><h2>今天这一轮</h2></div>
+    <div class="card-body"><div class="rev">
+      <div><div class="big">${d.待复习}<span class="unit">张待复习</span></div>
+        <div class="facts"><span>今天已复习 <b>${d.今日已复习}</b></span><span>新词 <b>${d.新词}</b></span><span>每日上限 <b>${d.上限}</b></span></div></div>
+      <div class="act"><button class="btn primary lg" onclick="go('session')">开始复习</button>
+        <div class="hint">进入全屏，无侧栏无 Tab</div></div>
+    </div></div></div>`;
+
+  const doneCard = `<div class="card"><div class="card-head"><h2>今天背完了</h2></div>
+    <div class="card-body">
+      <div class="rev"><div><div class="big">${d.今日已复习}<span class="unit">张今天已复习</span></div>
+        <div class="facts"><span>新词 <b>${d.新词}</b></span><span>明天到期 <b>6</b></span></div></div>
+      <div class="act"><button class="btn primary">来个小测（12 词）</button>
+        <div class="hint">小测只考今天复习过的词</div></div></div></div></div>`;
+
+  const ruleCard = `<div class="card"><div class="card-head"><h2>复习规则</h2></div>
+    <div class="card-body small muted">两档评分：认识 → 下次间隔变长；不认识 → 自动翻面，间隔缩短。
+      连续 4 次认识且间隔 ≥ 45 天毕业。</div></div>`;
+
+  const changed = `<div class="mark-new"><b>这屏的改造点：</b>卡片舞台从这一页移走，只剩张数、ⓘ 与「开始复习」。
+    现在（改造前）这一页自己就出卡、自己评分（<code>web/src/vocab/ReviewPage.tsx:556</code>），
+    与「我的词单 / 我的词库」进去后的全屏会话是两套逻辑。</div>`;
+
+  // 与真实壳层同序：Tab 由 VocabShell 画在 Outlet 上方，页面自己的 h1 在 Tab 下面
+  const dupNote = `<div class="note"><b>这一屏已按两次拍板改过：</b>一是页面不再渲染自己的 h1，
+    标题由壳层 Tab 承担，ⓘ 移到 Tab 行右端；二是<b>「偏好设置」齿轮整块删掉</b>——
+    开始复习了就不再给设置入口，任务量 / 策略 / 反面内容 / 顺序全在
+    <code>/profile</code> 的「背单词」块（<code>ProfilePage.tsx:317</code>），那里本来就已经是完整版。
+    删掉的只有 <code>ReviewPage.tsx:407</code> 那个 compact 抽屉。</div>`;
+
+  return `<div class="tabbar">
+      <nav class="tabs">
+        <button class="on">今日复习</button><button>我的词单</button><button>我的词库</button>
+      </nav>
+      <div class="tabbar-right">
+        <button class="info ${S.tip?'on':''}" onclick="toggleTip()" aria-label="说明与快捷键">i</button>
+      </div>
+    </div>
+    ${head}
+    <div class="stack">${empty ? doneCard : readyCard}${ruleCard}${changed}${dupNote}${tip}</div>`;
+}
+
+/* ② 全屏会话：无侧栏、无 Tab、卡片 720px（AC-91.3 + spec §7 三档宽度） */
+function sessionPage(){
+  const d = 数据[S.data];
+  if (S.data === 'empty') {
+    return `<div class="session"><div class="session-mid"><div class="card card720">
+      <div class="card-body" style="text-align:center">
+        <div style="font-size:16px;font-weight:600">今天没有要复习的卡</div>
+        <div class="small muted" style="margin-top:8px">明天到期 6 张，届时会出现在这里。</div>
+        <div style="margin-top:16px"><button class="btn" onclick="go('prep')">回今日复习</button></div>
+      </div></div></div></div>`;
+  }
+  const w = 词[0];
+  const cardIndex = 9;
+  const pct = Math.round((cardIndex - 1) / d.待复习 * 100);
+
+  const front = `<div class="front">
+      <div class="word">${w.w}</div>
+      <div class="phon">
+        <button onclick="event.stopPropagation()">${ICON.speaker}英 ${w.uk}</button>
+        <button onclick="event.stopPropagation()">${ICON.speaker}美 ${w.us}</button>
+      </div>
+      <div class="flip-hint">点击卡片或按空格看答案</div>
+    </div>`;
+
+  const back = `<div class="back">
+      ${w.sense.map(([pos, zh]) => `<div class="sense"><b>${pos}</b>${zh}</div>`).join('')}
+      <div class="ex">${w.ex}<span class="zh">${w.exZh}</span></div>
+      <div class="build">构词：${w.build}</div>
+    </div>`;
+
+  // 评分两档在卡片内部最下方，且只在正面出现（与现有 VocabReviewCard 一致）
+  const rateRow = S.flipped ? '' : `<div class="wcard-rate">
+      <button class="btn lg" onclick="event.stopPropagation();rate('unknown')">不认识</button>
+      <button class="btn primary lg" onclick="event.stopPropagation();rate('known')">认识</button>
+    </div>`;
+
+  const rated = S.rated
+    ? `<div class="small muted" style="text-align:center">
+        已记为「${S.rated === 'known' ? '认识' : '不认识'}」，这词今天的排期已更新 ·
+        <button class="btn sm" onclick="nextCard()">下一个 →</button></div>`
+    : '';
+
+  return `<div class="session">
+    <div class="session-top">
+      <span class="meta">今日复习 · 第 ${cardIndex} 张 / 共 ${d.待复习} 张</span>
+      <div class="bar"><i style="width:${pct}%"></i></div>
+      <span style="flex:1"></span>
+      <button class="btn sm" onclick="go('summary')">结束复习</button>
+    </div>
+    <div class="session-mid"><div class="card720">
+      <div class="wcard" onclick="setFlip(!S.flipped)">
+        <div class="wcard-head">
+          <button class="icon" onclick="event.stopPropagation()" aria-label="收藏">${ICON.star}</button>
+          <button class="icon" onclick="event.stopPropagation()" aria-label="删除">${ICON.trash}</button>
+          <button class="icon" onclick="event.stopPropagation()" aria-label="暂停这个词">${ICON.pause}</button>
+        </div>
+        ${S.flipped ? back : front}
+        ${rateRow}
+      </div>
+    </div>${rated}
+    <div class="small muted" style="text-align:center">
+      评分按钮在卡片内部最下方、只在正面出现（AC-53.9 与现有实现一致，2026-10-30 拍板保留）；011 spec §7 那句「按钮在卡片下方」回改。
+    </div></div>
+  </div>`;
+}
+
+/* ③ 会话小结：会话比页内卡片多出来的东西 */
+function summaryPage(){
+  const d = 数据[S.data];
+  return `<div class="session"><div class="summary">
+    <div style="font-size:22px;font-weight:600">这一轮复习完了</div>
+    <div class="small muted" style="margin-top:6px">今日复习 · 用时 ${d.用时}</div>
+    <div class="sum-nums">
+      <div class="sum-num"><div class="n">${d.本轮}</div><div class="l">本轮看过</div></div>
+      <div class="sum-num"><div class="n">${d.认识}</div><div class="l">认识</div></div>
+      <div class="sum-num"><div class="n">${d.不认识}</div><div class="l">不认识</div></div>
+    </div>
+    <div class="card"><div class="card-body">
+      <div class="small muted">今天已复习 <b style="color:var(--text)">${d.今日已复习 + d.本轮} 张</b>
+        （含本轮的 ${d.本轮} 张）· 明天到期 6 张</div>
+      <div class="mark-new" style="margin-top:12px">这一行是本方案唯一的后端改动：
+        会话里的评分日志带 <code>session_id</code>，现在被排除在「今日已复习」之外
+        （<code>ReviewQueueStore.java:104</code> 的 <code>session_id is null</code>）；
+        要加一个「这条日志属于 source=today 的会话」分支，否则做完会话这里会显示 0。</div>
+    </div></div>
+    <div class="sum-actions" style="margin-top:18px">
+      <button class="btn primary" onclick="go('prep')">回今日复习</button>
+      <button class="btn">来个小测</button>
+      <button class="btn">去我的词库</button>
+    </div>
+    <div class="small muted" style="margin-top:18px">快捷键与三个数都在准备页的 ⓘ 里，这一屏不重复放。</div>
+  </div></div>`;
+}
+
+/* ④ 计数口径对照：为什么必须动那一条 SQL */
+function countPage(){
+  return `<div class="page-head"><h1>计数口径对照</h1></div>
+  <div class="stack">
+    <div class="note"><b>一句话：</b>「今日已复习」现在只数 <code>session_id is null</code> 的日志。
+      今日复习一改成会话，日志就带上 <code>session_id</code>，这个数会变成 0 —— 所以 A 方案必须同时改这一条 SQL。</div>
+    <div class="card"><div class="card-head"><h2>同一组动作，三种口径下的结果</h2></div>
+      <div class="card-body" style="padding-top:10px">
+        <div class="small muted" style="margin-bottom:10px">
+          动作：① 在「我的词单」里自由复习 5 个词；② 在今日复习里背 16 个词。
+        </div>
+        <table class="cmp">
+          <thead><tr>
+            <th style="width:28%">口径</th><th style="width:24%">① 自由复习 5</th>
+            <th style="width:24%">② 今日复习 16</th><th>「今日已复习」显示</th>
+          </tr></thead>
+          <tbody>
+            <tr><td><b>改造前</b><br><span class="small muted">页内卡片，日志无 session_id</span></td>
+              <td class="num">不计入</td><td class="num">计入 16</td>
+              <td class="num good">16</td></tr>
+            <tr><td><b>改造后 · 只改前端</b><br><span class="small muted">会话日志有 session_id</span></td>
+              <td class="num">不计入</td><td class="num">不计入</td>
+              <td class="num bad">0 ← 明显是 bug</td></tr>
+            <tr><td><b>改造后 · 连带改口径</b><br><span class="small muted">source=today 的会话日志计入</span></td>
+              <td class="num">不计入</td><td class="num">计入 16</td>
+              <td class="num good">16</td></tr>
+          </tbody>
+        </table>
+        <div class="small muted" style="margin-top:12px">
+          自由复习仍然不计入（AC-61.5 不变）：它和今日复习是两条调度入口，混在一起会让「今天背完没有」失去意义。
+        </div>
+      </div></div>
+
+    <div class="card"><div class="card-head"><h2>连带要确认的三件事</h2></div>
+      <div class="card-body">
+        <table class="cmp">
+          <thead><tr><th style="width:26%">点</th><th style="width:30%">现在</th><th>改后</th></tr></thead>
+          <tbody>
+            <tr><td>会话范围</td><td>词单 / 词库传入 <code>wordIds</code>，≤1000</td>
+              <td>今日队列按到期升序取齐后传入；超过 1000 时只取前 1000，背完回准备页再开一轮</td></tr>
+            <tr><td>每日新卡上限</td><td>页面自己翻页时生效（AC-52.3）</td>
+              <td>建会话时就算进快照，会话里不再新增；上限调小不影响已经开始的一轮</td></tr>
+            <tr><td>续位</td><td>今日复习刷新后从头到尾靠游标</td>
+              <td>会话自带 cursor：关掉浏览器再进来从上次那张继续</td></tr>
+          </tbody>
+        </table>
+      </div></div>
+
+    <div class="mark-new"><b>要不要做的一句话判断：</b>如果这三件事你都认（尤其第一行的「超过 1000 分两轮」），
+      A 方案就是我推荐的形态；如果你更想保住「随时刷新都不丢位置」，那就退回 B（薄改：只把现在这页套进全屏壳）。</div>
+  </div>`;
+}
+
+function paint(){
+  sideNav();
+  const full = S.screen === 'session' || S.screen === 'summary';
+  document.getElementById('layout').classList.toggle('full', full);
+  document.getElementById('main').classList.toggle('full', full);
+
+  const main = document.getElementById('main');
+  main.innerHTML = S.screen === 'prep' ? prepPage()
+    : S.screen === 'session' ? sessionPage()
+    : S.screen === 'summary' ? summaryPage() : countPage();
+
+  document.getElementById('foot').textContent =
+    '示例数据，不是真实账号；词条释义与例句为占位。规格：specs/011-self-study-mode/spec.md 的 AC-91.3、specs/004-vocab/spec.md 的 AC-52.2。';
+
+  const map = {
+    's-prep': S.screen==='prep', 's-session': S.screen==='session',
+    's-summary': S.screen==='summary', 's-count': S.screen==='count',
+    's-front': !S.flipped, 's-back': S.flipped,
+    's-full': S.data==='full', 's-empty': S.data==='empty'
+  };
+  for (const id in map) document.getElementById(id).classList.toggle('on', map[id]);
+}
+
+/** 深链：#prep / #session?flip=1&data=empty / #summary / #count */
+function applyHash(){
+  const raw = (location.hash || '').replace(/^#/, '');
+  const [screen, qs] = raw.split('?');
+  if (['prep','session','summary','count'].includes(screen)) S.screen = screen;
+  const p = new URLSearchParams(qs || '');
+  if (p.get('flip') === '1') S.flipped = true;
+  if (p.get('data') === 'empty') S.data = 'empty';
+}
+window.addEventListener('hashchange', () => { applyHash(); paint(); });
+applyHash();
+paint();
+
+// 平板自检（AGENTS 2026-10-30）：URL 带 ?measure=1 时把两行判定写进 body[data-measure]，
+// 用 --dump-dom / 控制台读取，不靠肉眼判断横向溢出与首屏可达。
+if (location.search.indexOf('measure') >= 0) {
+  const sw = document.documentElement.scrollWidth, iw = window.innerWidth;
+  const below = [...document.querySelectorAll('button,a,[role=button]')]
+    .filter((e) => e.offsetParent)
+    .map((e) => e.getBoundingClientRect())
+    .filter((r) => r.bottom > window.innerHeight).length;
+  document.body.setAttribute('data-measure',
+    JSON.stringify({ screen: S.screen, sw, iw, noHScroll: sw <= iw + 2, actionsBelowFold: below }));
+}
+</script>
+</body>
+</html>

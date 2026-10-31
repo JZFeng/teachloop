@@ -10,7 +10,6 @@ import {
   Input,
   Loading,
   Modal,
-  PageHeader,
   RowActions,
   Tag,
   TextArea,
@@ -27,6 +26,7 @@ import {
   fetchReviewWords,
 } from './lists'
 import type { VocabList } from './lists'
+import { VocabTabExtra } from './VocabTabExtra'
 import BookRecommendations from './books/BookRecommendations'
 import { bc } from './books/copy'
 import './vocab.css'
@@ -274,16 +274,14 @@ export default function VocabListsPage() {
 
   return (
     <>
-      <PageHeader
-        title={t('vocab.lists.title')}
-        sub={t('vocab.lists.sub')}
-        actions={(
-          <Button variant="primary" disabled={atLimit} onClick={openCreate}
-            title={atLimit ? t('vocab.lists.limitReached', { max: LIST_MAX }) : undefined}>
-            {t('vocab.lists.newList')}
-          </Button>
-        )}
-      />
+      {/* T596 / AC-91.6: the tab row is the title; the new-list action portals into it. */}
+      <VocabTabExtra>
+        <Button variant="primary" disabled={atLimit} onClick={openCreate}
+          title={atLimit ? t('vocab.lists.limitReached', { max: LIST_MAX }) : undefined}>
+          {t('vocab.lists.newList')}
+        </Button>
+      </VocabTabExtra>
+      <p className="muted small vocab-tab-lead">{t('vocab.lists.sub')}</p>
 
       <DataTable
         rows={lists}

@@ -1,36 +1,34 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
-import { Button, Drawer, Empty, ErrorState, InlineNote, Loading, PageHeader, Progress, SettingOutlined, useConfirm, useToast } from '../ui'
-import { VocabReviewCard } from './VocabReviewCard'
-import { reviewCardPhase } from './reviewCardState'
+import { Button, Empty, ErrorState, InfoHint, Loading, useToast } from '../ui'
 import { useVocabAudioConfig } from './audioConfig'
 import { createQuiz } from './quiz'
-import { useWordBlocks } from './prefs'
-import { VocabPrefsCard } from './VocabPrefsCard'
-import { PREPARE_STEPS, nextPrepareWindow, prepareWords, type PrepareResult } from './prepare'
+import { PREPARE_STEPS, prepareWords } from './prepare'
+import { VocabTabExtra } from './VocabTabExtra'
 import './vocab.css'
+
+/**
+ * 今日复习 · 准备页（011 / T595，2026-10-30 拍板按 AC-91.3 字面收口）。
+ *
+ * 这一页只回答一个问题：**今天还要背多少张、现在开始**。三件事变了：
+ * 1. 卡片舞台搬进全屏会话（`/vocab/review/session/:id?source=today`），本页不再自己出卡、
+ *    不再自己评分——原来这里是 `VocabReviewCard` + 键盘评分（`ReviewPage.tsx:556` 那套），
+ *    与词单 / 词库进去的会话是两份逻辑。
+ * 2. 「偏好设置」齿轮与抽屉整个删掉（T597 / AC-91.7）：开始复习了就不再给设置入口，
+ *    任务量 / 策略 / 反面内容 / 顺序只在 `/profile` 的「背单词」块改。
+ * 3. 页面不再渲染自己的 `h1`（T596 / AC-91.6）：标题由壳层的页签承担，
+ *    ⓘ 通过 `VocabTabExtra` 挂到页签行右端。
+ *
+ * 分数与口径：三个数（今日已复习 / 剩余待复习 / 本次新卡）仍在 ⓘ 里（AC-52.2）；
+ * 会话里的评分会计入「今日已复习」——靠会话 scope 的 `source=today`（AC-52.2 口径修订）。
+ */
 
 interface QueueItem {
   id: string
   form: string
-  /** 词条语言（en/zh/es）：例句喇叭按它选音色（019，后端读路径补齐） */
-  language?: string
-  content: {
-    senses?: Array<{ pos?: string; zh?: string; en?: string }>
-    examples?: Array<{ en?: string; zh?: string }>
-    analysis?: string
-    phonetic?: { uk?: string; us?: string }
-  } | null
-  contentStatus: string
-  favorite: boolean
-  state: string
-  newCard: boolean
-  /** 排序键之一（AC-89.1 的游标由它和 id 组成） */
   dueAt: string
-  /** AC-87.9：该词最近一次小测答错的时间（30 天内），没有则为 null */
-  lastQuizWrongAt?: string | null
 }
 
 interface QueueView {
@@ -42,51 +40,20 @@ interface QueueView {
   newLimitReached: boolean
 }
 
-type Rated = 'KNOWN' | 'DONT_KNOW' | null
-
-/**
- * AC-89.2：消费到 80% 就去拉下一批。等内容全部预生成之后，第二批只是一次查询，
- * 但「批尾闪一下空态」是真的——预取主要修这个，不是省那几百毫秒。
- */
-const PREFETCH_AT = 0.8
-
-/** T427：快捷键表（顺序即展示顺序）；发音两行与卡片上的喇叭一一对应。 */
-const SHORTCUTS = [
-  { label: 'vocab.review.shortcutNext', keys: 'N / →' },
-  { label: 'vocab.review.shortcutDetail', keys: 'Space' },
-  { label: 'vocab.review.shortcutUnknown', keys: '1' },
-  { label: 'vocab.review.shortcutKnown', keys: '2' },
-  { label: 'vocab.audio.playUk', keys: 'U' },
-  { label: 'vocab.audio.playUs', keys: 'A' },
-  { label: 'vocab.review.shortcutFavorite', keys: 'F' },
-  { label: 'vocab.review.shortcutDelete', keys: 'Delete' },
-] as const
+/** 一次会话的硬上限：后端 `ReviewSessionEndpoint.MAX_WORDS`。超过就分两轮（2026-10-30 拍板）。 */
+const MAX_SESSION_WORDS = 1000
 
 export default function VocabReviewPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const { quiz: quizEnabled } = useVocabAudioConfig()
-  const wordBlocks = useWordBlocks()
-  const [startingQuiz, setStartingQuiz] = useState(false)
-  const [prefetching, setPrefetching] = useState(false)
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const prefetched = useRef(false)
   const toast = useToast()
-  const confirm = useConfirm()
+  const { quiz: quizEnabled } = useVocabAudioConfig()
   const [queue, setQueue] = useState<QueueView | null>(null)
-  const [index, setIndex] = useState(0)
-  const [flipped, setFlipped] = useState(false)
-  const [rated, setRated] = useState<Rated>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<Error | null>(null)
   const [reloadKey, setReloadKey] = useState(0)
-  const [refetched, setRefetched] = useState(false)
-  const [windowSize, setWindowSize] = useState(PREPARE_STEPS[0])
-  const [prep, setPrep] = useState<PrepareResult | null>(null)
-  const [retrying, setRetrying] = useState(false)
-  const [gatePrep, setGatePrep] = useState<PrepareResult | null>(null)
-  const [gateOpen, setGateOpen] = useState(false)
-  const [gateSlow, setGateSlow] = useState(false)
+  const [starting, setStarting] = useState(false)
+  const [startingQuiz, setStartingQuiz] = useState(false)
 
   const refresh = useCallback(() => setReloadKey((value) => value + 1), [])
 
@@ -94,28 +61,14 @@ export default function VocabReviewPage() {
     let alive = true
     setLoading(true)
     setError(null)
-    setWindowSize(PREPARE_STEPS[0])
-    setPrep(null)
-    setGatePrep(null)
-    setGateOpen(false)
     api.get<QueueView>('/api/vocab/review/queue')
-      .then(async (value) => {
+      .then((value) => {
         if (!alive) return
         setQueue(value)
-        setIndex(0)
-        setFlipped(false)
-        setRated(null)
-        setRefetched(false)
-        prefetched.current = false
-        // T426：进入复习就只为前 N 个词准备内容，不再等全量生成
+        // 内容预生成：进这一页就开始准备首批，学生点「开始复习」时第一张多半已经好了。
+        // 准备不到也没关系——会话页有自己的逐卡「准备中」态。
         if (value.items.length > 0) {
-          const result = await prepareWords('TODAY', PREPARE_STEPS[0]).catch(() => null)
-          if (alive && result) {
-            setPrep(result)
-            setGatePrep(result)
-            // 用户 2026-10-24：等满首批 N 个词再出卡（常见词通常已提前生成，现场请求很少）
-            if (result.pending === 0) setGateOpen(true)
-          }
+          void prepareWords('TODAY', PREPARE_STEPS[0]).catch(() => { /* 会话页会再试 */ })
         }
       })
       .catch((loadError) => { if (alive) setError(loadError as Error) })
@@ -123,408 +76,108 @@ export default function VocabReviewPage() {
     return () => { alive = false }
   }, [reloadKey])
 
-  const items = queue?.items ?? []
-  const current = items[index]
-  const done = !loading && !error && items.length > 0 && index >= items.length
+  const remaining = queue?.remaining ?? 0
+  const todayReviewed = queue?.todayReviewed ?? 0
 
-  useEffect(() => {
-    if (!done || refetched) return
-    // 一轮看完后再拉一次队列；没有就进空态
-    setRefetched(true)
-    const timer = setTimeout(() => refresh(), 300)
-    return () => clearTimeout(timer)
-  }, [done, refetched, refresh])
-
-  // 状态 + 内容一起看：READY 但内容解析不到（内容包换版/提示词升级）时按「准备中」处理，
-  // 不渲染空卡（2026-10-29 用户报 Bug）。
-  const currentPhase = reviewCardPhase(current?.contentStatus, current?.content)
-  // AC-89.1/89.2：到 80% 就静默拉下一批并追加；失败不阻塞，用户走到批尾还有原来的兜底路径。
-  useEffect(() => {
-    if (loading || error || !queue || prefetching || prefetched.current) return
-    if (items.length === 0 || queue.remaining <= 0) return
-    if (index < Math.floor(items.length * PREFETCH_AT)) return
-    const last = items[items.length - 1]
-    prefetched.current = true
-    setPrefetching(true)
-    const cursor = `${last.dueAt}|${last.id}`
-    api.get<QueueView>(`/api/vocab/review/queue?after=${encodeURIComponent(cursor)}&newServed=${queue.newToday}`)
-      .then((next) => {
-        if (!next.items.length) return
-        setQueue((previous) => {
-          if (!previous) return previous
-          const seen = new Set(previous.items.map((item) => item.id))
-          const appended = next.items.filter((item) => !seen.has(item.id))
-          return {
-            ...previous,
-            items: [...previous.items, ...appended],
-            newToday: previous.newToday + next.newToday,
-            remaining: next.remaining,
-          }
-        })
-      })
-      .catch(() => undefined)
-      .finally(() => setPrefetching(false))
-  }, [index, items, queue, loading, error, prefetching])
-
-  const currentReady = currentPhase === 'ready'
-  const currentFailed = currentPhase === 'failed'
-  const preparing = !!current && currentPhase === 'preparing'
-  const gateWaiting = items.length > 0 && !gateOpen
-
-  // 兜底：等待超过 60 秒（例如 AI 未配置/生成服务不工作）时允许手动开始，避免整页卡死
-  useEffect(() => {
-    if (!gateWaiting) { setGateSlow(false); return }
-    const timer = setTimeout(() => setGateSlow(true), 60000)
-    return () => clearTimeout(timer)
-  }, [gateWaiting])
-
-  // 等满首批 N 个词：每 2 秒问一次准备进度并刷新队列，pending 归零才放行
-  useEffect(() => {
-    if (!gateWaiting) return
-    let alive = true
-    const tick = async () => {
-      try {
-        const [nextPrep, nextQueue] = await Promise.all([
-          prepareWords('TODAY', PREPARE_STEPS[0]),
-          api.get<QueueView>('/api/vocab/review/queue'),
-        ])
-        if (!alive) return
-        setGatePrep(nextPrep)
-        setPrep(nextPrep)
-        setQueue((previous) => (previous ? { ...previous, items: nextQueue.items } : nextQueue))
-        if (nextPrep.pending === 0) setGateOpen(true)
-      } catch {
-        // 单次轮询失败不打断等待，下一次再试
-      }
-    }
-    const timer = setInterval(() => void tick(), 2000)
-    return () => { alive = false; clearInterval(timer) }
-  }, [gateWaiting])
-
-  // 后续窗口（100/200/400…）：只等当前卡，不整页阻塞
-  useEffect(() => {
-    if (gateWaiting || !preparing) return
-    let alive = true
-    const tick = async () => {
-      try {
-        const [nextPrep, nextQueue] = await Promise.all([
-          prepareWords('TODAY', windowSize),
-          api.get<QueueView>('/api/vocab/review/queue'),
-        ])
-        if (!alive) return
-        setPrep(nextPrep)
-        setQueue((previous) => (previous ? { ...previous, items: nextQueue.items } : nextQueue))
-      } catch {
-        // 单次轮询失败不打断等待
-      }
-    }
-    const timer = setInterval(() => void tick(), 2000)
-    return () => { alive = false; clearInterval(timer) }
-  }, [gateWaiting, preparing, windowSize])
-
-  // 窗口推进：快到末尾时只把窗口放大，不阻塞页面
-  useEffect(() => {
-    if (items.length === 0) return
-    if (index < windowSize - 5) return
-    const next = nextPrepareWindow(windowSize)
-    if (next !== windowSize) setWindowSize(next)
-  }, [index, windowSize, items.length])
-
-  // 异步预取：当前窗口一打开就把下一段（100/200/400…）排上，学生走到边界时内容已就绪
-  useEffect(() => {
-    if (!gateOpen) return
-    const next = nextPrepareWindow(windowSize)
-    if (next === windowSize) return
-    void prepareWords('TODAY', next).catch(() => { /* 下一轮轮询再试 */ })
-  }, [gateOpen, windowSize])
-
-  const retryContent = useCallback(async () => {
-    if (!current) return
-    setRetrying(true)
-    try {
-      await api.post('/api/vocab/words/retry', { ids: [current.id] })
-      setPrep(await prepareWords('TODAY', windowSize))
-    } catch (retryError) {
-      toast.error((retryError as Error).message)
-    } finally {
-      setRetrying(false)
-    }
-  }, [current, windowSize, toast])
-
-  const submit = useCallback(async (rating: 'KNOWN' | 'DONT_KNOW') => {
-    if (!current || rated || !currentReady) return
-    try {
-      await api.post('/api/vocab/review', {
-        wordId: current.id,
-        rating,
-        elapsedMs: 0,
-      }, { 'Idempotency-Key': crypto.randomUUID() })
-      if (rating === 'KNOWN') {
-        setIndex((value) => value + 1)
-        setFlipped(false)
-        setRated(null)
-      } else {
-        setRated('DONT_KNOW')
-        setFlipped(true)
-      }
-    } catch (submitError) {
-      toast.error((submitError as Error).message)
-    }
-  }, [current, rated, currentReady, toast])
-
-  const next = useCallback(() => {
-    if (!current) return
-    setIndex((value) => value + 1)
-    setFlipped(false)
-    setRated(null)
-  }, [current])
-
-  // T427：卡面右上角的星标；只改收藏标记，不碰排期
-  const toggleFavorite = useCallback(async () => {
-    if (!current) return
-    const favorite = !current.favorite
-    try {
-      await api.put(`/api/vocab/words/${current.id}/favorite`, { favorite })
-      setQueue((previous) => (previous ? {
-        ...previous,
-        items: previous.items.map((item) => (
-          item.id === current.id ? { ...item, favorite } : item
-        )),
-      } : previous))
-      toast.success(favorite ? t('vocab.review.favoriteAdded') : t('vocab.review.favoriteRemoved'))
-    } catch (favoriteError) {
-      toast.error((favoriteError as Error).message)
-    }
-  }, [current, t, toast])
-
-  // T427：删除当前词（软删除，二次确认），删完原地换下一张
-  const removeCurrent = useCallback(async () => {
-    if (!current) return
-    const ok = await confirm({
-      title: t('vocab.library.deleteTitle'),
-      content: t('vocab.library.deleteBody', { word: current.form }),
-      okText: t('vocab.library.delete'),
-      cancelText: t('common.cancel'),
-    })
-    if (!ok) return
-    try {
-      await api.del(`/api/vocab/words/${current.id}`)
-      toast.success(t('vocab.library.deletedToast'))
-      setQueue((previous) => {
-        if (!previous) return previous
-        return {
-          ...previous,
-          items: previous.items.filter((item) => item.id !== current.id),
-          total: Math.max(0, previous.total - 1),
-          remaining: Math.max(0, previous.remaining - 1),
-        }
-      })
-      setFlipped(false)
-      setRated(null)
-    } catch (deleteError) {
-      toast.error((deleteError as Error).message)
-    }
-  }, [confirm, current, t, toast])
-
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
-      if (preparing || gateWaiting) return
-      if (event.metaKey || event.ctrlKey || event.altKey) return
-      const target = event.target as HTMLElement | null
-      if (target && ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)) return
-      if (event.key === ' ') {
-        event.preventDefault()
-        setFlipped((value) => !value)
-      } else if (event.key === '1') {
-        void submit('DONT_KNOW')
-      } else if (event.key === '2') {
-        void submit('KNOWN')
-      } else if (event.key === 'n' || event.key === 'N' || event.key === 'ArrowRight') {
-        // T435：明细（翻面）只读，未评分也能直接下一个（AC-53.7 可跳过）
-        next()
-      } else if (event.key === 'f' || event.key === 'F') {
-        event.preventDefault()
-        void toggleFavorite()
-      } else if ((event.key === 'Delete' || event.key === 'Backspace') && !flipped) {
-        // 明细视图不提供删除，快捷键同样只在正面生效
-        event.preventDefault()
-        void removeCurrent()
-      }
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [submit, next, rated, flipped, preparing, toggleFavorite, removeCurrent])
-
-  // T427：三个数与「评分会改变什么」仍收在 ⓘ 里（AC-52.2），并新增快捷键表
+  /** 三个数与「评分会改变什么」收在 ⓘ 里（AC-52.2）。快捷键表跟着卡片走，已在会话页。 */
   const info = useMemo(() => (
     <div className="review-info">
       <p className="review-info-stats muted">
         {t('vocab.review.statsLine', {
-          reviewed: queue?.todayReviewed ?? 0,
-          remaining: queue?.remaining ?? 0,
+          reviewed: todayReviewed,
+          remaining,
           newCards: queue?.newToday ?? 0,
         })}
         {queue?.newLimitReached && <span> · {t('vocab.review.newLimit')}</span>}
       </p>
-      <table className="review-shortcut-table">
-        <thead>
-          <tr>
-            <th>{t('vocab.review.shortcutAction')}</th>
-            <th>{t('vocab.review.shortcutKey')}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {SHORTCUTS.map((row) => (
-            <tr key={row.label}>
-              <td>{t(row.label)}</td>
-              <td><kbd>{row.keys === 'Space' ? t('vocab.review.keySpace') : row.keys}</kbd></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
       <p className="muted review-info-hint">{t('vocab.review.ratingHint')}</p>
     </div>
-  ), [queue, t])
+  ), [queue?.newLimitReached, queue?.newToday, remaining, t, todayReviewed])
 
-  const header = (
-    <>
-      <PageHeader
-        title={t('vocab.review.title')}
-        info={info}
-        actions={(
-          <Button size="small" icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)}>
-            {t('vocab.prefs.open')}
-          </Button>
-        )}
-      />
-      <Drawer
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        title={t('vocab.prefs.title')}
-        placement="right"
-        width={420}
-      >
-        <VocabPrefsCard compact />
-      </Drawer>
-    </>
-  )
+  /**
+   * 把今天到期的词取齐，最多 {@link MAX_SESSION_WORDS} 个。
+   * 队列接口一页最多 100 张（AC-52.4），所以按 `dueAt|id` 游标往后翻；翻到上限或没有更多为止。
+   */
+  const collectDueIds = useCallback(async (first: QueueView): Promise<{ ids: string[]; capped: boolean }> => {
+    const ids: string[] = []
+    const seen = new Set<string>()
+    let last = first.items[first.items.length - 1]
+    let more = first.remaining
+    let newServed = first.newToday
+    for (const item of first.items) {
+      if (seen.has(item.id)) continue
+      seen.add(item.id)
+      ids.push(item.id)
+    }
+    while (ids.length < MAX_SESSION_WORDS && more > 0 && last) {
+      const cursor = `${last.dueAt}|${last.id}`
+      const next = await api.get<QueueView>(
+        `/api/vocab/review/queue?after=${encodeURIComponent(cursor)}&newServed=${newServed}`)
+      if (!next.items.length) break
+      for (const item of next.items) {
+        if (seen.has(item.id)) continue
+        seen.add(item.id)
+        ids.push(item.id)
+      }
+      newServed += next.newToday
+      more = next.remaining
+      last = next.items[next.items.length - 1]
+    }
+    return { ids: ids.slice(0, MAX_SESSION_WORDS), capped: ids.length >= MAX_SESSION_WORDS }
+  }, [])
+
+  const startReview = useCallback(async () => {
+    if (!queue || starting) return
+    setStarting(true)
+    try {
+      const { ids } = await collectDueIds(queue)
+      if (!ids.length) {
+        // 队列刚好被别人（另一个标签页 / 小测）消耗光：刷新这一页，别把用户扔进空会话
+        refresh()
+        setStarting(false)
+        return
+      }
+      const created = await api.post<{ id: string }>('/api/vocab/review-sessions', {
+        source: 'today',
+        wordIds: ids,
+        fromStart: true,
+      })
+      navigate(`/vocab/review/session/${created.id}?source=today`)
+    } catch (startError) {
+      toast.error((startError as Error).message)
+      setStarting(false)
+    }
+  }, [collectDueIds, navigate, queue, refresh, starting, toast])
+
+  const startQuiz = useCallback(() => {
+    setStartingQuiz(true)
+    createQuiz('TODAY')
+      .then((created) => navigate(`/vocab/quiz/${created.id}`))
+      .catch((quizError) => {
+        setStartingQuiz(false)
+        toast.error((quizError as Error).message)
+      })
+  }, [navigate, toast])
 
   if (loading) return <Loading label={t('common.loading')} />
   if (error) return <ErrorState error={error} onRetry={refresh} />
 
-  if (gateWaiting) {
+  // 今天已经背完（剩余 0）：复习过就给小测入口，没复习过就是空词库（AC-87.1 / AC-52.5）
+  if (remaining === 0) {
+    const canQuiz = quizEnabled && todayReviewed >= 3
     return (
       <>
-        {header}
-        <div className="review-stage review-stage--today">
-          <div className="review-card-column">
-            <div className="review-card">
-              <div className="review-card-body">
-                <div className="review-word">{items[0]?.form}</div>
-                <div className="muted">{t('vocab.review.preparing')}</div>
-                {gatePrep && (
-                  <>
-                    <div className="muted">
-                      {t('vocab.review.preparingCount', { ready: gatePrep.ready, total: gatePrep.requested })}
-                    </div>
-                    <div className="review-prep-progress">
-                      <Progress value={gatePrep.ready} max={gatePrep.requested}
-                        label={t('vocab.review.preparingCount', {
-                          ready: gatePrep.ready, total: gatePrep.requested,
-                        })} />
-                    </div>
-                  </>
-                )}
-                <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
-                {gateSlow && (
-                  <div className="review-actions">
-                    <Button onClick={() => setGateOpen(true)}>{t('vocab.review.startAnyway')}</Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  if (current && (preparing || currentFailed)) {
-    return (
-      <>
-        {header}
-        <div className="review-stage review-stage--today">
-          <div className="review-card-column">
-            <div className="review-card">
-              <div className="review-card-body">
-                <div className="review-word">{current.form}</div>
-                {preparing ? (
-                  <>
-                    <div className="muted">{t('vocab.review.preparing')}</div>
-                    {prep && (
-                      <>
-                        <div className="muted">
-                          {t('vocab.review.preparingCount', { ready: prep.ready, total: prep.requested })}
-                        </div>
-                        <div className="review-prep-progress">
-                          <Progress value={prep.ready} max={prep.requested}
-                            label={t('vocab.review.preparingCount', {
-                              ready: prep.ready, total: prep.requested,
-                            })} />
-                        </div>
-                      </>
-                    )}
-                    <div className="review-hint muted">{t('vocab.review.preparingHint')}</div>
-                  </>
-                ) : (
-                  <>
-                    <InlineNote tone="error">{t('vocab.review.contentFailed')}</InlineNote>
-                    <div className="review-actions">
-                      <Button variant="primary" loading={retrying} onClick={() => void retryContent()}>
-                        {t('vocab.review.retryContent')}
-                      </Button>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </>
-    )
-  }
-
-  if (!current) {
-    // US-87 / AC-87.1：队列真的空了、而且今天确实复习过 → 完成卡 + 小测入口；
-    // 否则保持原来的空态（新用户第一天没卡可复习，不该被推销小测）。
-    const reviewed = queue?.todayReviewed ?? 0
-    const canQuiz = quizEnabled && reviewed >= 3
-    return (
-      <>
-        {header}
-        {reviewed > 0 ? (
+        <VocabTabExtra><InfoHint>{info}</InfoHint></VocabTabExtra>
+        {todayReviewed > 0 ? (
           <div className="card quiz-entry">
             <div className="quiz-entry-num">
-              {reviewed}
+              {todayReviewed}
               <small>{t('vocab.quiz.wordsUnit')}</small>
             </div>
             <p className="muted small">{t('vocab.quiz.entryTitle')}</p>
             {canQuiz ? (
               <>
-                <Button
-                  variant="primary"
-                  size="large"
-                  loading={startingQuiz}
-                  onClick={() => {
-                    setStartingQuiz(true)
-                    createQuiz('TODAY')
-                      .then((created) => navigate(`/vocab/quiz/${created.id}`))
-                      .catch((quizError) => {
-                        setStartingQuiz(false)
-                        toast.error((quizError as Error).message)
-                      })
-                  }}
-                >
+                <Button variant="primary" size="large" loading={startingQuiz} onClick={startQuiz}>
                   {t('vocab.quiz.startToday')}
                 </Button>
                 <p className="muted small quiz-entry-hint">{t('vocab.quiz.entryBody')}</p>
@@ -545,38 +198,53 @@ export default function VocabReviewPage() {
     )
   }
 
-  const disabled = rated !== null
-
+  // 「有新卡额度用完」的边角：到期数 > 0，但队列这一页为空（全是 NEW、今日额度已满）。
+  // 这时不能给一个点了没反应的「开始复习」，要说清为什么开不了（AC-52.3）。
+  const startable = (queue?.items.length ?? 0) > 0
+  const capped = remaining > MAX_SESSION_WORDS
   return (
     <>
-      {header}
-
-      <div className="review-stage review-stage--today">
-        <div className="review-card-column">
-          <VocabReviewCard
-            word={current}
-            flipped={flipped}
-            onFlip={() => setFlipped((value) => !value)}
-            onToggleFavorite={() => void toggleFavorite()}
-            onDelete={() => void removeCurrent()}
-            onRate={(rating) => void submit(rating)}
-            ratingDisabled={disabled}
-            blocks={wordBlocks.blocks}
-            hidden={wordBlocks.hidden}
-            emptyHint={t('vocab.review.contentMissing')}
-            centered
-          />
+      <VocabTabExtra><InfoHint>{info}</InfoHint></VocabTabExtra>
+      <section className="card today-card vocab-ready" data-testid="today-review-ready">
+        <div className="today-card-body">
+          <div className="today-review">
+            <div className="today-review-figures">
+              <div className="today-review-label">{t('today.review.dueLabel')}</div>
+              <div className="today-review-due">
+                <span className="today-review-count">{remaining}</span>
+                <span className="today-review-unit">{t('today.review.unit')}</span>
+              </div>
+              {/* 三个数用与 ⓘ 同一句口径（AC-52.2）；每日上限的数值不在这里编，只在上限用完时说明 */}
+              <div className="today-review-stats">
+                {t('vocab.review.statsLine', {
+                  reviewed: todayReviewed,
+                  remaining,
+                  newCards: queue?.newToday ?? 0,
+                })}
+                {queue?.newLimitReached && <span> · {t('vocab.review.newLimit')}</span>}
+              </div>
+            </div>
+            <div className="today-review-act">
+              <Button
+                variant="primary"
+                data-testid="today-review-focus-start"
+                loading={starting}
+                disabled={!startable}
+                onClick={() => void startReview()}
+              >
+                {t('today.review.start')}
+              </Button>
+              <div className="muted small">
+                {!startable
+                  ? t('vocab.review.newLimit')
+                  : capped
+                    ? t('vocab.review.roundCap', { count: MAX_SESSION_WORDS })
+                    : t('vocab.review.enterFocus')}
+              </div>
+            </div>
+          </div>
         </div>
-
-        <Button
-          size="large"
-          className={`review-next${rated || flipped ? ' is-highlighted' : ''}`}
-          variant={rated || flipped ? 'primary' : 'default'}
-          onClick={next}
-        >
-          {t('vocab.review.next')}
-        </Button>
-      </div>
+      </section>
     </>
   )
 }

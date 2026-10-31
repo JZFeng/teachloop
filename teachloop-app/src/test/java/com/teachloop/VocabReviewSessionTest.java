@@ -77,6 +77,8 @@ class VocabReviewSessionTest {
 
         JsonNode current = get(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/current");
         assertThat(current.get("id").asString()).isEqualTo(alpha.toString());
+        // 别的用例可能已经背过今天（同一个种子账号、同一个库），所以这里比较「前后差值」而不是绝对值
+        int reviewedBefore = get(base, cookie, "/api/vocab/review/queue").get("todayReviewed").asInt();
 
         JsonNode advanced = post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/advance",
                 Map.of("action", "KNOWN"));
@@ -88,7 +90,8 @@ class VocabReviewSessionTest {
                 "select count(*) from vocab_review_logs where session_id = ?", Integer.class, sessionId))
                 .isEqualTo(1);
         // 自由复习不计入「今日已复习」
-        assertThat(get(base, cookie, "/api/vocab/review/queue").get("todayReviewed").asInt()).isZero();
+        assertThat(get(base, cookie, "/api/vocab/review/queue").get("todayReviewed").asInt())
+                .isEqualTo(reviewedBefore);
 
         // 同范围再次创建：默认从上次 cursor 续位
         JsonNode resumed = post(base, cookie, "/api/vocab/review-sessions",
@@ -163,6 +166,73 @@ class VocabReviewSessionTest {
 
         JsonNode summary = post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/end", Map.of());
         assertThat(summary.get("paused").asInt()).isZero();
+    }
+
+    @Test
+    @DisplayName("T595：source=today 的会话计入「今日已复习」；走到尾再开一轮从 0 开始；自由复习仍不计入")
+    void todaySessionCountsAsReviewed() throws Exception {
+        String base = base();
+        String cookie = login(base, "student@teachloop.local");
+        UUID userId = me(base, cookie);
+        commit(base, cookie, "stodayone, stodaytwo");
+        UUID one = wordId(userId, "stodayone");
+        UUID two = wordId(userId, "stodaytwo");
+
+        JsonNode created = post(base, cookie, "/api/vocab/review-sessions",
+                Map.of("wordIds", List.of(one, two), "fromStart", true, "source", "today"));
+        UUID sessionId = UUID.fromString(created.get("id").asString());
+        post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/advance",
+                Map.of("action", "KNOWN"));
+        // AC-52.2 口径修订：今日复习会话里的评分算「今天背过」
+        assertThat(get(base, cookie, "/api/vocab/review/queue").get("todayReviewed").asInt())
+                .isEqualTo(1);
+
+        post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/advance",
+                Map.of("action", "KNOWN"));
+        assertThat(get(base, cookie, "/api/vocab/review/queue").get("todayReviewed").asInt())
+                .isEqualTo(2);
+
+        // 这一轮已经走到尾：同一批词再开会话要从头开始，不能直接给「0 张」的小结
+        JsonNode again = post(base, cookie, "/api/vocab/review-sessions",
+                Map.of("wordIds", List.of(one, two), "fromStart", false, "source", "today"));
+        assertThat(again.get("cursor").asInt()).isZero();
+
+        // 同日自由复习（不带 source）仍不计入今日完成数
+        JsonNode free = post(base, cookie, "/api/vocab/review-sessions",
+                Map.of("wordIds", List.of(one, two), "fromStart", true));
+        UUID freeId = UUID.fromString(free.get("id").asString());
+        post(base, cookie, "/api/vocab/review-sessions/" + freeId + "/advance",
+                Map.of("action", "KNOWN"));
+        assertThat(get(base, cookie, "/api/vocab/review/queue").get("todayReviewed").asInt())
+                .isEqualTo(2);
+    }
+
+    @Test
+    @DisplayName("2026-10-31：会话里 DELETE 软删当前词、推进游标，词从队列消失（AC-59.11）")
+    void deleteCurrentWordInSession() throws Exception {
+        String base = base();
+        String cookie = login(base, "student@teachloop.local");
+        UUID userId = me(base, cookie);
+        commit(base, cookie, "sdelone, sdeltwo");
+        UUID one = wordId(userId, "sdelone");
+        UUID two = wordId(userId, "sdeltwo");
+
+        JsonNode created = post(base, cookie, "/api/vocab/review-sessions",
+                Map.of("wordIds", List.of(one, two), "fromStart", true, "source", "today"));
+        UUID sessionId = UUID.fromString(created.get("id").asString());
+
+        JsonNode advanced = post(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/advance",
+                Map.of("action", "DELETE"));
+        assertThat(advanced.get("cursor").asInt()).isEqualTo(1);
+        assertThat(jdbc.queryForObject(
+                "select deleted from vocab_words where id = ?", Boolean.class, one)).isTrue();
+        // 软删除不写评分日志（它不是一个评分）
+        assertThat(jdbc.queryForObject(
+                "select count(*) from vocab_review_logs where session_id = ?", Integer.class, sessionId))
+                .isZero();
+        // 游标推进到第二张
+        assertThat(get(base, cookie, "/api/vocab/review-sessions/" + sessionId + "/current")
+                .get("id").asString()).isEqualTo(two.toString());
     }
 
     private String base() {

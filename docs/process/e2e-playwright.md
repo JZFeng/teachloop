@@ -197,6 +197,14 @@ make web-e2e-install    # 首次：下载 chromium（约 100MB，落到 ~/Librar
    第一次跑就以 `Target page, context or browser has been closed` + 30 秒超时收场。
    `BasePage.waitSettled()` 现在给 `networkidle` 3 秒上限，超时按"已渲染"继续。
 
+9. **E2E 要跑在生产产物上，别对 dev server 跑**（2026-10-31 实测）：`web/src/main.tsx` 里
+   React `StrictMode` 一直开着（2026-10-19 起），dev 下 effect 被双调用，`/api/student/today`
+   会请求两次——AC-90.7 的「只请求一次」在 `:5173` 上必红（三个 project 全红）；
+   同一份代码 `make web-build` 之后用 `vite preview`（:4173）跑，83 passed。
+   命令：`cd web && make web-build` → `WEB_PORT=4173 TEACHLOOP_API=http://127.0.0.1:8010 pnpm preview` →
+   `E2E_BASE_URL=http://127.0.0.1:4173 pnpm e2e`。
+   **别把这条当 bug 去改测试**：产物上没有双调用，dev 上的双请求是 React 的调试行为。
+
 ## 10. 分阶段任务（要排期时再取全局 T 号，别直接写死）
 
 | 阶段 | 内容 | 产出 | 估算 |

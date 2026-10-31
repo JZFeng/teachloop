@@ -10,7 +10,6 @@ import {
   Input,
   Loading,
   Modal,
-  PageHeader,
   StatCard,
   StarOutlined,
   useConfirm,
@@ -550,7 +549,6 @@ export default function VocabLibraryPage() {
 
   return (
     <>
-      <PageHeader title={t('vocab.library.title')} />
       {pending && (
         <div className="vocab-banner">
           <span>

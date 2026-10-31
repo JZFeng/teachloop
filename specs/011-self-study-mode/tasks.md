@@ -1,6 +1,6 @@
 # 任务拆分 — 自学模式与统一今日页（011-self-study-mode）
 
-- 上游：`spec.md`（7 US / 33 AC / 21 FR）、`plan.md`（2026-10-30 定稿）、`docs/mock/self-study-2026-10-30/`
+- 上游：`spec.md`（7 US / 35 AC / 21 FR）、`plan.md`（2026-10-30 定稿）、`docs/mock/self-study-2026-10-30/`、`docs/mock/today-focus-2026-10-30/`（今日复习全屏，2026-10-30）
 - 任务号：**T557 起**（全局最大 T556）
 - 约定：每个任务自带验收；完成后回写本文档并写执行记录；提交信息带 T 号
 - 迁移序号：`V076`（identity）/ `V077`（classroom）/ `V078`（sitting），**合并前按 main 现状重排**
@@ -31,6 +31,9 @@
 | T563 | **背单词模块壳**：`VocabShell` + 页内 Tab（今日复习 / 我的词单 / 我的词库）；`nav.ts` 按 `group` 折叠三项为一项、自定义 `isActive` | — | AC-91.1 / 91.2 / 91.5；AC-91.4 关掉 `teachloop.vocab.enabled` 后侧栏项与 Tab 都不出现、深链回落；`web/tests/vocab-nav.test.mjs` 更新且通过 |
 | T564 | **邀请码卡与入班**：今日页右栏/底部「有邀请码？」卡，复用 `POST /api/classes/join` | T562 | AC-92.1 入班后同会话出现作业卡；AC-92.2 入班前后词库总数与到期数一致；AC-92.3 无效码内联报错不跳转；AC-92.4 已入班不显示该卡 |
 | T565 | **首次引导**：`/welcome` 收集页（可跳过，`localStorage` 记 `teachloop.profile.prompted`）+ 顶部可关闭提示条 | T561 | AC-93.2 跳过后本设备不再自动出现；AC-93.3 提示条可关闭、点「去补全」进 `/profile`；刷新后状态保持 |
+| T595 | **今日复习改真会话**（2026-10-30 拍板）：今日复习页只留张数 + ⓘ + 「开始复习」；`POST /api/vocab/review-sessions` 支持 `source=today`（scope 快照带 `source`）；到期队列按序取齐后传入，**超过 1000 词分两轮**（背完回准备页再开）；`ReviewQueueStore` 的 `todayReviewed` 口径改成「`session_id is null` 或 `scope.source='today'` 会话日志」，自由复习仍不计入 | T563 | AC-91.3 后半句；004 AC-52.2 修订口径；AC-61.5 不变；单测（口径三态：改造前 / 只改前端=0 / 连带改口径=16）+ E2E 三 project；`docs/mock/today-focus-2026-10-30/` 为对照 |
+| T596 | **Tab 页去掉同名标题**（2026-10-30 拍板）：三个 Tab 页不再渲染自己的 `h1`，ⓘ（今日复习）与「新建词单」（我的词单）移到 Tab 行右端（`ViewTabs` 加右侧槽）；词单详情页保留自己的标题 | — | AC-91.6；004 AC-53.9 / 53.10 的标题与 ⓘ 位置按本条回改；三页 `getByRole('heading', { level: 1 })` 不再命中与 Tab 同名的标题；平板两档仍 `actionsBelowFold=0` |
+| T597 | **今日复习页去掉设置入口**（2026-10-30 拍板）：删掉 `ReviewPage` 的齿轮按钮与设置 `Drawer`（`ReviewPage.tsx:407` 的 `VocabPrefsCard compact`），`/profile` 的「背单词」块（`ProfilePage.tsx:317`，完整版）成为唯一入口；顺手清掉只为抽屉服务的 state / i18n 键 | — | AC-91.7；004 AC-88.1 修订；`/vocab/review` 与复习会话内 `querySelectorAll('button')` 不再含设置入口；`/profile` 的四项（任务量 / 策略 / 反面内容 / 顺序）仍可改且即时生效；`make check-i18n` exit 0 |
 
 ## 阶段 D — 收费字段预留
 
@@ -74,13 +77,22 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d           # 期望空（
 | T566 | 完成 | `ClassEntity` 接三列（默认 FREE/0/CNY）；建班 `PAID` → 400、入班付费班 → 409；`ClassPayTest` 3/3，存量班级 `pay_mode<>'FREE'` 计数 0；前端无价格输入 |
 | T567 | 完成 | `docs/reports/011-t567-e2e.md`：Playwright 全量 83 passed（3 project）、`make check-*` exit 0、`make test` exit 0（680 tests / 0 failures）、node 测试 191 通过 |
 | T568 | 完成 | `scripts/bench-vocab.py` 造 5000 词（2.7s）+ 500 日志；`docs/reports/011-t568-bench.md`：`/api/student/today` p50 8.8 / **p95 10.1ms < 50ms**、队列 p95 16.5ms、词库 p95 12.5ms；`pg_stat_statements` 已开 |
+| T595 | 完成（2026-10-31） | 今日复习改真会话：`ReviewSessionEndpoint` 新增 `source=today`（scope 写 `source`，scope key 加 `today|` 前缀隔离），走到尾再开一轮从 cursor 0 起；`ReviewQueueStore.countReviewedToday` 口径改为「`session_id is null` 或会话 `scope.source='today'`」；前端 `ReviewPage` 只剩张数与「开始复习」，按到期队列游标取齐（≤1000，超出分两轮）后建会话跳全屏；`FreeReviewPage` 认 `?source=today`（标题/进度/小结「今天已复习」）。证据：`VocabReviewSessionTest` 3/3（新增 `todaySessionCountsAsReviewed`）、`VocabReviewQueueTest` 1/1、`VocabTodayTimezoneTest` 5/5；E2E `vocab-flows` 路径 1 已扩展到「进会话、无 Tab 无壳」 |
+| T596 | 完成（2026-10-31） | 三个 Tab 页去掉同名 `h1`：`ViewTabs` 加 `extra` 槽 + `.tl-tab-extra`；`VocabTabExtra`（context + portal）供页面把 ⓘ / 新建词单投进 Tab 行右端；`ReviewPage` / `ListsPage` / `LibraryPage` 删 `PageHeader`；词单详情保留自己的标题。证据：`tsc --noEmit` 0 错、`check-ui` 无新增违规、三页 `h1` 数目为 0（1440/834/1024 实测） |
+| T598 | 完成（2026-10-31，用户要求） | 会话里加回「删除当前单词」：`ReviewSessionEndpoint.advance` 新增 `DELETE`（软删除 + 推进游标，不写评分日志）；`FreeReviewPage` 卡片头挂 `onDelete`、键盘 `Delete` / `Backspace` 走二次确认（只在正面）；快捷键表加回 `Delete` 行。证据：`VocabReviewSessionTest` 4/4（新增 `deleteCurrentWordInSession`）；dev 界面实测「第 1 张 → 第 2 张、词从词库消失」（截图 `docs/reports/shots/2026-10-31-today-focus/session-delete-confirm-1440.png`） |
+| T597 | 完成（2026-10-31） | 今日复习页删掉齿轮与设置抽屉（原 `ReviewPage.tsx` 的 `VocabPrefsCard compact`），只保留 ⓘ；背单词设置唯一入口是 `/profile` 的「背单词」块，`vocab.prefs.open` 键一并清掉。证据：`/vocab/review` 页内不再有设置按钮（截图见报告）、`make check-i18n` exit 0 |
 
 ### 偏离与已知限制
 
-1. **AC-91.3 的后半句未实现**：今日复习仍是 `/vocab/review` 页内卡片（004 既定交互），没有「点开始 → 跳全屏会话」；
-   全屏无侧栏/无 Tab 做在 free-review 会话页（词单/词库发起）。要改需先确认是否重写 004 的今日复习链路。
-2. **AC-90.1 的「连续天数」未实现**：聚合契约（`Ports.ReviewSlice`，S0 冻结）没有 streak 字段，学习记录卡是第二期。
-3. **AC-90.7 的口径**：端点 4 次 O(1) 端口调用（三个新端口 + 既有 `ClassMembership.classIdsOf` 判 `inClass`），
+1. **AC-91.3 的后半句已收口（2026-10-31 / T595）**：今日复习页只留张数与「开始复习」，
+   点开始建 `source=today` 的会话进全屏（`/vocab/review/session/:id?source=today`）。
+   交互对照：`docs/mock/today-focus-2026-10-30/index.html`；证据：`docs/reports/2026-10-31-today-focus-session.md`。
+2. **「删除当前单词」已加回（2026-10-31 / T598）**：T595 初次落地时它随卡片一起消失，用户要求后
+   补上——会话里 `Delete` / 卡片头垃圾桶 → 二次确认 → 软删除 + 推进游标，与「暂停这个词 / S」并存。
+3. **AC-91.6 的来由（2026-10-30 新增）**：T563 的页内 Tab 与 004 的「每页 h1 + 标题旁 ⓘ」撞成两行同名，
+   线上三页都有；011 自己的 mock 也重复，评审没拦住。四行改法与代价记在 AC-91.6 下。
+4. **AC-90.1 的「连续天数」未实现**：聚合契约（`Ports.ReviewSlice`，S0 冻结）没有 streak 字段，学习记录卡是第二期。
+5. **AC-90.7 的口径**：端点 4 次 O(1) 端口调用（三个新端口 + 既有 `ClassMembership.classIdsOf` 判 `inClass`），
    第 4 次是为了区分「在班没作业」与「没班」，否则 AC-90.3 与 AC-90.5 无法同时满足。
-4. **E2E 的「注册」路径用种子学生代替**：注册要收激活邮件，`docs/process/e2e-playwright.md` §2.3 明确不能自动化。
-5. **同工作区并行**：012/013 的 session 与本 session 共用一个 worktree，分支上会看到他们的提交；本记录只认 011 的文件与数字。
+6. **E2E 的「注册」路径用种子学生代替**：注册要收激活邮件，`docs/process/e2e-playwright.md` §2.3 明确不能自动化。
+7. **同工作区并行**：012/013 的 session 与本 session 共用一个 worktree，分支上会看到他们的提交；本记录只认 011 的文件与数字。
