@@ -81,9 +81,17 @@ def generate(word: str, scene: str, out_dir: str, size: int, steps: int, cfg: fl
         return False
     target = os.path.join(out_dir, word + ".png")
     temp = target + ".part"
-    with open(temp, "wb") as handle:
-        handle.write(data)
-    os.replace(temp, target)          # 原子落盘：半截文件不会被当成"已完成"
+    try:
+        with open(temp, "wb") as handle:
+            handle.write(data)
+        os.replace(temp, target)      # 原子落盘：半截文件不会被当成"已完成"
+    except Exception:
+        if os.path.exists(temp):      # 失败不留 .part 垃圾
+            try:
+                os.remove(temp)
+            except OSError:
+                pass
+        raise
     return True
 
 

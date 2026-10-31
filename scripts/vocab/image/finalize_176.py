@@ -82,7 +82,7 @@ def main() -> int:
         names = names[:args.limit]
 
     started = time.time()
-    done, skipped = 0, 0
+    done, skipped, errors = 0, 0, []
     total_bytes, large_bytes = 0, 0
     sizes: list[int] = []
     bright, contrast, near_white = [], [], []
@@ -93,8 +93,12 @@ def main() -> int:
             sizes.append(os.path.getsize(target))
             total_bytes += os.path.getsize(target)
             continue
-        image = Image.open(os.path.join(args.input, name)).convert("RGB")
-        image = levels(trim(image, args.margin))
+        try:
+            image = Image.open(os.path.join(args.input, name)).convert("RGB")
+            image = levels(trim(image, args.margin))
+        except Exception as error:          # 单张坏图不能拖垮整批（3000 张里偶发截断）
+            errors.append({"file": name, "error": f"{type(error).__name__}: {str(error)[:80]}"})
+            continue
         if done < 400:                      # 只对前 400 张算 88px 指标，够看趋势
             brightness = metrics(finish(image, 88))
         else:
@@ -121,6 +125,7 @@ def main() -> int:
         "input": args.input, "output": args.output, "size": args.size,
         "quality": args.quality, "margin": args.margin,
         "images": len(sizes), "converted": done, "skipped": skipped,
+        "errors": len(errors), "error_detail": errors[:20],
         "total_bytes": total_bytes, "total_mb": round(total_bytes / 1048576, 2),
         "avg_kb": round(total_bytes / max(1, len(sizes)) / 1024, 2),
         "min_kb": round(min(sizes) / 1024, 2) if sizes else 0,

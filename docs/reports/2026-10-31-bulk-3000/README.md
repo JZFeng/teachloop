@@ -1,12 +1,13 @@
 # 3000 词批量配图（Qwen-Image）：场景表 + 夜间批量 + 后处理
 
-## 结论（截至 2026-10-31 11:55 PDT / 18:55 UTC）
+## 结论（截至 2026-10-31 12:13 PDT / 19:13 UTC）
 
 - **3000 条 scene 已全部生成并落盘**（`scenes.json`，344KB，12–24 词/条，0 重复、0 脏字符）；
-- **出图批次已在 ai-ubuntu 后台跑**（`setsid nohup`，pid 191226 包装脚本 + 191237 `batch_qwen.py`），当时进度 **26/3000**，实测 **23.1 秒/张**（ComfyUI 自报 22.1 秒/张 + 约 1 秒取图落盘），**预计 19.3 小时**、2026-11-01 06:30–07:00 PDT 跑完，随后自动进失败重试与 176px WebP 后处理；
-- 后处理配方用 113 词样例反标定过：同一张 512 PNG 走 `finalize_176.py` 得到 9276B，参考 `final-176/abandon.webp` 是 9248B（q=92），像素平均差 6.9/255 —— **产物与已定稿的 113 张同一条曲线**。
+- **出图批次已在 ai-ubuntu 后台跑**（`setsid nohup`，pid 191226 包装脚本 + 191237 `batch_qwen.py`），当时进度 **67/3000**，干净窗口实测 **22.7 秒/张**（ComfyUI 自报 23.0–23.4 秒/张），**预计 18.9 小时**、2026-11-01 06:30–06:40 PDT 跑完，随后自动进失败重试与 176px WebP 后处理；
+- 后处理配方用 113 词样例反标定过：同一张 512 PNG 走 `finalize_176.py` 得到 9276B，参考 `final-176/abandon.webp` 是 9248B（q=92），像素平均差 6.9/255 —— **产物与已定稿的 113 张同一条曲线**；
+- **整条链路已用小批次演练过一遍**（主跑 → 失败重试 ×2 → Hunyuan 兜底 → 后处理 → DONE 标记），不是"写完没跑过"。
 
-一句话状态：**脚本、场景表、断点续跑、失败重试、后处理全部就位并已验证；剩下的是等 GPU 把 3000 张跑完（约 19 小时），期间不需要人工干预。**
+一句话状态：**脚本、场景表、断点续跑、失败重试、后处理全部就位并已端到端验证；剩下的是等 GPU 把 3000 张跑完（约 19 小时），期间不需要人工干预。**
 
 ## 1. 词表怎么选的
 
@@ -36,7 +37,7 @@
 | 权重 | `qwen_image_fp8_e4m3fn.safetensors` + `qwen_2.5_vl_7b_fp8_scaled.safetensors` + `qwen_image_vae.safetensors` |
 | 采样 | 512² · 12 步 · cfg 4 · euler/simple · seed 9 |
 | 提示词 | `childrens book illustration, flat colors, thick clean black outlines, … no text: {scene}`；负面 `blurry, low quality, text, photo` |
-| 实测 | **23.1 秒/张**（ComfyUI 自报 22.1 秒），3000 张 ≈ **19.3 小时** |
+| 实测 | **22.7 秒/张**（干净窗口 24 张/545 秒；ComfyUI 自报 23.0–23.4 秒/张），3000 张 ≈ **18.9 小时** |
 | 输出 | `~/ai/vocab-images/qwen3000/<word>.png`（512²，约 250KB/张，全集约 740MB） |
 
 ## 3. 断点续跑 / 进度 / 失败重试（都已实现并验证）
@@ -58,6 +59,7 @@
 | 5 词热模型 | 5/5 成功，110s（22.0s/张） |
 | 同一批重跑 | `[done] nothing to do`，skipped=5 → **续跑生效** |
 | `COMFY_API` 指向死端口 | 5/5 记进 `failures.json`，原因 `URLError` → **失败可追溯** |
+| 全链路演练（3 词，其中 1 个强制失败） | 主跑 2 ok/1 fail → 重试第 1 轮 fail → 第 2 轮 fail → Hunyuan 兜底 fail → 后处理只转 2 张、坏图记 `errors:1` 不中断 → `qwen3000.DONE` 落盘 → **六个分支全通** |
 
 包装脚本 `scripts/vocab/image/run_qwen3000.sh`（已在跑，**不要 kill**）：
 
@@ -68,6 +70,11 @@
 5. 打印总体积、`touch qwen3000.DONE`。
 
 ComfyUI 掉线时包装脚本会自己 `setsid nohup` 重启并等就绪（最多 4 分钟）。
+
+演练里发现并修掉的两处细节（3000 张规模下会变成事故）：
+
+1. `finalize_176.py` 原来遇到单张坏图（截断/目录同名）会**整批中断**——改成逐张 try/except，坏图记进 `errors`/`error_detail` 继续跑；
+2. `batch_qwen.py` 写盘失败会留下 `<word>.png.part` 垃圾——失败路径改为删掉临时文件再抛错。
 
 ## 4. 后处理（裁边 3% → levels → 176px WebP）
 
