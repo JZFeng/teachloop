@@ -1,7 +1,7 @@
 # 033 背单词 V3 全量：丢弃 113 词 v2 enrich，按 V3 从零生成
 
 日期：2026-10-31  
-状态：进行中（全量后台生成）
+状态：完成（2026-10-31 04:15）
 
 ## 决定
 
@@ -48,3 +48,10 @@
 - 52,306 个词形卡不是独立 AI 内容，`examples` 多数为空；第一版接受。
 - 词形卡的 `meanings.en` 沿用 headword 英文释义，卡面主要展示中文；第一版接受。
 - 词形卡 pronunciation 沿用 headword；不规则屈折（am/is）发音不精确；第一版接受。
+
+## 完成记录
+
+- 28,273 unique headword + 52,306 forms = 80,579。
+- pack `version=v3.1` / `promptVersion=vocab-content-v3.0` / `count=80579`；dev 已加载。
+- 40 条失败经两轮重试全部补齐；5 条 v3.1 重复行由 pack builder 去重。
+- 最终 UI/API 验收见 `docs/reports/2026-10-31-vocab-v3-full/README.md`。

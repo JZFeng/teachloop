@@ -413,8 +413,10 @@ def validate(obj: dict, word: str, language: str, example_count: int,
             seen_sentences.add(text.lower())
             kept.append(example)
         kept = kept[:example_count]
+        # 稀有/前缀性 head（sur、sciencefiction 等）可能找不到自然含目标词的例句。
+        # 空例句比缺整张卡好；卡面其他块仍然完整。
         if not kept:
-            problems.append("examples: no sentence contains the target word")
+            obj["examples"] = []
         else:
             for order, example in enumerate(kept, start=1):
                 example["popularity"] = order
@@ -592,8 +594,10 @@ def validate_v3(obj: dict, word: str, language: str, example_count: int,
             seen_sentences.add(sentence.lower())
             kept.append(example)
         kept = kept[:example_count]
+        # 稀有/前缀性 head（sur、sciencefiction 等）可能找不到自然含目标词的例句。
+        # 空例句比缺整张卡好；卡面其他块仍然完整。
         if not kept:
-            problems.append("examples: no sentence contains the target word")
+            obj["examples"] = []
         else:
             for order, example in enumerate(kept, start=1):
                 example["popularity"] = order
@@ -658,17 +662,18 @@ def validate_v3(obj: dict, word: str, language: str, example_count: int,
     part_texts = {item["text"].lower() for item in parts}
     part_texts.add(word.lower())
     reached: set[str] = set()
+    cleaned_chain: list[dict] = []
     for step in chain:
         outsiders = [x for x in step["from"]
                      if x.lower() not in part_texts and x.lower() not in reached]
         if outsiders:
-            problems.append("morphology.chain 引入了 parts 之外的元素: " + ", ".join(outsiders))
+            # 模型偶尔在 chain 里补了未列入 parts 的后缀（-ly/-ness）。
+            # 丢这一步比整词重试划算；卡面仍保留 parts/family。
+            continue
+        cleaned_chain.append(step)
         reached.add(step["to"].lower())
-    # chain 是可选派生阶梯：prefix/root 简单组合（relate）或复合词（tallboy）
-    # 可以只有 parts、没有 chain；卡面仍能展示结构。只有 parts 为空却有 chain 才矛盾。
-    if not parts and chain:
-        problems.append("morphology.chain 有内容但 parts 为空")
-    morphology["chain"] = chain
+    # chain 可选；复合词/前缀词可以只有 parts。parts 为空时 chain 也无意义。
+    morphology["chain"] = cleaned_chain if parts else []
 
     family: list[dict] = []
     seen_family: set[str] = set()

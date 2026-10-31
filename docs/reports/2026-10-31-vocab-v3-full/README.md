@@ -1,6 +1,28 @@
 # 背单词 V3 全量生成报告（2026-10-31）
 
-状态：**进行中**。全量后台任务已启动；旧 113 词 v2 enrich 数据已不再使用。
+状态：**完成（2026-10-31 04:15）**。80,579 条 V3 pack 已生成并接入 dev；旧 113 词 v2 enrich 数据已弃用。
+
+
+## 最终结果（2026-10-31 04:15）
+
+- **headword**：28,273 个唯一词（28,276 词族；3 个重复 head 已合并）。
+- **非 head 词形**：52,306 个；`derive_v3_forms.py` 输出 `forms_written=52306 skipped_missing_head=0`。
+- **pack**：`fixtures-local/vocab-content-v3`，`version=v3.1`、`promptVersion=vocab-content-v3.0`、**count=80579**；
+  pack 216,947,705 B，idx 2,256,212 B；content pack 去重后 80,579，`duplicates=0`。
+- **dev**：后端已自动重启并加载 `80,579 条`（`ContentPackBootstrap` 101ms，索引≈3,147KB）；5173/8010 正常。
+- **全量生成**：16 并发完成 27,743 成功；40 条失败经两轮重试后全部补齐；最终 `v3.1` 28,278 行（5 条重试造成的重复行），pack builder 按规范化词形去重为 28,273 唯一 head + 52,306 词形。
+- **失败修复**：`relate/tallboy` 放宽复合词/前缀 chain；`awful/eastern/ruthless/wholesome/hapless` 丢弃未列入 parts 的 chain 步骤；`sur/sciencefiction` 无目标例句降级为空；4 个法/意借词强制 `language=en`；`baith` malformed JSON 重试通过。
+- **最终 API**：`eager/relate/tallboy/eagerly/interpreted/am` 全部 200、`schemaVersion=3`；`tallboy/relate` 的 family 正常；无卡片运行时错误（登录前 401 为未认证探测）。
+- **最终截图**：[full head eager](shots/full-head-eager-1440.png) · [full form eagerly](shots/full-form-eagerly-1440.png)。
+- **旧 113**：`vocab-content-en-v3.0.discarded.jsonl`，不再读取；dev 已覆盖为 80,579 pack。
+
+### 第一版已知边界
+
+- 52,306 个词形不是独立 AI 卡；31,894 个词形没有例句（只保留含有该词形的 head 例句），词形 pronunciation/`meanings.en`/coreSemantics 沿用 headword。
+- head 卡 family 最多 8 个同族词；更长词族由词形卡覆盖。
+- 20 个 head 在修复时被降级为空例句（稀有/前缀性 head）。
+- `ContentView` 不输出 `formOf/formKind` 扩展字段，卡面用 `morphology.modernNote` 表达词形关系。
+- 运行时 AI 生成仍是 v2.5 prompt/validator，启动仍有 prompt 版本不一致 warning；本 pack 是 V3 数据，不受影响。
 
 ## 结论
 
