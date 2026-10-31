@@ -101,10 +101,12 @@ def derive(head: dict, form: str) -> dict:
         family.append({"word": form, "partOfSpeech": pos or "", "meaning": zh})
         seen.add(form.lower())
 
+    # 词形卡本身不在“派生词/屈折”列表里重复出现；它的关系写在 modernNote，
+    # 兄弟词形仍列出，family 里保留 head + 该词形。
     derivatives = []
     for item in head_morph.get("derivatives") or []:
         word = str(item.get("word") or "").strip()
-        if word:
+        if word and word.lower() != form.lower():
             derivatives.append({
                 "word": word,
                 "partOfSpeech": str(item.get("partOfSpeech") or "").strip(),
@@ -113,12 +115,8 @@ def derive(head: dict, form: str) -> dict:
     inflections = []
     for item in head_morph.get("inflections") or []:
         word = str(item.get("word") or "").strip()
-        if word:
+        if word and word.lower() != form.lower():
             inflections.append({"word": word, "label": str(item.get("label") or "").strip()})
-    if kind == "inflection" and form.lower() not in {x["word"].lower() for x in inflections} and len(inflections) < 6:
-        inflections.append({"word": form, "label": meaning or "屈折形式"})
-    if kind == "derivative" and form.lower() not in {x["word"].lower() for x in derivatives} and len(derivatives) < 6:
-        derivatives.append({"word": form, "partOfSpeech": pos or "word", "meaning": zh})
 
     examples = []
     for example in head.get("examples") or []:

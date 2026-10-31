@@ -51,3 +51,20 @@
 - 旧 113 中的 `analyze/emphasize/serendipity` 等 6 个不是 headword；这次不单独生成；
   它们的词形是否在 80,579 中由 basewords 词族决定。
 - 全量完成前，dev 仍使用旧 113 pack；不要以当前页面判断全量效果。
+
+## 2026-10-31 01:47 更新：pilot 已接入 dev
+
+- 全量 16 并发已到 `360/27,783`、0 失败、ETA ≈ 163 分钟；输出仍是同一个
+  `vocab-content-en-v3.1.jsonl`（当前 856 条）。
+- 用当前 headword + 派生词形构建了 4,775 条 pilot pack，覆盖旧 113 pack，
+  dev 后端已加载：`内容包就绪：4775 条 ... version=v3.1-pilot`。
+- 真实会话验证：
+  - headword `eager`：V3 卡背、派生词/词族 POS+含义、6 例句、词源；
+  - 派生词形 `eagerly`：`formOf=eager`、词性 adv.、family 含 eager/eagerly、
+    派生词只列 siblings（不再重复自己）、例句只保留含 eagerly 的句子。
+- 截图：
+  [head-eager](shots/head-eager-1440.png) ·
+  [form-eagerly](shots/form-eagerly-1440.png)
+- 新增 `/tmp/v3-restart-dev.sh`：全量 pack `count=80579` 后自动重启 dev；
+  若 count 不足则不重启，避免把半成品挂上去。
+- dev 当前是 pilot 4,775，不是最终 80,579；最终 pack 由 watcher 覆盖后再自动重启。
