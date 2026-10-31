@@ -108,3 +108,10 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d            # 期望空�
   改动：`AdminBooksPage.tsx` 两个字段换原生 `<select>`（项目里 `ProfilePage`/`AdminAiPage` 同款，`ui/` 没有 Select 包装）；
   `AdminBookEndpoint` 加 `SUPPORTED_LANGUAGES` / `CEFR_LEVELS` 白名单；`copy.json` 加 `languageHint`/`levelHint`/`levelEmpty`
   并把 `positionHint` 改成与两条排序 SQL 一致（列表按 `created_at`、推荐位按加入人数）。
+- T593 发布即预热：**已改并提交 `489cbfb`**，dev 后端已重启到新代码，验收到**界面档**（2026-10-30 20:19–20:22）：
+  ① 接口（live dev + 真实 AI）：发布一本 2 词新书 → 2 条 `FORM` 任务 `priority=0` 被 worker 立即领走，覆盖率 0/2 → 1/2（5s）→ 2/2（15s）；
+     已就绪的书（计算机英语 10 词）下架再发布 → 新增任务 0 条（幂等，不重烧 AI）。
+  ② 界面（学生 `student@teachloop.local`，834 宽视口）：发布后立刻打开 `/vocab/books/<id>` 看到「0% + 3 个生成中」，
+     **不刷新**、等 45 秒后页面自己变成「100% + 3 个内容就绪」——轮询生效。截图 `docs/reports/vocab-book-preheat/{before-generating,after-ready}.png`。
+  ③ 平板口径（834×1284）：`document.documentElement.scrollWidth(834) <= innerWidth+2` 成立，首屏外无操作按钮。
+  清理：两本验收书与 5 条 FORM 任务已从 dev 库删除（`预热验收%`），生成的 5 个真实词内容保留在 delta。
