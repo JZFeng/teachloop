@@ -1,0 +1,617 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TeachLoop · 词卡密度两版原型（word-details / review-back）</title>
+<style>
+  :root {
+    --bg: #f6f8fc;
+    --panel: #ffffff;
+    --panel-2: #eff4fb;
+    --line: #dce4f2;
+    --line-2: #ebf0f8;
+    --text: #0e2340;
+    --muted: #41536e;
+    --muted-2: #55677f;
+    --accent: #1a63e0;
+    --accent-2: #1450bc;
+    --accent-weak: #e8effd;
+    --on-accent: #ffffff;
+    --amber: #8a5a00;
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; }
+  button:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  svg { display: block; }
+
+  /* ---------- 原型预览条（不属于页面设计） ---------- */
+  .proto-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 16px;
+    padding: 8px 16px;
+    background: #0e2340;
+    color: #fff;
+    font-size: 12.5px;
+  }
+  .proto-title { font-weight: 650; white-space: nowrap; }
+  .proto-title span { color: #b3c0d4; font-weight: 400; }
+  .proto-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .proto-tabs button {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 6px;
+    background: transparent;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .proto-tabs button.is-on { background: #fff; color: #0e2340; border-color: #fff; font-weight: 600; }
+  .proto-caption { flex: 1 1 100%; color: #b3c0d4; font-size: 11.5px; line-height: 1.5; }
+  .proto-shot {
+    margin-left: auto;
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 6px;
+    background: transparent;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .proto-shot:hover { background: rgba(255,255,255,.1); }
+  body.shot .proto-bar { display: none; }
+
+  /* ---------- 页面（与真实壳层同值：.app-main 1240 / 34px） ---------- */
+  .app-main { max-width: 1240px; margin: 0 auto; padding: 28px 34px 96px; }
+
+  /* 左上返回：照 ListDetailPage:303 / BookDetailPage:147 的 text button（无边框、小号） */
+  .page-back { margin-bottom: 8px; }
+  .back-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 24px;
+    padding: 0 7px 0 3px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+    cursor: pointer;
+  }
+  .back-btn:hover { background: var(--panel-2); }
+  .back-btn svg { color: var(--muted-2); }
+
+  /* 页头「查词 ⓘ」：.tl-page-head / .tl-page-title 同值 */
+  .page-head { margin-bottom: 18px; }
+  .page-title-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+  .page-title { margin: 0; font-size: 24px; line-height: 1.3; font-weight: 750; letter-spacing: -.2px; }
+  .info-wrap { position: relative; display: inline-flex; }
+  .info-pop {
+    position: absolute;
+    top: 32px;
+    left: 0;
+    z-index: 40;
+    width: 320px;
+    max-width: calc(100vw - 48px);
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: 0 18px 44px rgba(14, 54, 118, .12);
+  }
+  .info-pop p { margin: 0; font-size: 12.5px; line-height: 1.65; color: var(--text); }
+
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted-2);
+    cursor: pointer;
+  }
+  .icon-btn:hover { background: var(--panel-2); color: var(--text); }
+
+  /* ---------- 卡片列 ---------- */
+  .stage { display: flex; justify-content: center; align-items: flex-start; }
+  .card-column { flex: 0 0 820px; max-width: 100%; min-width: 0; }
+  /* 反馈图标单独一行、在卡片上方右侧：padding-inline 跟卡片内边距走，图标右缘与卡内图标列对齐 */
+  .card-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 24px;
+    margin-bottom: 2px;
+    padding-inline: 40px;
+  }
+  .word-card {
+    width: 100%;
+    max-width: 100%;
+    padding: 36px 40px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+  }
+  .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 0; }
+  .head-main { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; min-width: 0; }
+  .word { margin: 0; font-size: 40px; line-height: 1.1; font-weight: 750; letter-spacing: -1.2px; }
+  .phonetics { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: var(--muted); font-size: 14px; }
+  .phon { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+  .speak {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted-2);
+    cursor: pointer;
+  }
+  .speak:hover { color: var(--accent); background: var(--panel-2); }
+  .star {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted-2);
+    cursor: pointer;
+  }
+  .star:hover { background: var(--panel-2); }
+  .star[aria-pressed="true"] { color: var(--amber); }
+  .star svg { fill: currentColor; }
+  .star[aria-pressed="false"] svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
+
+  /* 定稿改动 4：卡头与正文间距压到 20px */
+  .back { margin-top: 20px; }
+
+  .meaning-row { display: flex; align-items: baseline; gap: 8px; margin: 0; }
+  .pos {
+    display: inline-flex;
+    align-items: center;
+    min-width: 26px;
+    font-size: 12px;
+    line-height: 1.65;
+    font-weight: 600;
+    color: var(--muted-2);
+    white-space: nowrap;
+  }
+  .meaning { font-size: 15px; line-height: 1.6; font-weight: 650; }
+
+  .section { margin-top: 24px; }
+  .section h2 { margin: 0 0 10px; font-size: 16px; line-height: 1.4; font-weight: 650; letter-spacing: -.1px; }
+  .section--divided { margin-top: 24px; padding-top: 22px; border-top: 1px solid var(--line-2); }
+
+  /* ---------- 构词与派生（密度核心） ----------
+     列数由 body[data-version] 上的 CSS 变量决定，两个版本的 DOM 完全相同。
+     v1（默认）：派生词 / 词形变化 / 词族 = 3 / 3 / 3
+     v2        ：派生词 / 词形变化 / 词族 = 2 / 2 / 3
+     v0        ：现状基线（1 / 1 / 1，仅用于 README 量化，不在切换器暴露） */
+  body { --morph-cols-deriv: 3; --morph-cols-family: 3; }
+  body[data-version="v2"] { --morph-cols-deriv: 2; --morph-cols-family: 3; }
+  body[data-version="v0"] { --morph-cols-deriv: 1; --morph-cols-family: 1; }
+
+  .morph-note {
+    margin: 0;
+    padding: 11px 14px;
+    font-size: 13.5px;
+    line-height: 1.7;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+  }
+  .mono { font-family: var(--mono); }
+  .morph-note b { font-weight: 650; }
+
+  .morph-rows {
+    display: grid;
+    grid-template-columns: 64px minmax(0, 1fr);
+    align-items: start;
+    gap: 12px 14px;
+    margin-top: 12px;
+  }
+  .morph-label {
+    padding-top: 2px;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.5;
+    color: var(--muted-2);
+    white-space: nowrap;
+  }
+  .morph-grid {
+    display: grid;
+    grid-template-columns: repeat(var(--morph-cols-deriv), minmax(0, 1fr));
+    align-items: start;
+    gap: 4px 10px;
+    min-width: 0;
+  }
+  .morph-grid[data-group="family"] { grid-template-columns: repeat(var(--morph-cols-family), minmax(0, 1fr)); }
+  .morph-item {
+    display: grid;
+    grid-template-columns: auto auto minmax(0, 1fr);
+    align-items: baseline;
+    gap: 0 5px;
+    min-width: 0;
+    font-size: 13.5px;
+    line-height: 1.5;
+  }
+  .morph-item b { font-size: 14.5px; font-weight: 650; letter-spacing: -.1px; white-space: nowrap; }
+  .morph-item .pos { min-width: 0; font-size: 11.5px; font-weight: 600; }
+  .morph-item .gloss { font-size: 13px; line-height: 1.5; color: var(--muted); }
+  .morph-grid[data-group="family"] .morph-item { font-size: 13px; line-height: 1.5; }
+  .morph-grid[data-group="family"] .morph-item b { font-size: 14px; font-weight: 600; }
+  .morph-grid[data-group="family"] .morph-item .gloss { font-size: 12.5px; }
+
+  /* 现状基线复刻（v0），仅量化用：把本 mock 收紧过的间距还回现状值 */
+  body[data-version="v0"] .section { margin-top: 28px; }
+  body[data-version="v0"] .section h2 { margin-bottom: 12px; }
+  body[data-version="v0"] .morph-note { padding: 14px 16px; font-size: 14px; line-height: 1.75; }
+  body[data-version="v0"] .morph-rows { grid-template-columns: 76px minmax(0, 1fr); gap: 12px 16px; margin-top: 14px; }
+  body[data-version="v0"] .morph-grid { gap: 6px 10px; }
+  body[data-version="v0"] .morph-item { grid-template-columns: 120px 44px minmax(0, 1fr); gap: 0 8px; font-size: 14px; line-height: 1.65; }
+  body[data-version="v0"] .morph-item b { font-size: 15px; }
+  body[data-version="v0"] .morph-item .gloss { font-size: 14px; line-height: 1.65; }
+  body[data-version="v0"] .morph-grid[data-group="family"] .morph-item { grid-template-columns: auto auto minmax(0, 1fr); font-size: 13.5px; }
+  body[data-version="v0"] .morph-grid[data-group="family"] .morph-item b { font-size: 14px; }
+  body[data-version="v0"] .morph-grid[data-group="family"] .morph-item .gloss { font-size: 13px; }
+
+  /* ---------- 核心理解 ---------- */
+  .core-callout {
+    padding: 14px 16px;
+    background: var(--accent-weak);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+  }
+  .core-core { margin: 0 0 3px; font-size: 16px; line-height: 1.55; font-weight: 650; }
+  .core-not { margin: 0 0 4px; font-size: 14px; line-height: 1.7; color: var(--muted); }
+  .core-image { margin: 0; font-size: 14px; line-height: 1.7; font-style: italic; }
+
+  /* ---------- 例句 ---------- */
+  .example-list { display: flex; flex-direction: column; gap: 16px; }
+  .example { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 10px; align-items: start; }
+  .en { font-size: 16px; line-height: 1.6; }
+  .zh { margin-top: 2px; font-size: 14px; line-height: 1.65; color: var(--muted-2); }
+  .example .speak { margin-top: 1px; }
+  mark { padding: 0 2px; color: inherit; background: var(--accent-weak); border-radius: 4px; }
+  .expand {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 14px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .expand:hover { color: var(--accent-2); }
+
+  /* 响应式：只用现有 1100 一档（834 iPad 竖屏落在这档） */
+  @media (max-width: 1100px) {
+    .card-column { flex: 1 1 auto; max-width: 100%; }
+  }
+  @media (pointer: coarse) {
+    .icon-btn, .back-btn, .speak, .star { min-width: 44px; min-height: 44px; }
+    .star svg { width: 24px; height: 24px; }
+  }
+</style>
+</head>
+<body data-version="v1">
+
+<div class="proto-bar" id="protoBar">
+  <div class="proto-title">原型预览 <span>不属于页面设计</span></div>
+  <div class="proto-tabs" role="tablist" aria-label="密度版本">
+    <button type="button" class="proto-tab is-on" data-version="v1" role="tab" aria-selected="true">V1 · 三组都一行 3 词</button>
+    <button type="button" class="proto-tab" data-version="v2" role="tab" aria-selected="false">V2 · 派生/词形 2 词，词族 3 词</button>
+  </div>
+  <button type="button" class="proto-shot" id="shotMode">截图模式</button>
+  <div class="proto-caption">已含 5 项定稿改动：① 左上返回（页头「查词 ⓘ」保留，返回在标题左上方） ② 反馈小图标单独一行、卡片上方右侧 ③ 不能翻面（只渲染卡背） ④ 卡头与正文间距 20px ⑤ 「屈折」显示为「词形变化」。两版除「每行列数」外完全相同。</div>
+</div>
+
+<main class="app-main">
+  <!-- 左上标准返回：照 ListDetailPage:303 / BookDetailPage:147 的写法（纯文字 + 箭头、小号、无边框） -->
+  <div class="page-back">
+    <button type="button" class="back-btn" aria-label="返回上一页">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      返回
+    </button>
+  </div>
+
+  <!-- 页头：标题 + ⓘ（与 PageHeader 一致，ⓘ 文案用真实占位 common.pageInfoPending） -->
+  <header class="page-head">
+    <div class="page-title-row">
+      <h1 class="page-title">查词</h1>
+      <span class="info-wrap">
+        <button type="button" class="icon-btn" id="infoBtn" aria-label="页面说明" aria-expanded="false" aria-controls="infoPop">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.6v.6"/></svg>
+        </button>
+        <div class="info-pop" id="infoPop" hidden>
+          <p>本页说明整理中，稍后补充。</p>
+        </div>
+      </span>
+    </div>
+  </header>
+
+  <div class="stage">
+    <div class="card-column">
+      <!-- 反馈小图标单独一行、卡片上方右侧（不占页头）。对齐 .review-card-toolbar -->
+      <div class="card-toolbar">
+        <button type="button" class="icon-btn" id="feedbackBtn" title="反馈 / 报错" aria-label="反馈 / 报错">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11.6a8 8 0 0 1-8.6 8 8.9 8.9 0 0 1-3.2-.6L4 20.5l1.3-4a7.9 7.9 0 0 1-1.8-4.9 8 8 0 0 1 8.6-8 8 8 0 0 1 8.4 8z"/><path d="M9 11.6h6"/></svg>
+        </button>
+      </div>
+
+      <article class="word-card" id="wordCard" aria-label="查词卡背：inflect">
+      <div class="card-head">
+        <div class="head-main">
+          <h2 class="word">inflect</h2>
+          <div class="phonetics">
+            <span class="phon">英 /ɪnˈflekt/
+              <button type="button" class="speak" aria-label="播放英式发音">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+              </button>
+            </span>
+            <span class="phon">美 /ɪnˈflekt/
+              <button type="button" class="speak" aria-label="播放美式发音">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+              </button>
+            </span>
+          </div>
+        </div>
+        <button type="button" class="star" id="starBtn" aria-label="取消收藏" aria-pressed="true">
+          <svg width="21" height="21" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.7 5.48 6.05.88-4.38 4.27 1.03 6.02L12 17.3l-5.4 2.85 1.03-6.02-4.38-4.27 6.05-.88L12 3.5Z"/></svg>
+        </button>
+      </div>
+
+      <div class="back" id="backContent">
+        <div class="meaning-row">
+          <span class="pos">v.</span>
+          <span class="meaning">1.（动词）改变词形（如屈折变化）；2.（声音）抑扬顿挫；3.（使）弯曲或转向。</span>
+        </div>
+
+        <section class="section" id="morphSection" aria-labelledby="morphTitle">
+          <h2 id="morphTitle">构词与派生</h2>
+          <p class="morph-note">现代英语中，<b class="mono">inflect</b> 不能拆分为有意义的现代词素；它源自拉丁语，整体作为词根使用。</p>
+          <div class="morph-rows">
+            <div class="morph-label">派生词</div>
+            <div class="morph-grid" data-group="derivatives">
+              <div class="morph-item"><b>inflection</b><span class="pos">n.</span><span class="gloss">屈折变化；语调变化</span></div>
+              <div class="morph-item"><b>inflectional</b><span class="pos">adj.</span><span class="gloss">屈折的</span></div>
+              <div class="morph-item"><b>inflexion</b><span class="pos">n.</span><span class="gloss">屈折变化（英式拼写）</span></div>
+              <div class="morph-item"><b>inflexional</b><span class="pos">adj.</span><span class="gloss">屈折的（英式拼写）</span></div>
+            </div>
+
+            <div class="morph-label">词形变化</div>
+            <div class="morph-grid" data-group="inflections">
+              <div class="morph-item"><b>inflects</b><span class="pos">第三人称单数</span></div>
+              <div class="morph-item"><b>inflected</b><span class="pos">过去式/过去分词</span></div>
+              <div class="morph-item"><b>inflecting</b><span class="pos">现在分词</span></div>
+            </div>
+
+            <div class="morph-label">词族</div>
+            <div class="morph-grid" data-group="family">
+              <div class="morph-item"><b>inflect</b><span class="pos">v.</span><span class="gloss">屈折变化；改变语调</span></div>
+              <div class="morph-item"><b>inflects</b><span class="pos">v.</span><span class="gloss">第三人称单数</span></div>
+              <div class="morph-item"><b>inflected</b><span class="pos">v.</span><span class="gloss">过去式/过去分词</span></div>
+              <div class="morph-item"><b>inflecting</b><span class="pos">v.</span><span class="gloss">现在分词</span></div>
+              <div class="morph-item"><b>inflection</b><span class="pos">n.</span><span class="gloss">屈折变化；语调变化</span></div>
+              <div class="morph-item"><b>inflectional</b><span class="pos">adj.</span><span class="gloss">屈折的</span></div>
+              <div class="morph-item"><b>inflexion</b><span class="pos">n.</span><span class="gloss">屈折变化（英式拼写）</span></div>
+              <div class="morph-item"><b>inflexional</b><span class="pos">adj.</span><span class="gloss">屈折的（英式拼写）</span></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="section" id="coreSection" aria-labelledby="coreTitle">
+          <h2 id="coreTitle">核心理解</h2>
+          <div class="core-callout">
+            <p class="core-core">改变形式或音调</p>
+            <p class="core-not">不是指改变词义或词性，而是指改变词形或声音的抑扬。</p>
+            <p class="core-image">说话时声音高低起伏，或单词词尾变化。</p>
+          </div>
+        </section>
+
+        <section class="section section--divided" id="examplesSection" aria-labelledby="examplesTitle">
+          <h2 id="examplesTitle">核心例句</h2>
+          <div class="example-list">
+            <div class="example">
+              <div>
+                <div class="en">In English, verbs <mark>inflect</mark> for tense and person.</div>
+                <div class="zh">英语中动词会因时态和人称发生词形变化。</div>
+              </div>
+              <button type="button" class="speak" aria-label="播放例句">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+              </button>
+            </div>
+            <div class="example">
+              <div>
+                <div class="en">Her voice <mark>inflected</mark> upward at the end of the sentence.</div>
+                <div class="zh">她说话时句尾音调上扬。</div>
+              </div>
+              <button type="button" class="speak" aria-label="播放例句">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+              </button>
+            </div>
+            <div class="example">
+              <div>
+                <div class="en">Latin nouns <mark>inflect</mark> for case, number and gender.</div>
+                <div class="zh">拉丁语名词会按格、数和性发生词形变化。</div>
+              </div>
+              <button type="button" class="speak" aria-label="播放例句">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+              </button>
+            </div>
+          </div>
+          <button type="button" class="expand" aria-expanded="false">
+            查看另外 3 个例句
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+          </button>
+        </section>
+      </div>
+      </article>
+    </div>
+  </div>
+</main>
+
+<script>
+  (function () {
+    var VERSIONS = ['v1', 'v2'];
+
+    function applyVersion(version) {
+      if (VERSIONS.indexOf(version) < 0) version = 'v1';
+      document.body.setAttribute('data-version', version);
+      document.querySelectorAll('.proto-tab').forEach(function (tab) {
+        var on = tab.getAttribute('data-version') === version;
+        tab.classList.toggle('is-on', on);
+        tab.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+    }
+
+    document.querySelectorAll('.proto-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        var version = tab.getAttribute('data-version');
+        applyVersion(version);
+        if (window.history && window.history.replaceState) {
+          window.history.replaceState(null, '', '#' + version);
+        }
+      });
+    });
+
+    // 截图模式：隐藏预览条（真实页面没有这条）
+    document.getElementById('shotMode').addEventListener('click', function () {
+      document.body.classList.toggle('shot');
+    });
+    if (location.hash === '#shot') { document.body.classList.add('shot'); applyVersion(location.hash.replace('#shot', '') || 'v1'); }
+    else { applyVersion(location.hash.replace('#', '')); }
+
+    // 收藏 / 反馈：静态原型只切换本地状态，不发请求
+    var star = document.getElementById('starBtn');
+    star.addEventListener('click', function () {
+      var on = star.getAttribute('aria-pressed') !== 'true';
+      star.setAttribute('aria-pressed', on ? 'true' : 'false');
+      star.setAttribute('aria-label', on ? '取消收藏' : '收藏');
+    });
+
+    // 页头 ⓘ：复刻 InfoHint 的气泡（文案用真实占位 common.pageInfoPending）
+    var infoBtn = document.getElementById('infoBtn');
+    var infoPop = document.getElementById('infoPop');
+    infoBtn.addEventListener('click', function (event) {
+      event.stopPropagation();
+      var open = infoPop.hidden;
+      infoPop.hidden = !open;
+      infoBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    document.addEventListener('click', function (event) {
+      if (infoPop.hidden) return;
+      if (infoPop.contains(event.target) || infoBtn.contains(event.target)) return;
+      infoPop.hidden = true;
+      infoBtn.setAttribute('aria-expanded', 'false');
+    });
+
+    document.querySelector('.expand').addEventListener('click', function () {
+      var btn = document.querySelector('.expand');
+      btn.setAttribute('aria-expanded', btn.getAttribute('aria-expanded') === 'true' ? 'false' : 'true');
+    });
+
+    /**
+     * 可复核的密度指标（README 里的数字全部来自它）：
+     *   await page.evaluate(() => mockMetrics())
+     * v0 = 现状单列基线，只在量化时用：document.body.dataset.version = 'v0'
+     */
+    window.mockMetrics = function () {
+      var card = document.getElementById('wordCard');
+      var coreTitle = document.getElementById('coreTitle');
+      var morph = document.getElementById('morphSection');
+      var cardRect = card.getBoundingClientRect();
+      var coreRect = coreTitle.getBoundingClientRect();
+
+      function groupRows(group) {
+        var grid = document.querySelector('.morph-grid[data-group="' + group + '"]');
+        var items = Array.prototype.slice.call(grid.querySelectorAll('.morph-item'));
+        var rows = [];
+        items.forEach(function (el) {
+          var rect = el.getBoundingClientRect();
+          var top = Math.round(rect.top);
+          var row = null;
+          for (var i = 0; i < rows.length; i++) {
+            if (Math.abs(rows[i].top - top) <= 2) { row = rows[i]; break; }
+          }
+          if (!row) { row = { top: top, count: 0, wrapped: 0, cellWidth: Math.round(rect.width) }; rows.push(row); }
+          row.count += 1;
+          var lineHeight = parseFloat(window.getComputedStyle(el).lineHeight) || 21;
+          if (rect.height > lineHeight * 1.45) row.wrapped += 1;
+        });
+        return rows.map(function (row) {
+          return { items: row.count, wrapped: row.wrapped, cellWidth: row.cellWidth };
+        });
+      }
+
+      return {
+        version: document.body.getAttribute('data-version'),
+        cardTopInViewport: Math.round(cardRect.top),
+        cardWidth: Math.round(cardRect.width),
+        cardHeight: Math.round(cardRect.height),
+        /* 卡片内容区宽度（卡宽 − 左右内边距），3 列是否够用的分母 */
+        cardInnerWidth: Math.round(document.querySelector('.back').getBoundingClientRect().width),
+        /* 卡片上方占位：返回行 + 「查词」标题行 + 反馈图标行（.app-main 的 28px 上内边距不算） */
+        aboveCardHeight: Math.round(cardRect.top - document.querySelector('.app-main').getBoundingClientRect().top - 28),
+        cardTopToCoreTitle: Math.round(coreRect.top - cardRect.top),
+        coreTitleTopInViewport: Math.round(coreRect.top),
+        firstScreenHeight: window.innerHeight,
+        coreTitleAboveFold: coreRect.top + 20 < window.innerHeight,
+        morphSectionHeight: Math.round(morph.getBoundingClientRect().height),
+        groups: {
+          derivatives: groupRows('derivatives'),
+          inflections: groupRows('inflections'),
+          family: groupRows('family')
+        },
+        overflowPx: document.documentElement.scrollWidth - window.innerWidth
+      };
+    };
+  })();
+</script>
+</body>
+</html>

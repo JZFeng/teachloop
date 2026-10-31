@@ -1,0 +1,1204 @@
+{
+  "v1-1440": {
+    "metrics": {
+      "version": "v1",
+      "cardTopInViewport": 206,
+      "cardWidth": 820,
+      "cardHeight": 908,
+      "cardInnerWidth": 738,
+      "aboveCardHeight": 110,
+      "cardTopToCoreTitle": 432,
+      "coreTitleTopInViewport": 638,
+      "firstScreenHeight": 900,
+      "coreTitleAboveFold": true,
+      "morphSectionHeight": 259,
+      "groups": {
+        "derivatives": [
+          {
+            "items": 3,
+            "wrapped": 0,
+            "cellWidth": 213
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 213
+          }
+        ],
+        "inflections": [
+          {
+            "items": 3,
+            "wrapped": 0,
+            "cellWidth": 213
+          }
+        ],
+        "family": [
+          {
+            "items": 3,
+            "wrapped": 0,
+            "cellWidth": 213
+          },
+          {
+            "items": 3,
+            "wrapped": 0,
+            "cellWidth": 213
+          },
+          {
+            "items": 2,
+            "wrapped": 0,
+            "cellWidth": 213
+          }
+        ]
+      },
+      "overflowPx": 0
+    },
+    "widths": {
+      "derivatives": {
+        "cell": 213.3,
+        "tightest": {
+          "text": "inflexionaladj.屈折的（英式拼写）",
+          "used": 212.6,
+          "slack": 0.7,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 4,
+        "items": [
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 203.1,
+            "slack": 10.2,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 147.3,
+            "slack": 66,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 209.9,
+            "slack": 3.4,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 212.6,
+            "slack": 0.7,
+            "wrapped": false
+          }
+        ]
+      },
+      "inflections": {
+        "cell": 213.3,
+        "tightest": {
+          "text": "inflected过去式/过去分词",
+          "used": 150.7,
+          "slack": 62.6,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 3,
+        "items": [
+          {
+            "text": "inflects第三人称单数",
+            "used": 125.8,
+            "slack": 87.5,
+            "wrapped": false
+          },
+          {
+            "text": "inflected过去式/过去分词",
+            "used": 150.7,
+            "slack": 62.6,
+            "wrapped": false
+          },
+          {
+            "text": "inflecting现在分词",
+            "used": 116.5,
+            "slack": 96.8,
+            "wrapped": false
+          }
+        ]
+      },
+      "family": {
+        "cell": 213.3,
+        "tightest": {
+          "text": "inflexionaladj.屈折的（英式拼写）",
+          "used": 211.5,
+          "slack": 1.8,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 8,
+        "items": [
+          {
+            "text": "inflectv.屈折变化；改变语调",
+            "used": 174.2,
+            "slack": 39.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflectsv.第三人称单数",
+            "used": 144.1,
+            "slack": 69.2,
+            "wrapped": false
+          },
+          {
+            "text": "inflectedv.过去式/过去分词",
+            "used": 169.7,
+            "slack": 43.6,
+            "wrapped": false
+          },
+          {
+            "text": "inflectingv.现在分词",
+            "used": 132.3,
+            "slack": 81.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 195.7,
+            "slack": 17.6,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 142.4,
+            "slack": 70.9,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 202.3,
+            "slack": 11,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 211.5,
+            "slack": 1.8,
+            "wrapped": false
+          }
+        ]
+      }
+    },
+    "errors": []
+  },
+  "v2-1440": {
+    "metrics": {
+      "version": "v2",
+      "cardTopInViewport": 206,
+      "cardWidth": 820,
+      "cardHeight": 934,
+      "cardInnerWidth": 738,
+      "aboveCardHeight": 110,
+      "cardTopToCoreTitle": 458,
+      "coreTitleTopInViewport": 664,
+      "firstScreenHeight": 900,
+      "coreTitleAboveFold": true,
+      "morphSectionHeight": 285,
+      "groups": {
+        "derivatives": [
+          {
+            "items": 2,
+            "wrapped": 0,
+            "cellWidth": 325
+          },
+          {
+            "items": 2,
+            "wrapped": 0,
+            "cellWidth": 325
+          }
+        ],
+        "inflections": [
+          {
+            "items": 2,
+            "wrapped": 0,
+            "cellWidth": 325
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 325
+          }
+        ],
+        "family": [
+          {
+            "items": 3,
+            "wrapped": 0,
+            "cellWidth": 213
+          },
+          {
+            "items": 3,
+            "wrapped": 0,
+            "cellWidth": 213
+          },
+          {
+            "items": 2,
+            "wrapped": 0,
+            "cellWidth": 213
+          }
+        ]
+      },
+      "overflowPx": 0
+    },
+    "widths": {
+      "derivatives": {
+        "cell": 325,
+        "tightest": {
+          "text": "inflexionaladj.屈折的（英式拼写）",
+          "used": 219.1,
+          "slack": 105.9,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 4,
+        "items": [
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 203.1,
+            "slack": 121.9,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 147.3,
+            "slack": 177.7,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 209.9,
+            "slack": 115.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 219.1,
+            "slack": 105.9,
+            "wrapped": false
+          }
+        ]
+      },
+      "inflections": {
+        "cell": 325,
+        "tightest": {
+          "text": "inflected过去式/过去分词",
+          "used": 150.7,
+          "slack": 174.3,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 3,
+        "items": [
+          {
+            "text": "inflects第三人称单数",
+            "used": 125.8,
+            "slack": 199.2,
+            "wrapped": false
+          },
+          {
+            "text": "inflected过去式/过去分词",
+            "used": 150.7,
+            "slack": 174.3,
+            "wrapped": false
+          },
+          {
+            "text": "inflecting现在分词",
+            "used": 116.5,
+            "slack": 208.5,
+            "wrapped": false
+          }
+        ]
+      },
+      "family": {
+        "cell": 213.3,
+        "tightest": {
+          "text": "inflexionaladj.屈折的（英式拼写）",
+          "used": 211.5,
+          "slack": 1.8,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 8,
+        "items": [
+          {
+            "text": "inflectv.屈折变化；改变语调",
+            "used": 174.2,
+            "slack": 39.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflectsv.第三人称单数",
+            "used": 144.1,
+            "slack": 69.2,
+            "wrapped": false
+          },
+          {
+            "text": "inflectedv.过去式/过去分词",
+            "used": 169.7,
+            "slack": 43.6,
+            "wrapped": false
+          },
+          {
+            "text": "inflectingv.现在分词",
+            "used": 132.3,
+            "slack": 81.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 195.7,
+            "slack": 17.6,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 142.4,
+            "slack": 70.9,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 202.3,
+            "slack": 11,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 211.5,
+            "slack": 1.8,
+            "wrapped": false
+          }
+        ]
+      }
+    },
+    "errors": []
+  },
+  "v1-834": {
+    "metrics": {
+      "version": "v1",
+      "cardTopInViewport": 223,
+      "cardWidth": 766,
+      "cardHeight": 983,
+      "cardInnerWidth": 684,
+      "aboveCardHeight": 110,
+      "cardTopToCoreTitle": 507,
+      "coreTitleTopInViewport": 730,
+      "firstScreenHeight": 1194,
+      "coreTitleAboveFold": true,
+      "morphSectionHeight": 334,
+      "groups": {
+        "derivatives": [
+          {
+            "items": 3,
+            "wrapped": 2,
+            "cellWidth": 195
+          },
+          {
+            "items": 1,
+            "wrapped": 1,
+            "cellWidth": 195
+          }
+        ],
+        "inflections": [
+          {
+            "items": 3,
+            "wrapped": 0,
+            "cellWidth": 195
+          }
+        ],
+        "family": [
+          {
+            "items": 3,
+            "wrapped": 0,
+            "cellWidth": 195
+          },
+          {
+            "items": 3,
+            "wrapped": 1,
+            "cellWidth": 195
+          },
+          {
+            "items": 2,
+            "wrapped": 2,
+            "cellWidth": 195
+          }
+        ]
+      },
+      "overflowPx": 0
+    },
+    "widths": {
+      "derivatives": {
+        "cell": 195.3,
+        "tightest": {
+          "text": "inflexionaladj.屈折的（英式拼写）",
+          "used": 193.1,
+          "slack": 2.2,
+          "wrapped": true
+        },
+        "wrapped": 3,
+        "total": 4,
+        "items": [
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 190.1,
+            "slack": 5.2,
+            "wrapped": true
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 147.3,
+            "slack": 48,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 183.9,
+            "slack": 11.4,
+            "wrapped": true
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 193.1,
+            "slack": 2.2,
+            "wrapped": true
+          }
+        ]
+      },
+      "inflections": {
+        "cell": 195.3,
+        "tightest": {
+          "text": "inflected过去式/过去分词",
+          "used": 150.7,
+          "slack": 44.6,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 3,
+        "items": [
+          {
+            "text": "inflects第三人称单数",
+            "used": 125.8,
+            "slack": 69.5,
+            "wrapped": false
+          },
+          {
+            "text": "inflected过去式/过去分词",
+            "used": 150.7,
+            "slack": 44.6,
+            "wrapped": false
+          },
+          {
+            "text": "inflecting现在分词",
+            "used": 116.5,
+            "slack": 78.8,
+            "wrapped": false
+          }
+        ]
+      },
+      "family": {
+        "cell": 195.3,
+        "tightest": {
+          "text": "inflexionaladj.屈折的（英式拼写）",
+          "used": 186.5,
+          "slack": 8.8,
+          "wrapped": true
+        },
+        "wrapped": 3,
+        "total": 8,
+        "items": [
+          {
+            "text": "inflectv.屈折变化；改变语调",
+            "used": 174.2,
+            "slack": 21.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflectsv.第三人称单数",
+            "used": 144.1,
+            "slack": 51.2,
+            "wrapped": false
+          },
+          {
+            "text": "inflectedv.过去式/过去分词",
+            "used": 169.7,
+            "slack": 25.6,
+            "wrapped": false
+          },
+          {
+            "text": "inflectingv.现在分词",
+            "used": 132.3,
+            "slack": 63.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 183.2,
+            "slack": 12.1,
+            "wrapped": true
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 142.4,
+            "slack": 52.9,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 177.3,
+            "slack": 18,
+            "wrapped": true
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 186.5,
+            "slack": 8.8,
+            "wrapped": true
+          }
+        ]
+      }
+    },
+    "errors": []
+  },
+  "v2-834": {
+    "metrics": {
+      "version": "v2",
+      "cardTopInViewport": 223,
+      "cardWidth": 766,
+      "cardHeight": 971,
+      "cardInnerWidth": 684,
+      "aboveCardHeight": 110,
+      "cardTopToCoreTitle": 495,
+      "coreTitleTopInViewport": 718,
+      "firstScreenHeight": 1194,
+      "coreTitleAboveFold": true,
+      "morphSectionHeight": 322,
+      "groups": {
+        "derivatives": [
+          {
+            "items": 2,
+            "wrapped": 0,
+            "cellWidth": 298
+          },
+          {
+            "items": 2,
+            "wrapped": 0,
+            "cellWidth": 298
+          }
+        ],
+        "inflections": [
+          {
+            "items": 2,
+            "wrapped": 0,
+            "cellWidth": 298
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 298
+          }
+        ],
+        "family": [
+          {
+            "items": 3,
+            "wrapped": 0,
+            "cellWidth": 195
+          },
+          {
+            "items": 3,
+            "wrapped": 1,
+            "cellWidth": 195
+          },
+          {
+            "items": 2,
+            "wrapped": 2,
+            "cellWidth": 195
+          }
+        ]
+      },
+      "overflowPx": 0
+    },
+    "widths": {
+      "derivatives": {
+        "cell": 298,
+        "tightest": {
+          "text": "inflexionaladj.屈折的（英式拼写）",
+          "used": 219.1,
+          "slack": 78.9,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 4,
+        "items": [
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 203.1,
+            "slack": 94.9,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 147.3,
+            "slack": 150.7,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 209.9,
+            "slack": 88.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 219.1,
+            "slack": 78.9,
+            "wrapped": false
+          }
+        ]
+      },
+      "inflections": {
+        "cell": 298,
+        "tightest": {
+          "text": "inflected过去式/过去分词",
+          "used": 150.7,
+          "slack": 147.3,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 3,
+        "items": [
+          {
+            "text": "inflects第三人称单数",
+            "used": 125.8,
+            "slack": 172.2,
+            "wrapped": false
+          },
+          {
+            "text": "inflected过去式/过去分词",
+            "used": 150.7,
+            "slack": 147.3,
+            "wrapped": false
+          },
+          {
+            "text": "inflecting现在分词",
+            "used": 116.5,
+            "slack": 181.5,
+            "wrapped": false
+          }
+        ]
+      },
+      "family": {
+        "cell": 195.3,
+        "tightest": {
+          "text": "inflexionaladj.屈折的（英式拼写）",
+          "used": 186.5,
+          "slack": 8.8,
+          "wrapped": true
+        },
+        "wrapped": 3,
+        "total": 8,
+        "items": [
+          {
+            "text": "inflectv.屈折变化；改变语调",
+            "used": 174.2,
+            "slack": 21.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflectsv.第三人称单数",
+            "used": 144.1,
+            "slack": 51.2,
+            "wrapped": false
+          },
+          {
+            "text": "inflectedv.过去式/过去分词",
+            "used": 169.7,
+            "slack": 25.6,
+            "wrapped": false
+          },
+          {
+            "text": "inflectingv.现在分词",
+            "used": 132.3,
+            "slack": 63.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 183.2,
+            "slack": 12.1,
+            "wrapped": true
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 142.4,
+            "slack": 52.9,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 177.3,
+            "slack": 18,
+            "wrapped": true
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 186.5,
+            "slack": 8.8,
+            "wrapped": true
+          }
+        ]
+      }
+    },
+    "errors": []
+  },
+  "v0-1440": {
+    "metrics": {
+      "version": "v0",
+      "cardTopInViewport": 206,
+      "cardWidth": 820,
+      "cardHeight": 1216,
+      "cardInnerWidth": 738,
+      "aboveCardHeight": 110,
+      "cardTopToCoreTitle": 733,
+      "coreTitleTopInViewport": 938,
+      "firstScreenHeight": 900,
+      "coreTitleAboveFold": false,
+      "morphSectionHeight": 552,
+      "groups": {
+        "derivatives": [
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          }
+        ],
+        "inflections": [
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          }
+        ],
+        "family": [
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          },
+          {
+            "items": 1,
+            "wrapped": 0,
+            "cellWidth": 646
+          }
+        ]
+      },
+      "overflowPx": 0
+    },
+    "widths": {
+      "derivatives": {
+        "cell": 646,
+        "tightest": {
+          "text": "inflexionn.屈折变化（英式拼写）",
+          "used": 320,
+          "slack": 326,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 4,
+        "items": [
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 306,
+            "slack": 340,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 222,
+            "slack": 424,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 320,
+            "slack": 326,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 306,
+            "slack": 340,
+            "wrapped": false
+          }
+        ]
+      },
+      "inflections": {
+        "cell": 646,
+        "tightest": {
+          "text": "inflects第三人称单数",
+          "used": 172,
+          "slack": 474,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 3,
+        "items": [
+          {
+            "text": "inflects第三人称单数",
+            "used": 172,
+            "slack": 474,
+            "wrapped": false
+          },
+          {
+            "text": "inflected过去式/过去分词",
+            "used": 172,
+            "slack": 474,
+            "wrapped": false
+          },
+          {
+            "text": "inflecting现在分词",
+            "used": 172,
+            "slack": 474,
+            "wrapped": false
+          }
+        ]
+      },
+      "family": {
+        "cell": 646,
+        "tightest": {
+          "text": "inflexionaladj.屈折的（英式拼写）",
+          "used": 222,
+          "slack": 424,
+          "wrapped": false
+        },
+        "wrapped": 0,
+        "total": 8,
+        "items": [
+          {
+            "text": "inflectv.屈折变化；改变语调",
+            "used": 184.7,
+            "slack": 461.3,
+            "wrapped": false
+          },
+          {
+            "text": "inflectsv.第三人称单数",
+            "used": 153.1,
+            "slack": 492.9,
+            "wrapped": false
+          },
+          {
+            "text": "inflectedv.过去式/过去分词",
+            "used": 179.3,
+            "slack": 466.7,
+            "wrapped": false
+          },
+          {
+            "text": "inflectingv.现在分词",
+            "used": 140.3,
+            "slack": 505.8,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionn.屈折变化；语调变化",
+            "used": 206.2,
+            "slack": 439.8,
+            "wrapped": false
+          },
+          {
+            "text": "inflectionaladj.屈折的",
+            "used": 149.9,
+            "slack": 496.1,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionn.屈折变化（英式拼写）",
+            "used": 213.3,
+            "slack": 432.7,
+            "wrapped": false
+          },
+          {
+            "text": "inflexionaladj.屈折的（英式拼写）",
+            "used": 222,
+            "slack": 424,
+            "wrapped": false
+          }
+        ]
+      }
+    }
+  },
+  "noChrome-v1-1440": {
+    "version": "v1",
+    "cardTopInViewport": 138,
+    "cardWidth": 820,
+    "cardHeight": 908,
+    "cardInnerWidth": 738,
+    "aboveCardHeight": 110,
+    "cardTopToCoreTitle": 432,
+    "coreTitleTopInViewport": 570,
+    "firstScreenHeight": 900,
+    "coreTitleAboveFold": true,
+    "morphSectionHeight": 259,
+    "groups": {
+      "derivatives": [
+        {
+          "items": 3,
+          "wrapped": 0,
+          "cellWidth": 213
+        },
+        {
+          "items": 1,
+          "wrapped": 0,
+          "cellWidth": 213
+        }
+      ],
+      "inflections": [
+        {
+          "items": 3,
+          "wrapped": 0,
+          "cellWidth": 213
+        }
+      ],
+      "family": [
+        {
+          "items": 3,
+          "wrapped": 0,
+          "cellWidth": 213
+        },
+        {
+          "items": 3,
+          "wrapped": 0,
+          "cellWidth": 213
+        },
+        {
+          "items": 2,
+          "wrapped": 0,
+          "cellWidth": 213
+        }
+      ]
+    },
+    "overflowPx": 0
+  },
+  "noChrome-v2-1440": {
+    "version": "v2",
+    "cardTopInViewport": 138,
+    "cardWidth": 820,
+    "cardHeight": 934,
+    "cardInnerWidth": 738,
+    "aboveCardHeight": 110,
+    "cardTopToCoreTitle": 458,
+    "coreTitleTopInViewport": 596,
+    "firstScreenHeight": 900,
+    "coreTitleAboveFold": true,
+    "morphSectionHeight": 285,
+    "groups": {
+      "derivatives": [
+        {
+          "items": 2,
+          "wrapped": 0,
+          "cellWidth": 325
+        },
+        {
+          "items": 2,
+          "wrapped": 0,
+          "cellWidth": 325
+        }
+      ],
+      "inflections": [
+        {
+          "items": 2,
+          "wrapped": 0,
+          "cellWidth": 325
+        },
+        {
+          "items": 1,
+          "wrapped": 0,
+          "cellWidth": 325
+        }
+      ],
+      "family": [
+        {
+          "items": 3,
+          "wrapped": 0,
+          "cellWidth": 213
+        },
+        {
+          "items": 3,
+          "wrapped": 0,
+          "cellWidth": 213
+        },
+        {
+          "items": 2,
+          "wrapped": 0,
+          "cellWidth": 213
+        }
+      ]
+    },
+    "overflowPx": 0
+  },
+  "noChrome-v1-834": {
+    "version": "v1",
+    "cardTopInViewport": 138,
+    "cardWidth": 766,
+    "cardHeight": 983,
+    "cardInnerWidth": 684,
+    "aboveCardHeight": 110,
+    "cardTopToCoreTitle": 507,
+    "coreTitleTopInViewport": 646,
+    "firstScreenHeight": 1194,
+    "coreTitleAboveFold": true,
+    "morphSectionHeight": 334,
+    "groups": {
+      "derivatives": [
+        {
+          "items": 3,
+          "wrapped": 2,
+          "cellWidth": 195
+        },
+        {
+          "items": 1,
+          "wrapped": 1,
+          "cellWidth": 195
+        }
+      ],
+      "inflections": [
+        {
+          "items": 3,
+          "wrapped": 0,
+          "cellWidth": 195
+        }
+      ],
+      "family": [
+        {
+          "items": 3,
+          "wrapped": 0,
+          "cellWidth": 195
+        },
+        {
+          "items": 3,
+          "wrapped": 1,
+          "cellWidth": 195
+        },
+        {
+          "items": 2,
+          "wrapped": 2,
+          "cellWidth": 195
+        }
+      ]
+    },
+    "overflowPx": 0
+  },
+  "noChrome-v2-834": {
+    "version": "v2",
+    "cardTopInViewport": 138,
+    "cardWidth": 766,
+    "cardHeight": 971,
+    "cardInnerWidth": 684,
+    "aboveCardHeight": 110,
+    "cardTopToCoreTitle": 495,
+    "coreTitleTopInViewport": 633,
+    "firstScreenHeight": 1194,
+    "coreTitleAboveFold": true,
+    "morphSectionHeight": 322,
+    "groups": {
+      "derivatives": [
+        {
+          "items": 2,
+          "wrapped": 0,
+          "cellWidth": 298
+        },
+        {
+          "items": 2,
+          "wrapped": 0,
+          "cellWidth": 298
+        }
+      ],
+      "inflections": [
+        {
+          "items": 2,
+          "wrapped": 0,
+          "cellWidth": 298
+        },
+        {
+          "items": 1,
+          "wrapped": 0,
+          "cellWidth": 298
+        }
+      ],
+      "family": [
+        {
+          "items": 3,
+          "wrapped": 0,
+          "cellWidth": 195
+        },
+        {
+          "items": 3,
+          "wrapped": 1,
+          "cellWidth": 195
+        },
+        {
+          "items": 2,
+          "wrapped": 2,
+          "cellWidth": 195
+        }
+      ]
+    },
+    "overflowPx": 0
+  }
+}
