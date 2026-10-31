@@ -162,3 +162,17 @@ img.review-word-image  → width/height 88px、naturalWidth 176px、border-radiu
 5. **`words_with_images` 是 teacher 的私人词单**：`VocabularyListEndpoint` 的词单是按用户的容器
    （AC-69.9：他人词单一律 404），管理员也没有「给别人建词单」的接口，所以词单只能建在 teacher 名下；
    qa 里唯一的 ADMIN（`admin@teachloop.local`）`password_login_enabled=false`，无法用密码登录建单。
+
+---
+
+## 追加（2026-10-31 12:20，Lead 执行）
+
+用户要求词表建在 **admin** 名下、并释放 qa 标准端口。已执行：
+
+1. 停掉占用 8011/5174 的 v3 沙箱进程（用户授权），`./scripts/env.sh deploy qa` 把 qa 恢复到 `0114c4b+dirty`；
+2. qa 里给 `admin@teachloop.local` 打开 `password_login_enabled`（密码与 teacher 相同），仅 qa 测试环境；
+3. 以 **admin** 身份重新建 `words_with_images`（id `6fd1550b-ba6b-4dcf-988d-877458203b4d`），113 词；删除此前 teacher 名下的同名词表；
+4. 重跑 `scripts/vocab-images-import.py`，113 张 WebP 落 `.envs/qa/uploads/vocab/images/<content_id>.webp`（976.5KB）；
+5. 实测：admin 登录 → `/vocab/words/by-form/apple` 显示 88px 配图；`GET /api/vocab/contents/1000000022/image` 在登录态返回 `200 image/webp 9298B`（未登录 401）。
+
+截图：`qa-admin-apple.png`。
