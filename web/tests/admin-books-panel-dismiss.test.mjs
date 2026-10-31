@@ -42,6 +42,11 @@ test('面板有 ✕ 出口，文案两种语言都在', () => {
   assert.ok(COPY['vocab.books.admin.close'], '缺少 vocab.books.admin.close 文案')
   assert.equal(typeof COPY['vocab.books.admin.close']['zh-CN'], 'string')
   assert.equal(typeof COPY['vocab.books.admin.close'].en, 'string')
+  // 2026-10-30 用户反馈（minor）：「✕ 和标题融在一起，第一眼没看到」。
+  // 锁住「有边框的次要按钮」这个修法：退回 text 变体就又变成一条不起眼的线。
+  assert.match(head, /<Button variant="default" size="small"/, '✕ 要用有边框的次要按钮，别用 text 变体')
+  assert.match(CSS, /@media \(pointer: coarse\) \{\s*\.books-admin-panel-head > button \{/,
+    '触屏下要把 ✕ 撑到能点准（iPad 834 下只有 30×26）')
 })
 
 test('Esc 收起面板，但焦点在输入框里时不关', () => {

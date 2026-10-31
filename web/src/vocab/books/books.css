@@ -105,6 +105,15 @@
   margin-left: auto;
 }
 
+/* 触屏才放大（iPad 竖屏 834 下这个 ✕ 只有 30×26，手指点不准）；鼠标端保持密度，
+   与 `ui/ui.css` 的 `pointer: coarse` 口径一致——iPad Pro 横屏 1366 也很宽，但同样是手指。 */
+@media (pointer: coarse) {
+  .books-admin-panel-head > button {
+    min-width: 40px;
+    min-height: 40px;
+  }
+}
+
 /* 没选中书时右侧面板不渲染，表格独占整行（同一条判定在 AdminBooksPage 的 className 里）。 */
 .books-admin-grid.no-panel {
   grid-template-columns: minmax(0, 1fr);

@@ -456,7 +456,9 @@ export default function AdminBooksPage() {
                   : bc('vocab.books.admin.editTitle', { name: selected?.name ?? '' })}
                 </h2>
               )}
-              <Button variant="text" size="small" disabled={busy}
+              {/* 2026-10-30（用户反馈 minor）：`text` 变体的图标与 14px 标题同色同重，第一眼看不见。
+               * 改成有边框的次要按钮：仍是 UI 库的标准样式（不做手写按钮），靠边框把自己和标题分开。 */}
+              <Button variant="default" size="small" disabled={busy}
                 aria-label={bc('vocab.books.admin.close')}
                 title={bc('vocab.books.admin.close')}
                 onClick={() => selectBook(null)}>
