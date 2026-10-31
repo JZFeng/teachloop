@@ -80,6 +80,29 @@
 
 .books-admin-panel {
   min-width: 0;
+  /* 顶栏 `.app-topbar` 是 sticky 47px：窄屏滚到面板时要停在它下面，否则标题被盖住（AC-100.8）。 */
+  scroll-margin-top: 60px;
+}
+
+/* 面板标题行：标题 + 关闭出口（AC-100.8，2026-10-30）。 */
+.books-admin-panel-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+/* 标题被包进标题行后 `.card > h2` 不再命中，这里补回同一套字形与字号。 */
+.books-admin-panel-head h2 {
+  font-family: var(--font-head);
+  font-size: 14px;
+  font-weight: 650;
+  margin: 0;
+}
+
+/* 关闭按钮靠右；无标题（书找不到）时也贴右，不跟着文字跑到开头。 */
+.books-admin-panel-head > button {
+  margin-left: auto;
 }
 
 /* 没选中书时右侧面板不渲染，表格独占整行（同一条判定在 AdminBooksPage 的 className 里）。 */

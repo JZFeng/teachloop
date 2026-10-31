@@ -335,6 +335,10 @@
     "zh-CN": "我的词单",
     "en": "My word lists"
   },
+  "vocab.books.admin.close": {
+    "zh-CN": "收起面板",
+    "en": "Close this panel"
+  },
   "vocab.books.admin.entriesCreateHint": {
     "zh-CN": "先贴词条再点「保存」，建书和导入一次完成；留空也行，保存后再回来补。",
     "en": "Paste entries before you save: the book is created and the entries are imported in one go. Leave it empty to add them later."

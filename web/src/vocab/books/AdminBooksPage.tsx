@@ -2,12 +2,13 @@
 //（`?edit=<id>` 选中右侧编辑面板，`?edit=new` 是新建面板）。
 // 2026-10-30 用户要求：**新建时直接贴词条，别分两步**——词条区长在面板里，
 // 「保存」一次完成「建书 + 导入」；`/admin/vocab/books/:bookId/import` 只留重定向（旧链接不 404）。
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { api, fmtDateTime } from '../../api/client'
 import {
   Button,
+  CloseOutlined,
   DataTable,
   ErrorState,
   Field,
@@ -19,6 +20,7 @@ import {
   RowActions,
   Tag,
   TextArea,
+  useEscapeClose,
   useListState,
   useToast,
 } from '../../ui'
@@ -64,6 +66,20 @@ function formOf(book: AdminBook): BookForm {
 const NEW_KEY = 'new'
 
 /**
+ * 焦点是否落在可编辑控件里。
+ *
+ * 面板里全是表单（名称/简介/排序位/粘贴区），焦点在输入框时按 Esc 属于「输入法取消候选词」
+ * 或原生控件的行为，不该顺带把面板关掉——关闭会丢没保存的元信息。
+ */
+function isEditingField(): boolean {
+  if (typeof document === 'undefined') return false
+  const active = document.activeElement as HTMLElement | null
+  if (!active) return false
+  if (active.isContentEditable) return true
+  return active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.tagName === 'SELECT'
+}
+
+/**
  * 管理端词书列表 + 编辑面板（US-100 / US-105 / AC-100.1–100.5）。
  *
  * 三件按 mock `#admin` 定下来的事：
@@ -81,6 +97,11 @@ const NEW_KEY = 'new'
  *
  * 两条不允许出现的东西：**物理删除按钮**（AC-100.5：只能下架），以及**价格输入**
  * （v1 只允许 FREE，AC-105.2/105.4）。
+ *
+ * 2026-10-30（用户问「保存/发布后它也不消失，是 bug 吗」）：这**不是弹层**，是主从详情面板——
+ * 开关只由 URL `?edit=` 决定，保存 / 发布都停在原地（保存后要看得见导入统计与刷新后的覆盖率，
+ * 新建后导入失败还要留在面板上重试）。缺的从来不是「操作完自动关闭」，而是**出口**：
+ * 这里补上右上角 ✕ 与 Esc（焦点在输入框里时 Esc 不生效），AC-100.8。
  */
 export default function AdminBooksPage() {
   const bc = useBooksCopy()
@@ -139,16 +160,50 @@ export default function AdminBooksPage() {
     }, { replace: true })
   }
 
+  /** 面板节点：窄屏折成一栏后要能把它滚进视野（见下面的 effect）。 */
+  const panelRef = useRef<HTMLDivElement>(null)
+  /** 上一次选中的面板 key（`new` 或书 id）：用来判断「是不是又回到了同一本」。 */
+  const lastPanelKey = useRef<string | null>(null)
+  /** 面板是不是已经处于「打开」状态：只在关 → 开那一下滚动。 */
+  const panelWasOpen = useRef(false)
+
   /**
-   * 用户主动切到另一本 / 新建：把上一本没保存的粘贴内容与导入结果清掉，
-   * 免得把 A 书的词条贴进 B 书。保存成功后的自动跳转不走这里（要先显示导入结果）。
+   * 打开某本 / 新建 / 关闭（`null`）面板。
+   *
+   * 关闭时**保留**还没提交的粘贴内容：误触 ✕ 或 Esc 不该把刚贴好的词条弄丢，重新打开同一本
+   * 还能接着贴；只有真的换了目标（切到另一本、或切到新建）才清，免得把 A 书的词条贴进 B 书。
+   * 保存成功后的自动跳转不走这里（要先显示导入结果）。
    */
   const selectBook = (key: string | null) => {
-    setEntryText('')
-    setImportResult(null)
+    if (key !== null && key !== lastPanelKey.current) {
+      setEntryText('')
+      setImportResult(null)
+    }
+    if (key !== null) lastPanelKey.current = key
     setFormError(null)
     setEditKey(key)
   }
+
+  /**
+   * 窄屏（`books.css` 的 1100 断点）两栏折成一栏，面板落到表格下方：点行之后不滚过去，
+   * 屏幕上看起来就是「点了没反应」。只在「关 → 开」那一下滚；保存 / 发布（`?edit` 从 new 变 id、
+   * 列表刷新）不重滚，否则刚在底部点完保存就被弹回面板顶部。
+   */
+  useEffect(() => {
+    if (editKey === null) { panelWasOpen.current = false; return }
+    if (books === null) return               // 面板还没渲染（还在 Loading），等列表回来再滚
+    if (panelWasOpen.current) return
+    panelWasOpen.current = true
+    if (typeof window === 'undefined' || !window.matchMedia('(max-width: 1100px)').matches) return
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    panelRef.current?.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' })
+  }, [editKey, books])
+
+  // Esc = 收起面板（与右上角 ✕ 同一个动作）。焦点在输入框里时不关：面板里全是表单，
+  // 误按一下就把没保存的元信息丢了；`canClose` 返回 false 时这次键击也不会穿透给别的弹层。
+  useEscapeClose(editKey !== null, () => selectBook(null), {
+    canClose: () => !busy && !isEditingField(),
+  })
 
   const applyBook = (book: AdminBook) => {
     setBooks((previous) => {
@@ -392,18 +447,29 @@ export default function AdminBooksPage() {
         </div>
 
         {editKey !== null && (
-          <div className="card books-admin-panel">
+          <div className="card books-admin-panel" ref={panelRef}>
+            {/* 标题行 + 关闭出口（AC-100.8）：主从面板也得能收起，此前只能手改 URL 里的 `edit`。 */}
+            <div className="books-admin-panel-head">
+              {selectedId && !selected ? null : (
+                <h2>{creating
+                  ? bc('vocab.books.admin.newTitle')
+                  : bc('vocab.books.admin.editTitle', { name: selected?.name ?? '' })}
+                </h2>
+              )}
+              <Button variant="text" size="small" disabled={busy}
+                aria-label={bc('vocab.books.admin.close')}
+                title={bc('vocab.books.admin.close')}
+                onClick={() => selectBook(null)}>
+                <CloseOutlined />
+              </Button>
+            </div>
+
             {selectedId && !selected ? (
               /* 链接里带着一个列表里没有的 id（书被别的会话下架/删掉、或手改 URL）：
                * 说清「找不到」，别渲染一张空表单让人白填。 */
               <p className="muted small">{bc('vocab.books.admin.notFound')}</p>
             ) : (
               <>
-                <h2>{creating
-                  ? bc('vocab.books.admin.newTitle')
-                  : bc('vocab.books.admin.editTitle', { name: selected?.name ?? '' })}
-                </h2>
-
                 <Field label={bc('vocab.books.admin.name')} required>
                   <Input
                     value={form.name}

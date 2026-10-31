@@ -86,6 +86,12 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d            # 期望空�
   新增草稿预览端点 `POST /api/admin/vocab/books/draft/entries/preview`（书未建时预览，`duplicated` 只算批内重复），
   独立导入页降级为重定向。用例：`VocabBooksTest#draftPreviewForNewBookPanel`（9/9 绿）、
   `web/tests/admin-books-entry-import.test.mjs`（4/4 绿）。
+  **2026-10-30 返工（Question → Bug，AC-100.8）：面板「关不掉」。** 用户问「点保存或发布都不 dismiss，
+  是不是 bug」；查证结论：保存/发布不关是主从面板的**设计**（保存后要看导入统计与刷新后的覆盖率，
+  新建导入失败要留在面板重试），真缺陷是**没有任何出口**——只能手改 URL 里的 `edit`，
+  `books.css:86` 的 `.no-panel` 因此成了永远命中不了的分支。定案 A：补右上角 ✕ 与 Esc（焦点在输入框
+  里时不关），关闭保留未提交的粘贴内容、换目标才清；窄屏（1100 断点）点行/深链打开后滚进视野。
+  用例 `web/tests/admin-books-panel-dismiss.test.mjs`（5/5 绿）。
 - T578 付费字段：完成。建书 `PAID` → 400、加入 `PAID` → 409；学生端响应无 `payMode/priceCents/currency`（用例断言字段不存在）。
 - T579 测试：本批 9 个新用例 + 5 个受影响类的回归（共 17 个用例）全绿；`check-deps` / `check-boundaries` / `check-ui` / `pnpm typecheck` / `pnpm build` 退出码 0；
   `check-i18n` 退出码 1，唯一命中是 S3 的 `OfferingWindows.java:104`（不是本批）。**`make test` 未全量跑**（共享工作目录里 S1/S3 同时在改，见报告 §8）。
