@@ -664,12 +664,8 @@ def validate_v3(obj: dict, word: str, language: str, example_count: int,
         if outsiders:
             problems.append("morphology.chain 引入了 parts 之外的元素: " + ", ".join(outsiders))
         reached.add(step["to"].lower())
-    # 复合词（tall + boy、bio + logy）可以只有 parts、没有派生阶梯；
-    # 只有出现真正的词缀时才要求 chain 解释派生。
-    has_affix = any(str(item.get("type", "")).lower() in ("prefix", "suffix")
-                    for item in parts)
-    if parts and has_affix and not chain:
-        problems.append("morphology.chain empty（有词缀 parts 时必须有派生阶梯）")
+    # chain 是可选派生阶梯：prefix/root 简单组合（relate）或复合词（tallboy）
+    # 可以只有 parts、没有 chain；卡面仍能展示结构。只有 parts 为空却有 chain 才矛盾。
     if not parts and chain:
         problems.append("morphology.chain 有内容但 parts 为空")
     morphology["chain"] = chain
