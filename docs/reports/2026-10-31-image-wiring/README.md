@@ -176,3 +176,40 @@ img.review-word-image  → width/height 88px、naturalWidth 176px、border-radiu
 5. 实测：admin 登录 → `/vocab/words/by-form/apple` 显示 88px 配图；`GET /api/vocab/contents/1000000022/image` 在登录态返回 `200 image/webp 9298B`（未登录 401）。
 
 截图：`qa-admin-apple.png`。
+
+---
+
+## 管理员词书（2026-10-31 12:35，全员可用）
+
+用户要求「管理员维护的词书（教辅书式）」，已用 admin 身份创建并发布：
+
+| 字段 | 值 |
+| :--- | :--- |
+| 名称 | `113 词配图样书` |
+| slug | `words-with-images` |
+| id | `b66abcdd-f57f-4c6d-b831-a20fe1d44f3f` |
+| 词数 | 113（导入 `created=113, duplicated=0, failed=0`） |
+| 内容就绪 | **113 / 113（100%）** |
+| 状态 | **已发布**、FREE（免费书） |
+
+复现（admin 登录态，CSRF 头用浏览器 cookie）：
+
+```bash
+# 1) 建书
+curl -X POST http://127.0.0.1:8011/api/admin/vocab/books -b cookies -H 'Content-Type: application/json' \
+  -d '{"slug":"words-with-images","name":"113 词配图样书","description":"管理员维护的 113 词配图样书","language":"en","payMode":"FREE"}'
+# 2) 导入词条（113 行）
+curl -X POST http://127.0.0.1:8011/api/admin/vocab/books/<id>/entries -b cookies -H 'Content-Type: application/json' \
+  -d '{"text":"<113 行换行分隔>","language":"en"}'
+# 3) 发布
+curl -X PUT http://127.0.0.1:8011/api/admin/vocab/books/<id> -b cookies -H 'Content-Type: application/json' -d '{"published":true}'
+```
+
+验证（截图同目录）：
+
+- `admin-books-list.png`：词书管理里出现「113 词配图样书 · 113 词 · 覆盖率 100% · 已发布」；
+- `book-detail.png`：书本详情页，内容就绪 113/113，可「加入并开始背」；
+- `review-back-adapt.png`：加入后进自由复习，翻面后 `adapt` 的语义核心块右侧显示 88px 配图；
+- 学生端目录 `GET /api/vocab/books` 返回该书（`joined:false`），任何人可加入。
+
+> 注：这本书与 `words_with_images` 词单是两套东西——词书是管理员维护、全员可加入的教辅书；词单是用户私有容器。两者现在都指向同一批 113 词与同一份图片。
