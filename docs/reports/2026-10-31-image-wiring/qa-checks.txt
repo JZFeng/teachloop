@@ -1,0 +1,33 @@
+# 图片接入验收证据
+
+采集时间：2026-10-31 12:04:21 PDT
+实例：隔离复验（不占用另一个会话的 qa 端口）
+  后端 http://127.0.0.1:8021 ← .envs/qa/app.jar（VERSION: 95a233b+dirty，built   2026-10-31 11:55:20）
+  前端 http://127.0.0.1:5184 ← vite preview .envs/qa/web，/api 代理到 8021
+  库   127.0.0.1:55433/teachloop_qa；内容 .envs/qa/content-delta.db（v2.5）；附件 .envs/qa/uploads
+
+## 1. 登录（qa 开 CSRF，双提交 cookie）
+{"id":"8ba1fd91-ac96-4870-8230-8ccae98ca7b3","displayName":"JZ","email":"teacher@teachloop.local","role":"TEACHER","locale":"en","profileIncomplete":false}  → HTTP 200
+
+
+## 2. 内容视图带 imageUrl（GET /api/vocab/words/by-form/{form}）
+  apple     "imageUrl":"/api/vocab/contents/1000000022/image"
+  brave     "imageUrl":"/api/vocab/contents/1000000023/image"
+  abandon   "imageUrl":"/api/vocab/contents/1000000036/image"
+  abstract  "imageUrl":"/api/vocab/contents/1000000035/image"
+  acclaim   "imageUrl":"/api/vocab/contents/1000000037/image"
+  compass   (无 imageUrl —— 该词不在 113 张里，前端不渲染、不占位)
+  castle    (无 imageUrl —— 该词不在 113 张里，前端不渲染、不占位)
+
+## 3. 图片接口（GET /api/vocab/contents/{contentId}/image）
+  1000000022: HTTP 200  image/webp  9298B   Cache-Control: max-age=604800, public
+  1000000023: HTTP 200  image/webp  8774B   Cache-Control: max-age=604800, public
+  1000000036: HTTP 200  image/webp  9248B   Cache-Control: max-age=604800, public
+  999999999 （不存在的内容）: HTTP 404 —— 缺图就是 404，不给占位图
+  字节校验：RIFF (little-endian) data, Web/P image, VP8 encoding, 176x176
+
+## 4. 落盘（STORAGE_LOCAL_DIR/.envs/qa/uploads，key = vocab/images/<content_id>.webp）
+  113 张，1.2M；样例 1000000022.webp 1000000023.webp 1000000024.webp
+
+## 5. 词表（POST /api/vocab/lists 建 → POST /lists/{id}/words 加词）
+  words_with_images: 113 词  id=ce67477c-b18d-42e2-a77d-c2553a86cae5

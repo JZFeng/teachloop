@@ -251,9 +251,7 @@ public final class ContentView {
             JsonNode byId = store.getById(contentId)
                     .filter(content -> expected.isEmpty()
                             || expected.equals(content.normalizedForm()))
-                    .map(StoredContent::json)
-                    .map(ContentView::parse)
-                    .map(raw -> toView(raw, blockOrder, hidden))
+                    .map(content -> view(store, content, blockOrder, hidden))
                     .orElse(null);
             if (byId != null) {
                 return byId;
@@ -263,10 +261,30 @@ public final class ContentView {
             return null;
         }
         return store.get(language, form)
-                .map(StoredContent::json)
-                .map(ContentView::parse)
-                .map(raw -> toView(raw, blockOrder, hidden))
+                .map(content -> view(store, content, blockOrder, hidden))
                 .orElse(null);
+    }
+
+    /**
+     * 一条内容记录 → 视图，并补上配图地址（2026-10-31）。
+     *
+     * <p>配图**按词形取，不按读路径拿到的 contentId 取**：这 113 个词由内容包优先命中，
+     * 包里的 id 是「按词形排序的 1..N 排列」，而图片文件名用的是 delta 的稳定 id
+     * （见 {@link VocabImageStore#url(String, String)}）。按词形反查才能既命中图片、
+     * 又不会在包重建后把别人的图挂到这个词上。
+     *
+     * <p>{@code imageUrl} 在 {@code blocks} 算完之后才写：图片不是第 9 块（T594 的块契约本任务不做），
+     * 前端把它渲染在「语义核心」块右侧，写早了会让同一张图在 blocks 里再出现一次。
+     */
+    private static JsonNode view(ContentStore store, StoredContent content,
+                                 List<String> blockOrder, List<String> hidden) {
+        JsonNode view = toView(parse(content.json()), blockOrder, hidden);
+        if (!(view instanceof ObjectNode object)) {
+            return view;
+        }
+        store.imageUrl(content.language(), content.normalizedForm())
+                .ifPresent(url -> object.put("imageUrl", url));
+        return view;
     }
 
     /**

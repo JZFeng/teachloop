@@ -55,6 +55,11 @@ interface Content {
   analysis?: string
   family?: string[]
   phonetic?: { uk?: string; us?: string }
+  /**
+   * 2026-10-31：词卡配图（后端只在 WebP 真的存在时才给）。这里只把字段写进类型；
+   * 渲染由 VocabReviewCard 负责——查词页与 review-back 共用同一张卡，图片位置一致。
+   */
+  imageUrl?: string
 }
 
 interface Detail {

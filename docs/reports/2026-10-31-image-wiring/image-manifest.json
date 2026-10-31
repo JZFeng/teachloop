@@ -1,0 +1,809 @@
+{
+  "generatedAt": "2026-10-31",
+  "source": {
+    "wordsCsv": "docs/reports/2026-10-31-word-selection-100/qa-113.csv",
+    "imagesDir": "docs/reports/2026-10-31-word-selection-100/final-176",
+    "contentDb": ".envs/qa/content-delta.db",
+    "promptVersion": "vocab-content-v2.5"
+  },
+  "storage": {
+    "uploadsDir": "/Users/jzfeng/Documents/deepseek-harness/teachloop/.envs/qa/uploads",
+    "keyPrefix": "vocab/images/<content_id>.webp",
+    "api": "/api/vocab/contents/{contentId}/image"
+  },
+  "count": 113,
+  "totalBytes": 999922,
+  "words": [
+    {
+      "word": "abandon",
+      "contentId": 1000000036,
+      "key": "vocab/images/1000000036.webp",
+      "bytes": 9248,
+      "sha256": "49c7d5b5cef1c2eb62a518cce66e13407492618aeb92a089c2df6406ca513a30"
+    },
+    {
+      "word": "abstract",
+      "contentId": 1000000035,
+      "key": "vocab/images/1000000035.webp",
+      "bytes": 9136,
+      "sha256": "6e15ede4a12ec6e35b937738004b91e626e7ada2542b6e77f9eea644e3583f1e"
+    },
+    {
+      "word": "acclaim",
+      "contentId": 1000000037,
+      "key": "vocab/images/1000000037.webp",
+      "bytes": 10956,
+      "sha256": "7ca718f34b0d473fe5f6256b6cc52cd5c4243626423a73fab0ffcf2e27c0b564"
+    },
+    {
+      "word": "acquire",
+      "contentId": 1000000039,
+      "key": "vocab/images/1000000039.webp",
+      "bytes": 8216,
+      "sha256": "a4050b01be8d0f3b7a97b73c6d9f04bf05698d0754678cc5ccbe1809fa95de3e"
+    },
+    {
+      "word": "adapt",
+      "contentId": 1000000038,
+      "key": "vocab/images/1000000038.webp",
+      "bytes": 7438,
+      "sha256": "e018db6b376f66d23dd5df3092323e6e2ef27c237f2fdaa8fb6eff0ab10c2c02"
+    },
+    {
+      "word": "adequate",
+      "contentId": 1000000041,
+      "key": "vocab/images/1000000041.webp",
+      "bytes": 8036,
+      "sha256": "535b3bb07d03a2f77db69f2aaea72c0322df13ad83319fb7c346b6dc3244ddac"
+    },
+    {
+      "word": "advocate",
+      "contentId": 1000000040,
+      "key": "vocab/images/1000000040.webp",
+      "bytes": 12948,
+      "sha256": "75639c2a5831d2291d479f0722d2cad6ffae58de469bf5f946e760c931f300ef"
+    },
+    {
+      "word": "afford",
+      "contentId": 1000000042,
+      "key": "vocab/images/1000000042.webp",
+      "bytes": 9882,
+      "sha256": "ad70aee0339f4783cabbb81c594fafd2cdcf6220fd17096e2982fbb2824701b5"
+    },
+    {
+      "word": "aggregate",
+      "contentId": 1000000044,
+      "key": "vocab/images/1000000044.webp",
+      "bytes": 9142,
+      "sha256": "a41c29cd86329839a66aedaf3e3fe1be91706e39c883ba2b3838034e82d15a2c"
+    },
+    {
+      "word": "alleviate",
+      "contentId": 1000000043,
+      "key": "vocab/images/1000000043.webp",
+      "bytes": 9500,
+      "sha256": "0219b2f8f2b0676b73360be904a9823b2f22ba463c8e255b9586988fb221bb93"
+    },
+    {
+      "word": "ambiguous",
+      "contentId": 1000000045,
+      "key": "vocab/images/1000000045.webp",
+      "bytes": 8562,
+      "sha256": "08c9ea367d4da7fc0198406ae2c58df24a6947de335692b337a1305beb2f4ab9"
+    },
+    {
+      "word": "analyze",
+      "contentId": 1000000046,
+      "key": "vocab/images/1000000046.webp",
+      "bytes": 9728,
+      "sha256": "bb22a1bbad230813ada8efbfa8f88f5ec8547cbcca715867e0879b9a3e4a1ada"
+    },
+    {
+      "word": "anticipate",
+      "contentId": 1000000047,
+      "key": "vocab/images/1000000047.webp",
+      "bytes": 10156,
+      "sha256": "8c55cf8b4090815f1c7b54863e3c684a064760e84269d6f3c64ab748d3c91bde"
+    },
+    {
+      "word": "apparent",
+      "contentId": 1000000048,
+      "key": "vocab/images/1000000048.webp",
+      "bytes": 6630,
+      "sha256": "f91b11b1b0daea34d038e2dfc6090128fb42de423efa82ad2389a2a02f4de90e"
+    },
+    {
+      "word": "apple",
+      "contentId": 1000000022,
+      "key": "vocab/images/1000000022.webp",
+      "bytes": 9298,
+      "sha256": "ee4a74b8e2dfe62f53b13ba75d1c8fa041bbe8e1f9e3d12538bfb4910586d1f4"
+    },
+    {
+      "word": "assert",
+      "contentId": 1000000049,
+      "key": "vocab/images/1000000049.webp",
+      "bytes": 8796,
+      "sha256": "11108c261d47143081193336753273ebaa7e3c20bc300521bab025f6f0f0e0fc"
+    },
+    {
+      "word": "assess",
+      "contentId": 1000000051,
+      "key": "vocab/images/1000000051.webp",
+      "bytes": 9804,
+      "sha256": "12cb518cc4eac9cadd6686fedb7150da4caa7239eb40963b7c1d1077d5b98652"
+    },
+    {
+      "word": "attribute",
+      "contentId": 1000000050,
+      "key": "vocab/images/1000000050.webp",
+      "bytes": 8922,
+      "sha256": "b218bc9c5d8bff822aaaa75e31e75c8302706777448d579d24d98adbe091b5e7"
+    },
+    {
+      "word": "augment",
+      "contentId": 1000000052,
+      "key": "vocab/images/1000000052.webp",
+      "bytes": 8258,
+      "sha256": "f861bff74cbaf3b664674afc565b675d8290bfbff8fac52882c126172b4005a3"
+    },
+    {
+      "word": "authentic",
+      "contentId": 1000000053,
+      "key": "vocab/images/1000000053.webp",
+      "bytes": 9894,
+      "sha256": "276f4f33a68f367ac79688f8774efa2e54b91f71de34c49e029d15cde63d2fb4"
+    },
+    {
+      "word": "bias",
+      "contentId": 1000000055,
+      "key": "vocab/images/1000000055.webp",
+      "bytes": 8292,
+      "sha256": "36c8c4c647f101907ab30a2d27193153dc3256499c74c06e068f3f9bfe28069d"
+    },
+    {
+      "word": "bolster",
+      "contentId": 1000000056,
+      "key": "vocab/images/1000000056.webp",
+      "bytes": 8186,
+      "sha256": "66a51d5568784c20709e42a2daa81b971d26d8d7fbaf7ba0f54355398de2c14c"
+    },
+    {
+      "word": "brave",
+      "contentId": 1000000023,
+      "key": "vocab/images/1000000023.webp",
+      "bytes": 8774,
+      "sha256": "4e1292b37e4ffff31e37d723ff4bb4106f8c7b2f71de8267440f767f69e79082"
+    },
+    {
+      "word": "brevity",
+      "contentId": 1000000054,
+      "key": "vocab/images/1000000054.webp",
+      "bytes": 9624,
+      "sha256": "23f7297e8cc90247202b2ff7dffbf64b9be53bb0d92f4c72b8510ed1ecc561f5"
+    },
+    {
+      "word": "candid",
+      "contentId": 1000000057,
+      "key": "vocab/images/1000000057.webp",
+      "bytes": 8500,
+      "sha256": "f7ddcbd6b2734bf6118e4876f049cc912772247869292d11cc95246c7526271d"
+    },
+    {
+      "word": "clever",
+      "contentId": 1000000024,
+      "key": "vocab/images/1000000024.webp",
+      "bytes": 7386,
+      "sha256": "1ec64d6fbda15cc4359c9e9e2e565ab7ad4842704f5d1eebacc3d7f2e39ab4d4"
+    },
+    {
+      "word": "coherent",
+      "contentId": 1000000058,
+      "key": "vocab/images/1000000058.webp",
+      "bytes": 6160,
+      "sha256": "446f4996311c1e6bc5f94199d90e405857fb9106c68bdbe58a1a54e3a9dd8d76"
+    },
+    {
+      "word": "coincide",
+      "contentId": 1000000059,
+      "key": "vocab/images/1000000059.webp",
+      "bytes": 7544,
+      "sha256": "21315b439db7afb1045312b24740a8d6cff2327a015ba2815a872304f6a40190"
+    },
+    {
+      "word": "compelling",
+      "contentId": 1000000060,
+      "key": "vocab/images/1000000060.webp",
+      "bytes": 12828,
+      "sha256": "c5abb514bbded45a50fb75a2eff52241c738e918046af8a0bb0c908e0a677474"
+    },
+    {
+      "word": "compensate",
+      "contentId": 1000000061,
+      "key": "vocab/images/1000000061.webp",
+      "bytes": 8052,
+      "sha256": "2bad3518b519da780f4d434f2265b0ca003ca755b917de11b852c6046ff7cda7"
+    },
+    {
+      "word": "complement",
+      "contentId": 1000000066,
+      "key": "vocab/images/1000000066.webp",
+      "bytes": 7826,
+      "sha256": "8165b0dbf1fbb86ed34f9af18fdef7c4c5d1d2af400cc0da7c63cf564b44d11a"
+    },
+    {
+      "word": "concede",
+      "contentId": 1000000062,
+      "key": "vocab/images/1000000062.webp",
+      "bytes": 7938,
+      "sha256": "cd54fe0a658b7951c71915856f00a0ca49c5643368f078e9ba2b46a7756648ff"
+    },
+    {
+      "word": "concisely",
+      "contentId": 1000000063,
+      "key": "vocab/images/1000000063.webp",
+      "bytes": 9952,
+      "sha256": "473945faa63e4ad86bc7b371a754df5d7909de0564a156eb13545f0101538c3a"
+    },
+    {
+      "word": "condemn",
+      "contentId": 1000000064,
+      "key": "vocab/images/1000000064.webp",
+      "bytes": 9600,
+      "sha256": "2d1eadd1aa1f8d1744ad2c7bb642015ddefa0703943e27c729857bf84a31cd37"
+    },
+    {
+      "word": "conform",
+      "contentId": 1000000065,
+      "key": "vocab/images/1000000065.webp",
+      "bytes": 12260,
+      "sha256": "aa8a62f530e8933df6d963f25e93c7c28ac73af5346d11a9481e82db8e9ebf6c"
+    },
+    {
+      "word": "consent",
+      "contentId": 1000000067,
+      "key": "vocab/images/1000000067.webp",
+      "bytes": 8688,
+      "sha256": "48f7078492a8d6435b4b3f3f70cea0c1c3cc6515de13c1818d89bcc419c9a30f"
+    },
+    {
+      "word": "consequent",
+      "contentId": 1000000068,
+      "key": "vocab/images/1000000068.webp",
+      "bytes": 9458,
+      "sha256": "b48003ac8b5108efc2ae5bcd03fed27e0279b06c0e72065a290d9814759d6fae"
+    },
+    {
+      "word": "consistent",
+      "contentId": 1000000069,
+      "key": "vocab/images/1000000069.webp",
+      "bytes": 6858,
+      "sha256": "2e03854c54eeb3008d0d84490b4fa5567931adc8d6a1e641cd98f2288c2caca6"
+    },
+    {
+      "word": "constrain",
+      "contentId": 1000000070,
+      "key": "vocab/images/1000000070.webp",
+      "bytes": 9020,
+      "sha256": "4b8b0a11337d5f8111af4620aa506c70efbbea11825fa463802d4e201d92a300"
+    },
+    {
+      "word": "contradict",
+      "contentId": 1000000071,
+      "key": "vocab/images/1000000071.webp",
+      "bytes": 7678,
+      "sha256": "f70723f8d07922947c49fa981aa8b6dbc6fc795a692c878a31b8a547ae412205"
+    },
+    {
+      "word": "convene",
+      "contentId": 1000000072,
+      "key": "vocab/images/1000000072.webp",
+      "bytes": 9436,
+      "sha256": "80013a180956005a24531c6baa3c7ebd5f47c091829c8aa9a146be0b59a05ea7"
+    },
+    {
+      "word": "convey",
+      "contentId": 1000000074,
+      "key": "vocab/images/1000000074.webp",
+      "bytes": 7686,
+      "sha256": "f249a73415cd86f11e7b96f5cd651c86dc89c3c808e7d92c05be23f4036c7b6d"
+    },
+    {
+      "word": "crucial",
+      "contentId": 1000000073,
+      "key": "vocab/images/1000000073.webp",
+      "bytes": 7866,
+      "sha256": "c673ff6c61d193c8f885d83c00e19a1797a551e0cfc115b3ffe97ebd2b146112"
+    },
+    {
+      "word": "decline",
+      "contentId": 1000000075,
+      "key": "vocab/images/1000000075.webp",
+      "bytes": 7038,
+      "sha256": "0b4d00a2f1c0df95fe4de43031ed3220439ec4459b17d8ad24c5fe0423fb263d"
+    },
+    {
+      "word": "deduce",
+      "contentId": 1000000076,
+      "key": "vocab/images/1000000076.webp",
+      "bytes": 10098,
+      "sha256": "5b8bbdce8ca0e69f8f00454d783356205c9938af18bce1a562d1ef7a8ad44af0"
+    },
+    {
+      "word": "denounce",
+      "contentId": 1000000077,
+      "key": "vocab/images/1000000077.webp",
+      "bytes": 10724,
+      "sha256": "95a0202207192b7f1107843b245c762b926ee97c65839adeac8d5f365aa7b011"
+    },
+    {
+      "word": "depict",
+      "contentId": 1000000078,
+      "key": "vocab/images/1000000078.webp",
+      "bytes": 8690,
+      "sha256": "45beabdd975a787d693b413597d144d40f50b59b287d1a61ca9920d8474d7f9e"
+    },
+    {
+      "word": "derive",
+      "contentId": 1000000079,
+      "key": "vocab/images/1000000079.webp",
+      "bytes": 12376,
+      "sha256": "37491c88b18739d6cabb7b9bf1ef09db0e1f8402c300b0f5228a1d0ab2fd3417"
+    },
+    {
+      "word": "deter",
+      "contentId": 1000000080,
+      "key": "vocab/images/1000000080.webp",
+      "bytes": 8714,
+      "sha256": "e1bb509dc0a628b826dd61d26ee1bf7a431fc8697f55dc180bc19d5fbf066911"
+    },
+    {
+      "word": "diminish",
+      "contentId": 1000000081,
+      "key": "vocab/images/1000000081.webp",
+      "bytes": 6310,
+      "sha256": "6262575bb0980b9a554b11a14db4d4136e02867bfa0bb1cb617b3b8afcf5a4bb"
+    },
+    {
+      "word": "discrete",
+      "contentId": 1000000082,
+      "key": "vocab/images/1000000082.webp",
+      "bytes": 5012,
+      "sha256": "d4a7bb379431987bd54243f5b80b151203729038b81944396e8b6233c0571ab6"
+    },
+    {
+      "word": "discriminatory",
+      "contentId": 1000000084,
+      "key": "vocab/images/1000000084.webp",
+      "bytes": 9230,
+      "sha256": "c924f426c52d70cc805f7234ee9fa811886df0fb02fca7eda9ff426badebbb1e"
+    },
+    {
+      "word": "diverse",
+      "contentId": 1000000083,
+      "key": "vocab/images/1000000083.webp",
+      "bytes": 8658,
+      "sha256": "f6e1b997ddcf6f172538f072d4d36f9a652c09309a7ae4980ae3ef23035030f9"
+    },
+    {
+      "word": "dominant",
+      "contentId": 1000000085,
+      "key": "vocab/images/1000000085.webp",
+      "bytes": 9220,
+      "sha256": "26c1e23b6dd5486a98c2fd10ca07e8cd4c31c1e909b509a02e4f0d0e0fa14b9f"
+    },
+    {
+      "word": "dream",
+      "contentId": 1000000026,
+      "key": "vocab/images/1000000026.webp",
+      "bytes": 8540,
+      "sha256": "50f881d3833839890bf5664590e364f2680658afb7571fde717fda220502d3bf"
+    },
+    {
+      "word": "dubious",
+      "contentId": 1000000086,
+      "key": "vocab/images/1000000086.webp",
+      "bytes": 8300,
+      "sha256": "7a4d14496b3b642f56496a8d61eeb20864475e0bca9ede6ce49deb977e9a987e"
+    },
+    {
+      "word": "eager",
+      "contentId": 1000000025,
+      "key": "vocab/images/1000000025.webp",
+      "bytes": 8078,
+      "sha256": "73f2007366917aeb1b6b48763c5662399d8f138109e8fea57bbaf8d32074f3db"
+    },
+    {
+      "word": "elaborate",
+      "contentId": 1000000091,
+      "key": "vocab/images/1000000091.webp",
+      "bytes": 10152,
+      "sha256": "b8b0f9633c86edc705cfe05c2fc3f212174426e2024e8710a5661d60fca2b225"
+    },
+    {
+      "word": "eliminate",
+      "contentId": 1000000087,
+      "key": "vocab/images/1000000087.webp",
+      "bytes": 9630,
+      "sha256": "9edd5f5e2283cf747b893fe76893083d585623d7289ae9b279f649f953f74682"
+    },
+    {
+      "word": "emerge",
+      "contentId": 1000000088,
+      "key": "vocab/images/1000000088.webp",
+      "bytes": 6282,
+      "sha256": "b09b5f08b5aea184eafd4f4b5f8a7d7f279a4bca17818dd8307988c2248caf47"
+    },
+    {
+      "word": "emphasize",
+      "contentId": 1000000090,
+      "key": "vocab/images/1000000090.webp",
+      "bytes": 9980,
+      "sha256": "b7252326192a40ffaa01cfd8e6e057777bc7b7c809e88e2f3c57cdc377fd786f"
+    },
+    {
+      "word": "empirical",
+      "contentId": 1000000089,
+      "key": "vocab/images/1000000089.webp",
+      "bytes": 9362,
+      "sha256": "b8a3888968a8dfe719bde8cb1fd97e5afef84dbe6c04dddddac6d63b7a6d43c0"
+    },
+    {
+      "word": "enhance",
+      "contentId": 1000000092,
+      "key": "vocab/images/1000000092.webp",
+      "bytes": 8578,
+      "sha256": "0a3e62b7b2e3a8568d6b833fb4ec9eb9167e06c038694abb3aa0b6bc2a2bf61f"
+    },
+    {
+      "word": "ensure",
+      "contentId": 1000000093,
+      "key": "vocab/images/1000000093.webp",
+      "bytes": 7274,
+      "sha256": "695f7dde0c7607a79fd2a141e65bd1e6442bb59cf9f914b4244588f2e0c7c4e3"
+    },
+    {
+      "word": "erode",
+      "contentId": 1000000094,
+      "key": "vocab/images/1000000094.webp",
+      "bytes": 9228,
+      "sha256": "bcfa997ebd9326f30bd71f5e122cab947108f8fa58f3e9d2547d5141290ba04d"
+    },
+    {
+      "word": "establish",
+      "contentId": 1000000095,
+      "key": "vocab/images/1000000095.webp",
+      "bytes": 9050,
+      "sha256": "be4c6d794ab14a221dae0f3422075087d85a9d0378da4c042e5156f8c5e93e82"
+    },
+    {
+      "word": "evaluate",
+      "contentId": 1000000096,
+      "key": "vocab/images/1000000096.webp",
+      "bytes": 9324,
+      "sha256": "3a74f2b733612cbabee10ee4a935c8f40caef5dd88304815f50f5ca22daf6bad"
+    },
+    {
+      "word": "evoke",
+      "contentId": 1000000097,
+      "key": "vocab/images/1000000097.webp",
+      "bytes": 8706,
+      "sha256": "bccb659d8932be2896485c5e01e0bc31acbe3661779ee434775119c81f2a0c13"
+    },
+    {
+      "word": "exaggerate",
+      "contentId": 1000000098,
+      "key": "vocab/images/1000000098.webp",
+      "bytes": 8622,
+      "sha256": "d8be35d48ae37b00b349aecfccf3aea93f455e1de8d0308c1c98a45a038d683e"
+    },
+    {
+      "word": "exclude",
+      "contentId": 1000000099,
+      "key": "vocab/images/1000000099.webp",
+      "bytes": 8336,
+      "sha256": "ff000dc537ce96ef838a0e2b8927e4cbefb4dd2e58018e0921ec8c75ce48e142"
+    },
+    {
+      "word": "exemplify",
+      "contentId": 1000000100,
+      "key": "vocab/images/1000000100.webp",
+      "bytes": 11388,
+      "sha256": "89bf3c2638c1a771b27b933f7e7e548a8de002d53cb6b7a7097406fcbcdf065d"
+    },
+    {
+      "word": "expand",
+      "contentId": 1000000101,
+      "key": "vocab/images/1000000101.webp",
+      "bytes": 7580,
+      "sha256": "707376a0f841213776710f0c2bdeafdc8be181b7521d7c95b062be9a3b650016"
+    },
+    {
+      "word": "explicit",
+      "contentId": 1000000102,
+      "key": "vocab/images/1000000102.webp",
+      "bytes": 9680,
+      "sha256": "5a65aeeaf143f11e5a7bb3fe48acddd4154e4e8842f6b36a4bcec944c9a8c6d2"
+    },
+    {
+      "word": "facilitate",
+      "contentId": 1000000103,
+      "key": "vocab/images/1000000103.webp",
+      "bytes": 9974,
+      "sha256": "04f726eea8701671b5f2c0d9ea9fbfde46a3c8e1738b825f26eb283386edd443"
+    },
+    {
+      "word": "feasible",
+      "contentId": 1000000108,
+      "key": "vocab/images/1000000108.webp",
+      "bytes": 11442,
+      "sha256": "7c853876924a3168af77b08ccddcb99576c0f94907e34f89b9e7ce952ab340a4"
+    },
+    {
+      "word": "foster",
+      "contentId": 1000000104,
+      "key": "vocab/images/1000000104.webp",
+      "bytes": 9760,
+      "sha256": "1da24ae4238dfd95e93f14eecf876d67ab72fc2497e0b00293387e8ea30a37e4"
+    },
+    {
+      "word": "fresh",
+      "contentId": 1000000028,
+      "key": "vocab/images/1000000028.webp",
+      "bytes": 8814,
+      "sha256": "675e18c17aacad02be3f5f70ec93341f49e16c5a89410b15422caa815d4e5469"
+    },
+    {
+      "word": "fundamental",
+      "contentId": 1000000105,
+      "key": "vocab/images/1000000105.webp",
+      "bytes": 8058,
+      "sha256": "5cf08c0716661f8ec61ef27a89efaaf01c34785f3f8f2c7d7cc34df75e8116f6"
+    },
+    {
+      "word": "generate",
+      "contentId": 1000000106,
+      "key": "vocab/images/1000000106.webp",
+      "bytes": 8734,
+      "sha256": "317683f8267fb51fee176ac406dfc938737f616e00e2d54d480305f314451f41"
+    },
+    {
+      "word": "giant",
+      "contentId": 1000000027,
+      "key": "vocab/images/1000000027.webp",
+      "bytes": 8008,
+      "sha256": "373d0dbb3e6749084ccd232bafd64df70790e40f4db975aa1b7f99c73e53ca67"
+    },
+    {
+      "word": "happy",
+      "contentId": 1000000029,
+      "key": "vocab/images/1000000029.webp",
+      "bytes": 8828,
+      "sha256": "62799e48d6c2fc69cd47cf2a6d830cd6fc1a69b081b9f87582d747350343d086"
+    },
+    {
+      "word": "hierarchy",
+      "contentId": 1000000107,
+      "key": "vocab/images/1000000107.webp",
+      "bytes": 10482,
+      "sha256": "a4abe678aaf5847376adf3fbf5254381b0a1b6739ce5cd1a10144b3917d2779a"
+    },
+    {
+      "word": "hypothesis",
+      "contentId": 1000000109,
+      "key": "vocab/images/1000000109.webp",
+      "bytes": 7196,
+      "sha256": "23936f1e40bdad57370e21c3e35ca243371025ef73f06152a834df4d11c0aa38"
+    },
+    {
+      "word": "ideal",
+      "contentId": 1000000031,
+      "key": "vocab/images/1000000031.webp",
+      "bytes": 7460,
+      "sha256": "ac3b2c25d158003927a2a1cc657692b9fee2e76df04fa15001fcb3c6bea4853c"
+    },
+    {
+      "word": "illustrate",
+      "contentId": 1000000111,
+      "key": "vocab/images/1000000111.webp",
+      "bytes": 7166,
+      "sha256": "17243ca35c006d024a30029f52956f7495693296d82c9ee4cc91dee1bdc52235"
+    },
+    {
+      "word": "implicit",
+      "contentId": 1000000110,
+      "key": "vocab/images/1000000110.webp",
+      "bytes": 7012,
+      "sha256": "2ab403e9ded8723c651bb1dbaab19958ef2fb2237b1be865aff99cb4047b9897"
+    },
+    {
+      "word": "imply",
+      "contentId": 1000000112,
+      "key": "vocab/images/1000000112.webp",
+      "bytes": 9050,
+      "sha256": "574fa29c6fcae004b6813dbe051325a0291d182b3d29ada96979b76f990cbab5"
+    },
+    {
+      "word": "indicate",
+      "contentId": 1000000113,
+      "key": "vocab/images/1000000113.webp",
+      "bytes": 9188,
+      "sha256": "99795a24d7f289fcba17acea3905692a75d283334cdd02a56efed942652a76c0"
+    },
+    {
+      "word": "inhibit",
+      "contentId": 1000000114,
+      "key": "vocab/images/1000000114.webp",
+      "bytes": 9520,
+      "sha256": "28ac701b3976b00dd21e56f67cff97260bdff2e540915fa1a615dc11c92c6851"
+    },
+    {
+      "word": "innovate",
+      "contentId": 1000000116,
+      "key": "vocab/images/1000000116.webp",
+      "bytes": 12212,
+      "sha256": "5042636e48c88ca06825a2f70f70de28735456c09ac20f7c67ac2b75e8d8a0e1"
+    },
+    {
+      "word": "insight",
+      "contentId": 1000000115,
+      "key": "vocab/images/1000000115.webp",
+      "bytes": 7492,
+      "sha256": "6e1029c6d5c80509bfb19349fd2941f85ea9b003efdf62c2c5a56e7995596f40"
+    },
+    {
+      "word": "integrate",
+      "contentId": 1000000117,
+      "key": "vocab/images/1000000117.webp",
+      "bytes": 8140,
+      "sha256": "673704a88de15d5c9f423f772280ac0e0d5ebb938eb929644aea7f52d66ff380"
+    },
+    {
+      "word": "intense",
+      "contentId": 1000000118,
+      "key": "vocab/images/1000000118.webp",
+      "bytes": 9048,
+      "sha256": "5204221daab3e92f140dbf7ef6bd0230bb14fe4562e9b1e5b702640550efe9df"
+    },
+    {
+      "word": "interpret",
+      "contentId": 1000000119,
+      "key": "vocab/images/1000000119.webp",
+      "bytes": 8844,
+      "sha256": "ff33c94964b4871f2e9a84103a5c6c281910581914e1ab46369e51e87fe648c6"
+    },
+    {
+      "word": "intervene",
+      "contentId": 1000000120,
+      "key": "vocab/images/1000000120.webp",
+      "bytes": 9634,
+      "sha256": "9c711768938fe87181ade3d0919d78e2ca48d70599b82ed080a59582da2acf9a"
+    },
+    {
+      "word": "jolly",
+      "contentId": 1000000030,
+      "key": "vocab/images/1000000030.webp",
+      "bytes": 10604,
+      "sha256": "f00bb155971593245afc526a0a88bac834a108b543393ab39fe0b339ad6557ee"
+    },
+    {
+      "word": "justify",
+      "contentId": 1000000121,
+      "key": "vocab/images/1000000121.webp",
+      "bytes": 8754,
+      "sha256": "a2519de9d7e18f52389cbd10ef6bcabdc70a1c76701977473c8a92b4380285dd"
+    },
+    {
+      "word": "logic",
+      "contentId": 1000000122,
+      "key": "vocab/images/1000000122.webp",
+      "bytes": 6952,
+      "sha256": "ad62d974a8e9740f1a08cbc24cd3340babf95c4ac363d70ee8d3b60cbaa3a356"
+    },
+    {
+      "word": "maintain",
+      "contentId": 1000000123,
+      "key": "vocab/images/1000000123.webp",
+      "bytes": 9656,
+      "sha256": "e86674fad074acaaba8fe2e0a90483f23a64309d387db79c1cfae1db7926ce71"
+    },
+    {
+      "word": "manipulate",
+      "contentId": 1000000126,
+      "key": "vocab/images/1000000126.webp",
+      "bytes": 9912,
+      "sha256": "8f22e4694d10b16e3ac94f52c8a3f81610d3f283ae7c34ba98afdd175bfb4466"
+    },
+    {
+      "word": "mitigate",
+      "contentId": 1000000124,
+      "key": "vocab/images/1000000124.webp",
+      "bytes": 6680,
+      "sha256": "40fb5a39c89054532a9ef3c7c839bf21e49858f877d300d568a8d1a0286b613c"
+    },
+    {
+      "word": "novice",
+      "contentId": 1000000125,
+      "key": "vocab/images/1000000125.webp",
+      "bytes": 10070,
+      "sha256": "287cb1f56bcc5b361e397a54a12738989811b1bbc08ee7f6164f540e37301ba3"
+    },
+    {
+      "word": "objective",
+      "contentId": 1000000128,
+      "key": "vocab/images/1000000128.webp",
+      "bytes": 8892,
+      "sha256": "0f1abc1b855e1fc33803aed82f2d89d9218d806545a0ee350849d5f7df9dcbb1"
+    },
+    {
+      "word": "obtain",
+      "contentId": 1000000127,
+      "key": "vocab/images/1000000127.webp",
+      "bytes": 7170,
+      "sha256": "521d2f2fe9d0aa3c413b86be5950f182d8b11427842d5d81640488f5def8ac39"
+    },
+    {
+      "word": "obvious",
+      "contentId": 1000000129,
+      "key": "vocab/images/1000000129.webp",
+      "bytes": 7956,
+      "sha256": "a552ada57502a5834fcc94ce8e0a3aa3f4f2376e155af1ddf6821aff58d4782c"
+    },
+    {
+      "word": "plausible",
+      "contentId": 1000000130,
+      "key": "vocab/images/1000000130.webp",
+      "bytes": 8614,
+      "sha256": "f695edc13f2ed71d3ef2f21f545d0edcc6b8a521d0a9c4685624709311effe72"
+    },
+    {
+      "word": "profound",
+      "contentId": 1000000131,
+      "key": "vocab/images/1000000131.webp",
+      "bytes": 7378,
+      "sha256": "116cbe365792eea08e1eec911c843c69100c6657f227f4e6e4e1047c1a876e39"
+    },
+    {
+      "word": "quixotic",
+      "contentId": 1000000034,
+      "key": "vocab/images/1000000034.webp",
+      "bytes": 11766,
+      "sha256": "cb631ecb1beaf6d6853bf7d68299fb3e7e281b3936a402f9ca516c1c017d97e1"
+    },
+    {
+      "word": "refute",
+      "contentId": 1000000132,
+      "key": "vocab/images/1000000132.webp",
+      "bytes": 8694,
+      "sha256": "3e300fe0146fc0d5df20d6b8a456bf2328bc6ab1f698d18a9bf37a4d8ee86ef0"
+    },
+    {
+      "word": "serendipity",
+      "contentId": 1000000032,
+      "key": "vocab/images/1000000032.webp",
+      "bytes": 9544,
+      "sha256": "20bbaa00ab82816da26d158c5edf67ad0706846e2aaa17266c989eb7d12c2b03"
+    },
+    {
+      "word": "struggle",
+      "contentId": 1000000033,
+      "key": "vocab/images/1000000033.webp",
+      "bytes": 7542,
+      "sha256": "484322460fd86ed6bfeb524f526c2f931c1f9e3fdb02f48ae30160f44136880a"
+    },
+    {
+      "word": "subtle",
+      "contentId": 1000000133,
+      "key": "vocab/images/1000000133.webp",
+      "bytes": 7454,
+      "sha256": "62f5d0f8899e9a65b7f84c500d988ed4a419d69d2580402fadeb8b1966983180"
+    },
+    {
+      "word": "trivial",
+      "contentId": 1000000134,
+      "key": "vocab/images/1000000134.webp",
+      "bytes": 7900,
+      "sha256": "bb78412251fb2b82b9df66085f7f64ce9c41f8ec6314f5e198b45b3ce20c5daf"
+    }
+  ]
+}

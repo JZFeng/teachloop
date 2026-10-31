@@ -48,4 +48,20 @@ public interface ContentStore {
     default boolean available() {
         return true;
     }
+
+    /**
+     * 这条内容的配图地址（2026-10-31）：没有图时返回 empty。
+     *
+     * <p>入参是 {@code (language, normalizedForm)} 而不是 contentId：词由内容包优先命中时，
+     * 包里的 id 是「按词形排序的 1..N 排列」，与图片文件名（delta 的稳定 id）不是同一个 id 空间，
+     * 详见 {@link VocabImageStore#url(String, String)}。
+     *
+     * <p>默认实现返回 empty——**旧实现与测试替身不需要知道图片这回事**，
+     * 只有 {@link ContentService} 真的接了 {@link VocabImageStore} 才回地址。
+     * 这样「哪些词有图」只有一个属主，读路径（队列 / 会话 / 详情 / 小测 / 词库列表）
+     * 都通过 {@link ContentView#resolve} 拿到同一份答案。
+     */
+    default Optional<String> imageUrl(String language, String normalizedForm) {
+        return Optional.empty();
+    }
 }

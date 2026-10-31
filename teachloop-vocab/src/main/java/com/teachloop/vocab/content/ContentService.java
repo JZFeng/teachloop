@@ -31,15 +31,39 @@ public class ContentService implements ContentStore {
     private final List<ContentReader> readers;
     private final DeltaContentStore delta;
     private final String promptVersion;
+    /** 配图（2026-10-31）；测试与「只读内容」的旧装配里可以是 null，等价于「没有配图」。 */
+    private final VocabImageStore images;
     private final LongAdder hits = new LongAdder();
     private final LongAdder misses = new LongAdder();
 
+    @org.springframework.beans.factory.annotation.Autowired
     public ContentService(List<ContentReader> readers, DeltaContentStore delta,
+                          VocabImageStore images,
                           @Value("${teachloop.vocab.content.prompt-version:vocab-content-v2.3}")
                           String promptVersion) {
         this.readers = readers;
         this.delta = delta;
+        this.images = images;
         this.promptVersion = promptVersion;
+    }
+
+    /** 不带配图的装配（单元测试 / 只要内容不要图）：等价于 {@code teachloop.vocab.images.enabled=false}。 */
+    public ContentService(List<ContentReader> readers, DeltaContentStore delta, String promptVersion) {
+        this(readers, delta, null, promptVersion);
+    }
+
+    /**
+     * 配图地址（2026-10-31）：只有真的存在这张 WebP 才回地址。
+     *
+     * <p>存在性检查在这里做、不在前端做：前端拿不到「图在不在」的信息，
+     * 若后端无条件给 URL，无图的词每次都会打出一个 404 并闪一下破图。
+     *
+     * <p>入参是词形不是 contentId，原因见 {@link VocabImageStore#url(String, String)}：
+     * 读路径命中的可能是内容包（id 是 1..N 的排列），与图片文件名（delta 稳定 id）不是同一空间。
+     */
+    @Override
+    public Optional<String> imageUrl(String language, String normalizedForm) {
+        return images == null ? Optional.empty() : images.url(language, normalizedForm);
     }
 
     @Override
