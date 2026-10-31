@@ -165,7 +165,13 @@ make web-e2e-install    # 首次：下载 chromium（约 100MB，落到 ~/Librar
 - `webServer` 配 `reuseExistingServer: !process.env.CI`，本地不重复拉 dev；CI 里由 Playwright 自己起 `pnpm dev`。
 - **CI**：`.github/workflows/ci.yml`（2026-10-30 加），三个 job——
   `web-checks`（typecheck + 单测 + check-ui + check-i18n）、`e2e`（Postgres service + 造 jar + seed +
-  起后端 :8010 + Playwright）、`java-tests`（Maven 单测）。e2e 的环境变量与 `scripts/dev.sh` 逐项对齐，
+  建首个管理员 + 起后端 :8010 + Playwright）、`java-tests`（Maven 单测）。
+
+  **2026-10-30 首次真实 CI 结果**（run `41133676350`，main = `2c64b14`）：
+  `web-checks` ✅、`e2e` ✅（44 条在真 runner 上全绿）、`java-tests` ❌ —— 失败的是
+  `AiSetupTest.setupAdminAndAiSettings`（expected "local" but was null）与
+  `AiReadinessTest.readinessGatesManualAndAutomaticDispatch`（INTERNAL），
+  在干净 checkout 的 `origin/main` 上可复现（214 条里 2 条红），与 e2e 骨架无关。e2e 的环境变量与 `scripts/dev.sh` 逐项对齐，
   判分/词内容用 `stub` 引擎，不烧 AI 额度；失败上传 `test-results` 与后端日志。
 - 首次需要 `npx playwright install chromium`（CI 里配 `~/.cache/ms-playwright` 缓存，未命中时约 1–2 分钟）。
 - `trace: 'retain-on-failure'`，`screenshot: 'only-on-failure'`；失败产物进 `web/e2e/test-results/`（已 gitignore）。
