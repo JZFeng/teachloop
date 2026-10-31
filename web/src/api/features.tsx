@@ -51,17 +51,26 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
    * 「刚补全」，其它变化沿用已有结果。
    */
   const wasIncomplete = useRef(profileComplete === false)
-  /** 已经为哪个用户发起过取数（用 ref 而不是 state，避免把它写进依赖造成二次请求）。 */
-  // 2026-10-30（AC-3.12）：记忆键从 me.id 改成「id + role」。学生被邀请码升成教师时 id 不变、
-  // 只有 role 变；只按 id 记忆会命中下面那句短路 return，侧栏就一直停在学生那套。
-  const requestedFor = useRef<string | null>(null)
+  /**
+   * 已经**真正拿到答案**的请求键（2026-10-31 Bug，critical）。
+   *
+   * 旧实现记的是「发过枪」（一个 requestedFor ref），但发出去的请求可能被下一次 render 的
+   * cleanup 作废（下面 `.then` 的 `if (!alive) return`）。登录路径里 `/api/profile` 往往比
+   * `/api/features` 早几毫秒返回：先 setProfileComplete → 本 effect 重跑 → 上一枪被作废 →
+   * 重跑又撞上「发过枪」短路 → 再也没有第二枪，`fetchedFor` 永远是 null，`loaded` 永远 false，
+   * `HomeRouter` 就一直在骨架屏上（新用户首登必现，只有刷新才恢复）。
+   * 所以短路只认这个 ref：答案落过地才算数，被作废的请求必须允许重打。
+   */
+  // 记忆键是「id + role」（2026-10-30 / AC-3.12）：学生被邀请码升成教师时 id 不变、只有 role 变，
+  // 只按 id 记忆会命中短路，侧栏就一直停在学生那套。
+  const settledFor = useRef<string | null>(null)
 
   useEffect(() => {
     if (loading) return
     if (!me) {
       setFeatures(OFF)
       setFetchedFor(null)
-      requestedFor.current = null
+      settledFor.current = null
       wasIncomplete.current = false
       return
     }
@@ -78,25 +87,27 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
      *     未填手机号的学生因此被顶到资料页，与 AC-93.1（访问 `/` 返回 200）相反。
      * 现在照常取数：接口 200 就按真实 key 渲染，仍然失败（真正 403/网络问题）走下面的 catch → OFF。
      */
-    // 已经为「这个用户 + 这个角色」取过、且不是「刚补全」→ 不再重取：重取会把已挂载的页面卸掉再挂回来。
+    // 已经为「这个用户 + 这个角色」**拿到过答案**、且不是「刚补全」→ 不再重取：重取会把已挂载的页面卸掉再挂回来。
     const requestKey = `${me.id}:${me.role ?? ''}`
-    if (!justCompleted && requestedFor.current === requestKey) return
+    if (!justCompleted && settledFor.current === requestKey) return
 
     let alive = true
-    requestedFor.current = requestKey
-    // 真正需要重取时（换用户 / 刚补全）按「未知」处理，避免把补全前的空集挂到深链上。
+    // 真正需要重取时（换用户 / 刚补全 / 上一枪被作废）按「未知」处理，避免把补全前的空集挂到深链上。
     setFetchedFor(null)
     api.get<Features>('/api/features')
       .then((value) => {
         if (!alive) return
         setFeatures(normalize(value))
         setFetchedFor(me.id)
+        settledFor.current = requestKey
       })
       .catch(() => {
         // 拿不到就按关闭处理：宁可少显示，也不放空承诺。
         if (!alive) return
         setFeatures(OFF)
         setFetchedFor(me.id)
+        // 失败也算「有了确定答案」：否则一次网络抖动会让后面每次 render 都重打一枪。
+        settledFor.current = requestKey
       })
     return () => {
       alive = false
