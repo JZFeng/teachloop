@@ -1,0 +1,20 @@
+{
+  "target": 3000,
+  "got": 3000,
+  "primary_candidates": 2769,
+  "backfill_candidates": 6967,
+  "pool_consumed": 3360,
+  "elapsed_seconds": 651.6,
+  "rejects_total": 360,
+  "rejects_by_reason": {
+    "empty": 149,
+    "banned-verb": 121,
+    "length": 2,
+    "duplicate": 88
+  },
+  "from_primary": 2537,
+  "from_backfill": 463,
+  "word_count_min": 12,
+  "word_count_max": 24,
+  "avg_chars": 100.5
+}

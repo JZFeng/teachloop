@@ -1,0 +1,109 @@
+{
+  "source": "/tmp/samp176",
+  "pool": 26,
+  "picked": 20,
+  "max_kb": 15.0,
+  "samples": [
+    {
+      "word": "abbey",
+      "scene": "A monk in a brown robe stands in a stone hall with tall arched windows and a long wooden bench.",
+      "kb": 9.33
+    },
+    {
+      "word": "able",
+      "scene": "A girl stands on a wooden stool, one arm stretched high, lifting a jar down from a high shelf.",
+      "kb": 6.46
+    },
+    {
+      "word": "abnormal",
+      "scene": "A child stands alone on a straight row of identical round stepping stones, holding one crooked bent stone out to the side.",
+      "kb": 8.19
+    },
+    {
+      "word": "abolish",
+      "scene": "A person stands at a wooden podium, one hand flat on a torn paper sheet, the other hand pointing down at it.",
+      "kb": 8.08
+    },
+    {
+      "word": "abort",
+      "scene": "A person in a spacesuit stands on a launch pad, one hand on a ladder, looking up at a closed rocket hatch.",
+      "kb": 10.93
+    },
+    {
+      "word": "abroad",
+      "scene": "A child stands on a dock holding a suitcase, looking at a large ship on the water.",
+      "kb": 9.33
+    },
+    {
+      "word": "abrupt",
+      "scene": "A boy stands at the edge of a cliff, one arm stretched out, looking down at a steep drop below.",
+      "kb": 6.85
+    },
+    {
+      "word": "absence",
+      "scene": "An empty wooden school desk and chair in a bare classroom, a single closed notebook resting on the desktop.",
+      "kb": 8.07
+    },
+    {
+      "word": "absent",
+      "scene": "An empty wooden school chair and desk in a classroom, a backpack hanging on the chair back, no person.",
+      "kb": 8.39
+    },
+    {
+      "word": "absolute",
+      "scene": "A child stands with both arms stretched straight out to the sides, holding a long ruler level in one hand, in a plain room.",
+      "kb": 6.27
+    },
+    {
+      "word": "absorb",
+      "scene": "A child kneels on a bathroom floor, pressing a thick sponge onto a puddle of spilled water.",
+      "kb": 9.47
+    },
+    {
+      "word": "abuse",
+      "scene": "A man stands over a small crouching dog, holding a raised rolled newspaper in one hand.",
+      "kb": 6.98
+    },
+    {
+      "word": "academy",
+      "scene": "A child in a school uniform stands on stone steps holding a book, facing a large building with columns and a wide doorway.",
+      "kb": 8.04
+    },
+    {
+      "word": "accelerate",
+      "scene": "A boy on a bicycle leans forward, gripping the handlebars, riding fast along a straight road.",
+      "kb": 7.26
+    },
+    {
+      "word": "accent",
+      "scene": "A young girl stands at the front of a classroom, one hand raised near her mouth, a small flag held in her other hand.",
+      "kb": 7.89
+    },
+    {
+      "word": "accept",
+      "scene": "A girl stands with both hands holding a wrapped gift box, arms stretched forward, in a bright room.",
+      "kb": 7.51
+    },
+    {
+      "word": "access",
+      "scene": "A boy stands at a wooden door, one hand on the handle, a key held up in his other hand.",
+      "kb": 7.15
+    },
+    {
+      "word": "accident",
+      "scene": "A boy sits on the ground beside a fallen bicycle, one hand on the bent front wheel, a cracked helmet beside him.",
+      "kb": 8.63
+    },
+    {
+      "word": "accommodate",
+      "scene": "A girl stands in a wide hotel room, holding a small suitcase in one hand, a bed and a window behind her.",
+      "kb": 8.27
+    },
+    {
+      "word": "accompany",
+      "scene": "A girl walks beside a woman on a park path, both facing forward, the girl holding the woman's hand.",
+      "kb": 8.02
+    }
+  ],
+  "oversized": []
+}
