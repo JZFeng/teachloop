@@ -84,8 +84,14 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d            # 期望空�
   「先保存 → 再跳 `/admin/vocab/books/:bookId/import`」两步；用户要求「new 的时候直接把词条搞进去」。
   现在词条区（`ImportPastePanel`，受控文本）同时长在两个态的右栏面板里，**一次「保存」= 建书/改书 + 导入**；
   新增草稿预览端点 `POST /api/admin/vocab/books/draft/entries/preview`（书未建时预览，`duplicated` 只算批内重复），
-  独立导入页降级为重定向。用例：`VocabBooksTest#draftPreviewForNewBookPanel`（9/9 绿）、
-  `web/tests/admin-books-entry-import.test.mjs`（4/4 绿）。
+  独立导入页降级为重定向。用例：`VocabBooksTest#draftPreviewForNewBookPanel`（与 `languageAndLevelAreWhitelisted`
+  合计 10/10 绿）、`web/tests/admin-books-entry-import.test.mjs`（4/4 绿）。
+  浏览器实测（管理员 dev 账号，2026-10-30 19:40，dev 8010/5173 跑 `c5ca0fe` 的 jar）：新建面板贴 3 词
+  （含重复 1）→ 预览「将新建 2 / 重复跳过 1」→ 点一次「保存」→ 列表该行「词数 2」、面板切到 `?edit=<新id>`
+  并显示「本次导入：新增 2 条，已存在/重复 1 条」；编辑态再贴 2 词保存 → 「新增 1 / 重复 1」，共 3 条；
+  `/admin/vocab/books/:id/import` 落到 `?edit=<id>`。平板：834×1194 `scrollWidth=834`、1024×1366 `1024`
+  均无横向溢出，1024 首屏按钮全可达；**834 下「预览」在折叠线下**（保存按钮常驻，不受影响），
+  用户 2026-10-30 拍板「保持现状，预览贴着文本、向下滚一屏」，故不并入常驻条。
   **2026-10-30 返工（Question → Bug，AC-100.8）：面板「关不掉」。** 用户问「点保存或发布都不 dismiss，
   是不是 bug」；查证结论：保存/发布不关是主从面板的**设计**（保存后要看导入统计与刷新后的覆盖率，
   新建导入失败要留在面板重试），真缺陷是**没有任何出口**——只能手改 URL 里的 `edit`，
