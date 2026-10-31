@@ -68,3 +68,13 @@
 - 新增 `/tmp/v3-restart-dev.sh`：全量 pack `count=80579` 后自动重启 dev；
   若 count 不足则不重启，避免把半成品挂上去。
 - dev 当前是 pilot 4,775，不是最终 80,579；最终 pack 由 watcher 覆盖后再自动重启。
+
+## 2026-10-31 01:49 平板目标档验收
+
+- 834×1194：`scrollWidth=834`，无横向溢出；`eager` 与 `eagerly` 的「下一个」都在 y=568（50vh），首屏可见。
+- 1024×1366：`scrollWidth=1024`，无溢出；`eager` 的「下一个」在 y=654（50vh）。
+- 截图：
+  [834 eager](shots/tablet-834-eager.png) ·
+  [834 eagerly](shots/tablet-834-eagerly.png) ·
+  [1024 eager](shots/tablet-1024-eager.png)
+- 这是 dev pilot pack（4,775）的浏览器验收；最终 80,579 pack 会自动重启后再复验一次。
