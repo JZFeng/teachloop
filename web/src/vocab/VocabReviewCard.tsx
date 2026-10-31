@@ -18,7 +18,7 @@ import { SpeakerButton } from './SpeakerButton'
 import type { AudioLanguage } from './SpeakerButton'
 import { useVocabAudioConfig } from './audioConfig'
 import { familyAddsNothing, splitSenseText } from './morphology'
-import { orderV3Blocks, resolveCardBlocks, type ReviewCardBlock } from './reviewBlocks'
+import { resolveCardBlocks, type ReviewCardBlock } from './reviewBlocks'
 
 export interface ReviewCardSense {
   pos?: string
@@ -239,8 +239,6 @@ export function VocabReviewCard({
   const { sentenceAudio } = useVocabAudioConfig()
   const content = word.content
   const phonetic = content?.phonetic
-  // 2026-10-31 方案 5：英/美音标相同时只显示一份（inflect 两个都是 /ɪnˈflekt/）。
-  const samePronunciation = !!phonetic?.uk && phonetic.uk === phonetic?.us
   // 019：例句喇叭跟随词条语言，避免中文 / 西语词条被硬编码读成英文音。
   const exampleLang: AudioLanguage =
     word.language === 'zh' ? 'zh' : word.language === 'es' ? 'es' : 'en'
@@ -254,8 +252,8 @@ export function VocabReviewCard({
   const visibleBlocks = resolveCardBlocks(content, blocks, hidden)
   // 空提示只看「内容里根本没有块」：用户自己把块全关掉不算空内容。
   const hasContentBlocks = resolveCardBlocks(content, blocks, []).length > 0
-  // 2026-10-31 方案 5：显示顺序在 web 端归一（核心理解移到构词与派生之前），见 orderV3Blocks 注释。
-  const v3Blocks = isV3 ? orderV3Blocks(resolveCardBlocks(content)) : []
+  // 块顺序只有一个真源：后端 content.blocks（2026-10-31 撤掉前端 orderV3Blocks 那层归一）。
+  const v3Blocks = isV3 ? resolveCardBlocks(content) : []
 
   /**
    * 2026-10-31：词卡配图（113 张定稿 WebP）。后端只在图片**真的存在**时才给 `imageUrl`，
@@ -695,25 +693,16 @@ export function VocabReviewCard({
           <div className="review-card-head-main">
             <div className="review-word">{word.form}</div>
             <div className="review-phonetic-row muted" onClick={(event) => event.stopPropagation()}>
-              {/* 2026-10-31 方案 5：英美音标相同时合并成一份，两个喇叭分别播英音/美音（title 各自带语言） */}
-              {samePronunciation ? (
-                <span className="review-phonetic review-phonetic--merged">
-                  <span className="review-phonetic-ipa">{phonetic!.uk}</span>
-                  <SpeakerButton form={word.form} accent="uk" shortcut="u" compact variant="text" />
-                  <SpeakerButton form={word.form} accent="us" shortcut="a" compact variant="text" />
-                </span>
-              ) : (
-                <>
-                  <span className="review-phonetic">
-                    {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
-                    <SpeakerButton form={word.form} accent="uk" shortcut="u" compact variant="text" />
-                  </span>
-                  <span className="review-phonetic">
-                    {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
-                    <SpeakerButton form={word.form} accent="us" shortcut="a" compact variant="text" />
-                  </span>
-                </>
-              )}
+              {/* 2026-10-31 用户回退：始终两段「英 /…/ 🔊」「美 /…/ 🔊」。 */}
+              {/* 即使英美 IPA 相同也不合并（inflect 两段都是 /ɪnˈflekt/，用户要两边各一个小喇叭）。 */}
+              <span className="review-phonetic">
+                {t('vocab.detail.phoneticUk')} {phonetic?.uk ?? '—'}
+                <SpeakerButton form={word.form} accent="uk" shortcut="u" compact variant="text" />
+              </span>
+              <span className="review-phonetic">
+                {t('vocab.detail.phoneticUs')} {phonetic?.us ?? '—'}
+                <SpeakerButton form={word.form} accent="us" shortcut="a" compact variant="text" />
+              </span>
             </div>
           </div>
           {(onToggleFavorite || onAdd || onAddToList || (!flipped && (onDelete || onTogglePause))) && (

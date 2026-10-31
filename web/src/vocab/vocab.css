@@ -210,10 +210,6 @@
 }
 .review-phonetic { display: inline-flex; align-items: center; gap: 2px; }
 .review-phonetic .ant-btn { padding-inline: 4px; color: var(--muted); }
-/* 2026-10-31 方案 5：英/美音标相同时只显示一份 IPA，两个喇叭并排（英音 / 美音各一）。
-   旧写法两串一模一样的 IPA 白占卡头约 40% 宽度。 */
-.review-phonetic--merged { gap: 0; }
-.review-phonetic--merged .review-phonetic-ipa { margin-right: 2px; }
 .review-card-actions {
   display: flex;
   gap: 12px;
@@ -615,14 +611,6 @@
 
 .v3-examples { display: flex; flex-direction: column; gap: 16px; }
 .v3-example { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 8px; align-items: start; }
-/* 2026-10-31 方案 5：例句喇叭默认不占视觉重量，hover / 键盘聚焦才出现；
-   触屏没有 hover（@media pointer: coarse）时保持常显，否则点不到。 */
-.v3-example-audio { opacity: 0; transition: opacity .12s ease; }
-.v3-example:hover .v3-example-audio,
-.v3-example:focus-within .v3-example-audio { opacity: 1; }
-@media (pointer: coarse) {
-  .v3-example-audio { opacity: 1; }
-}
 .v3-en { font-size: 16px; line-height: 1.6; }
 .v3-zh { margin-top: 2px; font-size: 14px; line-height: 1.65; color: var(--muted-2); }
 .v3-example mark { padding: 0 2px; background: var(--accent-weak); border-radius: 4px; color: inherit; }
@@ -644,14 +632,21 @@
 .v3-expand[aria-expanded="true"] svg { transform: rotate(180deg); }
 
 .v3-syn-list { display: flex; flex-direction: column; gap: 12px; }
+/* 2026-10-31 用户回退：词 / 词性 / 释义 三处靠拢。
+   原来 grid 固定列宽（112px 44px 1fr + 10px 间距），实测「conjugate」到「v.」50px、
+   「v.」到释义 44px（列宽吃掉字宽 + `.v3-pos` 的 min-width:30px）。
+   这里改成 flex + 6px，并把词性 span 的最小宽置 0，实测两处都收到 6px；
+   代价是放弃跨行对齐——近义词每行字数差异本来就不适合对齐。
+   三列仍不换行（释义 flex:1 吃掉剩余宽度），窄屏另有一档单独处理。 */
 .v3-syn-row {
-  display: grid;
-  grid-template-columns: 112px 44px minmax(0, 1fr);
-  gap: 8px 10px;
+  display: flex;
   align-items: baseline;
+  gap: 6px;
   font-size: 14px;
 }
-.v3-syn-row b { font-size: 15px; font-weight: 650; }
+.v3-syn-row b { flex: 0 0 auto; font-size: 15px; font-weight: 650; }
+.v3-syn-row .v3-pos { flex: 0 0 auto; min-width: 0; }
+.v3-syn-row > span:last-child { flex: 1 1 auto; min-width: 0; }
 .v3-antonyms { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-2); }
 .v3-ant-label { margin-bottom: 8px; font-size: 12px; font-weight: 600; color: var(--muted-2); }
 .v3-etymology { margin: 0; font-size: 14px; line-height: 1.75; color: var(--muted); }
@@ -683,7 +678,9 @@
   .v3-morph-label { padding-top: 6px; }
   /* 方案 5 的单词卡片在窄屏掉成一列（auto-fill 的 300px 下限已经兜住，这里只是把最小宽调小） */
   .v3-morph-cards { grid-template-columns: 1fr; }
-  .v3-syn-row { grid-template-columns: 1fr; gap: 1px; }
+  /* 窄屏近义词仍掉成两行：词 + 词性一行，释义另起一行（flex 版对应改法） */
+  .v3-syn-row { flex-wrap: wrap; row-gap: 1px; }
+  .v3-syn-row > span:last-child { flex-basis: 100%; }
   .v3-syn-row .v3-pos { margin-bottom: 2px; }
 }
 
