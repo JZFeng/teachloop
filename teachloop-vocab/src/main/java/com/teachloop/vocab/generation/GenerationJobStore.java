@@ -134,13 +134,22 @@ public class GenerationJobStore {
      */
     @Transactional
     public void retryForm(String language, String form, Instant now) {
+        retryForm(language, form, now, PRIORITY_ON_DEMAND);
+    }
+
+    /**
+     * 带优先级的重排：词书发布/导入预热用 {@link #PRIORITY_BACKGROUND}（后台补内容，不抢学生的队首），
+     * 查词页「重试」仍用 {@link #PRIORITY_ON_DEMAND}（学生正盯着屏幕等）。
+     */
+    @Transactional
+    public void retryForm(String language, String form, Instant now, int priority) {
         Timestamp timestamp = Timestamp.from(now);
         jdbc.update("""
                 update vocab_generation_jobs
                    set state = 'QUEUED', attempts = 0, next_run_at = ?, last_error = null,
                        locked_by = null, locked_at = null, updated_at = ?, priority = ?
                  where subject_type = 'FORM' and subject_id = ?
-                """, timestamp, timestamp, PRIORITY_ON_DEMAND, formSubjectId(language, form));
+                """, timestamp, timestamp, priority, formSubjectId(language, form));
     }
 
     /** 查词任务成功：内容已写全局 delta，任务只需置 SUCCEEDED（不动任何用户词条）。 */

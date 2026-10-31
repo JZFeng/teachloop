@@ -19,6 +19,14 @@ import { api } from '../../api/client'
 /** 书详情预览的每页词数（AC-101.3 固定 50）。 */
 export const BOOK_ENTRIES_PAGE = 50
 
+/**
+ * 书详情页的自动刷新间隔（2026-10-30 用户 Bug）。
+ *
+ * 发布即入队生成，但生成是异步的（实测约 10 秒/词）；不轮询的话学生要手动刷新
+ * 才能看到「生成中」变成「内容就绪」。页面不可见时跳过，不空转。
+ */
+export const BOOK_ENTRIES_POLL_MS = 30_000
+
 /** 推荐区最多显示的本书（AC-104.1）。 */
 export const RECO_LIMIT = 2
 

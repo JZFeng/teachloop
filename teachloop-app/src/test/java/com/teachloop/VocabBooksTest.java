@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -687,6 +688,61 @@ class VocabBooksTest {
     // ────────────────────────────────────────────────────────────────
     // helpers
     // ────────────────────────────────────────────────────────────────
+
+    // ────────────────────────────────────────────────────────────────
+    // 2026-10-30 用户 Bug：发布即预热（FORM 任务），学生不必先加入再进复习
+    // ────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("发布即预热：草稿导入不入队、发布为缺失词条入队 FORM、重复发布不新增、已发布书导入新词继续预热")
+    void publishPreheatsMissingBookContent() throws Exception {
+        String base = base();
+        String admin = admin(base);
+        UUID bookId = createBook(base, admin, unique("T591-preheat"), 904);
+        String seed = unique("preheat").toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        String first = seed + "alpha";
+        String second = seed + "beta";
+        String third = seed + "gamma";
+
+        // 草稿书导入：不入队（学生看不到，没必要先烧 AI）
+        post(base, admin, "/api/admin/vocab/books/" + bookId + "/entries",
+                Map.of("text", first + "\n" + second + "\n" + third));
+        assertThat(formJobs(first, second, third)).isZero();
+
+        // 发布 → 三个缺失词形全部入队：后台优先级（不抢学生队首）、初始 QUEUED
+        put(base, admin, "/api/admin/vocab/books/" + bookId, Map.of("published", true));
+        assertThat(formJobs(first, second, third)).isEqualTo(3);
+        assertThat(jdbc.queryForList("""
+                select priority from vocab_generation_jobs
+                 where subject_type = 'FORM' and subject_form in (?, ?, ?)
+                """, Integer.class, first, second, third)).containsOnly(0);
+        assertThat(jdbc.queryForList("""
+                select state from vocab_generation_jobs
+                 where subject_type = 'FORM' and subject_form in (?, ?, ?)
+                """, String.class, first, second, third)).containsOnly("QUEUED");
+
+        // 重复发布（含下架再发布）不新增、也不重置在跑的任务：幂等键在 (subject_type, subject_id)
+        put(base, admin, "/api/admin/vocab/books/" + bookId, Map.of("published", true));
+        put(base, admin, "/api/admin/vocab/books/" + bookId, Map.of("published", false));
+        put(base, admin, "/api/admin/vocab/books/" + bookId, Map.of("published", true));
+        assertThat(formJobs(first, second, third)).isEqualTo(3);
+
+        // 已发布的书继续导入新词：新词也要入队，否则学生预览里又是一个「永远生成中」
+        String fourth = seed + "delta";
+        post(base, admin, "/api/admin/vocab/books/" + bookId + "/entries", Map.of("text", fourth));
+        assertThat(formJobs(fourth)).isEqualTo(1);
+        assertThat(formJobs(first, second, third)).isEqualTo(3);
+    }
+
+    /** 这些词形的 FORM 任务数（书里的词不绑定任何学生词库行，所以只数 FORM）。 */
+    private long formJobs(String... forms) {
+        String placeholders = String.join(",",
+                java.util.Collections.nCopies(forms.length, "?"));
+        Long count = jdbc.queryForObject(
+                "select count(*) from vocab_generation_jobs where subject_type = 'FORM'"
+                        + " and subject_form in (" + placeholders + ")", Long.class, (Object[]) forms);
+        return count == null ? 0 : count;
+    }
 
     private List<JsonNode> cleanups(JsonNode preview) {
         List<JsonNode> rows = new ArrayList<>();

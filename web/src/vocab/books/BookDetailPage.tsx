@@ -16,7 +16,7 @@ import {
   useToast,
 } from '../../ui'
 import type { Column } from '../../ui'
-import { BOOK_ENTRIES_PAGE, coveragePercent, fetchBook, fetchBookEntries, startBookReview } from './books'
+import { BOOK_ENTRIES_PAGE, BOOK_ENTRIES_POLL_MS, coveragePercent, fetchBook, fetchBookEntries, startBookReview } from './books'
 import type { BookDetail, BookEntry } from './books'
 import { useBooksCopy } from './copy'
 import '../vocab.css'
@@ -76,6 +76,33 @@ export default function BookDetailPage() {
       .catch((loadError) => { if (alive) setEntriesError(loadError as Error) })
     return () => { alive = false }
   }, [id, page, reloadKey])
+
+  /**
+   * 内容在后台异步生成（发布即入队），页面必须自己看到「生成中 → 内容就绪」，
+   * 不能要求学生手动刷新（2026-10-30 用户 Bug）。30 秒一次，页面不可见时跳过。
+   *
+   * 与上面两个 effect 的区别：这里**不**把 `entries` 清成 null——静默更新，
+   * 否则每 30 秒表格都会闪一次 loading。
+   */
+  useEffect(() => {
+    if (!id) return
+    let alive = true
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'hidden') return
+      fetchBook(id)
+        .then((value) => { if (alive) setBook(value) })
+        .catch(() => { /* 静默：下一次轮询还会再试 */ })
+      fetchBookEntries(id, page)
+        .then((value) => {
+          if (!alive) return
+          setEntries(value.items)
+          setTotalRows(value.total)
+          setEntriesError(null)
+        })
+        .catch(() => { /* 静默：保留当前列表，不把已经出来的内容换成错误态 */ })
+    }, BOOK_ENTRIES_POLL_MS)
+    return () => { alive = false; window.clearInterval(timer) }
+  }, [id, page])
 
   const start = async () => {
     if (starting) return

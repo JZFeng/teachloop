@@ -45,6 +45,7 @@
 | T579 | **测试与守卫**：单测（幂等/后缀/覆盖率/推荐排序）、集成（失败回滚不留半份副本）、E2E（词单页→加入→副本→开始复习）、i18n `vocab.books.*` | T577, T578 | `make check-deps check-boundaries check-i18n check-ui` 与 `make test` 全绿；E2E 报告贴 `docs/reports/` |
 | T580 | **回滚演练**：执行一次「回退代码 → 处理 `BOOK` 来源行 → 删表删列」的完整演练 | T579 | 在 qa 库演练并记录耗时与命令；`BOOK` 行处理脚本可重复执行（幂等） |
 | T592 | **语言/级别改下拉 + 服务端白名单（2026-10-30 用户敲定，AC-100.7）**：管理端词书面板「语言」只列 `en`、「级别」列 CEFR A1–C2（可留空），都不许手输；`AdminBookEndpoint` 白名单拦 `zh`/`es`/`cn` 与非法级别（级别入库统一大写）；排序位保留数字输入，提示改成「列表按创建时间、推荐位按加入人数」 | T577 | AC-100.7；`VocabBooksTest#languageAndLevelAreWhitelisted`（非法语言/级别 400、`b1`→`B1`、空级别 null、改书同样拦）；`pnpm typecheck` 退出码 0 |
+| T593 | **发布即预热（2026-10-30 用户 Bug「发布后学生进来还是生成中」）**：`VocabularyGenerationService#prepareBookForms` 为「内容索引缺失」的词形入队 `FORM` 任务（后台优先级、受日预算、`QUEUED/RUNNING` 不重置、`FAILED` 或「成功但内容查不到」的重排）；`AdminBookEndpoint` 在「草稿→发布」与「已发布书导入新词」两个提交点 `afterCommit` 调用，异常只记 warn 不影响发布；书详情页 30 秒静默轮询（不可见时跳过） | T577 | AC-101.5；`VocabBooksTest#publishPreheatsMissingBookContent`（草稿导入 0 条、发布 3 条 `FORM` 且 `priority=0`/`state=QUEUED`、下架再发布仍 3 条、已发布书导入新词 +1）；`VocabBooksTest` 11/11 绿；`pnpm typecheck` 退出码 0 |
 
 ---
 

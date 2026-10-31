@@ -7,6 +7,7 @@ import com.teachloop.shared.security.CurrentUser;
 import com.teachloop.vocab.books.BookRepository.BookRow;
 import com.teachloop.vocab.books.BookRepository.EntryPage;
 import com.teachloop.vocab.books.BookRepository.EntryRow;
+import com.teachloop.vocab.generation.VocabularyGenerationService;
 import com.teachloop.vocab.importer.DictionaryTextParser;
 import com.teachloop.vocab.importer.ImportPreviewEndpoint.CandidateView;
 import com.teachloop.vocab.importer.ImportPreviewEndpoint.CleanupView;
@@ -28,9 +29,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -67,6 +72,8 @@ import org.springframework.web.bind.annotation.RestController;
 @ConditionalOnProperty(name = "teachloop.vocab.enabled", havingValue = "true")
 public class AdminBookEndpoint {
 
+    private static final Logger log = LoggerFactory.getLogger(AdminBookEndpoint.class);
+
     private static final int MAX_NAME = 80;
     private static final int MAX_DESCRIPTION = 300;
     private static final int MAX_SLUG = 64;
@@ -88,17 +95,20 @@ public class AdminBookEndpoint {
     private final DictionaryTextParser parser;
     private final SpellingChecker spelling;
     private final AuditPort audit;
+    private final VocabularyGenerationService generation;
     private final Clock clock;
 
     public AdminBookEndpoint(BookRepository books, BookImportService importService,
                              BookCoverageService coverage, DictionaryTextParser parser,
-                             SpellingChecker spelling, AuditPort audit, Clock clock) {
+                             SpellingChecker spelling, AuditPort audit,
+                             VocabularyGenerationService generation, Clock clock) {
         this.books = books;
         this.importService = importService;
         this.coverage = coverage;
         this.parser = parser;
         this.spelling = spelling;
         this.audit = audit;
+        this.generation = generation;
         this.clock = clock;
     }
 
@@ -214,7 +224,47 @@ public class AdminBookEndpoint {
         } else {
             audit.record(AuditEvent.of(me.id(), "book:update", "vocab_book", id.toString()));
         }
+        if (published && !current.published()) {
+            // 2026-10-30 用户 Bug：发布之后学生进来还是「生成中」，而队列里一条任务都没有。
+            // 发布即预热（FORM 任务，写全局内容），学生的书详情页覆盖率会自己往上爬。
+            afterCommit(() -> preheat(updated));
+        }
         return view(updated, Map.of(id, coverage.coverage(updated)), Map.of(id, books.joinCount(id)));
+    }
+
+    /**
+     * 词书内容预热（2026-10-30 用户 Bug）：为这本书里**内容索引缺失**的词形入队 FORM 任务。
+     *
+     * <p>刻意放在事务提交之后执行，并且吞掉异常只记 warn：预热失败绝不能让「发布」跟着回滚或报错——
+     * 发布是管理动作，生成是后台补齐，两件事的失败后果不对等。
+     */
+    private void preheat(BookRow book) {
+        try {
+            List<String> forms = books.allEntries(book.id()).stream()
+                    .map(EntryRow::normalizedForm)
+                    .toList();
+            int queued = generation.prepareBookForms(book.language(), forms);
+            if (queued > 0) {
+                log.info("词书发布预热 book={} name={} 入队 {} 个词形（共 {}）",
+                        book.id(), book.name(), queued, forms.size());
+            }
+        } catch (RuntimeException ex) {
+            log.warn("词书内容预热失败 book={}（不影响发布）：{}", book.id(), ex.getMessage());
+        }
+    }
+
+    /** 事务提交后再跑；没有活动事务时立即跑（单测/直调路径）。 */
+    private static void afterCommit(Runnable action) {
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    action.run();
+                }
+            });
+        } else {
+            action.run();
+        }
     }
 
     /**
@@ -280,7 +330,7 @@ public class AdminBookEndpoint {
                         .toList());
     }
 
-    /** 提交：写 `vocab_book_entries`（不写学生词库、不入队内容生成）。 */
+    /** 提交：写 `vocab_book_entries`（不写学生词库）；**书已发布时**顺手预热新词条的内容。 */
     @PostMapping("/{id}/entries")
     @Transactional
     public ImportCommit importEntries(@PathVariable UUID id,
@@ -292,6 +342,10 @@ public class AdminBookEndpoint {
         audit.record(new AuditEvent(me.id(), "book:entries.import", "vocab_book", id.toString(),
                 Map.of("created", result.counts().created(), "duplicated", result.counts().duplicated(),
                         "failed", result.counts().failed())));
+        if (book.published() && result.counts().created() > 0) {
+            // 2026-10-30 用户 Bug：往已发布的书里加词，学生立刻就能看到这些词，内容不能等他自己进复习才生成。
+            afterCommit(() -> preheat(book));
+        }
         return new ImportCommit(result.counts(), result.errors());
     }
 

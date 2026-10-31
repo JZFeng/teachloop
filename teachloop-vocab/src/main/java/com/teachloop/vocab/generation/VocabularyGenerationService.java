@@ -1,10 +1,15 @@
 package com.teachloop.vocab.generation;
 
+import com.teachloop.vocab.content.ContentStore;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +29,7 @@ public class VocabularyGenerationService {
     private static final ZoneId ZONE = ZoneId.of("Asia/Shanghai");
 
     private final GenerationJobStore store;
+    private final ContentStore content;
     private final boolean enabled;
     private final boolean onImport;
     private final boolean lookupOnMiss;
@@ -32,12 +38,14 @@ public class VocabularyGenerationService {
 
     public VocabularyGenerationService(
             GenerationJobStore store,
+            ContentStore content,
             @Value("${teachloop.vocab.generation.enabled:true}") boolean enabled,
             @Value("${teachloop.vocab.generation.on-import:false}") boolean onImport,
             @Value("${teachloop.vocab.lookup.generate-on-miss:true}") boolean lookupOnMiss,
             @Value("${teachloop.vocab.generation.daily-budget:2000}") int dailyBudget,
             Clock clock) {
         this.store = store;
+        this.content = content;
         this.enabled = enabled;
         this.onImport = onImport;
         this.lookupOnMiss = lookupOnMiss;
@@ -64,6 +72,84 @@ public class VocabularyGenerationService {
             return;
         }
         store.enqueueWords(wordIds, clock.instant(), GenerationJobStore.PRIORITY_BACKGROUND);
+    }
+
+    /**
+     * 词书发布 / 已发布书导入后的预热（2026-10-30 用户 Bug：发布后学生进来还是「生成中」，后台零任务）。
+     *
+     * <p>书的词条不绑定任何学生词库行，所以走的不是 WORD 任务而是 FORM 任务
+     * （{@link GenerationJobStore#enqueueForm}，与查词即生成同一条通路，结果写全局内容索引）——
+     * 发布之后内容就开始生成，学生的书详情页覆盖率会自己往上爬，不必等他先加入再进复习。
+     *
+     * <p>三条边界：
+     * <ul>
+     *   <li>**只补缺失**：内容索引里已就绪的词形一个都不入队（同一份内容不重复烧 AI）；
+     *       内容索引不可用时整体跳过——那时候分不清「没生成」和「查不到」，按缺失处理会把整本书重烧一遍。</li>
+     *   <li>**受日预算**（与导入预热同口径）：打满时只记 warn，学生按需路径不受预算影响，复习不会被卡。</li>
+     *   <li>**在跑的不重置**：QUEUED/RUNNING 直接跳过；FAILED 或「任务成功但内容索引里没有」
+     *       （内容包换版、提示词升级、delta 被清）重新排队，否则这些词永远停在「生成中」。</li>
+     * </ul>
+     *
+     * @param language       书的语言；空按 en
+     * @param normalizedForms 书的全部词形（调用方给规范化后的值）
+     * @return 本次新建或重新排队的任务数
+     */
+    public int prepareBookForms(String language, Collection<String> normalizedForms) {
+        if (!enabled || normalizedForms == null || normalizedForms.isEmpty()) {
+            return 0;
+        }
+        if (!content.available()) {
+            log.warn("内容索引不可用，跳过词书预热（{} 个词形）：无法区分「没生成」与「查不到」",
+                    normalizedForms.size());
+            return 0;
+        }
+        String lang = language == null || language.isBlank() ? "en" : language;
+        Set<String> ready = content.existingForms(lang, normalizedForms);
+        List<String> missing = new ArrayList<>();
+        for (String form : normalizedForms) {
+            if (form != null && !form.isBlank() && !ready.contains(form)) {
+                missing.add(form);
+            }
+        }
+        if (missing.isEmpty()) {
+            return 0;
+        }
+        Instant since = LocalDate.ofInstant(clock.instant(), ZONE).atStartOfDay(ZONE).toInstant();
+        long used = store.countCreatedSince(since);
+        int left = (int) Math.max(0, dailyBudget - used);
+        if (left <= 0) {
+            log.warn("内容生成日预算已打满（{}/{}），暂停词书预热；今日缺 {} 个词，次日发布/导入会补上",
+                    used, dailyBudget, missing.size());
+            return 0;
+        }
+        int queued = 0;
+        for (String form : missing) {
+            if (queued >= left) {
+                log.warn("词书预热达到日预算余额 {}，剩余 {} 个词留到明日",
+                        left, missing.size() - queued);
+                break;
+            }
+            Optional<String> state = store.formState(lang, form);
+            boolean accepted;
+            if (state.isEmpty()) {
+                accepted = store.enqueueForm(lang, form, clock.instant(),
+                        GenerationJobStore.PRIORITY_BACKGROUND);
+            } else if ("QUEUED".equals(state.get()) || "RUNNING".equals(state.get())) {
+                continue;
+            } else {
+                // FAILED，或 SUCCEEDED 但内容索引里查不到（换版/清库）：清零重排，否则永远停在「生成中」。
+                store.retryForm(lang, form, clock.instant(),
+                        GenerationJobStore.PRIORITY_BACKGROUND);
+                accepted = true;
+            }
+            if (accepted) {
+                queued++;
+            }
+        }
+        if (queued > 0) {
+            log.info("词书预热入队 {} 个词形（缺 {} 个，日预算余 {}）", queued, missing.size(), left);
+        }
+        return queued;
     }
 
     /**
