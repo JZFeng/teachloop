@@ -26,6 +26,7 @@ import BookDetailPage from './vocab/books/BookDetailPage'
 import BookCopyReviewPage from './vocab/books/BookCopyReviewPage'
 import AdminBooksPage from './vocab/books/AdminBooksPage'
 import BookImportPage from './vocab/books/BookImportPage'
+import AdminFeedbackPage from './vocab/feedback/AdminFeedbackPage'
 import LoginPage from './app/LoginPage'
 import RegisterPage from './app/RegisterPage'
 import ActivatePage from './app/ActivatePage'
@@ -266,6 +267,9 @@ function AppRoutes() {
               `?edit=<id>` 选中右侧编辑面板；导入页返回时还带这个参数（BookImportPage:45）。 */}
           <Route path="admin/vocab/books" element={<RequireFeature feature="nav.vocab.books"><AdminBooksPage /></RequireFeature>} />
           <Route path="admin/vocab/books/:bookId/import" element={<RequireFeature feature="nav.vocab.books"><BookImportPage /></RequireFeature>} />
+          {/* 2026-10-31：学生「反馈」的读入口。守卫 key 只发 ADMIN（RoleNavMatrix），
+              教师/学生深链进来同样被 RequireFeature 挡掉，后端还有一层 hasRole("ADMIN")。 */}
+          <Route path="admin/vocab/feedback" element={<RequireFeature feature="nav.vocab.feedback"><AdminFeedbackPage /></RequireFeature>} />
           {/* 011 / T565：首次登录的资料收集页；「以后再说」后不再自动出现（localStorage）。 */}
           <Route path="welcome" element={<WelcomePage />} />
           <Route path="profile" element={<ProfilePage />} />

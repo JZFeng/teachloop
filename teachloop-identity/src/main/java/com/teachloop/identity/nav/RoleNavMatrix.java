@@ -35,6 +35,13 @@ public final class RoleNavMatrix {
     public static final String NAV_VOCAB_BOOKS = "nav.vocab.books";
     /** 2026-10-30（AC-3.10）：管理员生成教师邀请码的独立页。 */
     public static final String NAV_TEACHERS = "nav.teachers";
+    /**
+     * 2026-10-31：管理员查看学生单词反馈的收件箱。
+     *
+     * <p>只发给 ADMIN（学生提交、教师不可见）。前缀是 `nav.vocab.`，因此会被
+     * {@link #isVocabKey(String)} 跟着 vocab 模块开关走——模块关掉时反馈入口也没有意义，这是刻意的。
+     */
+    public static final String NAV_VOCAB_FEEDBACK = "nav.vocab.feedback";
 
     /**
      * 全部已知 key。顺序与前端菜单目录一致：前端按自己的目录顺序过滤，
@@ -44,7 +51,7 @@ public final class RoleNavMatrix {
             NAV_HOME, NAV_CLASSES, NAV_ASSIGNMENTS, NAV_PAPERS,
             NAV_VOCAB_SETS, NAV_VOCAB_ASSIGN, NAV_GRADING, NAV_REVIEW, NAV_REPORTS,
             NAV_VOCAB_LIBRARY, NAV_VOCAB_LISTS, NAV_VOCAB_REVIEW, NAV_VOCAB_BOOKS,
-            NAV_TEACHERS, NAV_AI);
+            NAV_VOCAB_FEEDBACK, NAV_TEACHERS, NAV_AI);
 
     /**
      * 角色默认可见集合。
@@ -62,7 +69,7 @@ public final class RoleNavMatrix {
      * 班级只属于师生，管理员不需要，也不该能调班级接口。
      */
     private static final Map<UserRole, Set<String>> ROLE_KEYS = Map.of(
-            UserRole.ADMIN, Set.of(NAV_TEACHERS, NAV_AI, NAV_VOCAB_BOOKS),
+            UserRole.ADMIN, Set.of(NAV_TEACHERS, NAV_AI, NAV_VOCAB_BOOKS, NAV_VOCAB_FEEDBACK),
             // 2026-10-30（AC-3.13）：教师保留学习入口 —— 原先这里只有 sets/assign（发词），
             // 于是老师一旦由学生升级上来，侧栏的「背单词」就消失。学习数据本来就按 user_id 挂着，
             // 入口不该随角色消失：背单词是人人可用的功能层。

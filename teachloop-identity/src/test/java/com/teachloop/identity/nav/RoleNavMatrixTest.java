@@ -19,9 +19,10 @@ class RoleNavMatrixTest {
         // 2026-10-27：班级移出管理员矩阵——班级只属于师生，管理员不再有查看入口。
         // 2026-10-30（013）：管理员新增「词书管理」入口；它受 vocab 模块开关约束。
         // 2026-10-30（AC-3.10）：管理员新增「教师管理」入口（发邀请码）。
+        // 2026-10-31：管理员新增「单词反馈」收件箱（学生提交、管理员处理，教师不可见）。
         assertThat(RoleNavMatrix.keysFor(UserRole.ADMIN))
                 .containsExactlyInAnyOrder(RoleNavMatrix.NAV_TEACHERS, RoleNavMatrix.NAV_AI,
-                        RoleNavMatrix.NAV_VOCAB_BOOKS)
+                        RoleNavMatrix.NAV_VOCAB_BOOKS, RoleNavMatrix.NAV_VOCAB_FEEDBACK)
                 .doesNotContain(RoleNavMatrix.NAV_CLASSES);
     }
 

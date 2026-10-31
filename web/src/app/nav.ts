@@ -74,6 +74,9 @@ export const NAV_CATALOG: NavSpec[] = [
   // 而那份列表和首页是同一份数据的两个视图；现在「看评语」从首页 / 作业页的行内直接进详情，
   // 侧栏不再留一个重复入口。`/feedback/:offeringId` 路由仍然存在。
   { key: 'nav.vocab.books', to: '/admin/vocab/books', labelKey: 'vocab.books.adminNav', icon: 'library' },
+  // 2026-10-31：学生从查词页提交的「反馈」只有一个读入口——管理员收件箱。
+  // key 是 `nav.vocab.` 前缀，所以跟着 vocab 模块开关走（模块关掉时反馈入口也没意义）。
+  { key: 'nav.vocab.feedback', to: '/admin/vocab/feedback', labelKey: 'vocab.feedbackAdmin.nav', icon: 'review' },
   // 2026-10-30（AC-3.10）：管理员发教师邀请码的独立页。
   { key: 'nav.teachers', to: '/admin/teachers', labelKey: 'nav.teachers', icon: 'teachers' },
   { key: 'nav.ai', to: '/admin/ai', labelKey: 'nav.aiSettings', icon: 'settings' },

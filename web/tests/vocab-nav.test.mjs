@@ -52,6 +52,23 @@ test('管理员看不到任何教师项与班级页（首页/班级/试卷/批�
   }
 })
 
+// 2026-10-31：学生从查词页提交的反馈只有管理员这一个读入口。
+test('2026-10-31：管理员 vocab 开时四项，单词反馈紧挨词书管理', () => {
+  assert.deepEqual(
+    paths(featuresFor([...ADMIN_KEYS, 'nav.vocab.books', 'nav.vocab.feedback'], true)),
+    ['/admin/vocab/books', '/admin/vocab/feedback', '/admin/teachers', '/admin/ai'],
+  )
+})
+
+test('单词反馈：没被授权时不出现在侧栏（只由后端 key 决定，前端不判角色）', () => {
+  assert.ok(NAV_CATALOG.some((item) => item.key === 'nav.vocab.feedback'))
+  assert.ok(!paths(featuresFor(ADMIN_KEYS, true)).includes('/admin/vocab/feedback'))
+  // 教师 / 学生的 key 集合里没有它（与 RoleNavMatrix 的 ADMIN 集合一致）。
+  for (const keys of [TEACHER_KEYS, STUDENT_KEYS]) {
+    assert.ok(!keys.includes('nav.vocab.feedback'), '教师/学生不应被授予 nav.vocab.feedback')
+  }
+})
+
 test('教师 vocab 关时 7 项，顺序固定', () => {
   assert.deepEqual(paths(featuresFor(withoutVocab(TEACHER_KEYS))), [
     '/', '/classes', '/assignments', '/papers', '/grading', '/review', '/reports',
