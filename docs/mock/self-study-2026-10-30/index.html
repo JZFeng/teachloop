@@ -1,0 +1,432 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>今日页与背单词模块结构 · TeachLoop</title>
+<style>
+  /* 令牌与 docs/mock/vocab-2026-10-23 同一份值（主色 #1A63E0，圆角 12/8/6，正文 14px） */
+  :root {
+    --bg:#f6f8fc; --panel:#fff; --panel-2:#eff4fb;
+    --line:#dce4f2; --line-2:#ebf0f8; --line-strong:#7c8ba3;
+    --text:#0e2340; --muted:#41536e; --muted-2:#55677f;
+    --accent:#1a63e0; --accent-2:#1450bc; --accent-weak:#e8effd; --on-accent:#fff;
+    --green:#17703f; --green-weak:#e6f5ec;
+    --amber:#8a5a00; --amber-weak:#fff3d6;
+    --red:#b42338; --red-weak:#fde6e8;
+    --shadow:0 1px 2px rgba(14,54,118,.05),0 1px 3px rgba(14,54,118,.07);
+    --radius:12px; --radius-sm:8px; --radius-xs:6px;
+    --font:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Noto Sans SC",sans-serif;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:var(--font); font-size:14px; line-height:1.65;
+         background:var(--bg); color:var(--text); -webkit-font-smoothing:antialiased; }
+  button { font:inherit; color:inherit; cursor:pointer; }
+  [hidden] { display:none !important; }
+
+  .layout { display:grid; grid-template-columns:236px minmax(0,1fr); min-height:100vh; }
+  .layout.full { grid-template-columns:1fr; }
+  .layout.full .side { display:none; }
+
+  /* ── 侧栏 ── */
+  .side { background:var(--panel); border-right:1px solid var(--line); padding:16px 12px;
+          height:100vh; position:sticky; top:0; display:flex; flex-direction:column; }
+  .brand { display:flex; align-items:center; gap:9px; padding:4px 8px 18px; font-size:16px; font-weight:600; }
+  .brand .mark { width:26px; height:26px; border-radius:var(--radius-sm); background:#0e3676; color:#fff;
+                 display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .nav-label { font-size:12px; color:var(--muted-2); padding:10px 10px 6px; }
+  .nav-item { display:flex; align-items:center; gap:8px; padding:8px 10px; border-radius:var(--radius-sm);
+              color:var(--muted); border:0; background:transparent; width:100%; text-align:left; margin-bottom:2px; }
+  .nav-item:hover { background:var(--panel-2); }
+  .nav-item.on { background:var(--accent-weak); color:var(--accent); font-weight:500; }
+  .nav-item .caret { margin-left:auto; width:0; height:0;
+                     border-top:4px solid transparent; border-bottom:4px solid transparent;
+                     border-left:5px solid var(--muted-2); }
+  .nav-item .caret.down { border-left:4px solid transparent; border-right:4px solid transparent;
+                          border-top:5px solid var(--muted-2); border-bottom:0; }
+  .nav-sub { margin:2px 0 6px 14px; padding-left:10px; border-left:1px solid var(--line); }
+  .nav-sub .nav-item { padding:6px 10px; font-size:13.5px; }
+  .side-foot { margin-top:auto; font-size:12px; color:var(--muted-2); padding:10px 10px 4px; }
+
+  /* ── 顶栏（原型开关） ── */
+  .top { position:sticky; top:0; z-index:5; background:rgba(246,248,252,.94); backdrop-filter:blur(6px);
+         border-bottom:1px solid var(--line); padding:8px 24px; display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .top .grp { display:flex; gap:6px; align-items:center; }
+  .top .tag { font-size:12px; color:var(--muted-2); }
+  .top button { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-xs);
+                padding:3px 9px; font-size:12px; color:var(--muted); }
+  .top button.on { border-color:var(--accent); color:var(--accent); background:var(--accent-weak); font-weight:500; }
+
+  .main { padding:24px 32px 80px; max-width:1240px; }
+  .page-head { margin-bottom:18px; }
+  .page-head h1 { margin:0; font-size:24px; font-weight:600; letter-spacing:-.2px; }
+  .page-head .sub { color:var(--muted-2); font-size:13px; margin-top:4px; }
+
+  .card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow); }
+  .card + .card { margin-top:16px; }
+  .card-head { display:flex; align-items:baseline; gap:10px; padding:16px 20px 0; }
+  .card-head h2 { margin:0; font-size:15px; font-weight:600; }
+  .card-head .more { margin-left:auto; font-size:12.5px; color:var(--accent); background:none; border:0; padding:0; }
+  .card-body { padding:14px 20px 18px; }
+
+  .grid { display:grid; grid-template-columns:minmax(0,1fr) 300px; gap:16px; align-items:start; }
+  .stack { max-width:880px; }
+  /* 菜单按钮只在抽屉态出现：基础规则必须写在 media query 之前，否则同权重被后面的 display:none 覆盖 */
+  #menu { display:none; border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-xs);
+          padding:3px 9px; font-size:12px; color:var(--muted); }
+  /* 断点只用现有两档：1100（单列）/ 1023（壳层侧栏抽屉），与 AGENTS 的平板规则一致 */
+  @media (max-width:1100px) { .grid { grid-template-columns:1fr; } }
+  @media (max-width:1023px) {
+    .layout { grid-template-columns:1fr; }
+    .side { position:fixed; left:0; top:0; width:236px; z-index:20; transform:translateX(-100%);
+            transition:transform .16s ease; box-shadow:var(--shadow); }
+    .side.open { transform:none; }
+    .main { padding:20px 20px 64px; }
+    #menu { display:inline-block; }
+  }
+
+  /* 今日复习卡 */
+  .rev { display:flex; gap:24px; align-items:flex-end; }
+  .rev .big { font-size:40px; font-weight:600; line-height:1.1; font-variant-numeric:tabular-nums; letter-spacing:-1px; }
+  .rev .unit { font-size:13px; color:var(--muted-2); margin-left:4px; }
+  .rev .facts { display:flex; gap:18px; color:var(--muted-2); font-size:12.5px; margin-top:6px; }
+  .rev .facts b { color:var(--text); font-weight:600; }
+  .rev .act { margin-left:auto; text-align:right; }
+
+  .btn { border:1px solid var(--line); background:var(--panel); border-radius:var(--radius-sm);
+         padding:7px 16px; font-size:14px; line-height:1.5; }
+  .btn:hover { border-color:var(--line-strong); }
+  .btn.primary { background:var(--accent); border-color:var(--accent); color:var(--on-accent); font-weight:500; }
+  .btn.primary:hover { background:var(--accent-2); border-color:var(--accent-2); }
+  .btn.ghost { border-color:transparent; color:var(--accent); background:transparent; padding:4px 8px; }
+  .btn.sm { padding:3px 10px; font-size:13px; }
+
+  /* 列表行（作业 / 考试） */
+  .rowline { display:grid; grid-template-columns:minmax(0,1fr) auto auto; gap:14px; align-items:center;
+             padding:11px 0; border-top:1px solid var(--line-2); }
+  .rowline:first-child { border-top:0; padding-top:2px; }
+  .rowline .t { font-size:14px; }
+  .rowline .m { font-size:12.5px; color:var(--muted-2); margin-top:2px; }
+  .tag { display:inline-block; font-size:12px; padding:1px 8px; border-radius:999px; border:1px solid var(--line); color:var(--muted); }
+  .tag.red { color:var(--red); background:var(--red-weak); border-color:#f0cfd4; }
+  .tag.amber { color:var(--amber); background:var(--amber-weak); border-color:#eed9a6; }
+  .tag.green { color:var(--green); background:var(--green-weak); border-color:#bfe3cd; }
+  .tag.blue { color:var(--accent); background:var(--accent-weak); border-color:#cddefb; }
+
+  .muted { color:var(--muted-2); }
+  .small { font-size:12.5px; }
+  .empty { padding:22px 0 10px; color:var(--muted-2); font-size:13px; }
+  .empty .btn { margin-top:10px; }
+
+  /* 模块二级导航（tab） */
+  .tabs { display:flex; gap:2px; border-bottom:1px solid var(--line); margin:0 0 18px; }
+  .tabs button { border:0; background:none; padding:9px 14px; font-size:14px; color:var(--muted);
+                 border-bottom:2px solid transparent; margin-bottom:-1px; }
+  .tabs button.on { color:var(--accent); border-bottom-color:var(--accent); font-weight:600; }
+
+  /* 词库表 */
+  table.t { width:100%; border-collapse:collapse; }
+  table.t th { text-align:left; font-size:12px; font-weight:500; color:var(--muted-2);
+               padding:8px 10px; border-bottom:1px solid var(--line); background:var(--panel-2); }
+  table.t td { padding:10px; border-bottom:1px solid var(--line-2); font-size:13.5px; }
+  table.t tr:last-child td { border-bottom:0; }
+  .mono { font-variant-numeric:tabular-nums; }
+
+  .toolbar { display:flex; gap:8px; align-items:center; padding:12px 20px; border-bottom:1px solid var(--line-2); }
+  .search { flex:1; max-width:320px; border:1px solid var(--line); border-radius:var(--radius-xs);
+            padding:6px 10px; font-size:13.5px; background:var(--panel); }
+
+  .listcards { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; }
+  .listcard { border:1px solid var(--line); border-radius:var(--radius-sm); padding:14px 16px; background:var(--panel); }
+  .listcard .n { font-weight:600; font-size:14px; }
+  .listcard .d { font-size:12.5px; color:var(--muted-2); margin-top:4px; }
+
+  /* 复习会话：全屏、无侧栏、无 Tab（对应 AC-91.3） */
+  .session-wrap { padding:20px 32px 40px; }
+  .session-top { display:flex; gap:12px; align-items:center; max-width:1240px; margin:0 auto 20px; }
+  .session-body { max-width:720px; margin:0 auto; }
+  .session-card { padding:36px 32px; text-align:center; }
+  .session-word { font-size:40px; font-weight:600; letter-spacing:-.6px; }
+  .session-answer { margin-top:24px; padding-top:20px; border-top:1px solid var(--line-2); text-align:left; max-width:520px; margin-left:auto; margin-right:auto; }
+  .session-hint { margin-top:22px; font-size:12.5px; color:var(--muted-2); }
+  .session-actions { display:flex; gap:12px; justify-content:center; margin-top:20px; }
+  .session-btn { min-width:160px; padding:11px 20px; }
+
+  .note { border-left:3px solid var(--accent); background:var(--accent-weak); color:#123c86;
+          padding:9px 12px; border-radius:var(--radius-xs); font-size:12.5px; margin-bottom:16px; }
+  .foot { max-width:1100px; padding:0 32px 40px; color:var(--muted-2); font-size:12px; }
+</style>
+</head>
+<body>
+<div class="layout">
+  <aside class="side" id="side"></aside>
+  <div>
+    <div class="top">
+      <button id="menu" onclick="document.getElementById('side').classList.toggle('open')">菜单</button>
+      <div class="grp"><span class="tag">学生状态</span>
+        <button id="t-class" class="on" onclick="setMode('class')">已加入班级</button>
+        <button id="t-noclass" onclick="setMode('noclass')">未加入班级</button>
+      </div>
+      <div class="grp"><span class="tag">背单词内部</span>
+        <button id="t-tab" class="on" onclick="setNav('tab')">页内 Tab</button>
+        <button id="t-tree" onclick="setNav('tree')">侧栏树（对照）</button>
+      </div>
+      <div class="grp"><span class="tag">数据</span>
+        <button id="t-full" class="on" onclick="setData('full')">有数据</button>
+        <button id="t-empty" onclick="setData('empty')">空态（新用户）</button>
+      </div>
+      <div class="grp"><span class="tag">时区</span>
+        <button id="tz-product" class="on" onclick="setTz('product')">产品时区</button>
+        <button id="tz-la" onclick="setTz('la')">洛杉矶</button>
+      </div>
+      <div class="grp"><span class="tag">屏</span>
+        <button id="t-today" class="on" onclick="go('today')">今日</button>
+        <button id="t-vocab" onclick="go('vocab')">背单词</button>
+        <button id="t-session" onclick="go('session')">复习会话</button>
+      </div>
+    </div>
+    <div class="main" id="main"></div>
+    <div class="foot" id="foot"></div>
+  </div>
+</div>
+
+<script>
+const S = { mode:'class', nav:'tab', data:'full', view:'today', tab:'review', tz:'product', flipped:false };
+
+const 作业 = [
+  { t:'Unit 5 阅读理解（一）', m:'初二（3）班 · 王老师', due:'今天 18:00', tag:'red' },
+  { t:'期中模拟卷（客观题）', m:'初二（3）班 · 王老师', due:'明天 20:00', tag:'amber' },
+  { t:'Vocabulary Unit 5 预习', m:'初二（3）班 · 王老师', due:'10-31 23:59', tag:'' }
+];
+const 考试 = [{ t:'期中英语听说', m:'初二（3）班 · 11-02 09:00 开始', tag:'blue' }];
+const 词 = [
+  { w:'abandon', p:'/əˈbændən/', d:'v. 放弃；抛弃', due:'今天' },
+  { w:'benefit', p:'/ˈbenɪfɪt/', d:'n. 好处  v. 受益', due:'今天' },
+  { w:'capable', p:'/ˈkeɪpəbl/', d:'adj. 有能力的', due:'明天' },
+  { w:'decline', p:'/dɪˈklaɪn/', d:'v. 下降；拒绝', due:'11-01' },
+  { w:'efficient', p:'/ɪˈfɪʃnt/', d:'adj. 高效的', due:'11-02' }
+];
+const 词单 = [
+  { n:'Unit 5 生词', d:'24 个词 · 上次复习 昨天' },
+  { n:'期中高频词', d:"86 个词 · 上次复习 10-28" },
+  { n:'自己攒的难词', d:'12 个词 · 还没复习' }
+];
+
+function setMode(m){ S.mode = m; S.tab = 'review'; paint(); }
+function setNav(n){ S.nav = n; paint(); }
+function setData(d){ S.data = d; paint(); }
+function go(v){ S.view = v; if (v === 'session') S.flipped = false; paint(); }
+function setTz(t){ S.tz = t; paint(); }
+function flip(){ S.flipped = !S.flipped; paint(); }
+function tab(t){ S.tab = t; paint(); }
+
+function sideNav(){
+  const has = S.mode === 'class';
+  const items = [];
+  items.push(`<button class="nav-item ${S.view==='today'?'on':''}" onclick="go('today')">今日</button>`);
+  if (S.nav === 'tree') {
+    const open = S.view === 'vocab';
+    items.push(`<button class="nav-item ${open?'on':''}" onclick="go('vocab')">背单词<span class="caret ${open?'down':''}"></span></button>`);
+    if (open) {
+      items.push(`<div class="nav-sub">
+        <button class="nav-item ${S.tab==='review'?'on':''}" onclick="tab('review')">今日复习</button>
+        <button class="nav-item ${S.tab==='lists'?'on':''}" onclick="tab('lists')">我的词单</button>
+        <button class="nav-item ${S.tab==='library'?'on':''}" onclick="tab('library')">我的词库</button>
+      </div>`);
+    }
+  } else {
+    items.push(`<button class="nav-item ${S.view==='vocab'?'on':''}" onclick="go('vocab')">背单词</button>`);
+  }
+  if (has) {
+    items.push(`<button class="nav-item" onclick="go('today')">作业</button>`);
+    items.push(`<button class="nav-item" onclick="go('today')">班级</button>`);
+  }
+  document.getElementById('side').innerHTML = `
+    <div class="brand"><span class="mark">T</span>TeachLoop</div>
+    <div class="nav-label">学习</div>
+    ${items.join('')}
+    <div class="side-foot">${has ? '初二（3）班 · 王老师' : '还没有班级'}</div>`;
+}
+
+function todayPage(){
+  const has = S.mode === 'class';
+  const empty = S.data === 'empty';
+  const head = `<div class="page-head">
+    <h1>${empty ? '今天还没有安排' : '今天 · 10 月 30 日 周五'}</h1>
+    <div class="sub">${has ? '王晨曦 · 连续学习 3 天' : '王晨曦 · 个人学习'}</div>
+    ${S.tz === 'la' ? '<div class="small muted" style="margin-top:6px">新的一天按洛杉矶时间（America/Los_Angeles）0 点开始</div>' : ''}
+  </div>`;
+
+  const reviewCard = empty
+    ? `<div class="card"><div class="card-head"><h2>今日复习</h2></div><div class="card-body">
+        <div class="empty">词库里还没有词。先加第一批词，今天就能开始背。
+          <div><button class="btn primary" onclick="go('vocab')">去加词</button>
+          <button class="btn" style="margin-left:8px" onclick="go('vocab')">导入词表</button></div>
+        </div></div></div>`
+    : `<div class="card"><div class="card-head"><h2>今日复习</h2><span class="small muted">预计 12 分钟</span></div>
+       <div class="card-body"><div class="rev">
+        <div><div class="big">24<span class="unit">张待复习</span></div>
+          <div class="facts"><span>今天已复习 <b>8</b></span><span>新词 <b>10</b></span><span>上限 <b>20</b></span></div></div>
+        <div class="act"><button class="btn primary" onclick="go('vocab');tab('review')">开始复习</button></div>
+       </div></div></div>`;
+
+  const hwCard = (!has) ? '' : `<div class="card"><div class="card-head"><h2>待交作业</h2>
+      ${empty ? '' : '<button class="more">查看全部 5 项</button>'}</div>
+    <div class="card-body">${empty ? '<div class="empty">没有要交的作业。</div>' :
+      作业.map(x=>`<div class="rowline"><div><div class="t">${x.t}</div><div class="m">${x.m}</div></div>
+        <span class="tag ${x.tag}">${x.due}</span>
+        <button class="btn sm">去完成</button></div>`).join('')}
+    </div></div>`;
+
+  const examCard = (!has || empty) ? '' : `<div class="card"><div class="card-head"><h2>即将开始</h2></div>
+    <div class="card-body">${考试.map(x=>`<div class="rowline"><div><div class="t">${x.t}</div>
+      <div class="m">${x.m}</div></div><span class="tag blue">3 天后</span>
+      <button class="btn sm">查看</button></div>`).join('')}</div></div>`;
+
+  const listsCard = (!has && !empty) ? `<div class="card"><div class="card-head"><h2>我的词单</h2>
+      <button class="more" onclick="go('vocab');tab('lists')">全部 3 份</button></div>
+    <div class="card-body">${词单.map(x=>`<div class="rowline"><div><div class="t">${x.n}</div>
+      <div class="m">${x.d}</div></div><button class="btn sm">开始复习</button></div>`).join('')}</div></div>` : '';
+
+  // 没有班级卡：班级只是桥梁，学生只看任务；班级入口留在侧栏。
+  const inviteCard = has ? '' : `<div class="card"><div class="card-head"><h2>有邀请码？</h2></div>
+    <div class="card-body"><div class="small muted">输入老师给你的班级邀请码就能进班；已有的词和复习进度都会保留。</div>
+      <div style="display:flex;gap:8px;margin-top:10px;max-width:360px">
+        <input class="search" style="max-width:none" placeholder="如 XJ7K2M">
+        <button class="btn primary">加入</button></div></div></div>`;
+
+  const statsCard = empty ? '' : `<div class="card"><div class="card-head"><h2>学习记录</h2><span class="tag">第二期</span></div>
+    <div class="card-body"><div class="small muted">${has ? '本周 4 天，共背 128 张卡；连续 3 天。' : '本周 2 天，共背 46 张卡。'}</div></div></div>`;
+
+  return head + `<div class="stack">${reviewCard}${hwCard}${examCard}${listsCard}${inviteCard}${statsCard}</div>`;
+}
+
+function sessionPage(){
+  const empty = S.data === 'empty';
+  if (empty) {
+    return `<div class="session-wrap"><div class="card" style="max-width:520px;margin:12vh auto;text-align:center">
+      <div class="card-body"><div style="font-weight:600;font-size:16px">今天没有要复习的卡</div>
+      <div class="small muted" style="margin-top:8px">回今日页看看明天到期多少张。</div>
+      <button class="btn" style="margin-top:16px" onclick="go('today')">回今日页</button></div></div></div>`;
+  }
+  return `<div class="session-wrap">
+    <div class="session-top">
+      <span class="small muted">今日复习 · 第 9 张 / 共 24 张</span>
+      <span style="flex:1"></span>
+      <span class="small muted">今天已复习 8</span>
+      <button class="btn sm" onclick="go('vocab');tab('review')">结束复习</button>
+    </div>
+    <div class="session-body">
+      <div class="card session-card" onclick="flip()" style="cursor:pointer">
+        <div class="session-word">abandon</div>
+        <div class="small muted">/əˈbændən/</div>
+        ${S.flipped ? `<div class="session-answer">
+          <div><b>v.</b> 放弃；抛弃</div>
+          <div class="small muted" style="margin-top:6px">They abandoned the plan after the second failure.</div>
+        </div>` : '<div class="session-hint">点击卡片或按空格看答案</div>'}
+      </div>
+      <div class="session-actions">
+        <button class="btn session-btn">不认识</button>
+        <button class="btn primary session-btn">认识</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function vocabPage(){
+  const empty = S.data === 'empty';
+  const tabs = S.nav === 'tab' ? `<div class="tabs">
+      <button class="${S.tab==='review'?'on':''}" onclick="tab('review')">今日复习</button>
+      <button class="${S.tab==='lists'?'on':''}" onclick="tab('lists')">我的词单</button>
+      <button class="${S.tab==='library'?'on':''}" onclick="tab('library')">我的词库</button>
+    </div>` : '';
+  const title = S.nav === 'tab' ? '背单词'
+    : { review:'今日复习', library:'我的词库', lists:'我的词单' }[S.tab];
+
+  let body = '';
+  if (S.tab === 'review') {
+    body = `<div class="card"><div class="card-body">
+      ${empty ? `<div class="empty">词库里还没有词，今天没有要复习的卡。
+        <div><button class="btn primary">加词</button>
+        <button class="btn" style="margin-left:8px">导入词表</button></div></div>`
+      : `<div class="rev"><div><div class="big">24<span class="unit">张待复习</span></div>
+          <div class="facts"><span>新词 <b>10</b></span><span>今天已复习 <b>8</b></span><span>每日新卡上限 <b>20</b></span></div></div>
+          <div class="act"><button class="btn primary">开始复习</button></div></div>`}
+    </div></div>
+    <div class="card"><div class="card-head"><h2>复习规则</h2></div><div class="card-body small muted">
+      两档评分：认识 → 下次间隔变长；不认识 → 自动翻面，间隔缩短。连续 4 次认识且间隔 ≥ 45 天毕业。</div></div>`;
+  } else if (S.tab === 'library') {
+    body = `<div class="card">
+      <div class="toolbar"><input class="search" placeholder="搜索词形，回车查任意词">
+        <button class="btn sm">筛选</button><span style="flex:1"></span>
+        <button class="btn sm">批量</button><button class="btn sm primary">加词</button></div>
+      ${empty ? `<div class="card-body"><div class="empty">词库还没有单词。
+        <div><button class="btn primary">粘贴加词</button>
+        <button class="btn" style="margin-left:8px">上传词表</button></div></div></div>`
+      : `<table class="t"><thead><tr><th>词形</th><th>音标</th><th>释义</th><th>下次复习</th><th>状态</th></tr></thead>
+        <tbody>${词.map(x=>`<tr><td><b>${x.w}</b></td><td class="muted">${x.p}</td><td>${x.d}</td>
+          <td class="mono">${x.due}</td><td><span class="tag ${x.due==='今天'?'red':'green'}">${x.due==='今天'?'待复习':'正常'}</span></td></tr>`).join('')}</tbody></table>`}
+      </div>`;
+  } else {
+    body = `<div class="card"><div class="card-body">
+      ${empty ? `<div class="empty">还没有词单。把想背的词攒成一份词单。</div>`
+      : `<div class="listcards">${词单.map(x=>`<div class="listcard"><div class="n">${x.n}</div>
+          <div class="d">${x.d}</div><button class="btn sm" style="margin-top:10px">开始复习</button></div>`).join('')}</div>`}
+      </div></div>`;
+  }
+  return `<div class="page-head"><h1>${title}</h1></div>${tabs}${body}`;
+}
+
+function paint(){
+  sideNav();
+  const note = S.nav === 'tree'
+    ? `<div class="note">对照形态：背单词的 3 个页面挂在侧栏二级。代价是要改现在扁平的导航模型（<code>nav.ts</code> + <code>Shell.tsx</code>），手机抽屉里要两级展开。</div>`
+    : `<div class="note">推荐形态：侧栏只放一级「背单词」，进去后落「今日复习」，三个页面用页内 Tab 切换。改动只在模块内部。</div>`;
+  const isSession = S.view === 'session';
+  document.getElementById('main').innerHTML = isSession ? sessionPage()
+    : note + (S.view === 'today' ? todayPage() : vocabPage());
+  document.querySelector('.layout').classList.toggle('full', isSession);
+  document.getElementById('foot').textContent =
+    '示例数据，不是真实账号；日期与班级均为占位。规格见 specs/011-self-study-mode/spec.md。';
+
+  const map = {
+    't-class': S.mode==='class', 't-noclass': S.mode==='noclass',
+    't-tab': S.nav==='tab', 't-tree': S.nav==='tree',
+    't-full': S.data==='full', 't-empty': S.data==='empty',
+    'tz-product': S.tz==='product', 'tz-la': S.tz==='la',
+    't-today': S.view==='today', 't-vocab': S.view==='vocab', 't-session': S.view==='session'
+  };
+  for (const id in map) document.getElementById(id).classList.toggle('on', map[id]);
+}
+
+/** 深链：#today / #vocab?mode=noclass&nav=tree&data=empty&tab=library */
+function applyHash(){
+  const raw = (location.hash || '').replace(/^#/, '');
+  const [view, qs] = raw.split('?');
+  if (view === 'today' || view === 'vocab' || view === 'session') S.view = view;
+  const p = new URLSearchParams(qs || '');
+  if (p.get('mode') === 'noclass') S.mode = 'noclass';
+  if (p.get('nav') === 'tree') S.nav = 'tree';
+  if (p.get('data') === 'empty') S.data = 'empty';
+  if (p.get('tz') === 'la') S.tz = 'la';
+  if (p.get('tab')) S.tab = p.get('tab');
+}
+window.addEventListener('hashchange', () => { applyHash(); paint(); });
+applyHash();
+paint();
+
+// 平板自检（AGENTS 2026-10-30 新增）：URL 带 ?measure=1 时把两行判定写进 body[data-measure]，
+// 用 `chrome --dump-dom` 读取，避免靠肉眼判断有没有横向溢出。
+if (location.search.indexOf('measure') >= 0) {
+  // 同步量：dump-dom 在 load 后立刻取，用 rAF 会拿不到属性。
+  const sw = document.documentElement.scrollWidth, iw = window.innerWidth;
+  const below = [...document.querySelectorAll('button,a,[role=button]')]
+    .filter((e) => e.offsetParent)
+    .map((e) => e.getBoundingClientRect())
+    .filter((r) => r.bottom > window.innerHeight).length;
+  document.body.setAttribute('data-measure',
+    JSON.stringify({ sw, iw, noHScroll: sw <= iw + 2, actionsBelowFold: below }));
+}
+</script>
+</body>
+</html>
