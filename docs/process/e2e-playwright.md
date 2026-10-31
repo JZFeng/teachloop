@@ -208,6 +208,19 @@ make web-e2e-install    # 首次：下载 chromium（约 100MB，落到 ~/Librar
 阶段 1 已完成，零依赖过渡版 `scripts/ui/tablet-matrix.mjs` 已删除，断言搬进 `tablet.spec.ts`。
 阶段 2 的产物：`web/e2e/{api,fixtures,pages,specs}`；新增用例只写 `specs/`，造数与选择器分别落在 `fixtures/` 与 `pages/`。
 
+## 12. 交接：仍未绿的两类（2026-10-30）
+
+本轮把 e2e 基础设施交付完成（`api/` + `fixtures/` + `pages/base` + `auth.setup` + CI workflow），
+平板上 12 条路由 × 3 视口与两条业务用例都绿。剩下两类红**不属于 e2e 骨架**，各自归属如下：
+
+| 项 | 复现证据 | 归属 |
+| :--- | :--- | :--- |
+| `AiSetupTest.setupAdminAndAiSettings`（expected "local" but null）<br>`AiReadinessTest.readinessGatesManualAndAutomaticDispatch`（INTERNAL） | 干净 checkout `origin/main` 跑 `./mvnw -q test` → 214 条里 2 红，与 e2e 无关 | AI 设置域 |
+| `e2e/specs/invite-card.spec.ts`（找不到 `today-invite-card` testid）<br>`e2e/specs/today-student.spec.ts`（断言 `/api/offerings` 0 次，实际仍请求） | 干净 worktree + CI 模式跑：79 passed / 3 failed；属"spec 领先实现" | 011/012/013（今日页） |
+
+**给后续写用例的人的约定**：新增 spec 只写"1–2 个 UI 动作"，造数走 `fixtures/scenario.ts` 的模式，
+选择器只放 `pages/`，路由断言用 `BasePage.expectPath()`（防止被 `ProfileCompletionFilter` 弹走后假绿）。
+
 ## 11. 风险
 
 | 风险 | 判断 | 应对 |
