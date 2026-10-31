@@ -1542,7 +1542,8 @@
     "title": "今日",
     "subtitlePersonal": "个人学习",
     "subtitleClass": "{{className}}",
-    "zoneNote": "新的一天按 {{zone}} 时间 0 点开始",
+    "zoneNote": "新的一天按{{label}}时间 0 点开始（{{offset}}）",
+    "zoneNoteNoOffset": "新的一天按{{label}}时间 0 点开始",
     "loadError": "这张卡加载失败。",
     "loading": "正在加载今日安排…",
     "review": {

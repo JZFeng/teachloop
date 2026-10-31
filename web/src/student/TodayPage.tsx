@@ -8,7 +8,7 @@ import ExamsCard from './today/ExamsCard'
 import InviteCard from './today/InviteCard'
 import ListsCard from './today/ListsCard'
 import ReviewCard from './today/ReviewCard'
-import { firstClassName, formatTodayHeading } from './today'
+import { firstClassName, formatTodayHeading, zoneLabel, zoneOffsetLabel } from './today'
 import type { StudentTodayView } from './today'
 import './today.css'
 
@@ -64,10 +64,18 @@ export default function StudentTodayPage() {
     : data
       ? t('today.subtitlePersonal')
       : null
-  const zoneNote =
+  // 时区说明（AC-99.5）：只在「服务端实际算今天用的时区 ≠ 产品默认」时出现。
+  // 城市名承担「是哪儿」，UTC 偏移承担「差多少」；偏移必须按 `now` 现算，写死数字会在
+  // 夏令时切换日变成错话（America/Los_Angeles 在 2026-11-01 之前是 UTC-7，之后是 UTC-8）。
+  const zoneInfo =
     data && data.zone && data.defaultZone && data.zone !== data.defaultZone
-      ? t('today.zoneNote', { zone: data.zone })
+      ? { label: zoneLabel(data.zone, locale, now), offset: zoneOffsetLabel(data.zone, now) }
       : null
+  const zoneNote = zoneInfo
+    ? zoneInfo.offset
+      ? t('today.zoneNote', zoneInfo)
+      : t('today.zoneNoteNoOffset', { label: zoneInfo.label })
+    : null
   // vocab 模块关闭时，复习卡与词单卡都不出现（AC-91.4 的同一开关）。
   const vocabOn = features.vocab === true
 

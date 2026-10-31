@@ -1542,7 +1542,8 @@
     "title": "Today",
     "subtitlePersonal": "Personal study",
     "subtitleClass": "{{className}}",
-    "zoneNote": "A new day starts at midnight in {{zone}}",
+    "zoneNote": "A new day starts at midnight in {{label}} ({{offset}})",
+    "zoneNoteNoOffset": "A new day starts at midnight in {{label}}",
     "loadError": "This card could not load.",
     "loading": "Loading today's plan…",
     "review": {

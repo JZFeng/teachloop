@@ -227,3 +227,83 @@ export function firstClassName(
   const fromExams = exams?.find((item) => Boolean(item.className))?.className
   return fromExams ?? null
 }
+
+/**
+ * 时区 → 城市名（键与 `ProfilePage.tsx` 的 `TIME_ZONES` 一一对应，2026-10-30 对齐过）。
+ *
+ * 为什么不用 IANA 名：`America/Los_Angeles` 对非技术用户就是一串带下划线的乱码，
+ * 而 `today.zoneNote` 这行文案的全部价值就是让人看懂「我的日界落在哪」。
+ * 未命中的时区不硬失败：回落 `Intl` 的长名称（如「北美太平洋夏令时间」），
+ * 再不行回落原始 IANA 名——最坏情况等于 2026-10-30 之前的写法。
+ */
+const ZONE_CITY: Record<string, { zh: string; en: string }> = {
+  'Asia/Shanghai': { zh: '上海', en: 'Shanghai' },
+  'Asia/Tokyo': { zh: '东京', en: 'Tokyo' },
+  'Asia/Singapore': { zh: '新加坡', en: 'Singapore' },
+  'Asia/Kolkata': { zh: '印度', en: 'India' },
+  UTC: { zh: 'UTC', en: 'UTC' },
+  'Europe/London': { zh: '伦敦', en: 'London' },
+  'Europe/Berlin': { zh: '柏林', en: 'Berlin' },
+  'America/New_York': { zh: '纽约', en: 'New York' },
+  'America/Chicago': { zh: '芝加哥', en: 'Chicago' },
+  'America/Los_Angeles': { zh: '洛杉矶', en: 'Los Angeles' },
+  'Australia/Sydney': { zh: '悉尼', en: 'Sydney' },
+}
+
+function isChinese(locale: string): boolean {
+  return (locale || '').trim().toLowerCase().startsWith('zh')
+}
+
+/** `Intl` 给的长时区名；非法时区返回 null，由调用方决定回落成什么。 */
+function zoneLongName(zone: string, locale: string, at: Date): string | null {
+  try {
+    const parts = new Intl.DateTimeFormat(locale || undefined, {
+      timeZone: zone,
+      timeZoneName: 'long',
+    }).formatToParts(at)
+    return parts.find((part) => part.type === 'timeZoneName')?.value ?? null
+  } catch {
+    // 非法时区（`Mars/Base`）不该让整页崩：名字这一环只负责好读，不负责正确性。
+    return null
+  }
+}
+
+/**
+ * 时区的中性名：11 条城市映射优先，其次 `Intl` 长名称，最后原始 IANA 名。
+ *
+ * 城市名不随时令变化（「洛杉矶」永远是「洛杉矶」），会变的偏移单独交给
+ * {@link zoneOffsetLabel}——两者分开，切换夏令时时只有括号里的数字动。
+ */
+export function zoneLabel(zone: string, locale: string, at: Date = new Date()): string {
+  if (!zone) return ''
+  const city = ZONE_CITY[zone]
+  if (city) return isChinese(locale) ? city.zh : city.en
+  return zoneLongName(zone, locale, at) ?? zone
+}
+
+/**
+ * 时区在**这一刻**的 UTC 偏移：`UTC-7` / `UTC+8` / `UTC+5:30`；偏移为 0 时返回空串。
+ *
+ * 必须按「现在」算，不能写成常量：`America/Los_Angeles` 在 2026-10-30 是 UTC-7，
+ * 夏令时结束（2026-11-01）之后就是 UTC-8。写死一个数字，一年里有四个多月是错的。
+ *
+ * 半小时候时区（`Asia/Kolkata` → `UTC+5:30`）保留分钟：取整会把印度说成 UTC+5。
+ */
+export function zoneOffsetLabel(zone: string, at: Date | string | number = new Date()): string {
+  if (!zone) return ''
+  const parsed = at instanceof Date ? at : new Date(at)
+  const when = Number.isNaN(parsed.getTime()) ? new Date() : parsed
+  let raw: string | undefined
+  try {
+    raw = new Intl.DateTimeFormat('en-US', { timeZone: zone, timeZoneName: 'longOffset' })
+      .formatToParts(when)
+      .find((part) => part.type === 'timeZoneName')?.value
+  } catch {
+    return ''
+  }
+  const matched = raw?.match(/^GMT([+-])(\d{1,2}):(\d{2})$/)
+  if (!matched) return ''
+  const [, sign, hours, minutes] = matched
+  if (Number(hours) === 0 && minutes === '00') return ''
+  return minutes === '00' ? `UTC${sign}${Number(hours)}` : `UTC${sign}${Number(hours)}:${minutes}`
+}

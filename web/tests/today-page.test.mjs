@@ -18,6 +18,8 @@ import {
   isOverdue,
   visibleAssignments,
   visibleExams,
+  zoneLabel,
+  zoneOffsetLabel,
 } from '../src/student/today.ts'
 
 /** 2026-10-30 09:00 本地时间（周五）——所有断言都以这个「现在」为基准。 */
@@ -129,4 +131,33 @@ test('副标题班名：先取作业的班名，没有作业再取考试的，�
   assert.equal(firstClassName([], [exam('e', '2026-11-02T09:00:00Z')]), 'Class 3')
   assert.equal(firstClassName([], []), null)
   assert.equal(firstClassName(undefined, undefined), null)
+})
+
+test('时区名：11 个常用时区走城市名，未命中回落 Intl 长名称，非法时区回落原串', () => {
+  assert.equal(zoneLabel('America/Los_Angeles', 'zh-CN'), '洛杉矶')
+  assert.equal(zoneLabel('America/Los_Angeles', 'en'), 'Los Angeles')
+  assert.equal(zoneLabel('Asia/Shanghai', 'zh-CN'), '上海')
+  // Pacific/Chatham 不在映射表里：走 Intl 长名称（zh-CN 下是「查塔姆夏令时间」），
+  // 断言「不等于原始 IANA 名」而不是断言具体文案——文案随 ICU 数据更新而变。
+  const chatham = zoneLabel('Pacific/Chatham', 'zh-CN')
+  assert.ok(chatham.length > 0 && chatham !== 'Pacific/Chatham')
+  assert.equal(zoneLabel('Mars/Base', 'zh-CN'), 'Mars/Base')
+  assert.equal(zoneLabel('', 'zh-CN'), '')
+})
+
+test('UTC 偏移：按渲染时刻现算，夏令时切换后自动变（AC-99.5）', () => {
+  const beforeDstEnd = new Date('2026-10-30T20:00:00Z')
+  const afterDstEnd = new Date('2026-11-02T20:00:00Z')
+  // 这两个断言是这条 AC 的核心：写死 UTC-7 会在 2026-11-01 之后变成错话。
+  assert.equal(zoneOffsetLabel('America/Los_Angeles', beforeDstEnd), 'UTC-7')
+  assert.equal(zoneOffsetLabel('America/Los_Angeles', afterDstEnd), 'UTC-8')
+  // 2027-03-14 又切回夏令时。
+  assert.equal(zoneOffsetLabel('America/Los_Angeles', '2027-03-15T20:00:00Z'), 'UTC-7')
+  assert.equal(zoneOffsetLabel('Asia/Shanghai', beforeDstEnd), 'UTC+8')
+  // 半小时候时区保留分钟：取整会把印度说成 UTC+5。
+  assert.equal(zoneOffsetLabel('Asia/Kolkata', beforeDstEnd), 'UTC+5:30')
+  // 偏移为 0 时返回空串，页面据此省略括号。
+  assert.equal(zoneOffsetLabel('UTC', beforeDstEnd), '')
+  // 非法时区不抛异常，页面最多少一个括号。
+  assert.equal(zoneOffsetLabel('Mars/Base', beforeDstEnd), '')
 })
