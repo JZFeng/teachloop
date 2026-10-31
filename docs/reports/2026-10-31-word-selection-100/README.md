@@ -57,3 +57,12 @@ no text, no numbers, no watermark, no signature: {scene}
 | **A（推荐）** | 这 100 张直接作为第一批生产图；LoRA 等有 CUDA 机器再训 | $0 增量 |
 | B | 改训 SDXL LoRA（ROCm 支持成熟），基座换成 SDXL 验证风格 | 训练 20–30 分钟，需重测质量 |
 | C | 继续在 ROCm 上调 Flux 训练（换 torch 版本 / 关 sdpa / 换 ai-toolkit） | 未知，今晚不划算 |
+
+
+## 113 词最终产物（2026-10-31 定稿）
+
+- 抽检：**84 通过 / 24 模糊 / 5 失败**（`qa-113.csv`），29 个问题词已**重写场景并重跑**（`fix-29-before-after.png`）；
+- 后处理：四周裁 3% → levels 2–98% → ×1.08−0.02 → 缩到 176/96 → UnsharpMask(0.8/30/2)；
+- 产物：`final-176/<word>.webp`（113 张，共 976KB，约 8.6KB/张）；
+- 88px 指标：**亮度 177.3 / 对比度 81.3 / 边缘 58.4**（对比度高于目标 55）；
+- 卡片实拍：`card-mock-final-qwen.png`。
