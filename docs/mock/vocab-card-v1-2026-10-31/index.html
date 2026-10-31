@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>TeachLoop · 单词卡 V1 原型</title>
+<style>
+  :root {
+    --bg: #f6f8fc;
+    --panel: #ffffff;
+    --panel-2: #eff4fb;
+    --line: #dce4f2;
+    --line-2: #ebf0f8;
+    --text: #0e2340;
+    --muted: #41536e;
+    --muted-2: #55677f;
+    --accent: #1a63e0;
+    --accent-2: #1450bc;
+    --accent-weak: #e8effd;
+    --on-accent: #ffffff;
+    --amber: #8a5a00;
+    --amber-weak: #fff3d6;
+    --shadow-pop: 0 18px 44px rgba(14, 54, 118, .12);
+    --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", "Segoe UI", sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: 14px;
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
+  }
+  button { font: inherit; color: inherit; }
+  button:focus-visible, [tabindex]:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  svg { display: block; }
+
+  /* ---------- 原型预览条（不属于页面设计） ---------- */
+  .proto-bar {
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 10px 16px;
+    padding: 8px 16px;
+    background: #0e2340;
+    color: #fff;
+    font-size: 12.5px;
+  }
+  .proto-title { font-weight: 650; white-space: nowrap; }
+  .proto-title span { color: #b3c0d4; font-weight: 400; }
+  .proto-tabs { display: flex; flex-wrap: wrap; gap: 4px; }
+  .proto-tabs button {
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 6px;
+    background: transparent;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .proto-tabs button.is-on { background: #fff; color: #0e2340; border-color: #fff; font-weight: 600; }
+  .proto-check { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; cursor: pointer; }
+  .proto-check input { accent-color: #fff; }
+  .proto-shot {
+    margin-left: auto;
+    height: 26px;
+    padding: 0 10px;
+    border: 1px solid rgba(255,255,255,.28);
+    border-radius: 6px;
+    background: transparent;
+    color: #fff;
+    font-size: 12px;
+    cursor: pointer;
+  }
+  .proto-shot:hover { background: rgba(255,255,255,.1); }
+  body.shot .proto-bar { display: none; }
+
+  /* ---------- 页面 ---------- */
+  .page { max-width: 1054px; margin: 24px auto 48px; padding: 0 24px; }
+  .page-head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 20px;
+  }
+  .page-title { margin: 0; font-size: 24px; line-height: 1.25; font-weight: 650; letter-spacing: -.2px; }
+  .icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted-2);
+    cursor: pointer;
+  }
+  .icon-btn:hover { color: var(--text); background: var(--panel-2); }
+  .info-wrap { position: relative; display: inline-flex; }
+  .info-pop {
+    position: absolute;
+    top: 34px;
+    left: 0;
+    z-index: 40;
+    width: 330px;
+    max-width: calc(100vw - 48px);
+    padding: 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-pop);
+    text-align: left;
+  }
+  .info-pop p { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); }
+  .info-pop .info-note { margin: 10px 0 0; font-size: 12px; color: var(--muted-2); }
+  .shortcut-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  .shortcut-table th, .shortcut-table td { padding: 4px 0; text-align: left; border-bottom: 1px solid var(--line-2); }
+  .shortcut-table th { font-size: 11.5px; font-weight: 600; color: var(--muted-2); }
+  .shortcut-table td:last-child, .shortcut-table th:last-child { text-align: right; }
+  .shortcut-table kbd {
+    display: inline-block;
+    padding: 0 5px;
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.6;
+    color: var(--text);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+  }
+  .page-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+  .btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 550;
+    cursor: pointer;
+  }
+  .btn-ghost:hover { border-color: var(--accent); color: var(--accent); }
+  .btn-ghost svg { color: var(--muted-2); }
+
+  /* ---------- 首用提示（一次性） ---------- */
+  .first-run {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding: 10px 12px 10px 14px;
+    background: var(--accent-weak);
+    border: 1px solid var(--line);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    font-size: 13px;
+    line-height: 1.7;
+  }
+  .first-run-text { flex: 1; min-width: 0; }
+  .first-run-text b { font-weight: 650; }
+  .first-run-actions { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+  .link-btn {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .link-btn:hover { color: var(--accent-2); text-decoration: underline; text-underline-offset: 2px; }
+
+  /* ---------- 卡片舞台 ---------- */
+  .stage { display: flex; align-items: flex-start; justify-content: center; gap: 18px; }
+  .word-card {
+    width: 820px;
+    max-width: 100%;
+    padding: 40px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    cursor: pointer;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+  }
+  .card-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  .word-card[data-face="back"] .card-body { justify-content: flex-start; }
+  .word-card[data-face="front"] .card-body { justify-content: center; }
+  @media (min-width: 1101px) {
+    body.wide .page { max-width: 1308px; }
+    body.wide .page-head { padding-inline: 45px; }
+    body.wide .word-card { width: 78%; }
+  }
+  .word-card[data-face="front"] {
+    min-height: 480px;
+    text-align: center;
+  }
+
+  .card-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 20px; }
+  .head-main { display: flex; align-items: baseline; flex-wrap: wrap; gap: 6px 16px; min-width: 0; }
+  .word { margin: 0; font-size: 40px; line-height: 1.1; font-weight: 750; letter-spacing: -1.2px; }
+  .phonetics { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; color: var(--muted); font-size: 14px; }
+  .phon { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
+  .speak {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted-2);
+    cursor: pointer;
+  }
+  .speak:hover { color: var(--accent); background: var(--panel-2); }
+  .star {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--muted-2);
+    cursor: pointer;
+  }
+  .star:hover { background: var(--panel-2); }
+  .star[aria-pressed="true"] { color: var(--amber); }
+  .star svg { fill: currentColor; }
+  .star[aria-pressed="false"] svg { fill: none; stroke: currentColor; stroke-width: 1.7; }
+
+  .word-card[data-face="front"] .card-head { display: block; position: relative; margin-bottom: 8px; width: 100%; }
+  .word-card[data-face="front"] .head-main { flex-direction: column; align-items: center; gap: 8px; padding-inline: 56px; }
+  .word-card[data-face="front"] .word { font-size: 34px; text-align: center; }
+  .word-card[data-face="front"] .phonetics { justify-content: center; }
+  .word-card[data-face="front"] .star { position: absolute; top: 0; right: 0; }
+  .word-card[data-face="front"] .back { display: none; }
+  .word-card[data-face="back"] .front { display: none; }
+
+  .meaning-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px 10px; margin: 0 0 28px; }
+  .pos {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 9px;
+    font-size: 12px;
+    line-height: 1.8;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+  .meaning { font-size: 16px; font-weight: 650; }
+
+  .section { margin-top: 28px; }
+  .section h2 { margin: 0 0 12px; font-size: 16px; line-height: 1.4; font-weight: 650; letter-spacing: -.1px; }
+  .section--divided { margin-top: 28px; padding-top: 28px; border-top: 1px solid var(--line-2); }
+
+  /* 构词与派生 */
+  .morph-box {
+    padding: 14px 16px;
+    background: var(--panel-2);
+    border: 1px solid var(--line-2);
+    border-radius: 8px;
+  }
+  .morph-status-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+  .morph-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 9px;
+    font-size: 12px;
+    line-height: 1.8;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+  }
+  .morph-note { margin: 0; font-size: 14px; line-height: 1.75; }
+  .morph-note .mono, .mono { font-family: var(--mono); }
+  .morph-rows { display: grid; grid-template-columns: 76px minmax(0, 1fr); gap: 12px 16px; margin-top: 14px; }
+  .morph-label { padding-top: 2px; font-size: 12px; font-weight: 600; color: var(--muted-2); letter-spacing: .01em; }
+  .derivative-list { display: flex; flex-direction: column; gap: 6px; }
+  .derivative { display: grid; grid-template-columns: 120px 44px minmax(0, 1fr); gap: 8px; align-items: baseline; font-size: 14px; }
+  .derivative b { font-size: 15px; font-weight: 650; }
+  .derivative .pos-mini { font-size: 12px; color: var(--muted-2); }
+  .derivative .gloss { color: var(--text); }
+  .family-line { font-size: 14px; color: var(--text); }
+  .family-line .sep { color: var(--line); margin: 0 6px; }
+
+  /* 核心理解 */
+  .core-callout {
+    padding: 16px 18px;
+    background: var(--accent-weak);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+  }
+  .core-core { margin: 0 0 4px; font-size: 16px; line-height: 1.6; font-weight: 650; }
+  .core-not { margin: 0 0 6px; font-size: 14px; line-height: 1.7; color: var(--muted); }
+  .core-image { margin: 0; font-size: 14px; line-height: 1.7; font-style: italic; }
+
+  /* 例句 */
+  .example-list { display: flex; flex-direction: column; gap: 18px; }
+  .example { display: grid; grid-template-columns: minmax(0, 1fr) 28px; gap: 10px; align-items: start; }
+  .en { font-size: 16px; line-height: 1.6; }
+  .zh { margin-top: 3px; font-size: 14px; line-height: 1.65; color: var(--muted-2); }
+  .example .speak { margin-top: 2px; }
+  .extra-examples { display: none; }
+  .extra-examples.is-open { display: flex; flex-direction: column; gap: 18px; margin-top: 18px; }
+  mark {
+    padding: 0 2px;
+    color: inherit;
+    background: var(--accent-weak);
+    border-radius: 4px;
+  }
+  .expand {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 14px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .expand:hover { color: var(--accent-2); }
+  .expand svg { transition: transform .16s ease; }
+  .expand[aria-expanded="true"] svg { transform: rotate(180deg); }
+
+  /* 近义词 / 反义 */
+  .syn-list { display: flex; flex-direction: column; gap: 12px; }
+  .syn-row { display: grid; grid-template-columns: 112px 44px minmax(0, 1fr); gap: 8px 10px; align-items: baseline; font-size: 14px; }
+  .syn-row b { font-size: 15px; font-weight: 650; }
+  .syn-pos { font-size: 12px; color: var(--muted-2); }
+  .syn-nuance { color: var(--text); }
+  .ant-block { margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--line-2); }
+  .ant-label { margin-bottom: 8px; font-size: 12px; font-weight: 600; color: var(--muted-2); }
+  .ant-block .syn-list { gap: 8px; }
+
+  /* 词源 */
+  .etymology p { margin: 0; font-size: 14px; line-height: 1.75; color: var(--muted); }
+  .etym-source { margin-top: 8px; font-size: 12px; color: var(--muted-2); }
+
+  /* 卡片正面 */
+  .front { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .front-hint { color: var(--muted-2); font-size: 14px; }
+  .rating-row { display: flex; flex: 0 0 auto; gap: 12px; width: 100%; margin-top: 18px; }
+  .word-card[data-face="back"] .rating-row { display: none; }
+  .rating-btn {
+    flex: 1;
+    height: 52px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 650;
+    cursor: pointer;
+  }
+  .rating-unknown { border: 1px solid var(--line); background: var(--panel); color: var(--text); }
+  .rating-unknown:hover { border-color: var(--muted-2); }
+  .rating-known { border: 1px solid var(--accent); background: var(--accent); color: var(--on-accent); }
+  .rating-known:hover { background: var(--accent-2); border-color: var(--accent-2); }
+
+  /* 右侧「下一个」 */
+  .next-btn {
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    min-width: 168px;
+    height: 58px;
+    padding: 0 32px;
+    border: 1px solid var(--accent);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--accent);
+    font-size: 18px;
+    font-weight: 650;
+    box-shadow: 0 1px 2px var(--line-2);
+    opacity: .92;
+    cursor: pointer;
+    transition: background .12s, color .12s, border-color .12s, opacity .12s, box-shadow .12s;
+  }
+  .next-btn:hover { opacity: 1; box-shadow: 0 2px 8px var(--line); }
+  .next-btn.is-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .next-btn.is-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+
+  /* 设置页 */
+  .settings-page { max-width: 760px; margin: 0 auto; }
+  .settings-head { display: flex; align-items: center; gap: 6px; position: relative; margin-bottom: 10px; }
+  .settings-head h2 { margin: 0; font-size: 20px; font-weight: 650; }
+  .settings-card { padding: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; }
+  .pref-block { margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--line-2); }
+  .pref-block:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+  .pref-title { margin: 0 0 10px; font-size: 14px; font-weight: 650; }
+  .pref-row { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 32px;
+    padding: 0 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 550;
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--muted-2); }
+  .btn.is-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+  .btn.is-primary:hover { background: var(--accent-2); border-color: var(--accent-2); }
+  .pref-number {
+    width: 84px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--panel);
+    color: var(--text);
+    font: inherit;
+    text-align: center;
+  }
+  .pref-hint { margin: 8px 0 0; font-size: 12.5px; line-height: 1.65; color: var(--muted); }
+  .pref-switches { display: flex; flex-direction: column; gap: 10px; }
+  .pref-switch { display: flex; align-items: flex-start; gap: 10px; font-size: 14px; cursor: pointer; }
+  .pref-switch input { margin-top: 4px; accent-color: var(--accent); }
+  .pref-switch span { display: flex; flex-direction: column; gap: 1px; }
+  .pref-switch b { font-weight: 600; }
+  .pref-switch small { font-size: 12.5px; color: var(--muted); }
+  .pref-note { margin: 10px 0 0; font-size: 12.5px; color: var(--muted-2); }
+  .shortcut-block .shortcut-table { max-width: 460px; }
+
+  /* 设置页的 ⓘ */
+  .settings-info-pop {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    z-index: 30;
+    width: 290px;
+    max-width: calc(100vw - 48px);
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    box-shadow: var(--shadow-pop);
+    font-size: 13px;
+    line-height: 1.7;
+    color: var(--muted);
+  }
+  .settings-info-pop strong { display: block; margin-bottom: 4px; color: var(--text); font-size: 13px; }
+
+  /* 轻提示 */
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 24px;
+    z-index: 200;
+    transform: translateX(-50%) translateY(8px);
+    padding: 8px 14px;
+    border-radius: 8px;
+    background: var(--text);
+    color: #fff;
+    font-size: 13px;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .16s, transform .16s;
+  }
+  .toast.is-on { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* 响应式：只用现有 1100 / 760 两档，不新增断点 */
+  @media (max-width: 1100px) {
+    .word-card { width: auto; flex: 1 1 auto; min-width: 0; padding: 36px 32px; }
+    .page { padding: 0 18px; }
+    /* 宽版对比只在桌面开启 */
+    body.wide .word-card { width: auto; }
+  }
+  @media (max-width: 760px) {
+    .page { margin-top: 14px; padding: 0 12px 28px; }
+    .page-head { flex-wrap: wrap; }
+    .page-actions { width: 100%; margin-left: 0; justify-content: flex-end; }
+    .stage { flex-direction: column; align-items: stretch; gap: 14px; }
+    .word-card { padding: 28px 22px 30px; }
+    .word-card[data-face="front"] { min-height: 360px; }
+    .word { font-size: 34px; }
+    .next-btn { align-self: flex-end; }
+    .first-run { flex-wrap: wrap; }
+    .first-run-actions { width: 100%; justify-content: flex-end; }
+    .morph-rows { grid-template-columns: 1fr; gap: 6px; }
+    .morph-label { padding-top: 6px; }
+    .derivative { grid-template-columns: 1fr; gap: 1px; }
+    .syn-row { grid-template-columns: 1fr; gap: 1px; }
+    .syn-pos { margin-bottom: 2px; }
+    .rating-row { flex-direction: column; }
+    .settings-card { padding: 18px; }
+    .settings-head { flex-wrap: wrap; }
+  }
+  @media (max-width: 520px) {
+    .word-card[data-face="front"] .word { font-size: 30px; }
+    .phonetics { font-size: 13px; }
+    .info-pop { width: calc(100vw - 40px); }
+  }
+  /* 触屏：只放大需要点的图标，不改桌面密度 */
+  @media (pointer: coarse) {
+    .icon-btn, .speak, .star { width: 44px; height: 44px; }
+    .star svg { width: 24px; height: 24px; }
+    .link-btn, .expand { display: inline-flex; align-items: center; min-height: 44px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="proto-bar" id="protoBar">
+  <div class="proto-title">原型预览 <span>不属于页面设计</span></div>
+  <div class="proto-tabs" role="tablist" aria-label="原型视图">
+    <button type="button" data-view="back" class="is-on">复习 · 反面</button>
+    <button type="button" data-view="front">复习 · 正面</button>
+    <button type="button" data-view="settings">设置页</button>
+  </div>
+  <label class="proto-check"><input type="checkbox" id="protoFirst" checked /> 首次提示</label>
+  <label class="proto-check"><input type="checkbox" id="protoWide" /> 宽卡 78%</label>
+  <button type="button" class="proto-shot" id="shotMode">截图模式</button>
+</div>
+
+<main class="page">
+  <section id="viewReview">
+    <header class="page-head">
+      <h1 class="page-title">今日复习</h1>
+      <div class="info-wrap">
+        <button type="button" class="icon-btn" id="infoBtn" aria-label="快捷键与今日进度" aria-expanded="false" aria-controls="infoPop">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10.6v6"/><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none"/></svg>
+        </button>
+        <div class="info-pop" id="infoPop" role="dialog" aria-label="快捷键与今日进度" hidden>
+          <p>今日已复习 <b>12</b> · 剩余 <b>34</b> · 新卡 <b>3</b></p>
+          <table class="shortcut-table">
+            <thead><tr><th>操作</th><th>快捷键</th></tr></thead>
+            <tbody>
+              <tr><td>翻面</td><td><kbd>Space</kbd></td></tr>
+              <tr><td>不认识</td><td><kbd>1</kbd></td></tr>
+              <tr><td>认识</td><td><kbd>2</kbd></td></tr>
+              <tr><td>下一个</td><td><kbd>N</kbd> / <kbd>→</kbd></td></tr>
+              <tr><td>收藏</td><td><kbd>F</kbd></td></tr>
+              <tr><td>删除当前词</td><td><kbd>Delete</kbd></td></tr>
+            </tbody>
+          </table>
+          <p class="info-note">快捷键说明固定在设置页；页面上只保留这个入口。</p>
+        </div>
+      </div>
+      <div class="page-actions">
+        <button type="button" class="btn-ghost" id="openSettingsBtn">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="3.2"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.88l.06.06-2.83 2.83-.06-.06a1.7 1.7 0 0 0-1.88-.34 1.7 1.7 0 0 0-1.03 1.56V21h-4v-.09A1.7 1.7 0 0 0 9 19.35a1.7 1.7 0 0 0-1.88.34l-.06.06-2.83-2.83.06-.06A1.7 1.7 0 0 0 4.63 15a1.7 1.7 0 0 0-1.56-1.03H3v-4h.09A1.7 1.7 0 0 0 4.65 9a1.7 1.7 0 0 0-.34-1.88l-.06-.06 2.83-2.83.06.06A1.7 1.7 0 0 0 9 4.63a1.7 1.7 0 0 0 1.03-1.56V3h4v.09A1.7 1.7 0 0 0 15 4.65a1.7 1.7 0 0 0 1.88-.34l.06-.06 2.83 2.83-.06.06A1.7 1.7 0 0 0 19.37 9a1.7 1.7 0 0 0 1.56 1.03H21v4h-.09A1.7 1.7 0 0 0 19.4 15Z"/></svg>
+          背单词设置
+        </button>
+      </div>
+    </header>
+
+    <div class="first-run" id="firstRun">
+      <div class="first-run-text">
+        <b>第一次用键盘？</b> 空格翻面 · <b>1</b> 不认识 · <b>2</b> 认识 · <b>N</b> 下一个。快捷键说明在设置页，也可以随时点标题旁的 ⓘ 查看。
+      </div>
+      <div class="first-run-actions">
+        <button type="button" class="link-btn" id="firstRunSettings">去设置</button>
+        <button type="button" class="btn-ghost" id="dismissFirstRun">知道了</button>
+        <button type="button" class="icon-btn" id="closeFirstRun" aria-label="关闭提示">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="stage">
+      <article class="word-card" id="wordCard" data-face="back" tabindex="0" aria-label="今日复习卡：eager">
+        <div class="card-body">
+        <div class="card-head">
+          <div class="head-main">
+            <h2 class="word">eager</h2>
+            <div class="phonetics">
+              <span class="phon">英 /ˈiːɡə/
+                <button type="button" class="speak" aria-label="播放英式发音">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+                </button>
+              </span>
+              <span class="phon">美 /ˈiːɡər/
+                <button type="button" class="speak" aria-label="播放美式发音">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+                </button>
+              </span>
+            </div>
+          </div>
+          <button type="button" class="star" id="starBtn" aria-label="取消收藏" aria-pressed="true">
+            <svg width="21" height="21" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.5l2.7 5.48 6.05.88-4.38 4.27 1.03 6.02L12 17.3l-5.4 2.85 1.03-6.02-4.38-4.27 6.05-.88L12 3.5Z"/></svg>
+          </button>
+        </div>
+
+        <div class="back" id="backContent">
+          <div class="meaning-row">
+            <span class="pos">adj.</span>
+            <span class="meaning">渴望的；热切的；急切的</span>
+          </div>
+
+          <section class="section" aria-labelledby="morphTitle">
+            <h2 id="morphTitle">构词与派生</h2>
+            <div class="morph-box">
+              <div class="morph-status-row">
+                <span class="morph-status">整体词</span>
+                <span class="mono" style="font-size:13px;color:var(--muted)">eager</span>
+              </div>
+              <p class="morph-note">现代英语里 <b class="mono">eager</b> 不再按词素拆分；<span class="mono">-er</span> 只是比较级后缀的残留，不构成能产的构词关系。历史来源见最后的「词源补充」。</p>
+            </div>
+            <div class="morph-rows">
+              <div class="morph-label">派生词</div>
+              <div class="derivative-list">
+                <div class="derivative"><b>eagerly</b><span class="pos-mini">adv.</span><span class="gloss">热切地</span></div>
+                <div class="derivative"><b>eagerness</b><span class="pos-mini">n.</span><span class="gloss">渴望；热切</span></div>
+              </div>
+              <div class="morph-label">比较等级</div>
+              <div class="derivative-list">
+                <div class="derivative"><b>more eager</b><span class="pos-mini">比较级</span><span class="gloss">更渴望的</span></div>
+                <div class="derivative"><b>most eager</b><span class="pos-mini">最高级</span><span class="gloss">最渴望的</span></div>
+              </div>
+              <div class="morph-label">词族</div>
+              <div class="family-line">eager<span class="sep">·</span>eagerly<span class="sep">·</span>eagerness</div>
+            </div>
+          </section>
+
+          <section class="section" aria-labelledby="coreTitle">
+            <h2 id="coreTitle">核心理解</h2>
+            <div class="core-callout">
+              <p class="core-core">热切期盼，迫不及待。</p>
+              <p class="core-not">不是泛指「有兴趣」，而是带着急切、兴奋的渴望。</p>
+              <p class="core-image">孩子盯着未拆的礼物，身体前倾，眼睛发亮。</p>
+            </div>
+          </section>
+
+          <section class="section section--divided" aria-labelledby="examplesTitle">
+            <h2 id="examplesTitle">核心例句</h2>
+            <div class="example-list">
+              <div class="example">
+                <div>
+                  <div class="en">She is <mark>eager</mark> to learn new languages.</div>
+                  <div class="zh">她渴望学习新的语言。</div>
+                </div>
+                <button type="button" class="speak" aria-label="播放例句">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+                </button>
+              </div>
+              <div class="example">
+                <div>
+                  <div class="en">He was <mark>eager</mark> for news about the job.</div>
+                  <div class="zh">他急切地想知道那份工作的消息。</div>
+                </div>
+                <button type="button" class="speak" aria-label="播放例句">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+                </button>
+              </div>
+              <div class="example">
+                <div>
+                  <div class="en">The fans were <mark>eager</mark> to see the band perform.</div>
+                  <div class="zh">粉丝们热切地盼望着看乐队演出。</div>
+                </div>
+                <button type="button" class="speak" aria-label="播放例句">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+                </button>
+              </div>
+            </div>
+            <div class="extra-examples" id="extraExamples">
+              <div class="example">
+                <div>
+                  <div class="en">She gave an <mark>eager</mark> smile when she saw the cake.</div>
+                  <div class="zh">看到蛋糕时，她露出了热切的微笑。</div>
+                </div>
+                <button type="button" class="speak" aria-label="播放例句">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+                </button>
+              </div>
+              <div class="example">
+                <div>
+                  <div class="en">The children were <mark>eager</mark> for the party to start.</div>
+                  <div class="zh">孩子们急切地盼着派对开始。</div>
+                </div>
+                <button type="button" class="speak" aria-label="播放例句">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+                </button>
+              </div>
+              <div class="example">
+                <div>
+                  <div class="en">He is always <mark>eager</mark> to please his boss.</div>
+                  <div class="zh">他总是急于讨好老板。</div>
+                </div>
+                <button type="button" class="speak" aria-label="播放例句">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 9.5v5h3.5L12 18V6L7.5 9.5H4Z"/><path d="M15.5 9a4.2 4.2 0 0 1 0 6"/><path d="M18 6.5a8 8 0 0 1 0 11"/></svg>
+                </button>
+              </div>
+            </div>
+            <button type="button" class="expand" id="expandExamples" aria-expanded="false" aria-controls="extraExamples">
+              <span id="expandLabel">查看另外 3 个例句</span>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+          </section>
+
+          <section class="section" aria-labelledby="synTitle">
+            <h2 id="synTitle">近义词辨析</h2>
+            <div class="syn-list">
+              <div class="syn-row"><b>keen</b><span class="syn-pos">adj.</span><span class="syn-nuance">比 eager 更强调兴趣浓厚，英式英语常用。</span></div>
+              <div class="syn-row"><b>enthusiastic</b><span class="syn-pos">adj.</span><span class="syn-nuance">比 eager 更强调热情外露，不一定急切。</span></div>
+              <div class="syn-row"><b>anxious</b><span class="syn-pos">adj.</span><span class="syn-nuance">带有焦虑的渴望；eager 则偏积极。</span></div>
+            </div>
+            <div class="ant-block">
+              <div class="ant-label">反义</div>
+              <div class="syn-list">
+                <div class="syn-row"><b>indifferent</b><span class="syn-pos">adj.</span><span class="syn-nuance">漠不关心，与 eager 的热切相反。</span></div>
+                <div class="syn-row"><b>reluctant</b><span class="syn-pos">adj.</span><span class="syn-nuance">不情愿，与 eager 的渴望相反。</span></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="section section--divided etymology" aria-labelledby="etymTitle">
+            <h2 id="etymTitle">词源补充</h2>
+            <p>来自拉丁语 <span class="mono">acer</span>（尖锐、敏锐），经古法语 <span class="mono">aigre</span> 进入英语；<span class="mono">-er</span> 是比较级后缀的残留，但现代英语已把 eager 看作不可拆分的整体词。</p>
+            <p class="etym-source">Latin acer · Old French aigre · English eager</p>
+          </section>
+        </div>
+
+        <div class="front" id="frontContent">
+          <div class="front-hint">点击卡片或按空格看答案</div>
+        </div>
+        </div>
+
+        <div class="rating-row" id="ratingRow">
+          <button type="button" class="rating-btn rating-unknown" data-rate="unknown">不认识</button>
+          <button type="button" class="rating-btn rating-known" data-rate="known">认识</button>
+        </div>
+      </article>
+
+      <button type="button" class="next-btn is-primary" id="nextBtn">
+        下一个
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+      </button>
+    </div>
+  </section>
+
+  <section id="viewSettings" hidden>
+    <div class="settings-page">
+      <div class="settings-head">
+        <button type="button" class="icon-btn" id="settingsBack" aria-label="返回复习">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg>
+        </button>
+        <h2>背单词</h2>
+        <div class="info-wrap">
+          <button type="button" class="icon-btn" id="settingsInfoBtn" aria-label="背单词设置说明" aria-expanded="false" aria-controls="settingsInfoPop">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10.6v6"/><circle cx="12" cy="7.6" r="1" fill="currentColor" stroke="none"/></svg>
+          </button>
+          <div class="settings-info-pop" id="settingsInfoPop" role="dialog" aria-label="背单词设置说明" hidden>
+            <strong>这份设置管什么</strong>
+            每天背多少、先复习还是先学新词、卡面显示什么。快捷键说明也在这一页。
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-card">
+        <div class="pref-block">
+          <div class="pref-title">每日任务量</div>
+          <div class="pref-row">
+            <button type="button" class="btn is-primary" data-tier="normal">正常</button>
+            <button type="button" class="btn" data-tier="hard">进阶</button>
+            <button type="button" class="btn" data-tier="extreme">挑战</button>
+            <input class="pref-number" type="number" value="20" min="3" max="200" aria-label="每天新卡数量" />
+            <span class="muted" style="font-size:12.5px;color:var(--muted)">张 / 天</span>
+          </div>
+          <p class="pref-hint">20 张新卡约 8–12 分钟，是多数人的可持续节奏。</p>
+        </div>
+
+        <div class="pref-block">
+          <div class="pref-title">学习策略</div>
+          <div class="pref-row">
+            <button type="button" class="btn is-primary" data-strategy="review-first">复习优先</button>
+            <button type="button" class="btn" data-strategy="mixed">混合</button>
+            <button type="button" class="btn" data-strategy="new-first">新词优先</button>
+          </div>
+          <p class="pref-hint">先把到期卡清完再出新词；到期卡很多时，今天可能一个生词都见不到。</p>
+        </div>
+
+        <div class="pref-block">
+          <div class="pref-title">卡片反面显示什么</div>
+          <div class="pref-switches">
+            <label class="pref-switch"><input type="checkbox" checked /><span><b>构词与派生</b><small>现代构词、派生词、比较等级与词族；默认常开。</small></span></label>
+            <label class="pref-switch"><input type="checkbox" checked /><span><b>核心理解</b><small>语义核心、「不是什么」和一句话画面。</small></span></label>
+            <label class="pref-switch"><input type="checkbox" checked /><span><b>核心例句</b><small>默认 3 条；更多例句在块内展开。</small></span></label>
+            <label class="pref-switch"><input type="checkbox" checked /><span><b>近义词辨析</b><small>含反义词子行；只显示词形和差别说明。</small></span></label>
+            <label class="pref-switch"><input type="checkbox" checked /><span><b>词源补充</b><small>历史来源，和现代构词分开写。</small></span></label>
+          </div>
+          <p class="pref-note">顺序按学习路径固定（单词 → 释义 → 构词 → 核心 → 例句 → 近义 → 词源），不再支持拖动排序；勾掉只是不显示。</p>
+        </div>
+
+        <div class="pref-block shortcut-block">
+          <div class="pref-title">快捷键</div>
+          <table class="shortcut-table">
+            <thead><tr><th>操作</th><th>按键</th></tr></thead>
+            <tbody>
+              <tr><td>翻面</td><td><kbd>Space</kbd></td></tr>
+              <tr><td>不认识</td><td><kbd>1</kbd></td></tr>
+              <tr><td>认识</td><td><kbd>2</kbd></td></tr>
+              <tr><td>下一个</td><td><kbd>N</kbd> / <kbd>→</kbd></td></tr>
+              <tr><td>收藏</td><td><kbd>F</kbd></td></tr>
+              <tr><td>删除当前词</td><td><kbd>Delete</kbd></td></tr>
+            </tbody>
+          </table>
+          <p class="pref-note">本轮只读；改键是后续独立功能，不在这次卡片改版里。</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  const $ = (sel, root) => (root || document).querySelector(sel);
+  const $$ = (sel, root) => Array.from((root || document).querySelectorAll(sel));
+  const q = new URLSearchParams(location.search);
+  const body = document.body;
+  const review = $('#viewReview');
+  const settings = $('#viewSettings');
+  const card = $('#wordCard');
+  const infoPop = $('#infoPop');
+  const infoBtn = $('#infoBtn');
+  const settingsInfoPop = $('#settingsInfoPop');
+  const settingsInfoBtn = $('#settingsInfoBtn');
+  const firstRun = $('#firstRun');
+  const firstRunToggle = $('#protoFirst');
+  const wideToggle = $('#protoWide');
+  const nextBtn = $('#nextBtn');
+  const toast = $('#toast');
+  let toastTimer;
+
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('is-on');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toast.classList.remove('is-on'), 1500);
+  }
+
+  function setFace(face) {
+    card.dataset.face = face;
+    nextBtn.classList.toggle('is-primary', face === 'back');
+    $$('.proto-tabs [data-view]').forEach((button) => {
+      button.classList.toggle('is-on', button.dataset.view === face);
+    });
+  }
+
+  function setView(view) {
+    if (view === 'settings') {
+      review.hidden = true;
+      settings.hidden = false;
+      $$('.proto-tabs [data-view]').forEach((button) => {
+        button.classList.toggle('is-on', button.dataset.view === 'settings');
+      });
+      return;
+    }
+    settings.hidden = true;
+    review.hidden = false;
+    setFace(view === 'front' ? 'front' : 'back');
+  }
+
+  function setFirstRun(show) {
+    firstRun.hidden = !show;
+    firstRunToggle.checked = show;
+  }
+
+  function setWide(on) {
+    body.classList.toggle('wide', on);
+    wideToggle.checked = on;
+  }
+
+  function togglePopover(button, pop) {
+    const open = pop.hidden;
+    pop.hidden = !open;
+    button.setAttribute('aria-expanded', String(open));
+  }
+
+  function closePopovers() {
+    if (!infoPop.hidden) { infoPop.hidden = true; infoBtn.setAttribute('aria-expanded', 'false'); }
+    if (!settingsInfoPop.hidden) { settingsInfoPop.hidden = true; settingsInfoBtn.setAttribute('aria-expanded', 'false'); }
+  }
+
+  // 原型预览条
+  $$('.proto-tabs [data-view]').forEach((button) => {
+    button.addEventListener('click', () => setView(button.dataset.view));
+  });
+  firstRunToggle.addEventListener('change', () => setFirstRun(firstRunToggle.checked));
+  wideToggle.addEventListener('change', () => setWide(wideToggle.checked));
+  $('#shotMode').addEventListener('click', () => body.classList.add('shot'));
+  $('#openSettingsBtn').addEventListener('click', () => setView('settings'));
+  $('#settingsBack').addEventListener('click', () => setView('back'));
+
+  // 首用提示
+  $('#dismissFirstRun').addEventListener('click', () => setFirstRun(false));
+  $('#closeFirstRun').addEventListener('click', () => setFirstRun(false));
+  $('#firstRunSettings').addEventListener('click', () => { setView('settings'); });
+
+  // ⓘ
+  infoBtn.addEventListener('click', (event) => { event.stopPropagation(); togglePopover(infoBtn, infoPop); });
+  settingsInfoBtn.addEventListener('click', (event) => { event.stopPropagation(); togglePopover(settingsInfoBtn, settingsInfoPop); });
+  document.addEventListener('click', (event) => {
+    if (!event.target.closest('.info-wrap')) closePopovers();
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') closePopovers();
+  });
+  infoPop.addEventListener('click', (event) => event.stopPropagation());
+  settingsInfoPop.addEventListener('click', (event) => event.stopPropagation());
+
+  // 翻面
+  function flip() {
+    setFace(card.dataset.face === 'back' ? 'front' : 'back');
+  }
+  card.addEventListener('click', (event) => {
+    if (event.target.closest('button, a, mark, input, label')) return;
+    flip();
+  });
+  card.addEventListener('keydown', (event) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      if (event.target !== card) return;
+      event.preventDefault();
+      flip();
+    }
+  });
+  document.addEventListener('keydown', (event) => {
+    if (event.key !== ' ') return;
+    const tag = (event.target && event.target.tagName) || '';
+    if (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON'].includes(tag)) return;
+    if (event.target === card) return;
+    event.preventDefault();
+    flip();
+  });
+
+  // 收藏
+  $('#starBtn').addEventListener('click', (event) => {
+    event.stopPropagation();
+    const button = event.currentTarget;
+    const on = button.getAttribute('aria-pressed') !== 'true';
+    button.setAttribute('aria-pressed', String(on));
+    button.setAttribute('aria-label', on ? '取消收藏' : '收藏');
+    showToast(on ? '示意：已收藏 eager' : '示意：已取消收藏');
+  });
+
+  // 例句展开
+  const expand = $('#expandExamples');
+  const extra = $('#extraExamples');
+  expand.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const open = expand.getAttribute('aria-expanded') === 'true';
+    expand.setAttribute('aria-expanded', String(!open));
+    extra.classList.toggle('is-open', !open);
+    $('#expandLabel').textContent = open ? '查看另外 3 个例句' : '收起另外 3 个例句';
+  });
+
+  // 发音 / 评分 / 下一个：只做示意，不接状态机
+  $$('.speak').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      showToast('示意：播放发音');
+    });
+  });
+  $$('.rating-btn').forEach((button) => {
+    button.addEventListener('click', (event) => {
+      event.stopPropagation();
+      showToast(button.dataset.rate === 'known' ? '示意：标记「认识」' : '示意：标记「不认识」');
+    });
+  });
+  nextBtn.addEventListener('click', () => showToast('示意：进入下一个单词'));
+
+  // 设置页的分段按钮只做选中态
+  $$('[data-tier]').forEach((button) => {
+    button.addEventListener('click', () => {
+      $$('[data-tier]').forEach((item) => item.classList.toggle('is-primary', item === button));
+    });
+  });
+  $$('[data-strategy]').forEach((button) => {
+    button.addEventListener('click', () => {
+      $$('[data-strategy]').forEach((item) => item.classList.toggle('is-primary', item === button));
+    });
+  });
+
+  // URL 参数：截图 / 对比
+  if (q.get('shot') === '1') body.classList.add('shot');
+  if (q.get('first') === '0') setFirstRun(false);
+  if (q.get('wide') === '1') setWide(true);
+  if (q.get('view') === 'settings') setView('settings');
+  else if (q.get('face') === 'front') setView('front');
+  else setView('back');
+
+  // 截图/对照用：直接打开某个气泡或例句展开态
+  if (q.get('info') === 'page') {
+    infoPop.hidden = false;
+    infoBtn.setAttribute('aria-expanded', 'true');
+  }
+  if (q.get('info') === 'settings') {
+    settingsInfoPop.hidden = false;
+    settingsInfoBtn.setAttribute('aria-expanded', 'true');
+  }
+  if (q.get('examples') === 'all') {
+    extra.classList.add('is-open');
+    expand.setAttribute('aria-expanded', 'true');
+    $('#expandLabel').textContent = '收起另外 3 个例句';
+  }
+})();
+</script>
+</body>
+</html>
