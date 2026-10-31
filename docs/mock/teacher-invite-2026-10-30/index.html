@@ -287,7 +287,9 @@
     ['home', '首页'], ['classes', '班级'], ['assignments', '作业与考试'], ['papers', '试卷'],
     ['grading', '批改'], ['review', '复核'], ['reports', '报表'], ['vocab', '背单词'], ['profile', '我的资料']
   ]
-  var NAV_ADMIN = NAV_TEACHER.concat([['teachers', '教师管理'], ['ai', '系统设置']])
+  // 2026-10-30 用户拍板：管理员不混学习功能（role 与 responsibility 强绑定）。
+  // 管理员侧栏只有「教师管理 / 系统设置」；要背单词就另注册一个学生账号。
+  var NAV_ADMIN = [['teachers', '教师管理'], ['ai', '系统设置']]
 
   var state = {
     role: 'STUDENT',

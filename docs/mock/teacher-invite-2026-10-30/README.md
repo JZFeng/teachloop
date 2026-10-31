@@ -11,6 +11,10 @@
 | 注册页要不要出现邀请码 | **一个字都不改**：不加字段，也不加指路文案，就「创建账号 / 我已注册」两个按钮 | 原型**没有**注册页那一屏（做过、被否，已删） |
 | 升级后怎么变 | **即时刷新，不用重新登录** | 第 3 屏；实现要给 `features.tsx` 的 effect 补 `me?.role` 依赖 |
 | 老师怎么有账号 | 先按平常流程注册（那时就是学生），**登录后**在 `/profile` 填码升级 | 第 2 屏；不保留「凭码开户」那条腿 |
+| 教师侧的背单词入口 | **补回来**（`nav.vocab.review/lists/library` 加给 TEACHER） | 第 3 屏侧栏「背单词」；不加就不是「大家都能用」 |
+| 管理员要不要学习功能 | **不给**。role 与 responsibility 强绑定：管理员只做系统维护（教师管理、AI 配置） | 第 1 屏侧栏只有「教师管理 / 系统设置」；要背单词就另注册一个学生账号 |
+| 教师首页要不要学习卡 | **不加**，学习入口只走侧栏 | 第 3 屏首页保持教学视角 |
+| 「学习功能人人可用」这条判据 | 先只写在 `RoleNavMatrix` 的代码注释里，v2 再决定要不要进规范 | 未落规范：用户 2026-10-30 明确「还没到下结论的时候」 |
 
 为什么砍掉注册页那条腿：不为 1% 的老师在所有注册页上挂一个陌生字段；而且它会在公开的
 `POST /api/auth/register`（`RegistrationEndpoint.java:64` 只有 channel/email/password/displayName）
@@ -32,7 +36,7 @@
 | :--- | :--- | :--- |
 | **数据** | 全在 —— 只要做「真升级」 | 学习数据全按 `user_id` 挂（`ReviewPrefsStore.java:36,53`）；升级是翻 `users.role` 一列，id 不变 |
 | **接口** | 教师能调，没被角色挡 | vocab 只走 `SecurityConfig.java` 的 `.anyRequest().authenticated()`；路由只受 `features.vocab` 开关（`App.tsx:210`） |
-| **入口** | **今天会丢** | `RoleNavMatrix.ROLE_KEYS` 里 TEACHER 只有 `nav.vocab.sets / nav.vocab.assign`（发词用），没有 `nav.vocab.review / lists / library`；前端不做角色判断，所以必须后端加 key |
+| **入口** | **今天会丢，需要补** | `RoleNavMatrix.ROLE_KEYS` 里 TEACHER 只有 `nav.vocab.sets / nav.vocab.assign`（发词用），没有 `nav.vocab.review / lists / library`；前端不做角色判断，所以必须后端加 key。补上后侧栏的「背单词」是一个折叠项（`navSpecs` 把同组三项合成一项，落点 `/vocab/review`），页内三个 Tab 才是我的词库 / 我的词单 / 今日复习 |
 
 补充两点容易漏的：
 
@@ -70,6 +74,7 @@
 - 平板（≤1023）把侧栏收成抽屉，原型里直接收起 —— 与 `web/src/styles/app.css` 同一个断点，不自造第三档。
 - 不做二维码、不做一键发送（没有可用 IM 通道）、不做批量生成。
 - 「下一版：用户列表」是灰态占位，只用来钉边界，本轮不实现。
+- 管理员要背单词只能**另注册一个学生账号**：`users.email` 唯一，所以需要另一个邮箱；角色是单值列，没有「一人两角色」。这是刻意的取舍（role ↔ responsibility 强绑定），不是疏漏。
 
 ## 截图
 
