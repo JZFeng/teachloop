@@ -64,13 +64,13 @@ const CARD_BLOCKS = ['senses', 'morphology', 'core', 'examples', 'synonyms', 'et
  "antonyms": [{"word": "indifferent", "pos": "adj.", "nuance": "漠不关心，与 eager 的热切相反"}]}
 
 // id: "etymology"
-{"text": "来自拉丁语 acer（尖锐、敏锐），经古法语 aigre 进入英语；-er 是比较级后缀的残留。",
- "sources": ["Latin acer", "Old French aigre"]}
+{"text": "来自拉丁语 acer（尖锐、敏锐），经古法语 aigre 进入英语；-er 是比较级后缀的残留。"}
 ```
 
 内容规则：
 
 - **`morphology` 讲现代构词**；`etymology` 讲历史来源。两者不互相替代，也不重复同一句。
+- 词源用中文解释；`Latin acer` / `Old French aigre` 这类外语只做行内括注，**不在卡面单列裸词源链**（2026-10-31 用户反馈：那行没人看得懂）。
 - `parts` / `chain` 只在现代英语里站得住时才有值；整体借词（如 algorithm）允许为空，用 `modernNote` 说明「不强行拆分」。
 - `derivatives` 是派生（eagerly / eagerness），`inflections` 是屈折（more eager / algorithms），不能混。
 - 派生词最好带 `pos` + 简短 `meaning`；词族 `family` 只做去重后的词形集合。
