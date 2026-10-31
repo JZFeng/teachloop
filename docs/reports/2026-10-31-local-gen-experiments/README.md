@@ -43,11 +43,28 @@ ComfyUI 里可直接 `LoraLoader` 使用。对照图：`sdxl-lora-style.png`。
 
 结论：24GB 卡上 FLUX LoRA 只能走 fp8，而 ROCm 的 fp8 训练会产出损坏权重。**本机暂不可用**。
 
-补充尝试（第 5 条路径）：`ai-toolkit`（ostris）
-- 环境装好（独立 venv，torch 2.14.1+rocm7.2，diffusers 0.39、transformers 5.5.3）；
-- 但 ai-toolkit 要求 **diffusers 目录格式**的 FLUX，而不是单文件；转换需要访问 HF 上 gated 的 `FLUX.1-schnell` config，
-  本机走 xet 下载时报 `Unable to parse string as hex hash value`，转换未完成；
-- 若要继续：需手动组装 diffusers 目录（transformer/scheduler/vae/text_encoder 配置），预计 1 小时以上，本轮未做。
+### 第 5 条路径：`ai-toolkit`（ostris）——**成功**
+
+- 环境：独立 venv（torch 2.14.1+rocm7.2、diffusers 0.39、transformers 5.5.3、torchaudio）；
+- 模型：直接给 repo id `black-forest-labs/FLUX.1-schnell`，ai-toolkit 自己下载 diffusers 格式
+  （`HF_HUB_DISABLE_XET=1` + `HF_TOKEN`，否则 xet 报 `Unable to parse string as hex hash value`）；
+- 训练配置：LoRA linear 16/alpha 16、qfloat8 量化、adamw8bit、lr 5e-5、**100 步**、batch 1、gradient checkpointing、
+  resolution 512、noise_scheduler flowmatch；
+- 结果：**第 50 步的 checkpoint 可用**（`tlbook_aitk_000000050.safetensors`，76MB），
+  在 ComfyUI 里 `LoraLoaderModelOnly` 直接加载，512²/4 步推理 **2.1 秒/张**；
+  但**第 100 步（最终权重）又是噪声**——说明训练到某个步数后仍会发散。
+
+### C 结论（可用但有边界）
+
+| 项 | 结果 |
+| :--- | :--- |
+| 可用 LoRA | ✅ `~/ai/train/aitk_out/tlbook_aitk/tlbook_aitk_000000050.safetensors` |
+| 安全步数 | **≤50 步**（100 步发散；原因仍是 ROCm fp8 反传不稳定） |
+| 推理速度 | **2.1 秒/张**（512² / 4 步） |
+| 20 词验证（88px） | 原始：L=218.9 / SD=39.6（偏淡）→ **后处理：L=212.0 / SD=62.1**（可读） |
+| 画风 | 细线 + 米色底，方向正确；后处理后偏“扁平贴纸”，不如 Qwen/OpenAI 细腻 |
+
+对照图：`fluxlora-aitk-vs-openai.png`（原始）、`fluxlora-aitk-postprocessed.png`（后处理后）。
 对照图：`fluxlora-vs-openai.png`（600 步版本的验证集输出，全噪声）。
 
 ## D. 国产模型：HunyuanDiT 1.2（可用）
