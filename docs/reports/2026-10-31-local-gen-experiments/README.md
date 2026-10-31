@@ -57,6 +57,21 @@ ComfyUI 里可直接 `LoraLoader` 使用。对照图：`sdxl-lora-style.png`。
 
 未测：Qwen-Image（20B，diffusers 分片 ≈40GB，本机下载+推理成本过高）、Kolors（需转换）。
 
+## D2. HunyuanDiT 精炼提示（20 张验证集，最终版）
+
+把提示词换成与 OpenAI 教材同款的描述（editorial line illustration + cream 背景 + teal/mustard 配色），
+20 个验证词全部重出：**411 秒 / 20 张 ≈ 20.5 秒/张**，风格一致性明显好于 LoRA 方案。
+
+- 画风：扁平卡通、粗描边、暖米色底，**最接近 OpenAI 教材**；
+- 语义：castle / umbrella / sprint / stir / serendipity 等准确；`wallet`、`jagged`、`brittle` 有漂移；
+- 对照图：`hunyuan2-vs-openai.png`。
+
+## SDXL 二次训练（把风格词写进 caption）
+
+caption 改为 `tlbook, flat vector childrens book illustration, thick clean black outlines, flat colors, warm cream background…, {scene}`，
+lr 5e-5、600 步。结果：风格开始像了，但**不一致**（有的扁平、有的灰阶、有的写实）。对照图：`sdxl-lora-restyle.png`。
+结论：SDXL LoRA 需要更长训练/更低 lr 才可能稳定，今晚不再投入。
+
 ## 推荐
 
 | 方案 | 适用 | 成本 |
