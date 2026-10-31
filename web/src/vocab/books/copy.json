@@ -227,17 +227,29 @@
     "zh-CN": "语言",
     "en": "Language"
   },
+  "vocab.books.admin.languageHint": {
+    "zh-CN": "词条语言；v1 只有 en（内容包与取词链路都只支持 en）。",
+    "en": "Language of the entries; v1 supports en only (both the content pack and word lookup are en-only)."
+  },
   "vocab.books.admin.level": {
     "zh-CN": "级别",
     "en": "Level"
+  },
+  "vocab.books.admin.levelHint": {
+    "zh-CN": "仅展示，不参与筛选与推荐。",
+    "en": "Display only; not used for filtering or recommendations."
+  },
+  "vocab.books.admin.levelEmpty": {
+    "zh-CN": "不填",
+    "en": "Not set"
   },
   "vocab.books.admin.position": {
     "zh-CN": "排序位",
     "en": "Position"
   },
   "vocab.books.admin.positionHint": {
-    "zh-CN": "数字小的排在前面；同位置按加入人数降序。",
-    "en": "Smaller numbers come first; ties sort by member count."
+    "zh-CN": "数字小的排在前面；相同时列表按创建时间、推荐位按加入人数降序。",
+    "en": "Smaller numbers come first; ties sort by creation time in lists and by member count in recommendations."
   },
   "vocab.books.admin.entries": {
     "zh-CN": "词条",
@@ -322,5 +334,29 @@
   "vocab.books.review.backToLists": {
     "zh-CN": "我的词单",
     "en": "My word lists"
+  },
+  "vocab.books.admin.entriesCreateHint": {
+    "zh-CN": "先贴词条再点「保存」，建书和导入一次完成；留空也行，保存后再回来补。",
+    "en": "Paste entries before you save: the book is created and the entries are imported in one go. Leave it empty to add them later."
+  },
+  "vocab.books.admin.importResult": {
+    "zh-CN": "本次导入：新增 {created} 条，已存在/重复 {duplicated} 条，失败 {failed} 条。",
+    "en": "Last import: {created} added, {duplicated} already present or duplicated, {failed} failed."
+  },
+  "vocab.books.admin.createdWithEntries": {
+    "zh-CN": "已创建「{name}」，并导入 {created} 条词条。",
+    "en": "Created {name} and imported {created} entries."
+  },
+  "vocab.books.admin.savedWithEntries": {
+    "zh-CN": "已保存，并导入 {created} 条词条。",
+    "en": "Saved and imported {created} entries."
+  },
+  "vocab.books.admin.importAfterCreateFailed": {
+    "zh-CN": "词书已创建，但词条导入失败：{message}。粘贴内容还在，再点一次「保存」就是重试导入。",
+    "en": "The book was created, but importing the entries failed: {message}. Your pasted text is still here; press Save again to retry."
+  },
+  "vocab.books.admin.importFailed": {
+    "zh-CN": "元信息已保存，但词条导入失败：{message}。粘贴内容还在，再点一次「保存」就是重试导入。",
+    "en": "Metadata saved, but importing the entries failed: {message}. Your pasted text is still here; press Save again to retry."
   }
 }

@@ -1,9 +1,11 @@
 // 路由已挂：`/admin/vocab/books`，在 App.tsx 里与 `/admin/ai` 同级、守卫 `nav.vocab.books`
-//（`?edit=<id>` 选中右侧编辑面板）。词条导入页是 `/admin/vocab/books/:bookId/import`。
+//（`?edit=<id>` 选中右侧编辑面板，`?edit=new` 是新建面板）。
+// 2026-10-30 用户要求：**新建时直接贴词条，别分两步**——词条区长在面板里，
+// 「保存」一次完成「建书 + 导入」；`/admin/vocab/books/:bookId/import` 只留重定向（旧链接不 404）。
 import { useEffect, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { fmtDateTime } from '../../api/client'
+import { api, fmtDateTime } from '../../api/client'
 import {
   Button,
   DataTable,
@@ -21,7 +23,10 @@ import {
   useToast,
 } from '../../ui'
 import type { Column } from '../../ui'
+import { ImportPastePanel } from '../import/ImportPastePanel'
+import type { ImportCommitResult } from '../import/ImportPastePanel'
 import { createAdminBook, fetchAdminBooks, updateAdminBook } from './adminBooks'
+
 import type { AdminBook } from './adminBooks'
 import { coveragePercent } from './books'
 import { useBooksCopy } from './copy'
@@ -37,6 +42,13 @@ interface BookForm {
 }
 
 const EMPTY_FORM: BookForm = { name: '', description: '', language: 'en', level: '', position: '0' }
+
+/**
+ * T592：语言只列系统真能服务的值（内容包与取词缺省都只有 en；zh/es 等语言档案 T433 落地后再放开）。
+ * 级别是 CEFR 六档，留空表示未标注；目前只在推荐卡上展示，不参与筛选与推荐。
+ */
+const LANGUAGE_OPTIONS = [{ value: 'en', label: 'English (en)' }]
+const CEFR_LEVELS = ['A1', 'A2', 'B1', 'B2', 'C1', 'C2']
 
 function formOf(book: AdminBook): BookForm {
   return {
@@ -60,7 +72,10 @@ const NEW_KEY = 'new'
  *      条目可枚举 / 反复原地编辑 / 保存后要对照列表——三条全中，所以这里用主从而不是上下。
  *      未选中任何书时右侧面板**整块不渲染**（2026-10-30 用户要求：原来那张空卡没用），
  *      表格独占整宽；空态也只剩一句话（里面原来的「新建词书」与页头按钮重复，已删）；
- *   2. 编辑面板只改元信息（名称/简介/语言/级别/排序位）+ 覆盖率 + 发布状态 + 「导入词条」入口；
+ *   2. 面板 = 元信息（名称/简介/语言/级别/排序位）+ 覆盖率 + **词条区** + 发布状态；
+ *      词条区就是加词页那同一块粘贴/上传 + 预览组件（AC-100.6），**新建时也在**：
+ *      2026-10-30 用户要求「新建时直接贴词条，别分两步」，所以「保存」一次完成
+ *      「建书 + 导入」，不再跳到 `/admin/vocab/books/:bookId/import`（那条路由只留重定向）；
  *   3. **保存 / 下架常驻底部**（`.books-savebar`）：834 宽下表单一长，按钮掉到折叠线以下
  *      就等于没法保存（mock 的 `.savebar` 就是为这个加的）。
  *
@@ -70,7 +85,6 @@ const NEW_KEY = 'new'
 export default function AdminBooksPage() {
   const bc = useBooksCopy()
   const { t } = useTranslation()
-  const navigate = useNavigate()
   const toast = useToast()
   const [params, setParams] = useSearchParams()
   const editKey = params.get('edit')
@@ -81,6 +95,9 @@ export default function AdminBooksPage() {
   const [form, setForm] = useState<BookForm>(EMPTY_FORM)
   const [formKey, setFormKey] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  /** 面板里那段待导入的词条文本；新建与编辑共用，由底部「保存」一并落库。 */
+  const [entryText, setEntryText] = useState('')
+  const [importResult, setImportResult] = useState<ImportCommitResult | null>(null)
   const [busy, setBusy] = useState(false)
   const { sort, page, pageSize, setSort, setPage, setPageSize } = useListState(undefined, 10)
 
@@ -122,6 +139,17 @@ export default function AdminBooksPage() {
     }, { replace: true })
   }
 
+  /**
+   * 用户主动切到另一本 / 新建：把上一本没保存的粘贴内容与导入结果清掉，
+   * 免得把 A 书的词条贴进 B 书。保存成功后的自动跳转不走这里（要先显示导入结果）。
+   */
+  const selectBook = (key: string | null) => {
+    setEntryText('')
+    setImportResult(null)
+    setFormError(null)
+    setEditKey(key)
+  }
+
   const applyBook = (book: AdminBook) => {
     setBooks((previous) => {
       if (!previous) return [book]
@@ -133,6 +161,22 @@ export default function AdminBooksPage() {
 
   const refresh = () => setReloadKey((value) => value + 1)
 
+  /** 把面板里的词条文本提交给某本书（`POST /api/admin/vocab/books/{id}/entries`）。 */
+  const importEntries = async (bookId: string) => {
+    if (!entryText.trim()) return null
+    const committed = await api.post<ImportCommitResult>(
+      `/api/admin/vocab/books/${bookId}/entries`, { text: entryText })
+    setImportResult(committed)
+    setEntryText('')
+    return committed
+  }
+
+  /**
+   * 一次「保存」= 元信息落库 + 面板里贴的词条入书（2026-10-30 用户要求）。
+   *
+   * 新建时先建书再导入：书已经创建出来但导入失败，也必须把话说明白并把人留在那本书的面板上
+   * （`setEditKey(created.id)` 之后粘贴内容还在，再点一次「保存」就是重试导入）。
+   */
   const save = async () => {
     setFormError(null)
     const name = form.name.trim()
@@ -155,13 +199,32 @@ export default function AdminBooksPage() {
         applyBook(created)
         setForm(formOf(created))
         setFormKey(created.id)
+        try {
+          const committed = await importEntries(created.id)
+          toast.success(committed
+            ? bc('vocab.books.admin.createdWithEntries', { name: created.name, created: committed.counts.created })
+            : bc('vocab.books.admin.created', { name: created.name }))
+        } catch (importError) {
+          setFormError(bc('vocab.books.admin.importAfterCreateFailed', {
+            message: (importError as Error).message,
+          }))
+        }
         setEditKey(created.id)
-        toast.success(bc('vocab.books.admin.created', { name: created.name }))
+        // 建书响应里 wordCount/readyCount 都是 0，导入过就必须重新拉一次真值（列表与覆盖率都靠它）。
+        refresh()
       } else if (selected) {
         const updated = await updateAdminBook(selected.id, { name, description, language, level, position })
         applyBook(updated)
         setForm(formOf(updated))
-        toast.success(bc('vocab.books.admin.saved'))
+        try {
+          const committed = await importEntries(updated.id)
+          toast.success(committed
+            ? bc('vocab.books.admin.savedWithEntries', { created: committed.counts.created })
+            : bc('vocab.books.admin.saved'))
+        } catch (importError) {
+          setFormError(bc('vocab.books.admin.importFailed', { message: (importError as Error).message }))
+        }
+        refresh()
       }
     } catch (saveError) {
       setFormError((saveError as Error).message)
@@ -187,8 +250,6 @@ export default function AdminBooksPage() {
     }
   }
 
-  const openImport = (book: AdminBook) => navigate(`/admin/vocab/books/${book.id}/import`)
-
   const columns: Column<AdminBook>[] = [
     {
       key: 'name',
@@ -199,7 +260,7 @@ export default function AdminBooksPage() {
       // 那是后端自动生成的内部标识（AdminBookEndpoint 的 uniqueSlug：中文书名转不出 ascii
       // 就退化成 `book` 加后缀），前端任何入口都不改它、路由也不用它，摆在这里只是噪音。
       render: (book) => (
-        <Button variant="text" size="small" onClick={() => setEditKey(book.id)}>{book.name}</Button>
+        <Button variant="text" size="small" onClick={() => selectBook(book.id)}>{book.name}</Button>
       ),
     },
     {
@@ -252,21 +313,21 @@ export default function AdminBooksPage() {
       key: 'actions',
       title: bc('vocab.books.admin.colActions'),
       value: () => '',
-      // 一级动作只有「编辑」；导入与发布/下架收进「⋯」（AC-25.1）。
+      // 一级动作只有「编辑」；发布/下架收进「⋯」（AC-25.1）。
+      // 2026-10-30：原来的「导入词条」在这里，现在词条导入就长在编辑面板里，这一项不再需要。
       render: (book) => (
         <RowActions
           main={{
             key: 'edit',
             label: bc('vocab.books.admin.edit'),
-            onClick: () => setEditKey(book.id),
+            onClick: () => selectBook(book.id),
           }}
           items={[
-            { key: 'import', label: bc('vocab.books.admin.importEntries'), onClick: () => openImport(book) },
             {
               key: 'publish',
               label: book.published ? bc('vocab.books.admin.unpublish') : bc('vocab.books.admin.publish'),
               onClick: () => {
-                setEditKey(book.id)
+                selectBook(book.id)
                 void updateAdminBook(book.id, { published: !book.published })
                   .then((updated) => {
                     applyBook(updated)
@@ -292,13 +353,21 @@ export default function AdminBooksPage() {
   // 和页头右上角那个是同一个动作，纯重复。
   const emptyList = <div>{bc('vocab.books.admin.emptyList')}</div>
 
+  // 库里可能已有旧值（例如手输过 zh 或 b1）：原样列出来让人看见，保存时由后端白名单拦下。
+  const languageChoices = LANGUAGE_OPTIONS.some((option) => option.value === form.language)
+    ? LANGUAGE_OPTIONS
+    : [{ value: form.language, label: form.language }, ...LANGUAGE_OPTIONS]
+  const levelChoices = form.level && !CEFR_LEVELS.includes(form.level)
+    ? [form.level, ...CEFR_LEVELS]
+    : CEFR_LEVELS
+
   return (
     <>
       <PageHeader
         title={bc('vocab.books.admin.title')}
         sub={bc('vocab.books.admin.sub')}
         actions={(
-          <Button variant="primary" onClick={() => setEditKey(NEW_KEY)}>
+          <Button variant="primary" onClick={() => selectBook(NEW_KEY)}>
             {bc('vocab.books.admin.new')}
           </Button>
         )}
@@ -317,7 +386,7 @@ export default function AdminBooksPage() {
             onSortChange={setSort}
             onPageChange={setPage}
             onPageSizeChange={setPageSize}
-            onRowClick={(book) => setEditKey(book.id)}
+            onRowClick={(book) => selectBook(book.id)}
             empty={emptyList}
           />
         </div>
@@ -355,13 +424,24 @@ export default function AdminBooksPage() {
                 </Field>
 
                 <div className="books-field-row">
-                  <Field label={bc('vocab.books.admin.language')}>
-                    <Input value={form.language} maxLength={8}
-                      onChange={(event) => setForm({ ...form, language: event.target.value })} />
+                  <Field label={bc('vocab.books.admin.language')} htmlFor="book-language"
+                    hint={bc('vocab.books.admin.languageHint')}>
+                    <select id="book-language" value={form.language}
+                      onChange={(event) => setForm({ ...form, language: event.target.value })}>
+                      {languageChoices.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                      ))}
+                    </select>
                   </Field>
-                  <Field label={bc('vocab.books.admin.level')}>
-                    <Input value={form.level} maxLength={24}
-                      onChange={(event) => setForm({ ...form, level: event.target.value })} />
+                  <Field label={bc('vocab.books.admin.level')} htmlFor="book-level"
+                    hint={bc('vocab.books.admin.levelHint')}>
+                    <select id="book-level" value={form.level}
+                      onChange={(event) => setForm({ ...form, level: event.target.value })}>
+                      <option value="">{bc('vocab.books.admin.levelEmpty')}</option>
+                      {levelChoices.map((level) => (
+                        <option key={level} value={level}>{level}</option>
+                      ))}
+                    </select>
                   </Field>
                 </div>
 
@@ -371,39 +451,66 @@ export default function AdminBooksPage() {
                 </Field>
 
                 {selected && (
-                  <>
-                    <div className="books-coverage">
-                      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                        <span className="small">
-                          {bc('vocab.books.admin.coverageLine', {
-                            percent, ready: selected.readyCount, total: selected.wordCount,
-                          })}
-                        </span>
-                        <span className="muted small">
-                          {bc('vocab.books.admin.entriesCount', { count: selected.wordCount })}
-                        </span>
-                      </div>
-                      <Progress value={selected.readyCount} max={selected.wordCount}
-                        label={bc('vocab.books.admin.coverageLine', {
+                  <div className="books-coverage">
+                    <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
+                      <span className="small">
+                        {bc('vocab.books.admin.coverageLine', {
                           percent, ready: selected.readyCount, total: selected.wordCount,
-                        })} />
+                        })}
+                      </span>
+                      <span className="muted small">
+                        {bc('vocab.books.admin.entriesCount', { count: selected.wordCount })}
+                      </span>
                     </div>
+                    <Progress value={selected.readyCount} max={selected.wordCount}
+                      label={bc('vocab.books.admin.coverageLine', {
+                        percent, ready: selected.readyCount, total: selected.wordCount,
+                      })} />
+                  </div>
+                )}
 
-                    <Field label={bc('vocab.books.admin.entries')} hint={bc('vocab.books.admin.entriesHint')}>
-                      <div className="row" style={{ gap: 8, flexWrap: 'wrap' }}>
-                        <Button onClick={() => openImport(selected)}>
-                          {bc('vocab.books.admin.importEntries')}
-                        </Button>
-                      </div>
-                    </Field>
+                {/* Entries: the same paste/preview panel in both modes. A new book previews against
+                    /draft/entries/preview, then Save creates the book and imports this text. */}
+                <Field
+                  label={bc('vocab.books.admin.entries')}
+                  hint={creating
+                    ? bc('vocab.books.admin.entriesCreateHint')
+                    : bc('vocab.books.admin.entriesHint')}
+                >
+                  <ImportPastePanel
+                    previewPath={selected
+                      ? `/api/admin/vocab/books/${selected.id}/entries/preview`
+                      : '/api/admin/vocab/books/draft/entries/preview'}
+                    extraFields={selected ? undefined : { language: form.language.trim() || 'en' }}
+                    text={entryText}
+                    onTextChange={setEntryText}
+                  />
+                </Field>
 
-                    <div className="books-status-row">
-                      <span className="small">{bc('vocab.books.admin.statusRow')}</span>
-                      {selected.published
-                        ? <Tag tone="green">{bc('vocab.books.admin.published')}</Tag>
-                        : <Tag tone="amber">{bc('vocab.books.admin.draft')}</Tag>}
-                    </div>
-                  </>
+                {importResult && (
+                  <InlineNote tone={importResult.counts.failed > 0 ? 'warning' : 'success'}>
+                    {bc('vocab.books.admin.importResult', {
+                      created: importResult.counts.created,
+                      duplicated: importResult.counts.duplicated,
+                      failed: importResult.counts.failed,
+                    })}
+                    {importResult.errors.length > 0 && (
+                      <ul className="small" style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+                        {importResult.errors.map((line) => (
+                          <li key={`${line.line}-${line.raw}`}>#{line.line} {line.raw} — {line.reason}</li>
+                        ))}
+                      </ul>
+                    )}
+                  </InlineNote>
+                )}
+
+                {selected && (
+                  <div className="books-status-row">
+                    <span className="small">{bc('vocab.books.admin.statusRow')}</span>
+                    {selected.published
+                      ? <Tag tone="green">{bc('vocab.books.admin.published')}</Tag>
+                      : <Tag tone="amber">{bc('vocab.books.admin.draft')}</Tag>}
+                  </div>
                 )}
 
                 {formError && <InlineNote tone="error">{formError}</InlineNote>}

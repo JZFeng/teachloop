@@ -70,10 +70,15 @@ public class AdminBookEndpoint {
     private static final int MAX_NAME = 80;
     private static final int MAX_DESCRIPTION = 300;
     private static final int MAX_SLUG = 64;
-    private static final int MAX_LEVEL = 24;
-    private static final int MAX_LANGUAGE = 8;
     private static final int MAX_PAGE_SIZE = 200;
     private static final String DEFAULT_LANGUAGE = "en";
+    /**
+     * T592：语言只收系统真能服务的值。内容包只有 en，词库/统计/今日复习的取词缺省也是 en
+     * （`ReviewQueueEndpoint`、`VocabularyQueryRepository`），写进别的语言学生就再也取不到。
+     */
+    private static final Set<String> SUPPORTED_LANGUAGES = Set.of("en");
+    /** T592：级别只收 CEFR 六档（入库统一大写），留空表示未标注；目前仅推荐卡展示，不参与筛选。 */
+    private static final Set<String> CEFR_LEVELS = Set.of("A1", "A2", "B1", "B2", "C1", "C2");
     private static final String FREE = "FREE";
     private static final Pattern SLUG_SHAPE = Pattern.compile("^[a-z0-9][a-z0-9-]*$");
 
@@ -119,7 +124,11 @@ public class AdminBookEndpoint {
     public record EntriesPage(List<EntryView> items, long total, int page, int size, int totalWords) {
     }
 
-    public record ImportRequest(String text) {
+    /**
+     * 导入/预览请求体。`language` 只有草稿预览用得上（书还没建，解析器按它决定 en/zh 规则）；
+     * 已存在的书一律以书上的 `language` 为准，传了也忽略。
+     */
+    public record ImportRequest(String text, String language) {
     }
 
     public record ImportCommit(BookImportService.Counts counts, List<BookImportService.LineError> errors) {
@@ -208,14 +217,35 @@ public class AdminBookEndpoint {
         return view(updated, Map.of(id, coverage.coverage(updated)), Map.of(id, books.joinCount(id)));
     }
 
+    /**
+     * 新建词书面板的**草稿**预览（2026-10-30 用户要求「新建时直接贴词条，别分两步」）。
+     *
+     * <p>书还没建出来，所以没有「已在书中」这一档：`duplicated` 只统计同一段文本里的重复。
+     * 其余（解析、格式清洗、跳过行、拼写提示、返回形状）与 {@link #previewEntries} 完全同源，
+     * 前端因此仍是同一块预览组件，只是提交目标还没落库。
+     *
+     * <p>路径刻意用三段 `/draft/entries/preview`，不与 `/{id}/entries/preview` 抢二段匹配。
+     */
+    @PostMapping("/draft/entries/preview")
+    public PreviewResponse previewDraftEntries(@RequestBody(required = false) ImportRequest request) {
+        String text = request == null ? "" : request.text();
+        String language = validLanguage(request == null ? null : request.language());
+        return previewResponse(language, null, text);
+    }
+
     /** 预览：与「加词」页同一个解析器、同一个返回形状（AC-100.6），计数换成「这本书里有没有」。 */
     @PostMapping("/{id}/entries/preview")
     public PreviewResponse previewEntries(@PathVariable UUID id,
                                           @RequestBody(required = false) ImportRequest request) {
         BookRow book = requireBook(id);
         String text = request == null ? "" : request.text();
-        ParseResult result = parser.parse(text, book.language());
-        BookImportService.PreviewResult preview = importService.preview(id, book.language(), text);
+        return previewResponse(book.language(), id, text);
+    }
+
+    /** 预览响应只在这里拼一次：书与草稿两条路径的字段顺序、拼写/清洗/跳过口径不许漂移。 */
+    private PreviewResponse previewResponse(String language, UUID bookId, String text) {
+        ParseResult result = parser.parse(text, language);
+        BookImportService.PreviewResult preview = importService.preview(bookId, language, text);
         List<String> distinct = result.distinctNormalized();
         boolean spellingChecked = spelling.available();
         List<SpellingView> spellingViews = spellingChecked
@@ -346,8 +376,9 @@ public class AdminBookEndpoint {
 
     private static String validLanguage(String raw) {
         String language = raw == null || raw.isBlank() ? DEFAULT_LANGUAGE : raw.strip().toLowerCase(Locale.ROOT);
-        if (language.length() > MAX_LANGUAGE) {
-            throw ApiException.badRequest("language must be <=" + MAX_LANGUAGE + " chars");
+        if (!SUPPORTED_LANGUAGES.contains(language)) {
+            throw ApiException.badRequest("unsupported language: only " + SUPPORTED_LANGUAGES
+                    + " is available in v1");
         }
         return language;
     }
@@ -360,10 +391,11 @@ public class AdminBookEndpoint {
         if (level.isEmpty()) {
             return null;
         }
-        if (level.length() > MAX_LEVEL) {
-            throw ApiException.badRequest("level must be <=" + MAX_LEVEL + " chars");
+        String normalized = level.toUpperCase(Locale.ROOT);
+        if (!CEFR_LEVELS.contains(normalized)) {
+            throw ApiException.badRequest("level must be empty or one of " + CEFR_LEVELS);
         }
-        return level;
+        return normalized;
     }
 
     /** 显式传 slug：形状与唯一性都当场校验，不静默改名。 */

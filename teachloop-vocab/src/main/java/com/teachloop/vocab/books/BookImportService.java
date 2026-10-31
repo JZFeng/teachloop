@@ -54,7 +54,20 @@ public class BookImportService {
     public record CommitResult(Counts counts, List<LineError> errors) {
     }
 
-    /** 只查库不写库：与 {@code WordImportService#preview} 同一份扫描逻辑。 */
+    /**
+     * 新建词书时的草稿预览（2026-10-30 用户要求「新建时就把词条塞进去，别分两步」）：
+     * 书还没建，所以没有「已在书中」，`duplicated` 只剩批内重复；解析、清洗、跳过与拼写
+     * 与 {@link #preview(UUID, String, String)} 逐行同源，界面因此还是同一块预览组件。
+     */
+    public PreviewResult previewDraft(String language, String text) {
+        return preview(null, language, text);
+    }
+
+    /**
+     * 只查库不写库：与 {@code WordImportService#preview} 同一份扫描逻辑。
+     *
+     * @param bookId 目标书；{@code null} 表示书还没建（新建面板的草稿预览），按空书算
+     */
     public PreviewResult preview(UUID bookId, String language, String text) {
         ParseResult parsed = parser.parse(text, language);
         List<LineError> errors = new ArrayList<>();
@@ -74,8 +87,9 @@ public class BookImportService {
                 inFileDuplicates++;
             }
         }
-        // 只查这本书里有没有（不是我的词库）：SQL 只回入参里命中的词形，因此 size 不会超过 unique
-        Set<String> existing = books.existingNormalized(bookId, unique.keySet());
+        // 只查这本书里有没有（不是我的词库）：SQL 只回入参里命中的词形，因此 size 不会超过 unique。
+        // bookId 为 null = 书还没建（草稿预览），此时「已在书中」恒为空集，不查库。
+        Set<String> existing = bookId == null ? Set.of() : books.existingNormalized(bookId, unique.keySet());
         int created = unique.size() - existing.size();
         int duplicated = inFileDuplicates + existing.size();
         return new PreviewResult(new Counts(total, created, duplicated, failed), errors);

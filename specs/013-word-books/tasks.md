@@ -44,6 +44,7 @@
 |---|---|---|---|
 | T579 | **测试与守卫**：单测（幂等/后缀/覆盖率/推荐排序）、集成（失败回滚不留半份副本）、E2E（词单页→加入→副本→开始复习）、i18n `vocab.books.*` | T577, T578 | `make check-deps check-boundaries check-i18n check-ui` 与 `make test` 全绿；E2E 报告贴 `docs/reports/` |
 | T580 | **回滚演练**：执行一次「回退代码 → 处理 `BOOK` 来源行 → 删表删列」的完整演练 | T579 | 在 qa 库演练并记录耗时与命令；`BOOK` 行处理脚本可重复执行（幂等） |
+| T592 | **语言/级别改下拉 + 服务端白名单（2026-10-30 用户敲定，AC-100.7）**：管理端词书面板「语言」只列 `en`、「级别」列 CEFR A1–C2（可留空），都不许手输；`AdminBookEndpoint` 白名单拦 `zh`/`es`/`cn` 与非法级别（级别入库统一大写）；排序位保留数字输入，提示改成「列表按创建时间、推荐位按加入人数」 | T577 | AC-100.7；`VocabBooksTest#languageAndLevelAreWhitelisted`（非法语言/级别 400、`b1`→`B1`、空级别 null、改书同样拦）；`pnpm typecheck` 退出码 0 |
 
 ---
 
@@ -79,8 +80,18 @@ grep -ho '^| T[0-9]*' specs/*/tasks.md | sort | uniq -d            # 期望空�
   学生深链被 `nav.vocab.books` 守卫拦回落地页；iPad Air 11 竖屏 `scrollWidth=834`、iPad Pro 12.9 竖屏 `1024`
   均无横向溢出，「新建词书」首屏可见。
   文案仍在 `web/src/vocab/books/copy.json`（键名即 `vocab.books.*`），尚未搬进 `locales/*.json`。
+  **2026-10-30 返工（Bug）：新建面板与编辑面板对齐。** 原来 `?edit=new` 只做元信息，词条必须
+  「先保存 → 再跳 `/admin/vocab/books/:bookId/import`」两步；用户要求「new 的时候直接把词条搞进去」。
+  现在词条区（`ImportPastePanel`，受控文本）同时长在两个态的右栏面板里，**一次「保存」= 建书/改书 + 导入**；
+  新增草稿预览端点 `POST /api/admin/vocab/books/draft/entries/preview`（书未建时预览，`duplicated` 只算批内重复），
+  独立导入页降级为重定向。用例：`VocabBooksTest#draftPreviewForNewBookPanel`（9/9 绿）、
+  `web/tests/admin-books-entry-import.test.mjs`（4/4 绿）。
 - T578 付费字段：完成。建书 `PAID` → 400、加入 `PAID` → 409；学生端响应无 `payMode/priceCents/currency`（用例断言字段不存在）。
 - T579 测试：本批 9 个新用例 + 5 个受影响类的回归（共 17 个用例）全绿；`check-deps` / `check-boundaries` / `check-ui` / `pnpm typecheck` / `pnpm build` 退出码 0；
   `check-i18n` 退出码 1，唯一命中是 S3 的 `OfferingWindows.java:104`（不是本批）。**`make test` 未全量跑**（共享工作目录里 S1/S3 同时在改，见报告 §8）。
 - T580 回滚演练：完成。脚本 10 条语句，首跑 7ms、重跑 3ms（幂等）；`BOOK` 行 5→0 转 `IMPORT`，词/进度/词单引用一行不少。
   演练在一次性 Postgres 16 容器上做，**没有碰 qa 库**（本 session 禁止部署）。
+- T592 语言/级别下拉 + 白名单：**已改，未提交**（工作区里 S2/S3 同时在改 `AdminBooksPage.tsx` / `BookImportService.java`，见 §8 的并行说明）。
+  改动：`AdminBooksPage.tsx` 两个字段换原生 `<select>`（项目里 `ProfilePage`/`AdminAiPage` 同款，`ui/` 没有 Select 包装）；
+  `AdminBookEndpoint` 加 `SUPPORTED_LANGUAGES` / `CEFR_LEVELS` 白名单；`copy.json` 加 `languageHint`/`levelHint`/`levelEmpty`
+  并把 `positionHint` 改成与两条排序 SQL 一致（列表按 `created_at`、推荐位按加入人数）。

@@ -194,6 +194,50 @@ class VocabBooksTest {
     }
 
     // ────────────────────────────────────────────────────────────────
+    // T592：语言 / 级别的白名单（下拉的可选值就是系统真能服务的值）
+    // ────────────────────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("T592 语言只收 en、级别只收 CEFR：zh/cn 建书 400，b1 归一化成 B1，空级别可保存")
+    void languageAndLevelAreWhitelisted() throws Exception {
+        String base = base();
+        String admin = admin(base);
+
+        // 语言：en 之外一律 400（zh 与用户口头的 cn 都不是 v1 能服务的值）
+        for (String unsupported : List.of("zh", "es", "cn")) {
+            HttpResponse<String> rejected = send(base, admin, "POST", "/api/admin/vocab/books",
+                    Map.of("name", unique("T592-" + unsupported), "language", unsupported));
+            assertThat(rejected.statusCode()).as("language=" + unsupported).isEqualTo(400);
+        }
+
+        // 级别：CEFR 之外 400
+        for (String unsupported : List.of("中级", "upper", "B3")) {
+            HttpResponse<String> rejected = send(base, admin, "POST", "/api/admin/vocab/books",
+                    Map.of("name", unique("T592-lv"), "level", unsupported));
+            assertThat(rejected.statusCode()).as("level=" + unsupported).isEqualTo(400);
+        }
+
+        // 合法值：小写 b1 归一化成 B1；不传级别落 null
+        HttpResponse<String> created = send(base, admin, "POST", "/api/admin/vocab/books",
+                Map.of("name", unique("T592-ok"), "language", "en", "level", "b1"));
+        assertThat(created.statusCode()).isEqualTo(200);
+        JsonNode body = MAPPER.readTree(created.body());
+        assertThat(body.get("level").asString()).isEqualTo("B1");
+        assertThat(body.get("language").asString()).isEqualTo("en");
+
+        HttpResponse<String> noLevel = send(base, admin, "POST", "/api/admin/vocab/books",
+                Map.of("name", unique("T592-none")));
+        assertThat(noLevel.statusCode()).isEqualTo(200);
+        JsonNode noLevelBody = MAPPER.readTree(noLevel.body());
+        assertThat(noLevelBody.get("level") == null || noLevelBody.get("level").isNull()).isTrue();
+
+        // 改书也走同一套校验：把已有书改成 zh → 400
+        UUID bookId = UUID.fromString(body.get("id").asString());
+        assertThat(send(base, admin, "PUT", "/api/admin/vocab/books/" + bookId,
+                Map.of("language", "zh")).statusCode()).isEqualTo(400);
+    }
+
+    // ────────────────────────────────────────────────────────────────
     // T571：导入复用（同一段文本，两页同样的清洗与跳过）
     // ────────────────────────────────────────────────────────────────
 
@@ -276,6 +320,47 @@ class VocabBooksTest {
         assertThat(jdbc.queryForObject(
                 "select count(*) from vocab_words where normalized_form in ('apple', 'hello')",
                 Integer.class)).isZero();
+    }
+
+    @Test
+    @DisplayName("T571 新建面板的草稿预览：不需要书 id，返回体与书预览同形，建书前后计数一致，且不落库")
+    void draftPreviewForNewBookPanel() throws Exception {
+        String base = base();
+        String admin = admin(base);
+        String student = login(base, "student@teachloop.local");
+        // 重复词 + 说明行（被跳过）+ 超长行（失败）：三种计数各出现一次
+        String text = """
+                draftalpha
+                draftalpha
+                这是一个说明行，应当被跳过。
+                %s
+                draftbeta
+                """.formatted("y".repeat(80));
+
+        JsonNode draft = post(base, admin, "/api/admin/vocab/books/draft/entries/preview",
+                Map.of("text", text, "language", "en"));
+        // 书还没建：没有「已在书中」这一档，duplicated 只算批内重复
+        assertThat(draft.get("counts").get("created").asInt()).as("草稿：两个不同词形").isEqualTo(2);
+        assertThat(draft.get("counts").get("duplicated").asInt()).as("草稿：批内重复 1 条").isEqualTo(1);
+        assertThat(draft.get("counts").get("failed").asInt()).as("超长行计失败").isEqualTo(1);
+
+        // 同一段文本在「刚建好的空书」上预览：字段与计数必须完全一致，否则新建面板与编辑面板会互相打脸
+        UUID bookId = createBook(base, admin, unique("T571-draft"), 0);
+        JsonNode book = post(base, admin, "/api/admin/vocab/books/" + bookId + "/entries/preview",
+                Map.of("text", text, "language", "en"));
+        assertThat(fieldNames(draft)).isEqualTo(fieldNames(book));
+        assertThat(draft.get("counts")).isEqualTo(book.get("counts"));
+        assertThat(cleanups(draft)).isEqualTo(cleanups(book));
+        assertThat(skipped(draft)).isEqualTo(skipped(book));
+
+        // 预览不写库：草稿预览跑完，库里没有任何 draft* 词条
+        assertThat(jdbc.queryForObject("""
+                select count(*) from vocab_book_entries where normalized_form like 'draft%'
+                """, Integer.class)).isZero();
+
+        // AC-100.1：草稿预览同样只在 ADMIN 下可用，学生打进来是 403
+        assertThat(send(base, student, "POST", "/api/admin/vocab/books/draft/entries/preview",
+                Map.of("text", text)).statusCode()).isEqualTo(403);
     }
 
     // ────────────────────────────────────────────────────────────────

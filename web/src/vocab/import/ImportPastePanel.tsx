@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 import { useTranslation } from 'react-i18next'
 import { api } from '../../api/client'
@@ -57,8 +57,19 @@ export interface ImportCommitResult {
 export interface ImportPastePanelProps {
   /** 预览接口路径（POST，body `{ text, ...extraFields }`）。 */
   previewPath: string
-  /** 提交接口路径（POST，body 同上）。 */
-  commitPath: string
+  /**
+   * 提交接口路径（POST，body 同上）。
+   *
+   * 不传就不渲染「确认导入」按钮：管理端新建词书面板把「建书 + 导入」合成一次「保存」
+   * （2026-10-30 用户要求：新建时直接贴词条，别分两步），提交由页面自己做。
+   */
+  commitPath?: string
+  /**
+   * 受控文本。传了就以父组件为准（页面要在自己的「保存」里读到同一段粘贴内容）；
+   * 不传则由组件自己存（加词页）。
+   */
+  text?: string
+  onTextChange?: (value: string) => void
   /** 提交成功后的回调：页面在这里弹自己的成功提示、刷新数据或跳转。 */
   onCommitted?: (result: ImportCommitResult) => void
   /**
@@ -88,6 +99,8 @@ export interface ImportPastePanelProps {
 export function ImportPastePanel({
   previewPath,
   commitPath,
+  text,
+  onTextChange,
   onCommitted,
   extraFields,
   commitLabel,
@@ -101,20 +114,37 @@ export function ImportPastePanel({
   const { t } = useTranslation()
   const toast = useToast()
   const [tab, setTab] = useState<'paste' | 'file'>(defaultTab)
-  const [text, setText] = useState('')
+  const [innerText, setInnerText] = useState('')
   const [preview, setPreview] = useState<ImportPreview | null>(null)
   const [result, setResult] = useState<ImportCommitResult | null>(null)
   const [busy, setBusy] = useState(false)
 
-  const body = () => ({ text, ...(extraFields ?? {}) })
+  /** 受控/非受控共用一份取值：父组件传了 `text` 就完全听父组件的。 */
+  const value = text ?? innerText
 
   const reset = () => {
     setPreview(null)
     setResult(null)
   }
 
+  const setValue = (next: string) => {
+    if (text === undefined) setInnerText(next)
+    onTextChange?.(next)
+    reset()
+  }
+
+  // 受控模式下父组件会自己清空文本（管理端「保存」成功后），此时上一次的预览/结果必须一起收掉，
+  // 否则界面上还挂着一段已经不存在的文本的预览。
+  useEffect(() => {
+    if (text === undefined) return
+    setPreview(null)
+    setResult(null)
+  }, [text])
+
+  const body = () => ({ text: value, ...(extraFields ?? {}) })
+
   const doPreview = async () => {
-    if (!text.trim()) return
+    if (!value.trim()) return
     setBusy(true)
     try {
       setPreview(await api.post<ImportPreview>(previewPath, body()))
@@ -126,7 +156,7 @@ export function ImportPastePanel({
   }
 
   const doCommit = async () => {
-    if (!text.trim()) return
+    if (!commitPath || !value.trim()) return
     setBusy(true)
     try {
       const committed = await api.post<ImportCommitResult>(commitPath, body())
@@ -145,8 +175,7 @@ export function ImportPastePanel({
       toast.error(t('vocab.add.tooLarge'))
       return
     }
-    setText(await file.text())
-    reset()
+    setValue(await file.text())
   }
 
   return (
@@ -166,17 +195,19 @@ export function ImportPastePanel({
         </div>
       )}
 
-      <TextArea rows={10} value={text} placeholder={t('vocab.add.placeholder')}
-        onChange={(event) => { setText(event.target.value); reset() }} />
+      <TextArea rows={10} value={value} placeholder={t('vocab.add.placeholder')}
+        onChange={(event) => setValue(event.target.value)} />
 
       {extraHint && <p className="muted small" style={{ margin: '8px 0 0' }}>{extraHint}</p>}
 
       <div className={stickyActions ? 'import-actions is-sticky' : 'import-actions'}>
         {extraInput}
         <Button onClick={() => void doPreview()} busy={busy}>{t('vocab.add.preview')}</Button>
-        <Button variant="primary" onClick={() => void doCommit()} busy={busy}>
-          {commitLabel ?? t('vocab.add.commit')}
-        </Button>
+        {commitPath && (
+          <Button variant="primary" onClick={() => void doCommit()} busy={busy}>
+            {commitLabel ?? t('vocab.add.commit')}
+          </Button>
+        )}
         {secondaryAction}
       </div>
 
