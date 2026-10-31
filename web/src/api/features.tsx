@@ -52,6 +52,8 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
    */
   const wasIncomplete = useRef(profileComplete === false)
   /** 已经为哪个用户发起过取数（用 ref 而不是 state，避免把它写进依赖造成二次请求）。 */
+  // 2026-10-30（AC-3.12）：记忆键从 me.id 改成「id + role」。学生被邀请码升成教师时 id 不变、
+  // 只有 role 变；只按 id 记忆会命中下面那句短路 return，侧栏就一直停在学生那套。
   const requestedFor = useRef<string | null>(null)
 
   useEffect(() => {
@@ -76,11 +78,12 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
      *     未填手机号的学生因此被顶到资料页，与 AC-93.1（访问 `/` 返回 200）相反。
      * 现在照常取数：接口 200 就按真实 key 渲染，仍然失败（真正 403/网络问题）走下面的 catch → OFF。
      */
-    // 已经为当前用户取过、且不是「刚补全」→ 不再重取：重取会把已挂载的页面卸掉再挂回来。
-    if (!justCompleted && requestedFor.current === me.id) return
+    // 已经为「这个用户 + 这个角色」取过、且不是「刚补全」→ 不再重取：重取会把已挂载的页面卸掉再挂回来。
+    const requestKey = `${me.id}:${me.role ?? ''}`
+    if (!justCompleted && requestedFor.current === requestKey) return
 
     let alive = true
-    requestedFor.current = me.id
+    requestedFor.current = requestKey
     // 真正需要重取时（换用户 / 刚补全）按「未知」处理，避免把补全前的空集挂到深链上。
     setFetchedFor(null)
     api.get<Features>('/api/features')
@@ -98,7 +101,9 @@ export function FeaturesProvider({ children }: { children: ReactNode }) {
     return () => {
       alive = false
     }
-  }, [me?.id, loading, profileComplete])
+    // 2026-10-30（AC-3.12）：依赖里必须有 role —— 学生被邀请码升成教师后 me.id 不变，
+    // 只有 role 变了；不重取 features 的话侧栏还是学生那套，得重新登录才看到教师菜单。
+  }, [me?.id, me?.role, loading, profileComplete])
 
   const loaded = !loading && (me ? fetchedFor === me.id : true)
   const value = useMemo(() => ({ features, loaded }), [features, loaded])

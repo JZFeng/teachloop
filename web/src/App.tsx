@@ -37,6 +37,7 @@ import NotificationsPage from './app/NotificationsPage'
 import ProfilePage from './app/ProfilePage'
 import SetupPage from './app/SetupPage'
 import AdminAiPage from './app/AdminAiPage'
+import AdminTeachersPage from './app/AdminTeachersPage'
 import TeacherHomePage from './teacher/HomePage'
 import ClassesPage from './teacher/ClassesPage'
 import PapersPage from './teacher/PapersPage'
@@ -253,6 +254,8 @@ function AppRoutes() {
               settings page for students/teachers and only the API returned 403. Mirrors
               AC-63.6: without nav.ai the route falls back to the user's landing page, and
               the alias `/admin/settings` is guarded the same way. */}
+          {/* AC-3.10（2026-10-30）：管理员的教师管理页（发邀请码）。 */}
+          <Route path="admin/teachers" element={<RequireFeature feature="nav.teachers"><AdminTeachersPage /></RequireFeature>} />
           <Route path="admin/ai" element={<RequireFeature feature="nav.ai"><AdminAiPage /></RequireFeature>} />
           {/* 2026-10-28：页面改叫「系统设置」，/admin/settings 作为别名收口到同一屏。 */}
           <Route path="admin/settings" element={<RequireFeature feature="nav.ai"><Navigate to="/admin/ai" replace /></RequireFeature>} />

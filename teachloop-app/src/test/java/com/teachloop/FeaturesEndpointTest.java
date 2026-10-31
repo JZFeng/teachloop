@@ -73,6 +73,44 @@ class FeaturesEndpointTest {
     }
 
     @Test
+    @DisplayName("AC-3.10：管理员有教师管理入口")
+    void adminSeesTeacherManagement() {
+        Map<String, Boolean> f = new FeaturesEndpoint(false).features(user("ADMIN"));
+
+        assertThat(f).containsEntry("nav.teachers", true);
+    }
+
+    @Test
+    @DisplayName("AC-3.13：教师保留学习入口（升级后仍能背单词）")
+    void teacherKeepsLearningEntries() {
+        Map<String, Boolean> f = new FeaturesEndpoint(true).features(user("TEACHER"));
+
+        assertThat(f)
+                .containsEntry("nav.vocab.review", true)
+                .containsEntry("nav.vocab.lists", true)
+                .containsEntry("nav.vocab.library", true)
+                .containsEntry("nav.vocab.sets", true)
+                .containsEntry("nav.vocab.assign", true)
+                .containsEntry("nav.teachers", false);
+    }
+
+    @Test
+    @DisplayName("AC-3.14：管理员不含任何学习入口（角色是职责，不是能力包）")
+    void adminHasNoLearningEntries() {
+        // 即便 vocab 模块打开，管理员也只有词书维护（nav.vocab.books），
+        // 没有复习/词库/词单入口；要背单词只能另注册学生账号。
+        Map<String, Boolean> f = new FeaturesEndpoint(true).features(user("ADMIN"));
+
+        assertThat(f)
+                .containsEntry("nav.vocab.books", true)
+                .containsEntry("nav.vocab.review", false)
+                .containsEntry("nav.vocab.lists", false)
+                .containsEntry("nav.vocab.library", false)
+                .containsEntry("nav.vocab.sets", false)
+                .containsEntry("nav.vocab.assign", false);
+    }
+
+    @Test
     @DisplayName("未知角色不放行任何菜单")
     void unknownRoleGetsNothing() {
         Map<String, Boolean> f = new FeaturesEndpoint(true).features(user("WHATEVER"));

@@ -5,7 +5,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../api/auth'
 import { api } from '../api/client'
 import { LANGUAGES, changeLanguage } from '../i18n'
-import { Alert, Button, Field, InlineNote, Input, PageHeader, ThemeToggle } from '../ui'
+import { Alert, Button, Field, InlineNote, Input, PageHeader, ThemeToggle, useToast } from '../ui'
 import { UiKitPanel } from './UiKitPanel'
 import { nextAfterProfile } from './profileGate'
 import type { GradingPreference } from '../api/types'
@@ -34,6 +34,7 @@ const TIME_ZONES = [
 export default function ProfilePage() {
   const { t, i18n } = useTranslation('translation')
   const { me, refresh, refreshProfile } = useAuth()
+  const toast = useToast()
   const [profile, setProfile] = useState<ProfileView | null>(null)
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
@@ -56,6 +57,13 @@ export default function ProfilePage() {
   const [passwordMessage, setPasswordMessage] = useState<string | null>(null)
   const [passwordError, setPasswordError] = useState<string | null>(null)
   const [passwordBusy, setPasswordBusy] = useState(false)
+
+  // 2026-10-30（AC-3.3）：学生填教师邀请码把自己升成教师。升级只翻 users.role，
+  // 学生期的复习记录/词单全部照旧；成功后 refresh() 让 me.role 立刻变化，
+  // features.tsx 的依赖里有 me?.role，于是侧栏当次就出现教师菜单（AC-3.12）。
+  const [inviteCode, setInviteCode] = useState('')
+  const [inviteBusy, setInviteBusy] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
 
   const isTeacher = me?.role === 'TEACHER'
   const navigate = useNavigate()
@@ -127,6 +135,21 @@ export default function ProfilePage() {
       }
     } catch (e) {
       setError((e as Error).message)
+    }
+  }
+
+  const redeemInvite = async () => {
+    setInviteError(null)
+    setInviteBusy(true)
+    try {
+      await api.post('/api/auth/teacher-invite', { code: inviteCode.trim() })
+      setInviteCode('')
+      await refresh()
+      toast.success(t('profile.inviteSuccess'))
+    } catch (e) {
+      setInviteError((e as Error).message)
+    } finally {
+      setInviteBusy(false)
     }
   }
 
@@ -215,6 +238,22 @@ export default function ProfilePage() {
           </>
         )}
       </div>
+
+      {me?.role === 'STUDENT' && (
+        <div className="card" style={{ maxWidth: 760, marginTop: 16 }}>
+          <h2>{t('profile.inviteTitle')}</h2>
+          <p className="small muted">{t('profile.inviteSub')}</p>
+          {inviteError && <Alert type="error" showIcon message={inviteError} style={{ marginBottom: 12 }} />}
+          <Field label={t('profile.inviteCode')} htmlFor="profile-invite" hint={t('profile.inviteHint')}>
+            <Input id="profile-invite" value={inviteCode} maxLength={8} autoComplete="off"
+              placeholder="ABCD2345" onChange={(e) => setInviteCode(e.target.value.toUpperCase())} />
+          </Field>
+          <Button variant="primary" disabled={inviteBusy || inviteCode.trim().length !== 8}
+            onClick={() => void redeemInvite()}>
+            {inviteBusy ? t('profile.inviteBusy') : t('profile.inviteAction')}
+          </Button>
+        </div>
+      )}
 
       {profile?.hasPassword && (
         <div className="card" style={{ maxWidth: 760, marginTop: 16 }}>

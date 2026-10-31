@@ -17,10 +17,13 @@ function featuresFor(keys, vocab = false) {
   return out
 }
 
-const ADMIN_KEYS = ['nav.ai']
+// 2026-10-30（AC-3.10）：管理员新增「教师管理」（发邀请码）。
+const ADMIN_KEYS = ['nav.teachers', 'nav.ai']
+// 2026-10-30（AC-3.13）：教师保留学习入口 —— 学生升级成老师后「背单词」不能消失。
 const TEACHER_KEYS = [
   'nav.home', 'nav.classes', 'nav.assignments', 'nav.papers',
   'nav.vocab.sets', 'nav.vocab.assign', 'nav.grading', 'nav.review', 'nav.reports',
+  'nav.vocab.library', 'nav.vocab.lists', 'nav.vocab.review',
 ]
 const STUDENT_KEYS = [
   'nav.home', 'nav.classes', 'nav.vocab.library', 'nav.vocab.lists', 'nav.vocab.review',
@@ -31,14 +34,14 @@ const paths = (features) => navSpecs(features).map((item) => item.to)
 /** 模拟后端在 vocab 关闭时的行为：vocab 类 key 不会被授予。 */
 const withoutVocab = (keys) => keys.filter((key) => !key.startsWith('nav.vocab.'))
 
-test('管理员 vocab 关时恰好一项：AI 设置', () => {
-  assert.deepEqual(paths(featuresFor(ADMIN_KEYS)), ['/admin/ai'])
+test('管理员 vocab 关时两项：教师管理 + 系统设置', () => {
+  assert.deepEqual(paths(featuresFor(ADMIN_KEYS)), ['/admin/teachers', '/admin/ai'])
 })
 
-test('013：管理员 vocab 开时两项，词书管理排在系统设置前面', () => {
+test('013：管理员 vocab 开时三项，词书管理 / 教师管理 / 系统设置', () => {
   assert.deepEqual(
     paths(featuresFor([...ADMIN_KEYS, 'nav.vocab.books'], true)),
-    ['/admin/vocab/books', '/admin/ai'],
+    ['/admin/vocab/books', '/admin/teachers', '/admin/ai'],
   )
 })
 
@@ -55,12 +58,13 @@ test('教师 vocab 关时 7 项，顺序固定', () => {
   ])
 })
 
-test('教师 vocab 开时 9 项，词集/发词不受折叠影响（仍是两项一级入口）', () => {
+test('教师 vocab 开时 10 项：词集/发词是两项一级入口，学习三项折成「背单词」排在报表之后', () => {
   const teacher = paths(featuresFor(TEACHER_KEYS, true))
-  assert.equal(teacher.length, 9)
+  assert.equal(teacher.length, 10)
   assert.deepEqual(teacher, [
     '/', '/classes', '/assignments', '/papers',
     '/vocab/sets', '/vocab/assign', '/grading', '/review', '/reports',
+    '/vocab/review',
   ])
 })
 
@@ -103,14 +107,18 @@ test('首页只在自己的地址高亮（end 语义）', () => {
   assert.equal(navItemActive(home, '/classes'), false)
 })
 
-test('教师不出现学生专属的词库/词单/复习入口', () => {
-  const teacher = paths(featuresFor(TEACHER_KEYS, true))
-  for (const studentOnly of ['/vocab/library', '/vocab/lists', '/vocab/review']) {
-    assert.ok(!teacher.includes(studentOnly), `教师不应看到 ${studentOnly}`)
-  }
+test('AC-3.13：教师保留学习入口（这三项对学生是/曾是入口，对教师是同一个折叠项）', () => {
+  // 2026-10-30 用户否掉了「词库/词单/复习是学生专属」这个假设：背单词属于人人可用的功能层。
+  // 折叠后侧栏只有一项「背单词」（落点 /vocab/review），词库/词单是页内 Tab，不再是独立路径。
+  const teacher = navSpecs(featuresFor(TEACHER_KEYS, true))
+  const folded = teacher.filter((item) => item.to === '/vocab/review')
+  assert.equal(folded.length, 1, '教师侧栏应恰有一项背单词')
+  assert.equal(folded[0].key, 'nav.vocab.review')
+  assert.equal(folded[0].labelKey, 'nav.vocab')
+  assert.ok(!paths(featuresFor(TEACHER_KEYS, true)).includes('/vocab/library'))
 })
 
-test('教师与学生互不越界', () => {
+test('教师与学生互不越界（学习入口不算越界）', () => {
   const teacher = paths(featuresFor(TEACHER_KEYS, true))
   const student = paths(featuresFor(STUDENT_KEYS, true))
   assert.ok(!teacher.includes('/feedback'))
@@ -118,6 +126,10 @@ test('教师与学生互不越界', () => {
   assert.ok(!student.includes('/grading'))
   assert.ok(!student.includes('/reports'))
   assert.ok(!teacher.includes('/admin/ai'))
+  assert.ok(!teacher.includes('/admin/teachers'))
+  // 两边都有背单词：它是功能层，不是角色专属
+  assert.ok(teacher.includes('/vocab/review'))
+  assert.ok(student.includes('/vocab/review'))
 })
 
 test('features 为空或不认识 key 时侧栏为空（不放空承诺）', () => {

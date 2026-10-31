@@ -87,11 +87,13 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/healthz", "/actuator/health", "/actuator/health/**", "/api/csrf",
                         "/api/setup/**",
-                        "/api/auth/login", "/api/auth/wechat", "/api/auth/teacher-invite",
+                        "/api/auth/login", "/api/auth/wechat",
                         // 009：注册、激活（GET/POST）、重发、通道发现都必须在未登录时可用
                         "/api/auth/register", "/api/auth/activate", "/api/auth/activate/resend",
                         "/api/auth/channels", "/api/auth/login/challenge", "/api/auth/login/verify",
                         "/api/auth/password-reset/challenge", "/api/auth/password-reset/verify").permitAll()
+                // AC-3.3（2026-10-30 改写）：教师邀请码兑换只升「已登录的自己」，不再匿名受理，
+                // 因此它从上面的 permitAll 里移除；未登录请求落 401。
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 // 2026-10-27：班级只属于师生。管理员既没有班级菜单，也不该能调班级接口
                 // （此前 requireOwned 里的 ADMIN 例外允许管理员轮换任意班的邀请码）。

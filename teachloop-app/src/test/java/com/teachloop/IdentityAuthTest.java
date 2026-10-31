@@ -3,6 +3,7 @@ package com.teachloop;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.teachloop.identity.admin.AdminService;
+import com.teachloop.identity.domain.UserRole;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -72,22 +73,49 @@ class IdentityAuthTest {
         assertThat(student.statusCode()).isEqualTo(403);
         assertThat(request(base, null, "GET", "/api/papers", null).statusCode()).isEqualTo(401);
 
-        Map<String, Object> redeem = Json.parse(request(base, null, "POST", "/api/auth/teacher-invite",
-                Map.of("code", code, "email", "newteacher@teachloop.local",
-                        "password", "teach-pass-123", "displayName", "新老师")).body());
-        assertThat(redeem.get("role")).isEqualTo("TEACHER");
-        String newTeacher = cookieOf(request(base, null, "POST", "/api/auth/login",
-                Map.of("email", "newteacher@teachloop.local", "password", "teach-pass-123")));
-        assertThat(me(base, newTeacher).get("role")).isEqualTo("TEACHER");
+        // AC-3.3（2026-10-30 改写）：兑换只认会话、只升自己；匿名请求 401（不再能凭码开户）。
+        assertThat(request(base, null, "POST", "/api/auth/teacher-invite",
+                Map.of("code", code)).statusCode()).isEqualTo(401);
 
-        HttpResponse<String> reuse = request(base, null, "POST", "/api/auth/teacher-invite",
-                Map.of("code", code, "email", "other@teachloop.local", "password", "teach-pass-123"));
-        assertThat(reuse.statusCode()).isEqualTo(404);
+        String studentCookie = login(base, "student@teachloop.local", "teachloop123");
+        Map<String, Object> beforeUpgrade = Json.parse(
+                request(base, studentCookie, "GET", "/api/features", null).body());
+        assertThat(beforeUpgrade)
+                .containsEntry("nav.assignments", false)
+                .containsEntry("nav.vocab.review", true);
+
+        Map<String, Object> redeem = Json.parse(request(base, studentCookie, "POST",
+                "/api/auth/teacher-invite", Map.of("code", code)).body());
+        assertThat(redeem.get("role")).isEqualTo("TEACHER");
+
+        // AC-3.12 / AC-3.13：不重新登录，同一个 Cookie 立刻是教师；学习入口不消失。
+        assertThat(me(base, studentCookie).get("role")).isEqualTo("TEACHER");
+        Map<String, Object> afterUpgrade = Json.parse(
+                request(base, studentCookie, "GET", "/api/features", null).body());
+        assertThat(afterUpgrade)
+                .containsEntry("nav.assignments", true)
+                .containsEntry("nav.grading", true)
+                .containsEntry("nav.vocab.review", true)
+                .containsEntry("nav.vocab.lists", true)
+                .containsEntry("nav.vocab.library", true)
+                .containsEntry("nav.teachers", false)
+                .containsEntry("nav.vocab.books", false);
+
+        // 码一次性：另一个学生再用同一个码 → 404。
+        adminService.createUser("second@teachloop.local", UserRole.STUDENT, "第二个学生",
+                "second-pass-123", true);
+        String secondStudent = login(base, "second@teachloop.local", "second-pass-123");
+        assertThat(request(base, secondStudent, "POST", "/api/auth/teacher-invite",
+                Map.of("code", code)).statusCode()).isEqualTo(404);
+
+        // 非 STUDENT 再兑换 → 409（教师不会被重复升级，更不会借这条升管理员）。
+        assertThat(request(base, studentCookie, "POST", "/api/auth/teacher-invite",
+                Map.of("code", "ZZZZZZZZ")).statusCode()).isEqualTo(409);
 
         String disablePath = "/api/admin/users/" + redeem.get("id") + "/disable";
         assertThat(request(base, admin, "POST", disablePath, Map.of()).statusCode()).isEqualTo(200);
         // 停用后旧会话立即失效：未认证请求返回 401，不会拿到 200。
-        assertThat(request(base, newTeacher, "GET", "/api/auth/me", null).statusCode()).isEqualTo(401);
+        assertThat(request(base, studentCookie, "GET", "/api/auth/me", null).statusCode()).isEqualTo(401);
     }
 
     private String login(String base, String email, String password) throws Exception {

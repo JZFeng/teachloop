@@ -116,15 +116,19 @@ class RoleAccessTest {
         assertThat(adminFeatures)
                 .containsEntry("nav.classes", false)
                 .containsEntry("nav.ai", true)
+                .containsEntry("nav.teachers", true)
                 .containsEntry("nav.home", false)
-                .containsEntry("nav.reports", false);
+                .containsEntry("nav.reports", false)
+                // AC-3.14：管理员没有任何学习入口（词书维护不算学习入口）
+                .containsEntry("nav.vocab.review", false);
 
         Map<String, Object> studentFeatures = Json.parse(
                 request(base, student, "GET", "/api/features", null).body());
         assertThat(studentFeatures)
                 .doesNotContainKey("nav.feedback")
                 .containsEntry("nav.papers", false)
-                .containsEntry("nav.grading", false);
+                .containsEntry("nav.grading", false)
+                .containsEntry("nav.teachers", false);
     }
 
     @Test

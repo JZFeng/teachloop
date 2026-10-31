@@ -34,6 +34,26 @@ public class AdminEndpoint {
         return new InviteView(invite.getId().toString(), invite.getCode(), invite.getExpiresAt().toString());
     }
 
+    /**
+     * AC-3.11（2026-10-30）：邀请码列表。此前只有 POST，管理员生成后一刷新就再也看不到码，
+     * 所以管理页必须配一条读接口；状态（ACTIVE/USED/REVOKED/EXPIRED）由服务端算。
+     */
+    @GetMapping("/teacher-invites")
+    @Transactional(readOnly = true)
+    public List<AdminService.TeacherInviteView> teacherInvites(@RequestAttribute("currentUser") CurrentUser me) {
+        requireAdmin(me);
+        return admin.listTeacherInvites();
+    }
+
+    /** AC-3.2：撤销未兑换的码。已兑换的返回 409（撤账号走停用）。 */
+    @PostMapping("/teacher-invites/{code}/revoke")
+    @Transactional
+    public InviteView revokeInvite(@PathVariable String code, @RequestAttribute("currentUser") CurrentUser me) {
+        requireAdmin(me);
+        TeacherInvite invite = admin.revokeTeacherInvite(code);
+        return new InviteView(invite.getId().toString(), invite.getCode(), invite.getExpiresAt().toString());
+    }
+
     @GetMapping("/users")
     public List<UserView> users(@RequestAttribute("currentUser") CurrentUser me) {
         requireAdmin(me);

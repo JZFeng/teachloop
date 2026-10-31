@@ -15,6 +15,8 @@ import com.teachloop.identity.domain.UserRole;
 import com.teachloop.identity.domain.UserStatus;
 import com.teachloop.identity.profile.ProfileCompletion;
 import com.teachloop.identity.security.SessionAuthFilter;
+import com.teachloop.shared.audit.AuditEvent;
+import com.teachloop.shared.audit.AuditPort;
 import com.teachloop.shared.error.ApiException;
 import com.teachloop.shared.error.ErrorCode;
 import com.teachloop.shared.error.TooManyRequestsException;
@@ -50,12 +52,14 @@ public class AuthEndpoint {
     private final CodeService codes;
     private final ChannelRegistry channels;
     private final OutboundMessageQueue outbound;
+    private final AuditPort audit;
     private final Clock clock;
     private final SecureRandom random = new SecureRandom();
 
     public AuthEndpoint(UserRepository users, TeacherInviteRepository invites, PasswordEncoder passwordEncoder,
                         PasswordAuthProvider passwordProvider, WeChatAuthProvider weChatProvider,
-                        CodeService codes, ChannelRegistry channels, OutboundMessageQueue outbound, Clock clock) {
+                        CodeService codes, ChannelRegistry channels, OutboundMessageQueue outbound,
+                        AuditPort audit, Clock clock) {
         this.users = users;
         this.invites = invites;
         this.passwordEncoder = passwordEncoder;
@@ -64,6 +68,7 @@ public class AuthEndpoint {
         this.codes = codes;
         this.channels = channels;
         this.outbound = outbound;
+        this.audit = audit;
         this.clock = clock;
     }
 
@@ -73,8 +78,8 @@ public class AuthEndpoint {
     public record WeChatLoginRequest(@NotBlank String code) {
     }
 
-    public record TeacherInviteRequest(@NotBlank String code, @NotBlank String email,
-                                       @NotBlank String password, String displayName) {
+    /** AC-3.3（2026-10-30）：只认会话，请求体只剩码；邮箱/密码不再需要。 */
+    public record TeacherInviteRedeemRequest(@NotBlank String code) {
     }
 
     public record CodeRequest(@NotBlank String channel, @NotBlank @Email String email) {
@@ -143,24 +148,40 @@ public class AuthEndpoint {
         return signIn(weChatProvider.loginOrCreate(body.code()), request);
     }
 
-    /** T036：教师邀请码兑换；码一次性、3 天过期；成功后角色升级为 TEACHER。 */
+    /**
+     * AC-3.3（2026-10-30 改写）：教师邀请码只用于把「**已登录的自己**」升为教师。
+     *
+     * <p>旧实现是「码 + 邮箱 + 密码 → 新建一个 TEACHER 账号」，两个问题：
+     * 一是它在公开端开出一条「未登录也能造教师」的路；二是老师升级时拿不到自己的旧记录
+     * （新 user 行 = 空复习队列）。现在只认会话、忽略请求体里的邮箱，
+     * 升级就是翻 {@code users.role} 一列，主键不变，学生期的复习状态、词单、偏好全部照旧。
+     *
+     * <p>约束：非 STUDENT 返回 409；码一次性、3 天过期；成功后立即作废并写审计。
+     */
     @PostMapping("/teacher-invite")
     @Transactional
-    public AuthDtos.MeView redeemTeacherInvite(@RequestBody @Valid TeacherInviteRequest body,
-                                               HttpServletRequest request) {
-        TeacherInvite invite = invites.findByCode(body.code().trim().toUpperCase())
-                .filter(i -> i.usable(Instant.now(clock)))
-                .orElseThrow(() -> ApiException.notFound("邀请码无效或已过期"));
-        String email = normalize(body.email());
-        if (users.findByEmail(email).isPresent()) {
-            throw ApiException.conflict("该邮箱已注册");
+    public AuthDtos.MeView redeemTeacherInvite(@RequestBody @Valid TeacherInviteRedeemRequest body,
+                                               @RequestAttribute("currentUser") CurrentUser current) {
+        User me = users.findById(current.id())
+                .orElseThrow(() -> ApiException.unauthorized("未登录"));
+        if (me.getRole() != UserRole.STUDENT) {
+            throw ApiException.conflict("error.teacherInvite.notStudent");
         }
-        User user = new User(UUID.randomUUID(), UserRole.TEACHER, email,
-                passwordEncoder.encode(body.password()), displayName(body, email), Instant.now(clock));
-        users.save(user);
-        invite.consume(user.getId(), Instant.now(clock));
+        Instant now = Instant.now(clock);
+        TeacherInvite invite = invites.findByCode(body.code().trim().toUpperCase())
+                .filter(i -> i.usable(now))
+                .orElseThrow(() -> ApiException.notFound("error.teacherInvite.notFound"));
+        me.setRole(UserRole.TEACHER);
+        users.save(me);
+        invite.consume(me.getId(), now);
         invites.save(invite);
-        return signIn(user, request);
+        // 宪法第二条：审计必须在业务事务内写。
+        audit.record(new AuditEvent(me.getId(), "TEACHER_INVITE_REDEEMED", "teacher_invite",
+                invite.getId().toString(),
+                Map.of("code", invite.getCode(), "from", UserRole.STUDENT.name(),
+                        "to", UserRole.TEACHER.name())));
+        // 不重建会话：SessionAuthFilter 每个请求都从库里取当前用户，角色即刻生效（AC-3.12）。
+        return me(me);
     }
 
     @PostMapping("/logout")
@@ -235,12 +256,6 @@ public class AuthEndpoint {
         // 2026-10-27：记录会话建立时间，供「改密码踢会话」比较。
         session.setAttribute(SessionAuthFilter.SESSION_LOGIN_AT, Instant.now(clock));
         return me(user);
-    }
-
-    private static String displayName(TeacherInviteRequest body, String email) {
-        return body.displayName() == null || body.displayName().isBlank()
-                ? email.substring(0, email.indexOf('@'))
-                : body.displayName().trim();
     }
 
     private static String normalize(String email) {

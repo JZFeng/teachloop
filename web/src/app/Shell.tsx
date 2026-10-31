@@ -24,6 +24,7 @@ import {
   RobotOutlined,
   SendOutlined,
   SettingOutlined,
+  SolutionOutlined,
   SyncOutlined,
   TeamOutlined,
   ThemeToggle,
@@ -52,6 +53,7 @@ const NAV_ICONS: Record<NavIcon, ReactNode> = {
   vocabReview: <SyncOutlined />,
   sets: <AppstoreOutlined />,
   assign: <SendOutlined />,
+  teachers: <SolutionOutlined />,
 }
 
 export function Shell({ children }: { children: ReactNode }) {

@@ -101,6 +101,49 @@ public class AdminService {
         return users.findById(userId).orElseThrow(() -> ApiException.notFound("用户不存在"));
     }
 
+    /** AC-3.11：管理端列表视图。状态由服务端算一次，前端不再重复推导。 */
+    public record TeacherInviteView(String code, Instant expiresAt, Instant createdAt,
+                                    String status, String usedByEmail) {
+    }
+
+    /** AC-3.11：时间倒序（新生成的码在前），含状态与兑换人邮箱。 */
+    @Transactional(readOnly = true)
+    public java.util.List<TeacherInviteView> listTeacherInvites() {
+        Instant now = Instant.now(clock);
+        return invites.findAllByOrderByCreatedAtDesc().stream()
+                .map(inv -> new TeacherInviteView(
+                        inv.getCode(),
+                        inv.getExpiresAt(),
+                        inv.getCreatedAt(),
+                        inviteStatus(inv, now),
+                        inv.getUsedBy() == null
+                                ? null
+                                : users.findById(inv.getUsedBy()).map(User::getEmail).orElse(null)))
+                .toList();
+    }
+
+    /** AC-3.2：未兑换的码可撤销；已兑换的不撤账号（撤账号走停用，AC-3.6）。 */
+    @Transactional
+    public TeacherInvite revokeTeacherInvite(String code) {
+        TeacherInvite invite = invites.findByCode(code == null ? "" : code.trim().toUpperCase())
+                .orElseThrow(() -> ApiException.notFound("error.teacherInvite.revokeNotFound"));
+        if (invite.getUsedAt() != null) {
+            throw ApiException.conflict("error.teacherInvite.used");
+        }
+        invite.disable();
+        return invites.save(invite);
+    }
+
+    private static String inviteStatus(TeacherInvite inv, Instant now) {
+        if (inv.getUsedAt() != null) {
+            return "USED";
+        }
+        if (inv.isDisabled()) {
+            return "REVOKED";
+        }
+        return inv.getExpiresAt().isAfter(now) ? "ACTIVE" : "EXPIRED";
+    }
+
     private String newCode() {
         StringBuilder sb = new StringBuilder(8);
         for (int i = 0; i < 8; i++) {
